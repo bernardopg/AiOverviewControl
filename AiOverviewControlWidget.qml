@@ -308,6 +308,25 @@ PluginComponent {
         return provider.error.message || provider.error.kind || "Provider returned an error.";
     }
 
+    function providerAccount(provider) {
+        const usage = provider && provider.usage ? provider.usage : null;
+        if (!usage) return "—";
+        if (usage.identity && usage.identity.accountEmail) return usage.identity.accountEmail;
+        return usage.accountEmail || "—";
+    }
+
+    function providerLogin(provider) {
+        const usage = provider && provider.usage ? provider.usage : null;
+        if (!usage) return "—";
+        if (usage.identity && usage.identity.loginMethod) return usage.identity.loginMethod;
+        return usage.loginMethod || "—";
+    }
+
+    function providerCredits(provider) {
+        if (!provider || !provider.credits) return "—";
+        return String(provider.credits.remaining ?? "—");
+    }
+
     function iconForProvider(providerId) {
         if (providerId === "codex") return "data_object";
         if (providerId === "claude") return "psychology";
@@ -618,8 +637,8 @@ PluginComponent {
 
         signal triggered
 
-        implicitWidth: compact ? 92 : 180
-        implicitHeight: compact ? 42 : (description.length > 0 ? 58 : 48)
+        implicitWidth: compact ? 118 : 190
+        implicitHeight: compact ? 46 : (description.length > 0 ? 62 : 52)
         radius: Theme.cornerRadius
         color: {
             if (!actionEnabled) {
@@ -672,15 +691,15 @@ PluginComponent {
 
             Rectangle {
                 Layout.alignment: Qt.AlignVCenter
-                width: compact ? 24 : 28
-                height: compact ? 24 : 28
+                width: compact ? 28 : 32
+                height: compact ? 28 : 32
                 radius: width / 2
                 color: buttonRoot.prominent ? Theme.withAlpha(Theme.primary, 0.18) : Theme.withAlpha(Theme.surfaceText, 0.08)
 
                 DankIcon {
                     anchors.centerIn: parent
                     name: buttonRoot.iconName
-                    size: compact ? 14 : 16
+                    size: compact ? 16 : 18
                     color: buttonRoot.prominent ? Theme.primary : Theme.surfaceText
                 }
             }
@@ -694,7 +713,7 @@ PluginComponent {
                     width: parent.width
                     text: buttonRoot.label
                     color: buttonRoot.prominent ? Theme.primary : Theme.surfaceText
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: compact ? Theme.fontSizeSmall : Theme.fontSizeMedium
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -796,7 +815,7 @@ PluginComponent {
         required property string value
         property color accentColor: Theme.primary
 
-        implicitHeight: tileCol.implicitHeight + Theme.spacingM * 2
+        implicitHeight: 78
         radius: Theme.cornerRadius
         color: Theme.withAlpha(accentColor, 0.08)
         border.width: 1
@@ -806,13 +825,14 @@ PluginComponent {
             id: tileCol
             anchors.fill: parent
             anchors.margins: Theme.spacingM
-            spacing: 3
+            spacing: 6
 
             StyledText {
                 width: parent.width
                 text: tile.label
                 color: Theme.surfaceVariantText
-                font.pixelSize: Theme.fontSizeSmall - 1
+                font.pixelSize: Theme.fontSizeSmall
+                font.weight: Font.Medium
                 elide: Text.ElideRight
             }
 
@@ -820,8 +840,8 @@ PluginComponent {
                 width: parent.width
                 text: tile.value.length > 0 ? tile.value : "—"
                 color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeSmall
-                font.weight: Font.DemiBold
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.Bold
                 elide: Text.ElideRight
             }
         }
@@ -896,7 +916,7 @@ PluginComponent {
         property color accentColor: root.getUsageColor(percent)
 
         width: parent ? parent.width : implicitWidth
-        spacing: 6
+        spacing: 8
 
         Row {
             width: parent.width
@@ -906,7 +926,7 @@ PluginComponent {
                 width: parent.width - valueText.implicitWidth - Theme.spacingS
                 text: usageBar.label
                 color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.fontSizeMedium
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -915,15 +935,15 @@ PluginComponent {
                 id: valueText
                 text: usageBar.aside.length > 0 ? usageBar.aside : `${Math.round(usageBar.percent)}%`
                 color: usageBar.accentColor
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.fontSizeMedium
                 font.weight: Font.DemiBold
             }
         }
 
         Rectangle {
             width: parent.width
-            height: 7
-            radius: 4
+            height: 10
+            radius: 5
             color: Theme.surfaceContainerHighest
 
             Rectangle {
@@ -933,7 +953,7 @@ PluginComponent {
                 color: usageBar.accentColor
 
                 Behavior on width {
-                    NumberAnimation { duration: 260; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
                 }
             }
         }
@@ -942,7 +962,7 @@ PluginComponent {
     component ClaudeDailyBars: Row {
         id: dailyBars
         width: parent ? parent.width : implicitWidth
-        spacing: Theme.spacingXS
+        spacing: Theme.spacingS
 
         property real maxDaily: Math.max.apply(null, root.claudeDailyTokens) || 1
 
@@ -950,12 +970,12 @@ PluginComponent {
             model: 7
 
             Column {
-                width: (dailyBars.width - Theme.spacingXS * 6) / 7
-                spacing: 5
+                width: (dailyBars.width - Theme.spacingS * 6) / 7
+                spacing: 7
 
                 Rectangle {
                     width: parent.width
-                    height: 46
+                    height: 66
                     radius: Theme.cornerRadius - 2
                     color: Theme.surfaceContainer
                     clip: true
@@ -973,7 +993,7 @@ PluginComponent {
                     text: root.dayLabels[index]
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.surfaceVariantText
-                    font.pixelSize: Theme.fontSizeSmall - 2
+                    font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.DemiBold
                 }
             }
@@ -983,17 +1003,17 @@ PluginComponent {
     component ProviderDashboardCard: StyledRect {
         id: card
         required property var provider
-        property bool expanded: provider && provider.provider === root.focusedProviderId
-        property bool hasUsage: provider && provider.usage && !provider.error
+        property bool expanded: !!provider && provider.provider === root.focusedProviderId
+        property bool hasUsage: !!provider && !!provider.usage && !provider.error
         property color accentColor: provider && provider.error ? Theme.error : root.providerAccent(provider ? provider.provider : "")
         property var windows: root.windowsForProvider(provider)
 
         width: parent ? parent.width : implicitWidth
-        radius: Theme.cornerRadius + 4
+        radius: Theme.cornerRadius + 6
         color: expanded ? Theme.surfaceContainerHigh : Theme.surfaceContainer
         border.width: 1
         border.color: Theme.withAlpha(accentColor, expanded ? 0.48 : 0.28)
-        implicitHeight: cardColumn.implicitHeight + Theme.spacingM * 2
+        implicitHeight: cardColumn.implicitHeight + Theme.spacingL * 2
         clip: true
 
         Behavior on color { ColorAnimation { duration: 160 } }
@@ -1002,18 +1022,18 @@ PluginComponent {
         Column {
             id: cardColumn
             anchors.fill: parent
-            anchors.margins: Theme.spacingM
-            spacing: expanded ? Theme.spacingM : Theme.spacingS
+            anchors.margins: Theme.spacingL
+            spacing: expanded ? Theme.spacingL : Theme.spacingM
 
             RowLayout {
                 width: parent.width
-                spacing: Theme.spacingM
+                spacing: Theme.spacingL
 
                 Rectangle {
                     Layout.alignment: Qt.AlignTop
-                    width: 36
-                    height: 36
-                    radius: 18
+                    width: 48
+                    height: 48
+                    radius: 24
                     color: Theme.withAlpha(card.accentColor, 0.14)
                     border.width: 1
                     border.color: Theme.withAlpha(card.accentColor, 0.34)
@@ -1021,7 +1041,7 @@ PluginComponent {
                     DankIcon {
                         anchors.centerIn: parent
                         name: root.iconForProvider(card.provider.provider)
-                        size: 18
+                        size: 24
                         color: card.accentColor
                     }
                 }
@@ -1029,13 +1049,13 @@ PluginComponent {
                 Column {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 3
+                    spacing: 6
 
                     StyledText {
                         width: parent.width
                         text: root.providerName(card.provider.provider)
                         color: Theme.surfaceText
-                        font.pixelSize: Theme.fontSizeMedium
+                        font.pixelSize: Theme.fontSizeLarge
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
@@ -1044,7 +1064,7 @@ PluginComponent {
                         width: parent.width
                         text: card.provider.error ? root.providerErrorText(card.provider) : `${card.provider.source || root.sourceMode} · reset ${root.providerReset(card.provider)}`
                         color: card.provider.error ? Theme.error : Theme.surfaceVariantText
-                        font.pixelSize: Theme.fontSizeSmall
+                        font.pixelSize: Theme.fontSizeMedium
                         maximumLineCount: expanded ? 2 : 1
                         wrapMode: Text.WordWrap
                         elide: Text.ElideRight
@@ -1055,22 +1075,31 @@ PluginComponent {
                     Layout.alignment: Qt.AlignVCenter
                     text: card.provider.error ? "Error" : `${Math.round(root.providerPercent(card.provider))}%`
                     color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
-                    font.pixelSize: Theme.fontSizeMedium
+                    font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Bold
                 }
 
                 DankIcon {
                     Layout.alignment: Qt.AlignVCenter
                     name: card.expanded ? "keyboard_arrow_up" : "keyboard_arrow_down"
-                    size: 22
+                    size: 28
                     color: Theme.surfaceVariantText
                 }
+            }
+
+            UsageBar {
+                visible: card.hasUsage && !card.expanded
+                width: parent.width
+                label: card.windows.length > 0 ? card.windows[0].label : "Usage"
+                percent: root.providerPercent(card.provider)
+                aside: card.windows.length > 0 ? root.formatUsageLine(card.windows[0].data) : `${Math.round(root.providerPercent(card.provider))}%`
+                accentColor: root.getUsageColor(root.providerPercent(card.provider))
             }
 
             Column {
                 visible: card.expanded
                 width: parent.width
-                spacing: Theme.spacingM
+                spacing: Theme.spacingL
 
                 Repeater {
                     model: card.windows
@@ -1089,27 +1118,27 @@ PluginComponent {
                     visible: card.hasUsage
                     width: parent.width
                     columns: 3
-                    columnSpacing: Theme.spacingS
-                    rowSpacing: Theme.spacingS
+                    columnSpacing: Theme.spacingM
+                    rowSpacing: Theme.spacingM
 
                     MetricTile {
                         Layout.fillWidth: true
                         label: "Account"
-                        value: card.provider.usage.identity && card.provider.usage.identity.accountEmail ? card.provider.usage.identity.accountEmail : (card.provider.usage.accountEmail || "—")
+                        value: root.providerAccount(card.provider)
                         accentColor: card.accentColor
                     }
 
                     MetricTile {
                         Layout.fillWidth: true
                         label: "Login"
-                        value: card.provider.usage.identity && card.provider.usage.identity.loginMethod ? card.provider.usage.identity.loginMethod : (card.provider.usage.loginMethod || "—")
+                        value: root.providerLogin(card.provider)
                         accentColor: card.accentColor
                     }
 
                     MetricTile {
                         Layout.fillWidth: true
                         label: "Credits"
-                        value: card.provider.credits ? String(card.provider.credits.remaining ?? "—") : "—"
+                        value: root.providerCredits(card.provider)
                         accentColor: card.accentColor
                     }
                 }
@@ -1117,17 +1146,17 @@ PluginComponent {
                 StyledRect {
                     visible: card.provider.provider === "claude"
                     width: parent.width
-                    radius: Theme.cornerRadius
+                    radius: Theme.cornerRadius + 2
                     color: Theme.withAlpha(Theme.warning, 0.08)
                     border.width: 1
                     border.color: Theme.withAlpha(Theme.warning, 0.22)
-                    implicitHeight: claudeCol.implicitHeight + Theme.spacingM * 2
+                    implicitHeight: claudeCol.implicitHeight + Theme.spacingL * 2
 
                     Column {
                         id: claudeCol
                         anchors.fill: parent
-                        anchors.margins: Theme.spacingM
-                        spacing: Theme.spacingM
+                        anchors.margins: Theme.spacingL
+                        spacing: Theme.spacingL
 
                         RowLayout {
                             width: parent.width
@@ -1137,14 +1166,14 @@ PluginComponent {
                                 Layout.fillWidth: true
                                 text: "Claude Code details"
                                 color: Theme.surfaceText
-                                font.pixelSize: Theme.fontSizeMedium
+                                font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Bold
                             }
 
                             StyledText {
                                 text: root.formatTier(root.claudeRateLimitTier)
                                 color: Theme.warning
-                                font.pixelSize: Theme.fontSizeSmall
+                                font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -1168,8 +1197,8 @@ PluginComponent {
                         GridLayout {
                             width: parent.width
                             columns: 3
-                            columnSpacing: Theme.spacingS
-                            rowSpacing: Theme.spacingS
+                            columnSpacing: Theme.spacingM
+                            rowSpacing: Theme.spacingM
 
                             MetricTile { Layout.fillWidth: true; label: "Today"; value: `${root.formatTokens(0)} · ${root.formatCost(root.claudeTodayCost)}`; accentColor: Theme.warning }
                             MetricTile { Layout.fillWidth: true; label: "Week"; value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
@@ -1188,7 +1217,7 @@ PluginComponent {
                                 width: parent.width
                                 text: "Models this week"
                                 color: Theme.surfaceText
-                                font.pixelSize: Theme.fontSizeSmall
+                                font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
                             }
 
@@ -1211,7 +1240,7 @@ PluginComponent {
                             width: parent.width
                             text: `Since ${root.claudeFirstSession || "—"} · ${root.claudeAlltimeSessions} sessions · ${root.claudeAlltimeMessages} messages`
                             color: Theme.surfaceVariantText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.fontSizeMedium
                             elide: Text.ElideRight
                         }
                     }
@@ -1223,15 +1252,15 @@ PluginComponent {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 64
+            height: 82
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.focusedProviderId = card.expanded ? "" : card.provider.provider
         }
     }
 
-    popoutWidth: 760
-    popoutHeight: 860
+    popoutWidth: 920
+    popoutHeight: 900
 
     popoutContent: Component {
         PopoutComponent {
@@ -1243,7 +1272,7 @@ PluginComponent {
 
             headerActions: Component {
                 Row {
-                    spacing: Theme.spacingXS
+                    spacing: Theme.spacingS
 
                     SurfaceButton {
                         iconName: "terminal"
@@ -1271,26 +1300,26 @@ PluginComponent {
                 Flickable {
                     id: contentFlick
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.spacingM
-                    anchors.rightMargin: Theme.spacingM
+                    anchors.leftMargin: Theme.spacingL
+                    anchors.rightMargin: Theme.spacingL
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
-                    contentWidth: width - Theme.spacingM * 2
+                    contentWidth: width - Theme.spacingL * 2
                     contentHeight: contentColumn.implicitHeight
                     ScrollBar.vertical: ScrollBar { anchors.right: parent.right; anchors.rightMargin: -Theme.spacingM }
 
                     Column {
                         id: contentColumn
                         width: contentFlick.width
-                        spacing: Theme.spacingM
+                        spacing: Theme.spacingL
 
                         StyledRect {
                             width: parent.width
-                            radius: Theme.cornerRadius + 6
+                            radius: Theme.cornerRadius + 8
                             color: Theme.surfaceContainerHigh
                             border.width: 1
                             border.color: Theme.withAlpha(root.heroAccent, 0.32)
-                            implicitHeight: overviewCol.implicitHeight + Theme.spacingL * 2
+                            implicitHeight: overviewCol.implicitHeight + Theme.spacingXL * 2
                             clip: true
 
                             Rectangle {
@@ -1305,22 +1334,22 @@ PluginComponent {
                             Column {
                                 id: overviewCol
                                 anchors.fill: parent
-                                anchors.margins: Theme.spacingL
-                                spacing: Theme.spacingM
+                                anchors.margins: Theme.spacingXL
+                                spacing: Theme.spacingL
 
                                 RowLayout {
                                     width: parent.width
-                                    spacing: Theme.spacingM
+                                    spacing: Theme.spacingL
 
                                     Column {
                                         Layout.fillWidth: true
-                                        spacing: 4
+                                        spacing: 8
 
                                         StyledText {
                                             width: parent.width
                                             text: "AI Usage Control"
                                             color: Theme.surfaceText
-                                            font.pixelSize: Theme.fontSizeLarge
+                                            font.pixelSize: Theme.fontSizeLarge + 4
                                             font.weight: Font.Bold
                                             wrapMode: Text.WordWrap
                                         }
@@ -1329,7 +1358,7 @@ PluginComponent {
                                             width: parent.width
                                             text: root.statusSubtitle
                                             color: Theme.surfaceVariantText
-                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.pixelSize: Theme.fontSizeMedium
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
@@ -1338,9 +1367,9 @@ PluginComponent {
 
                                     Rectangle {
                                         Layout.alignment: Qt.AlignVCenter
-                                        width: 78
-                                        height: 58
-                                        radius: Theme.cornerRadius
+                                        width: 104
+                                        height: 74
+                                        radius: Theme.cornerRadius + 4
                                         color: Theme.withAlpha(root.heroAccent, 0.13)
                                         border.width: 1
                                         border.color: Theme.withAlpha(root.heroAccent, 0.32)
@@ -1349,7 +1378,7 @@ PluginComponent {
                                             anchors.centerIn: parent
                                             text: root.barText
                                             color: root.heroAccent
-                                            font.pixelSize: Theme.fontSizeLarge
+                                            font.pixelSize: Theme.fontSizeLarge + 3
                                             font.weight: Font.Bold
                                         }
                                     }
@@ -1358,8 +1387,8 @@ PluginComponent {
                                 GridLayout {
                                     width: parent.width
                                     columns: 4
-                                    columnSpacing: Theme.spacingS
-                                    rowSpacing: Theme.spacingS
+                                    columnSpacing: Theme.spacingM
+                                    rowSpacing: Theme.spacingM
 
                                     MetricTile { Layout.fillWidth: true; label: "Active"; value: String(root.successfulProviders.length); accentColor: Theme.success }
                                     MetricTile { Layout.fillWidth: true; label: "Attention"; value: String(root.errorProviders.length); accentColor: root.errorProviders.length > 0 ? Theme.warning : Theme.success }
@@ -1367,6 +1396,15 @@ PluginComponent {
                                     MetricTile { Layout.fillWidth: true; label: "Binary"; value: root.resolvedBinaryPath; accentColor: Theme.primary }
                                 }
                             }
+                        }
+
+                        StyledText {
+                            visible: root.providers.length > 0
+                            width: parent.width
+                            text: "Providers"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeLarge
+                            font.weight: Font.Bold
                         }
 
                         StyledText {

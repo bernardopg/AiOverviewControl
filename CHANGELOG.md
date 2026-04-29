@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 - 2026-04-29
+
+- Increased dashboard scale from a compact utility panel to a larger floating control surface.
+- Enlarged provider cards, icons, metric tiles, progress bars, and dashboard summary typography.
+- Added collapsed-card progress previews so each provider card has useful status at rest.
+- Tightened runtime guards for providers that return errors without usage data.
+- Removed AiOverviewControl QML warnings caused by rendering account metrics for unsupported providers.
+
 ## 1.1.0 - 2026-04-29
 
 - Reworked the popout into a larger provider dashboard.
