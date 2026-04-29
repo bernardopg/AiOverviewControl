@@ -2,9 +2,9 @@
 
 ## Provider Data
 
-- Add native Copilot usage once CodexBar exposes a working Linux strategy for subscription accounts.
 - Add optional per-provider source overrides instead of one global source mode.
 - Add manual custom provider list entry in settings when DMS dropdowns support editable values.
+- Add a token-status hint for Copilot when neither `gh auth token` nor GitHub token environment variables are available.
 
 ## Dashboard
 

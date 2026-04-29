@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.3 - 2026-04-29
+
+- Fixed Copilot on Linux by bypassing the unsupported CodexBar `copilot --source cli` path.
+- Added `get-copilot-usage`, which uses the authenticated GitHub session to read real Copilot subscription quota data.
+- Mapped Copilot Premium, Chat, and Completions windows into the same provider-card data model used by the other providers.
+- Updated provider-card labels so named quota windows such as Premium and Chat are shown consistently.
+
 ## 1.1.2 - 2026-04-29
 
 - Normalized provider display logic so cards use the same current window, weekly window, account, login, credits, source, and error helpers.

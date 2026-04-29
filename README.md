@@ -1,6 +1,6 @@
 # AiOverviewControl
 
-AiOverviewControl is a Dank Material Shell widget for tracking AI assistant usage in one place. It uses the CodexBar CLI for provider quota windows and includes Claude Code usage analytics directly in the dashboard.
+AiOverviewControl is a Dank Material Shell widget for tracking AI assistant usage in one place. It uses the CodexBar CLI for provider quota windows, includes native GitHub Copilot subscription usage, and embeds Claude Code analytics directly in the dashboard.
 
 ## What It Shows
 
@@ -9,6 +9,7 @@ AiOverviewControl is a Dank Material Shell widget for tracking AI assistant usag
 - Dashboard controls for adding providers without editing JSON by hand.
 - Per-card remove controls for providers you no longer want to poll.
 - Provider windows for Codex, Claude, Copilot, and any other provider supported by your installed CodexBar build.
+- Native Copilot usage through the authenticated GitHub Copilot API when CodexBar has no Linux fetch strategy.
 - Partial-failure handling, so unsupported providers show an error card without hiding working providers.
 - Claude Code details migrated from the standalone `claudeCodeUsage` plugin:
   - 5-hour and weekly subscription utilization
@@ -22,16 +23,17 @@ AiOverviewControl is a Dank Material Shell widget for tracking AI assistant usag
 
 - Dank Material Shell on Quickshell
 - `codexbar`
-- `bash`, `node`, `jq`, and `curl`
+- `bash`, `node`, `jq`, `curl`, and `gh`
 - Optional for Claude details: `claude` CLI with `~/.claude/.credentials.json` and local Claude Code project logs
 
 ## Install
 
 ```bash
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
-cp plugin.json AiOverviewControlWidget.qml AiOverviewControlSettings.qml get-claude-usage LICENSE screenshot.png \
+cp plugin.json AiOverviewControlWidget.qml AiOverviewControlSettings.qml get-claude-usage get-copilot-usage LICENSE screenshot.png \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
 chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
 dms restart
 ```
 
@@ -44,7 +46,7 @@ Use:
 - Provider Set: `codex,claude,copilot`
 - Source Mode: `cli`
 
-CodexBar currently reports web dashboard fetching as macOS-only for some providers on Linux. `cli` works for the local Codex and Claude subscription telemetry tested here. Copilot remains visible as a provider card, but support depends on CodexBar adding a working fetch strategy for your selected source.
+CodexBar currently reports web dashboard fetching as macOS-only for some providers on Linux. `cli` works for the local Codex and Claude subscription telemetry tested here. Copilot is handled by `get-copilot-usage`, which reads the current GitHub authentication from `gh auth token` or standard GitHub token environment variables and calls the GitHub Copilot usage endpoint directly.
 
 ## Managing Providers
 
@@ -62,6 +64,7 @@ codex,claude,copilot,gemini,openrouter
 codexbar usage --format json --provider codex --source cli
 codexbar usage --format json --provider claude --source cli
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml
 ```
 

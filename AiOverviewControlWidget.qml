@@ -57,6 +57,7 @@ PluginComponent {
     property string codexbarPath: (pluginData.codexbarPath || "").trim()
     property string sourceMode: pluginData.sourceMode || "cli"
     property string claudeUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-claude-usage"
+    property string copilotUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-copilot-usage"
     readonly property var availableProviderOptions: [
         "codex",
         "claude",
@@ -444,8 +445,8 @@ PluginComponent {
         const usage = provider && provider.usage ? provider.usage : null;
         if (!usage) return [];
         const windows = [];
-        if (usage.primary) windows.push({ key: "primary", label: getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
-        if (usage.secondary) windows.push({ key: "secondary", label: getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
+        if (usage.primary) windows.push({ key: "primary", label: usage.primary.resetDescription || getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
+        if (usage.secondary) windows.push({ key: "secondary", label: usage.secondary.resetDescription || getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
         if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || "Tertiary", data: usage.tertiary });
         return windows;
     }
@@ -589,6 +590,7 @@ PluginComponent {
                 "bin=\"$1\"\n" +
                 "providers_csv=\"$2\"\n" +
                 "source_mode=\"$3\"\n" +
+                "copilot_script=\"$4\"\n" +
                 "IFS=',' read -r -a providers <<< \"$providers_csv\"\n" +
                 "first=1\n" +
                 "printf '['\n" +
@@ -596,9 +598,13 @@ PluginComponent {
                 "  provider=\"$(printf '%s' \"$provider\" | xargs)\"\n" +
                 "  [ -z \"$provider\" ] && continue\n" +
                 "  tmp_err=\"$(mktemp)\"\n" +
-                "  cmd=(\"$bin\" usage --format json --provider \"$provider\")\n" +
-                "  if [ -n \"$source_mode\" ]; then cmd+=(--source \"$source_mode\"); fi\n" +
-                "  out=\"$(\"${cmd[@]}\" 2>\"$tmp_err\")\"\n" +
+                "  if [ \"$provider\" = \"copilot\" ] && [ -x \"$copilot_script\" ]; then\n" +
+                "    out=\"$(\"$copilot_script\" 2>\"$tmp_err\")\"\n" +
+                "  else\n" +
+                "    cmd=(\"$bin\" usage --format json --provider \"$provider\")\n" +
+                "    if [ -n \"$source_mode\" ]; then cmd+=(--source \"$source_mode\"); fi\n" +
+                "    out=\"$(\"${cmd[@]}\" 2>\"$tmp_err\")\"\n" +
+                "  fi\n" +
                 "  status=$?\n" +
                 "  if [ $first -eq 0 ]; then printf ','; fi\n" +
                 "  first=0\n" +
@@ -613,7 +619,7 @@ PluginComponent {
                 "  rm -f \"$tmp_err\"\n" +
                 "done\n" +
                 "printf ']'\n";
-            return ["bash", "-lc", script, "bash", root.resolvedPath, root.selectedProviders.join(","), root.sourceMode];
+            return ["bash", "-lc", script, "bash", root.resolvedPath, root.selectedProviders.join(","), root.sourceMode, root.copilotUsageScript];
         }
         stdout: SplitParser {
             splitMarker: ""

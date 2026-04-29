@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+api_url="https://api.github.com/copilot_internal/user"
+
+fail_json() {
+  local code="$1"
+  local message="$2"
+  PROVIDER="copilot" CODE="$code" MESSAGE="$message" node -e '
+const code = Number(process.env.CODE) || 1;
+process.stdout.write(JSON.stringify({
+  provider: process.env.PROVIDER,
+  source: "github-copilot-api",
+  error: {
+    code,
+    kind: "runtime",
+    message: process.env.MESSAGE || "GitHub Copilot usage fetch failed"
+  }
+}));
+'
+}
+
+token=""
+if command -v gh >/dev/null 2>&1; then
+  token="$(gh auth token 2>/dev/null || true)"
+fi
+
+if [ -z "$token" ] && [ -n "${COPILOT_GITHUB_TOKEN:-}" ]; then
+  token="$COPILOT_GITHUB_TOKEN"
+fi
+
+if [ -z "$token" ] && [ -n "${GH_TOKEN:-}" ]; then
+  token="$GH_TOKEN"
+fi
+
+if [ -z "$token" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
+  token="$GITHUB_TOKEN"
+fi
+
+if [ -z "$token" ]; then
+  fail_json 2 "GitHub token not found. Run gh auth login or copilot login, then refresh AiOverviewControl."
+  exit 0
+fi
+
+tmp_body="$(mktemp)"
+trap 'rm -f "$tmp_body"' EXIT
+
+status="$(
+  curl -sS -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: token $token" \
+    -H "Accept: application/json" \
+    -H "Editor-Version: vscode/1.96.2" \
+    -H "User-Agent: GitHubCopilotChat/0.26.7" \
+    -H "X-Github-Api-Version: 2025-04-01" \
+    "$api_url" 2>/dev/null || true
+)"
+
+if [ "$status" != "200" ]; then
+  message="$(jq -r '.message // empty' "$tmp_body" 2>/dev/null || true)"
+  [ -z "$message" ] && message="GitHub Copilot API returned HTTP $status"
+  fail_json "${status:-1}" "$message"
+  exit 0
+fi
+
+jq -c '
+def clamp:
+  if . == null then 0
+  elif . < 0 then 0
+  elif . > 100 then 100
+  else .
+  end;
+
+def used_from_remaining($snapshot):
+  (100 - (($snapshot.percent_remaining // 0) | tonumber)) | clamp;
+
+def nonzero_or_null:
+  if . == null or . == 0 or . == "0" then null else . end;
+
+def remaining_value($snapshot):
+  (($snapshot.quota_remaining // $snapshot.remaining // null) | if . == null then null elif . < 0 then 0 else . end);
+
+def window($label; $minutes; $snapshot; $reset):
+  if $snapshot == null then null else {
+    usedPercent: used_from_remaining($snapshot),
+    windowMinutes: $minutes,
+    resetsAt: (($snapshot.quota_reset_at | nonzero_or_null) // $reset // null),
+    resetDescription: $label,
+    remaining: remaining_value($snapshot),
+    unlimited: ($snapshot.unlimited // false),
+    hasQuota: ($snapshot.has_quota // null)
+  } end;
+
+. as $data
+| ($data.quota_snapshots // {}) as $snapshots
+| ($data.quota_reset_date_utc // $data.quota_reset_date // null) as $reset
+| {
+    provider: "copilot",
+    source: "github-copilot-api",
+    usage: {
+      identity: {
+        providerID: "copilot",
+        accountEmail: ($data.login // "GitHub"),
+        loginMethod: (($data.copilot_plan // "subscription") | tostring)
+      },
+      primary: window("Premium"; 43200; $snapshots.premium_interactions; $reset),
+      secondary: window("Chat"; 43200; $snapshots.chat; $reset),
+      tertiary: window("Completions"; 43200; $snapshots.completions; $reset),
+      accountEmail: ($data.login // "GitHub"),
+      loginMethod: (($data.copilot_plan // "subscription") | tostring),
+      updatedAt: (now | todateiso8601)
+    },
+    credits: {
+      remaining: (
+        if ($snapshots.premium_interactions.unlimited // false) then "unlimited"
+        else ((remaining_value($snapshots.premium_interactions) // "—") | tostring)
+        end
+      )
+    }
+  }
+' "$tmp_body"
