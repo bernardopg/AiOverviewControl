@@ -2,7 +2,7 @@
   "id": "aiOverviewControl",
   "name": "AiOverviewControl",
   "description": "Monitor AI assistant subscription and API usage across Codex, Claude, Copilot, and other CodexBar providers",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "author": "Bernardo Gomes",
   "icon": "monitoring",
   "type": "widget",

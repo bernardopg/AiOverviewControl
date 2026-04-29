@@ -152,6 +152,38 @@ PluginSettings {
         }
     }
 
+    Column {
+        width: parent.width
+        spacing: Theme.spacingXS
+
+        StyledText {
+            width: parent.width
+            text: "Custom provider list"
+            font.pixelSize: Theme.fontSizeSmall
+            color: Theme.surfaceVariantText
+            wrapMode: Text.WordWrap
+        }
+
+        DankTextField {
+            width: parent.width
+            text: root.loadValue("providerSelection", "codex,claude,copilot")
+            placeholderText: "codex,claude,copilot,gemini"
+            onEditingFinished: {
+                const parts = text.split(",");
+                const result = [];
+                for (let i = 0; i < parts.length; i++) {
+                    const provider = parts[i].trim().toLowerCase();
+                    if (provider.length > 0 && result.indexOf(provider) < 0) {
+                        result.push(provider);
+                    }
+                }
+                if (result.length > 0) {
+                    root.saveValue("providerSelection", result.join(","));
+                }
+            }
+        }
+    }
+
     StyledText {
         width: parent.width
         leftPadding: Theme.spacingM

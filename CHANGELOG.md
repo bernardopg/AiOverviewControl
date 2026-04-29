@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2 - 2026-04-29
+
+- Normalized provider display logic so cards use the same current window, weekly window, account, login, credits, source, and error helpers.
+- Fixed inconsistent current-vs-weekly percentage rendering in collapsed provider cards.
+- Simplified CodexBar error output so unsupported providers show the real provider error instead of raw JSON.
+- Added a dashboard provider manager with an **Add provider** button.
+- Added per-card remove controls and a custom provider list field in settings.
+
 ## 1.1.1 - 2026-04-29
 
 - Increased dashboard scale from a compact utility panel to a larger floating control surface.

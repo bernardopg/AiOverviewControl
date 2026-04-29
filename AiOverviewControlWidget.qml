@@ -27,6 +27,7 @@ PluginComponent {
     property string providerSelection: (pluginData.providerSelection || "codex,claude,copilot").trim()
     property bool showErrorProviders: String(pluginData.showErrorProviders || "true") === "true"
     property string focusedProviderId: ""
+    property string pendingProviderId: "gemini"
     property string claudeRawBuffer: ""
     property string claudeSubscriptionType: ""
     property string claudeRateLimitTier: ""
@@ -56,6 +57,20 @@ PluginComponent {
     property string codexbarPath: (pluginData.codexbarPath || "").trim()
     property string sourceMode: pluginData.sourceMode || "cli"
     property string claudeUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-claude-usage"
+    readonly property var availableProviderOptions: [
+        "codex",
+        "claude",
+        "copilot",
+        "gemini",
+        "openrouter",
+        "perplexity",
+        "cursor",
+        "kilo",
+        "kiro",
+        "ollama",
+        "warp",
+        "amp"
+    ]
 
     ListModel {
         id: claudeModelList
@@ -285,6 +300,7 @@ PluginComponent {
             gemini: "Gemini",
             openrouter: "OpenRouter",
             perplexity: "Perplexity",
+            cursor: "Cursor",
             ollama: "Ollama",
             kilo: "Kilo",
             kiro: "Kiro",
@@ -294,18 +310,95 @@ PluginComponent {
         return names[providerId] || capitalizeFirst(providerId || "provider");
     }
 
+    function normalizeProviderId(providerId) {
+        return String(providerId || "").trim().toLowerCase();
+    }
+
+    function providersCsv(list) {
+        const result = [];
+        for (let i = 0; i < list.length; i++) {
+            const provider = normalizeProviderId(list[i]);
+            if (provider.length > 0 && result.indexOf(provider) < 0) {
+                result.push(provider);
+            }
+        }
+        return result.join(",");
+    }
+
+    function saveProviderSelection(csv) {
+        const normalized = providersCsv(csv.split(","));
+        if (normalized.length === 0) return;
+        providerSelection = normalized;
+        PluginService.savePluginData("aiOverviewControl", "providerSelection", normalized);
+        refresh();
+    }
+
+    function addProvider(providerId) {
+        const provider = normalizeProviderId(providerId);
+        if (provider.length === 0) return;
+        const next = selectedProviders.slice();
+        if (next.indexOf(provider) < 0) {
+            next.push(provider);
+            saveProviderSelection(next.join(","));
+            focusedProviderId = provider;
+        }
+    }
+
+    function removeProvider(providerId) {
+        const provider = normalizeProviderId(providerId);
+        const next = [];
+        for (let i = 0; i < selectedProviders.length; i++) {
+            if (selectedProviders[i] !== provider) {
+                next.push(selectedProviders[i]);
+            }
+        }
+        if (next.length === 0) {
+            next.push("codex");
+        }
+        if (focusedProviderId === provider) {
+            focusedProviderId = "";
+        }
+        saveProviderSelection(next.join(","));
+    }
+
     function providerPercent(provider) {
-        if (!provider || !provider.usage || !provider.usage.primary) {
+        const windowData = primaryUsageWindow(provider);
+        if (!windowData) {
             return 0;
         }
-        return Number(provider.usage.primary.usedPercent || 0);
+        return Number(windowData.usedPercent || 0);
+    }
+
+    function providerStatus(provider) {
+        if (!provider) return "missing";
+        if (provider.error) return "error";
+        if (provider.usage) return "active";
+        return "empty";
     }
 
     function providerErrorText(provider) {
         if (!provider || !provider.error) {
             return "";
         }
-        return provider.error.message || provider.error.kind || "Provider returned an error.";
+        const rawMessage = provider.error.message || provider.error.kind || "Provider returned an error.";
+        if (String(rawMessage).charAt(0) === "[") {
+            try {
+                const firstLine = String(rawMessage).split("\n")[0];
+                const parsed = JSON.parse(firstLine);
+                const list = Array.isArray(parsed) ? parsed : [parsed];
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i] && list[i].provider === provider.provider && list[i].error) {
+                        return list[i].error.message || list[i].error.kind || rawMessage;
+                    }
+                }
+                if (list[0] && list[0].error) {
+                    return list[0].error.message || list[0].error.kind || rawMessage;
+                }
+            } catch (error) {
+                return rawMessage;
+            }
+        }
+        return rawMessage;
     }
 
     function providerAccount(provider) {
@@ -334,6 +427,8 @@ PluginComponent {
         if (providerId === "gemini") return "auto_awesome";
         if (providerId === "openrouter") return "route";
         if (providerId === "perplexity") return "travel_explore";
+        if (providerId === "cursor") return "ads_click";
+        if (providerId === "ollama") return "dns";
         return "monitoring";
     }
 
@@ -349,16 +444,36 @@ PluginComponent {
         const usage = provider && provider.usage ? provider.usage : null;
         if (!usage) return [];
         const windows = [];
-        if (usage.secondary) windows.push({ key: "secondary", label: getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
         if (usage.primary) windows.push({ key: "primary", label: getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
+        if (usage.secondary) windows.push({ key: "secondary", label: getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
         if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || "Tertiary", data: usage.tertiary });
         return windows;
     }
 
-    function providerReset(provider) {
+    function primaryUsageWindow(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage || !usage.primary) return "—";
-        return formatTimeUntil(usage.primary.resetsAt);
+        if (!usage) return null;
+        return usage.primary || usage.secondary || usage.tertiary || null;
+    }
+
+    function weeklyUsageWindow(provider) {
+        const usage = provider && provider.usage ? provider.usage : null;
+        if (!usage) return null;
+        return usage.secondary || null;
+    }
+
+    function providerReset(provider) {
+        const windowData = primaryUsageWindow(provider);
+        if (!windowData) return "—";
+        return formatTimeUntil(windowData.resetsAt);
+    }
+
+    function providerSubtitle(provider) {
+        if (!provider) return "No provider data";
+        if (provider.error) return root.providerErrorText(provider);
+        const source = provider.source || root.sourceMode;
+        const reset = providerReset(provider);
+        return reset !== "—" ? `${source} · reset ${reset}` : `${source} · no reset window`;
     }
 
     function formatTokens(n) {
@@ -487,8 +602,8 @@ PluginComponent {
                 "  status=$?\n" +
                 "  if [ $first -eq 0 ]; then printf ','; fi\n" +
                 "  first=0\n" +
-                "  if [ $status -eq 0 ] && printf '%s' \"$out\" | node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d);process.stdin.on(\"end\",()=>{JSON.parse(s);})' 2>/dev/null; then\n" +
-                "    printf '%s' \"$out\" | node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d);process.stdin.on(\"end\",()=>{const v=JSON.parse(s); const a=Array.isArray(v)?v:[v]; process.stdout.write(JSON.stringify(a.length===1?a[0]:a));})'\n" +
+                "  if printf '%s' \"$out\" | node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d);process.stdin.on(\"end\",()=>{JSON.parse(s);})' 2>/dev/null; then\n" +
+                "    printf '%s' \"$out\" | PROVIDER=\"$provider\" node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d);process.stdin.on(\"end\",()=>{const v=JSON.parse(s); const a=Array.isArray(v)?v:[v]; const wanted=process.env.PROVIDER; const picked=a.find(x=>x&&x.provider===wanted)||a[0]||{provider:wanted}; if(!picked.provider) picked.provider=wanted; process.stdout.write(JSON.stringify(picked));})'\n" +
                 "  else\n" +
                 "    message=\"$(cat \"$tmp_err\")\"\n" +
                 "    [ -z \"$message\" ] && message=\"$out\"\n" +
@@ -1062,7 +1177,7 @@ PluginComponent {
 
                     StyledText {
                         width: parent.width
-                        text: card.provider.error ? root.providerErrorText(card.provider) : `${card.provider.source || root.sourceMode} · reset ${root.providerReset(card.provider)}`
+                        text: root.providerSubtitle(card.provider)
                         color: card.provider.error ? Theme.error : Theme.surfaceVariantText
                         font.pixelSize: Theme.fontSizeMedium
                         maximumLineCount: expanded ? 2 : 1
@@ -1077,6 +1192,36 @@ PluginComponent {
                     color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
                     font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Bold
+                }
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    visible: root.selectedProviders.length > 1
+                    z: 2
+                    width: 36
+                    height: 36
+                    radius: 18
+                    color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.14) : Theme.withAlpha(Theme.surfaceText, 0.06)
+                    border.width: 1
+                    border.color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.32) : Theme.withAlpha(Theme.surfaceText, 0.1)
+
+                    DankIcon {
+                        anchors.centerIn: parent
+                        name: "close"
+                        size: 18
+                        color: removeArea.containsMouse ? Theme.error : Theme.surfaceVariantText
+                    }
+
+                    MouseArea {
+                        id: removeArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: function(mouse) {
+                            mouse.accepted = true;
+                            root.removeProvider(card.provider.provider);
+                        }
+                    }
                 }
 
                 DankIcon {
@@ -1259,6 +1404,72 @@ PluginComponent {
         }
     }
 
+    component ProviderManager: StyledRect {
+        id: manager
+
+        width: parent ? parent.width : implicitWidth
+        radius: Theme.cornerRadius + 4
+        color: Theme.surfaceContainerHigh
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, 0.2)
+        implicitHeight: managerColumn.implicitHeight + Theme.spacingL * 2
+
+        Column {
+            id: managerColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingL
+            spacing: Theme.spacingM
+
+            RowLayout {
+                width: parent.width
+                spacing: Theme.spacingM
+
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    StyledText {
+                        width: parent.width
+                        text: "Provider control"
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeLarge
+                        font.weight: Font.Bold
+                    }
+
+                    StyledText {
+                        width: parent.width
+                        text: root.selectedProviders.join(", ")
+                        color: Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall
+                        elide: Text.ElideRight
+                    }
+                }
+
+                DankDropdown {
+                    id: addProviderDropdown
+                    Layout.preferredWidth: 220
+                    text: "Provider"
+                    description: "Choose a provider supported by CodexBar."
+                    currentValue: root.pendingProviderId
+                    options: root.availableProviderOptions
+                    dropdownWidth: 220
+                    onValueChanged: function(value) {
+                        root.pendingProviderId = value;
+                    }
+                }
+
+                SurfaceButton {
+                    iconName: "add"
+                    label: "Add provider"
+                    compact: true
+                    prominent: true
+                    actionEnabled: root.selectedProviders.indexOf(root.pendingProviderId) < 0
+                    onTriggered: root.addProvider(root.pendingProviderId)
+                }
+            }
+        }
+    }
+
     popoutWidth: 920
     popoutHeight: 900
 
@@ -1422,6 +1633,10 @@ PluginComponent {
                             color: Theme.surfaceVariantText
                             font.pixelSize: Theme.fontSizeSmall
                             wrapMode: Text.WordWrap
+                        }
+
+                        ProviderManager {
+                            width: parent.width
                         }
 
                         Repeater {

@@ -6,6 +6,8 @@ AiOverviewControl is a Dank Material Shell widget for tracking AI assistant usag
 
 - A compact DankBar pill for the provider closest to its limit.
 - A large floating dashboard with one foldable card per provider.
+- Dashboard controls for adding providers without editing JSON by hand.
+- Per-card remove controls for providers you no longer want to poll.
 - Provider windows for Codex, Claude, Copilot, and any other provider supported by your installed CodexBar build.
 - Partial-failure handling, so unsupported providers show an error card without hiding working providers.
 - Claude Code details migrated from the standalone `claudeCodeUsage` plugin:
@@ -43,6 +45,16 @@ Use:
 - Source Mode: `cli`
 
 CodexBar currently reports web dashboard fetching as macOS-only for some providers on Linux. `cli` works for the local Codex and Claude subscription telemetry tested here. Copilot remains visible as a provider card, but support depends on CodexBar adding a working fetch strategy for your selected source.
+
+## Managing Providers
+
+Use the dashboard **Provider control** row to add a provider from the known CodexBar provider list. The selection is saved to DMS plugin settings as a comma-separated `providerSelection` value.
+
+For providers not listed in the dashboard dropdown, use Settings > Plugins > AiOverviewControl > **Custom provider list** and enter IDs such as:
+
+```text
+codex,claude,copilot,gemini,openrouter
+```
 
 ## Local Validation Commands
 
