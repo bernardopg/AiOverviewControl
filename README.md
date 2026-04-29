@@ -1,40 +1,58 @@
 # AiOverviewControl
 
-A DMS widget for monitoring AI assistant usage through the CodexBar CLI.
+AiOverviewControl is a Dank Material Shell widget for tracking AI assistant usage in one place. It uses the CodexBar CLI for provider quota windows and includes Claude Code usage analytics directly in the dashboard.
 
-It started from the CodexBar DMS plugin, but is renamed and expanded to query multiple providers independently so one unsupported provider does not hide the usage data that works.
+## What It Shows
 
-## Features
-
-- DankBar pill showing the highest active usage percentage
-- Popout with usage windows, reset timers, identity/runtime details, and provider status
-- Provider sets for Codex, Claude, Copilot, Gemini, OpenRouter, Perplexity, and other CodexBar providers
-- Source modes exposed directly: `cli`, `auto`, `oauth`, `api`, and `web`
-- Linux-friendly default: `cli`, because CodexBar currently reports some web dashboard fetchers as macOS-only
-- Partial failure handling for providers that are not supported by the selected source
+- A compact DankBar pill for the provider closest to its limit.
+- A large floating dashboard with one foldable card per provider.
+- Provider windows for Codex, Claude, Copilot, and any other provider supported by your installed CodexBar build.
+- Partial-failure handling, so unsupported providers show an error card without hiding working providers.
+- Claude Code details migrated from the standalone `claudeCodeUsage` plugin:
+  - 5-hour and weekly subscription utilization
+  - token consumption for week and month
+  - estimated API-style cost from local Claude Code JSONL usage
+  - daily activity bars
+  - model mix for the current week
+  - all-time sessions and message count
 
 ## Requirements
 
 - Dank Material Shell on Quickshell
-- `codexbar` installed and available on `PATH`, `~/.local/bin/codexbar`, `/usr/local/bin/codexbar`, or configured in plugin settings
+- `codexbar`
+- `bash`, `node`, `jq`, and `curl`
+- Optional for Claude details: `claude` CLI with `~/.claude/.credentials.json` and local Claude Code project logs
 
 ## Install
 
 ```bash
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
-cp plugin.json AiOverviewControlWidget.qml AiOverviewControlSettings.qml LICENSE screenshot.png \
+cp plugin.json AiOverviewControlWidget.qml AiOverviewControlSettings.qml get-claude-usage LICENSE screenshot.png \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
+chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+dms restart
 ```
 
-Restart Quickshell/DMS, enable **AiOverviewControl**, then add it to a DankBar section.
+Enable **AiOverviewControl** in DMS Settings, then add it to a DankBar section.
 
-## Local validation
+## Recommended Settings On Linux
 
-On this Linux setup, these commands returned usage data:
+Use:
+
+- Provider Set: `codex,claude,copilot`
+- Source Mode: `cli`
+
+CodexBar currently reports web dashboard fetching as macOS-only for some providers on Linux. `cli` works for the local Codex and Claude subscription telemetry tested here. Copilot remains visible as a provider card, but support depends on CodexBar adding a working fetch strategy for your selected source.
+
+## Local Validation Commands
 
 ```bash
 codexbar usage --format json --provider codex --source cli
 codexbar usage --format json --provider claude --source cli
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml
 ```
 
-`--source auto` attempted web fetching and returned CodexBar's macOS-only web support error. Copilot is accepted by the plugin, but the installed CodexBar build currently reports no available Copilot fetch strategy for the tested source.
+## Design Notes
+
+The dashboard follows the existing DMS plugin language: token-driven colors, restrained cards, fast status scanning, and provider-specific accents. The top summary gives a quick operational read; detailed data stays inside foldable provider cards.

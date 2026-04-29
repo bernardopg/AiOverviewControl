@@ -26,6 +26,27 @@ PluginComponent {
     property int timedOutRequestId: -1
     property string providerSelection: (pluginData.providerSelection || "codex,claude,copilot").trim()
     property bool showErrorProviders: String(pluginData.showErrorProviders || "true") === "true"
+    property string focusedProviderId: ""
+    property string claudeRawBuffer: ""
+    property string claudeSubscriptionType: ""
+    property string claudeRateLimitTier: ""
+    property real claudeFiveHourUtil: 0
+    property string claudeFiveHourReset: ""
+    property real claudeSevenDayUtil: 0
+    property string claudeSevenDayReset: ""
+    property int claudeWeekMessages: 0
+    property int claudeWeekSessions: 0
+    property real claudeWeekTokens: 0
+    property real claudeMonthTokens: 0
+    property int claudeAlltimeSessions: 0
+    property int claudeAlltimeMessages: 0
+    property string claudeFirstSession: ""
+    property real claudeTodayCost: 0
+    property real claudeWeekCost: 0
+    property real claudeMonthCost: 0
+    property var claudeDailyTokens: [0, 0, 0, 0, 0, 0, 0]
+    property var claudeDailyCosts: [0, 0, 0, 0, 0, 0, 0]
+    property var dayLabels: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
     property int refreshIntervalMs: {
         const val = pluginData.refreshInterval;
@@ -34,6 +55,11 @@ PluginComponent {
     }
     property string codexbarPath: (pluginData.codexbarPath || "").trim()
     property string sourceMode: pluginData.sourceMode || "cli"
+    property string claudeUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-claude-usage"
+
+    ListModel {
+        id: claudeModelList
+    }
 
     readonly property var selectedProviders: {
         const parts = providerSelection.split(",");
@@ -282,6 +308,110 @@ PluginComponent {
         return provider.error.message || provider.error.kind || "Provider returned an error.";
     }
 
+    function iconForProvider(providerId) {
+        if (providerId === "codex") return "data_object";
+        if (providerId === "claude") return "psychology";
+        if (providerId === "copilot") return "hub";
+        if (providerId === "gemini") return "auto_awesome";
+        if (providerId === "openrouter") return "route";
+        if (providerId === "perplexity") return "travel_explore";
+        return "monitoring";
+    }
+
+    function providerAccent(providerId) {
+        if (providerId === "claude") return Theme.warning;
+        if (providerId === "codex") return Theme.success;
+        if (providerId === "copilot") return Theme.primary;
+        if (providerId === "gemini") return Theme.secondary;
+        return Theme.secondary;
+    }
+
+    function windowsForProvider(provider) {
+        const usage = provider && provider.usage ? provider.usage : null;
+        if (!usage) return [];
+        const windows = [];
+        if (usage.secondary) windows.push({ key: "secondary", label: getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
+        if (usage.primary) windows.push({ key: "primary", label: getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
+        if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || "Tertiary", data: usage.tertiary });
+        return windows;
+    }
+
+    function providerReset(provider) {
+        const usage = provider && provider.usage ? provider.usage : null;
+        if (!usage || !usage.primary) return "—";
+        return formatTimeUntil(usage.primary.resetsAt);
+    }
+
+    function formatTokens(n) {
+        const value = Number(n || 0);
+        if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+        return Math.round(value).toString();
+    }
+
+    function formatCost(usd) {
+        const value = Number(usd || 0);
+        if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+        if (value >= 100) return `$${Math.round(value)}`;
+        return `$${value.toFixed(2)}`;
+    }
+
+    function formatTier(tier) {
+        if (!tier) return "—";
+        if (tier.indexOf("max_20x") >= 0) return "Max 20x";
+        if (tier.indexOf("max_5x") >= 0) return "Max 5x";
+        if (tier.indexOf("pro") >= 0) return "Pro";
+        if (tier.indexOf("free") >= 0) return "Free";
+        return tier;
+    }
+
+    function parseNumberList(value) {
+        const parts = value.split(",");
+        const result = [];
+        for (let i = 0; i < 7; i++) {
+            result.push(i < parts.length ? Number(parts[i] || 0) : 0);
+        }
+        return result;
+    }
+
+    function parseClaudeLine(line) {
+        const idx = line.indexOf("=");
+        if (idx < 0) return;
+        const key = line.substring(0, idx);
+        const val = line.substring(idx + 1);
+        if (key === "SUBSCRIPTION_TYPE") claudeSubscriptionType = val;
+        else if (key === "RATE_LIMIT_TIER") claudeRateLimitTier = val;
+        else if (key === "FIVE_HOUR_UTIL") claudeFiveHourUtil = Number(val || 0);
+        else if (key === "FIVE_HOUR_RESET") claudeFiveHourReset = val;
+        else if (key === "SEVEN_DAY_UTIL") claudeSevenDayUtil = Number(val || 0);
+        else if (key === "SEVEN_DAY_RESET") claudeSevenDayReset = val;
+        else if (key === "WEEK_MESSAGES") claudeWeekMessages = parseInt(val) || 0;
+        else if (key === "WEEK_SESSIONS") claudeWeekSessions = parseInt(val) || 0;
+        else if (key === "WEEK_TOKENS") claudeWeekTokens = Number(val || 0);
+        else if (key === "MONTH_TOKENS") claudeMonthTokens = Number(val || 0);
+        else if (key === "ALLTIME_SESSIONS") claudeAlltimeSessions = parseInt(val) || 0;
+        else if (key === "ALLTIME_MESSAGES") claudeAlltimeMessages = parseInt(val) || 0;
+        else if (key === "FIRST_SESSION") claudeFirstSession = val;
+        else if (key === "TODAY_COST") claudeTodayCost = Number(val || 0);
+        else if (key === "WEEK_COST") claudeWeekCost = Number(val || 0);
+        else if (key === "MONTH_COST") claudeMonthCost = Number(val || 0);
+        else if (key === "DAILY") claudeDailyTokens = parseNumberList(val);
+        else if (key === "DAILY_COSTS") claudeDailyCosts = parseNumberList(val);
+        else if (key === "WEEK_MODELS") {
+            claudeModelList.clear();
+            if (val.length > 0) {
+                const pairs = val.split(",");
+                for (let i = 0; i < pairs.length; i++) {
+                    const kv = pairs[i].split(":");
+                    if (kv.length === 2) {
+                        claudeModelList.append({ modelName: capitalizeFirst(kv[0]), modelTokens: Number(kv[1] || 0) });
+                    }
+                }
+            }
+        }
+    }
+
     function detectBinary() {
         if (procDetect.running) {
             return;
@@ -418,6 +548,24 @@ PluginComponent {
         }
     }
 
+    Process {
+        id: claudeStatsProcess
+        command: ["bash", root.claudeUsageScript]
+        stdout: SplitParser {
+            onRead: data => {
+                const lines = data.trim().split("\n");
+                for (let i = 0; i < lines.length; i++) {
+                    root.parseClaudeLine(lines[i]);
+                }
+            }
+        }
+        onExited: code => {
+            if (code !== 0 && root.focusedProviderId === "claude") {
+                root.errorMessage = "Claude Code usage details are unavailable. Check claude, jq, and curl.";
+            }
+        }
+    }
+
     function refresh() {
         if (!binaryReady || procUsage.running || usageDidTimeout) {
             return;
@@ -430,6 +578,9 @@ PluginComponent {
         timedOutRequestId = -1;
         procUsage.running = true;
         usageTimeout.restart();
+        if (root.selectedProviders.indexOf("claude") >= 0 && !claudeStatsProcess.running) {
+            claudeStatsProcess.running = true;
+        }
     }
 
     Timer {
@@ -467,6 +618,7 @@ PluginComponent {
 
         signal triggered
 
+        implicitWidth: compact ? 92 : 180
         implicitHeight: compact ? 42 : (description.length > 0 ? 58 : 48)
         radius: Theme.cornerRadius
         color: {
@@ -736,41 +888,378 @@ PluginComponent {
         }
     }
 
-    popoutWidth: 520
-    popoutHeight: 760
+    component UsageBar: Column {
+        id: usageBar
+        required property string label
+        required property real percent
+        property string aside: ""
+        property color accentColor: root.getUsageColor(percent)
+
+        width: parent ? parent.width : implicitWidth
+        spacing: 6
+
+        Row {
+            width: parent.width
+            spacing: Theme.spacingS
+
+            StyledText {
+                width: parent.width - valueText.implicitWidth - Theme.spacingS
+                text: usageBar.label
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeSmall
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+
+            StyledText {
+                id: valueText
+                text: usageBar.aside.length > 0 ? usageBar.aside : `${Math.round(usageBar.percent)}%`
+                color: usageBar.accentColor
+                font.pixelSize: Theme.fontSizeSmall
+                font.weight: Font.DemiBold
+            }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 7
+            radius: 4
+            color: Theme.surfaceContainerHighest
+
+            Rectangle {
+                width: Math.max(3, Math.min(1, usageBar.percent / 100) * parent.width)
+                height: parent.height
+                radius: parent.radius
+                color: usageBar.accentColor
+
+                Behavior on width {
+                    NumberAnimation { duration: 260; easing.type: Easing.OutCubic }
+                }
+            }
+        }
+    }
+
+    component ClaudeDailyBars: Row {
+        id: dailyBars
+        width: parent ? parent.width : implicitWidth
+        spacing: Theme.spacingXS
+
+        property real maxDaily: Math.max.apply(null, root.claudeDailyTokens) || 1
+
+        Repeater {
+            model: 7
+
+            Column {
+                width: (dailyBars.width - Theme.spacingXS * 6) / 7
+                spacing: 5
+
+                Rectangle {
+                    width: parent.width
+                    height: 46
+                    radius: Theme.cornerRadius - 2
+                    color: Theme.surfaceContainer
+                    clip: true
+
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: Math.max(3, (Number(root.claudeDailyTokens[index] || 0) / dailyBars.maxDaily) * parent.height)
+                        color: index === 2 ? Theme.warning : Theme.withAlpha(Theme.primary, 0.55)
+                    }
+                }
+
+                StyledText {
+                    width: parent.width
+                    text: root.dayLabels[index]
+                    horizontalAlignment: Text.AlignHCenter
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall - 2
+                    font.weight: Font.DemiBold
+                }
+            }
+        }
+    }
+
+    component ProviderDashboardCard: StyledRect {
+        id: card
+        required property var provider
+        property bool expanded: provider && provider.provider === root.focusedProviderId
+        property bool hasUsage: provider && provider.usage && !provider.error
+        property color accentColor: provider && provider.error ? Theme.error : root.providerAccent(provider ? provider.provider : "")
+        property var windows: root.windowsForProvider(provider)
+
+        width: parent ? parent.width : implicitWidth
+        radius: Theme.cornerRadius + 4
+        color: expanded ? Theme.surfaceContainerHigh : Theme.surfaceContainer
+        border.width: 1
+        border.color: Theme.withAlpha(accentColor, expanded ? 0.48 : 0.28)
+        implicitHeight: cardColumn.implicitHeight + Theme.spacingM * 2
+        clip: true
+
+        Behavior on color { ColorAnimation { duration: 160 } }
+        Behavior on border.color { ColorAnimation { duration: 160 } }
+
+        Column {
+            id: cardColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingM
+            spacing: expanded ? Theme.spacingM : Theme.spacingS
+
+            RowLayout {
+                width: parent.width
+                spacing: Theme.spacingM
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignTop
+                    width: 36
+                    height: 36
+                    radius: 18
+                    color: Theme.withAlpha(card.accentColor, 0.14)
+                    border.width: 1
+                    border.color: Theme.withAlpha(card.accentColor, 0.34)
+
+                    DankIcon {
+                        anchors.centerIn: parent
+                        name: root.iconForProvider(card.provider.provider)
+                        size: 18
+                        color: card.accentColor
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 3
+
+                    StyledText {
+                        width: parent.width
+                        text: root.providerName(card.provider.provider)
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeMedium
+                        font.weight: Font.Bold
+                        elide: Text.ElideRight
+                    }
+
+                    StyledText {
+                        width: parent.width
+                        text: card.provider.error ? root.providerErrorText(card.provider) : `${card.provider.source || root.sourceMode} · reset ${root.providerReset(card.provider)}`
+                        color: card.provider.error ? Theme.error : Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall
+                        maximumLineCount: expanded ? 2 : 1
+                        wrapMode: Text.WordWrap
+                        elide: Text.ElideRight
+                    }
+                }
+
+                StyledText {
+                    Layout.alignment: Qt.AlignVCenter
+                    text: card.provider.error ? "Error" : `${Math.round(root.providerPercent(card.provider))}%`
+                    color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Bold
+                }
+
+                DankIcon {
+                    Layout.alignment: Qt.AlignVCenter
+                    name: card.expanded ? "keyboard_arrow_up" : "keyboard_arrow_down"
+                    size: 22
+                    color: Theme.surfaceVariantText
+                }
+            }
+
+            Column {
+                visible: card.expanded
+                width: parent.width
+                spacing: Theme.spacingM
+
+                Repeater {
+                    model: card.windows
+
+                    UsageBar {
+                        required property var modelData
+                        width: parent.width
+                        label: modelData.label
+                        percent: Number(modelData.data.usedPercent || 0)
+                        aside: root.formatUsageLine(modelData.data)
+                        accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                    }
+                }
+
+                GridLayout {
+                    visible: card.hasUsage
+                    width: parent.width
+                    columns: 3
+                    columnSpacing: Theme.spacingS
+                    rowSpacing: Theme.spacingS
+
+                    MetricTile {
+                        Layout.fillWidth: true
+                        label: "Account"
+                        value: card.provider.usage.identity && card.provider.usage.identity.accountEmail ? card.provider.usage.identity.accountEmail : (card.provider.usage.accountEmail || "—")
+                        accentColor: card.accentColor
+                    }
+
+                    MetricTile {
+                        Layout.fillWidth: true
+                        label: "Login"
+                        value: card.provider.usage.identity && card.provider.usage.identity.loginMethod ? card.provider.usage.identity.loginMethod : (card.provider.usage.loginMethod || "—")
+                        accentColor: card.accentColor
+                    }
+
+                    MetricTile {
+                        Layout.fillWidth: true
+                        label: "Credits"
+                        value: card.provider.credits ? String(card.provider.credits.remaining ?? "—") : "—"
+                        accentColor: card.accentColor
+                    }
+                }
+
+                StyledRect {
+                    visible: card.provider.provider === "claude"
+                    width: parent.width
+                    radius: Theme.cornerRadius
+                    color: Theme.withAlpha(Theme.warning, 0.08)
+                    border.width: 1
+                    border.color: Theme.withAlpha(Theme.warning, 0.22)
+                    implicitHeight: claudeCol.implicitHeight + Theme.spacingM * 2
+
+                    Column {
+                        id: claudeCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingM
+                        spacing: Theme.spacingM
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: "Claude Code details"
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.Bold
+                            }
+
+                            StyledText {
+                                text: root.formatTier(root.claudeRateLimitTier)
+                                color: Theme.warning
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.DemiBold
+                            }
+                        }
+
+                        UsageBar {
+                            width: parent.width
+                            label: "Week"
+                            percent: root.claudeSevenDayUtil
+                            aside: `${Math.round(root.claudeSevenDayUtil)}%`
+                            accentColor: root.getUsageColor(root.claudeSevenDayUtil)
+                        }
+
+                        UsageBar {
+                            width: parent.width
+                            label: "5h"
+                            percent: root.claudeFiveHourUtil
+                            aside: `${Math.round(root.claudeFiveHourUtil)}%`
+                            accentColor: root.getUsageColor(root.claudeFiveHourUtil)
+                        }
+
+                        GridLayout {
+                            width: parent.width
+                            columns: 3
+                            columnSpacing: Theme.spacingS
+                            rowSpacing: Theme.spacingS
+
+                            MetricTile { Layout.fillWidth: true; label: "Today"; value: `${root.formatTokens(0)} · ${root.formatCost(root.claudeTodayCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: "Week"; value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: "Month"; value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`; accentColor: Theme.warning }
+                        }
+
+                        ClaudeDailyBars {
+                            width: parent.width
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: "Models this week"
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: claudeModelList
+
+                                UsageBar {
+                                    required property string modelName
+                                    required property real modelTokens
+                                    width: parent.width
+                                    label: modelName
+                                    percent: root.claudeWeekTokens > 0 ? (modelTokens / root.claudeWeekTokens) * 100 : 0
+                                    aside: root.formatTokens(modelTokens)
+                                    accentColor: Theme.warning
+                                }
+                            }
+                        }
+
+                        StyledText {
+                            width: parent.width
+                            text: `Since ${root.claudeFirstSession || "—"} · ${root.claudeAlltimeSessions} sessions · ${root.claudeAlltimeMessages} messages`
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+            }
+        }
+
+        MouseArea {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 64
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.focusedProviderId = card.expanded ? "" : card.provider.provider
+        }
+    }
+
+    popoutWidth: 760
+    popoutHeight: 860
 
     popoutContent: Component {
         PopoutComponent {
             id: popout
 
-            headerText: "AI Usage"
-            detailsText: root.lastUpdated.length > 0 ? `Updated ${root.lastUpdated}` : "Live AI usage monitor"
+            headerText: "AI Usage Control"
+            detailsText: root.lastUpdated.length > 0 ? `Updated ${root.lastUpdated} · ${root.sourceMode}` : "Provider dashboard"
             showCloseButton: true
 
             headerActions: Component {
                 Row {
                     spacing: Theme.spacingXS
 
-                    Rectangle {
-                        width: 28
-                        height: 28
-                        radius: 14
-                        color: refreshArea.containsMouse ? Theme.surfaceContainerHighest : "transparent"
+                    SurfaceButton {
+                        iconName: "terminal"
+                        label: "CLI"
+                        compact: true
+                        actionEnabled: !procDetect.running
+                        onTriggered: root.detectBinary()
+                    }
 
-                        DankIcon {
-                            anchors.centerIn: parent
-                            name: "refresh"
-                            size: 16
-                            color: Theme.surfaceText
-                        }
-
-                        MouseArea {
-                            id: refreshArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.refresh()
-                        }
+                    SurfaceButton {
+                        iconName: "refresh"
+                        label: "Refresh"
+                        compact: true
+                        prominent: true
+                        actionEnabled: root.binaryReady && !root.isLoading
+                        onTriggered: root.refresh()
                     }
                 }
             }
@@ -788,10 +1277,7 @@ PluginComponent {
                     boundsBehavior: Flickable.StopAtBounds
                     contentWidth: width - Theme.spacingM * 2
                     contentHeight: contentColumn.implicitHeight
-                    ScrollBar.vertical: ScrollBar {
-                        anchors.right: parent.right
-                        anchors.rightMargin: -Theme.spacingM
-                    }
+                    ScrollBar.vertical: ScrollBar { anchors.right: parent.right; anchors.rightMargin: -Theme.spacingM }
 
                     Column {
                         id: contentColumn
@@ -803,434 +1289,109 @@ PluginComponent {
                             radius: Theme.cornerRadius + 6
                             color: Theme.surfaceContainerHigh
                             border.width: 1
-                            border.color: Theme.withAlpha(root.heroAccent, root.hasProviderData ? 0.34 : 0.18)
-                            implicitHeight: heroColumn.implicitHeight + Theme.spacingL * 2
+                            border.color: Theme.withAlpha(root.heroAccent, 0.32)
+                            implicitHeight: overviewCol.implicitHeight + Theme.spacingL * 2
                             clip: true
 
                             Rectangle {
                                 anchors.fill: parent
                                 radius: parent.radius
                                 gradient: Gradient {
-                                    GradientStop {
-                                        position: 0.0
-                                        color: Theme.withAlpha(root.heroAccent, root.hasProviderData ? 0.16 : 0.07)
-                                    }
-                                    GradientStop {
-                                        position: 0.56
-                                        color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.08)
-                                    }
-                                    GradientStop {
-                                        position: 1.0
-                                        color: Theme.withAlpha(Theme.surfaceContainer, 0.02)
-                                    }
+                                    GradientStop { position: 0.0; color: Theme.withAlpha(root.heroAccent, 0.14) }
+                                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surfaceContainer, 0.02) }
                                 }
-                            }
-
-                            Rectangle {
-                                width: 170
-                                height: 170
-                                radius: 85
-                                x: parent.width - width * 0.72
-                                y: -height * 0.34
-                                color: Theme.withAlpha(root.heroAccent, 0.09)
                             }
 
                             Column {
-                                id: heroColumn
+                                id: overviewCol
                                 anchors.fill: parent
                                 anchors.margins: Theme.spacingL
-                                spacing: Theme.spacingS
-
-                                StyledText {
-                                    width: parent.width
-                                    text: "Quota telemetry"
-                                    color: Theme.surfaceVariantText
-                                    font.pixelSize: Theme.fontSizeSmall - 1
-                                    font.weight: Font.DemiBold
-                                }
-
-                                Row {
-                                    width: parent.width
-                                    spacing: Theme.spacingS
-
-                                    Rectangle {
-                                        implicitWidth: statusText.implicitWidth + Theme.spacingM * 2
-                                        height: 28
-                                        radius: 14
-                                        color: Theme.withAlpha(root.hasError ? Theme.error : root.heroAccent, 0.16)
-                                        border.width: 1
-                                        border.color: Theme.withAlpha(root.hasError ? Theme.error : root.heroAccent, 0.3)
-
-                                        StyledText {
-                                            id: statusText
-                                            anchors.centerIn: parent
-                                            text: root.statusTitle
-                                            color: root.hasError ? Theme.error : root.heroAccent
-                                            font.pixelSize: Theme.fontSizeSmall - 1
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        implicitWidth: sourceText.implicitWidth + Theme.spacingM * 2
-                                        height: 28
-                                        radius: 14
-                                        color: Theme.withAlpha(Theme.surfaceText, 0.08)
-                                        border.width: 1
-                                        border.color: Theme.withAlpha(Theme.surfaceText, 0.12)
-
-                                        StyledText {
-                                            id: sourceText
-                                            anchors.centerIn: parent
-                                            text: `Source: ${root.sourceMode}`
-                                            color: Theme.surfaceVariantText
-                                            font.pixelSize: Theme.fontSizeSmall - 1
-                                            font.weight: Font.Medium
-                                        }
-                                    }
-                                }
-
-                                StyledText {
-                                    width: parent.width
-                                    text: "AI usage monitor"
-                                    color: Theme.surfaceText
-                                    font.pixelSize: Theme.fontSizeLarge
-                                    font.weight: Font.Bold
-                                    wrapMode: Text.WordWrap
-                                }
-
-                                StyledText {
-                                    width: parent.width
-                                    text: root.statusSubtitle
-                                    color: Theme.surfaceVariantText
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    wrapMode: Text.WordWrap
-                                    maximumLineCount: 3
-                                    elide: Text.ElideRight
-                                }
+                                spacing: Theme.spacingM
 
                                 RowLayout {
                                     width: parent.width
-                                    spacing: Theme.spacingS
-
-                                    Rectangle {
-                                        Layout.fillWidth: true
-                                        height: 54
-                                        radius: Theme.cornerRadius
-                                        color: Theme.withAlpha(root.heroAccent, 0.14)
-                                        border.width: 1
-                                        border.color: Theme.withAlpha(root.heroAccent, 0.3)
-
-                                        Column {
-                                            anchors.fill: parent
-                                            anchors.leftMargin: Theme.spacingM
-                                            anchors.rightMargin: Theme.spacingM
-                                            anchors.topMargin: Theme.spacingS
-                                            anchors.bottomMargin: Theme.spacingS
-                                            spacing: 1
-
-                                            StyledText {
-                                                width: parent.width
-                                                text: "Current usage"
-                                                color: Theme.surfaceVariantText
-                                                font.pixelSize: Theme.fontSizeSmall - 1
-                                            }
-
-                                            StyledText {
-                                                width: parent.width
-                                                text: root.hasProviderData ? `${Math.round(root.primaryPercent)}%` : "—"
-                                                color: root.heroAccent
-                                                font.pixelSize: Theme.fontSizeMedium + 1
-                                                font.weight: Font.Bold
-                                            }
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        Layout.fillWidth: true
-                                        height: 54
-                                        radius: Theme.cornerRadius
-                                        color: Theme.withAlpha(Theme.surfaceText, 0.06)
-                                        border.width: 1
-                                        border.color: Theme.withAlpha(Theme.surfaceText, 0.1)
-
-                                        Column {
-                                            anchors.fill: parent
-                                            anchors.leftMargin: Theme.spacingM
-                                            anchors.rightMargin: Theme.spacingM
-                                            anchors.topMargin: Theme.spacingS
-                                            anchors.bottomMargin: Theme.spacingS
-                                            spacing: 1
-
-                                            StyledText {
-                                                width: parent.width
-                                                text: "Primary reset"
-                                                color: Theme.surfaceVariantText
-                                                font.pixelSize: Theme.fontSizeSmall - 1
-                                            }
-
-                                            StyledText {
-                                                width: parent.width
-                                                text: root.primaryWindow ? root.formatTimeUntil(root.primaryWindow.resetsAt) : "—"
-                                                color: Theme.surfaceText
-                                                font.pixelSize: Theme.fontSizeMedium
-                                                font.weight: Font.DemiBold
-                                            }
-                                        }
-                                    }
-                                }
-
-                                RowLayout {
-                                    width: parent.width
-                                    spacing: Theme.spacingS
-
-                                    SurfaceButton {
-                                        Layout.fillWidth: true
-                                        iconName: "refresh"
-                                        label: "Refresh now"
-                                        description: "Fetch latest AI usage windows."
-                                        prominent: true
-                                        actionEnabled: root.binaryReady && !root.isLoading
-                                        onTriggered: root.refresh()
-                                    }
-
-                                    SurfaceButton {
-                                        Layout.fillWidth: true
-                                        iconName: "terminal"
-                                        label: "Recheck CLI"
-                                        description: "Re-detect the CodexBar executable."
-                                        actionEnabled: !procDetect.running
-                                        onTriggered: root.detectBinary()
-                                    }
-                                }
-                            }
-                        }
-
-                        SectionFrame {
-                            visible: root.hasError
-                            title: "Command feedback"
-                            subtitle: "One or more providers returned an error."
-
-                            Rectangle {
-                                width: parent.width
-                                implicitHeight: errText.implicitHeight + Theme.spacingM * 2
-                                radius: Theme.cornerRadius
-                                color: Theme.withAlpha(Theme.error, 0.11)
-                                border.width: 1
-                                border.color: Theme.withAlpha(Theme.error, 0.3)
-
-                                StyledText {
-                                    id: errText
-                                    anchors.fill: parent
-                                    anchors.margins: Theme.spacingM
-                                    text: root.errorMessage
-                                    color: Theme.error
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    wrapMode: Text.WordWrap
-                                }
-                            }
-                        }
-
-                        SectionFrame {
-                            title: "Usage windows"
-                            subtitle: "Live session and reset windows from the highest-usage provider."
-                            aside: root.successfulProviders.length > 0 ? `${root.successfulProviders.length} active` : "No data"
-
-                            StyledText {
-                                visible: root.isLoading && !root.hasProviderData
-                                width: parent.width
-                                text: "Fetching usage data..."
-                                color: Theme.surfaceVariantText
-                                font.pixelSize: Theme.fontSizeSmall
-                            }
-
-                            StyledText {
-                                visible: !root.isLoading && root.usageWindows.length === 0
-                                width: parent.width
-                                text: "No window data yet. Run the configured CLIs once, then refresh."
-                                color: Theme.surfaceVariantText
-                                font.pixelSize: Theme.fontSizeSmall
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Repeater {
-                                model: root.usageWindows
-
-                                Rectangle {
-                                    required property var modelData
-
-                                    width: parent.width
-                                    implicitHeight: winCol.implicitHeight + Theme.spacingM * 2
-                                    radius: Theme.cornerRadius
-                                    color: Theme.surfaceContainer
-                                    border.width: 1
-                                    border.color: Theme.withAlpha(root.getUsageColor(Number(modelData.data.usedPercent || 0)), 0.28)
+                                    spacing: Theme.spacingM
 
                                     Column {
-                                        id: winCol
-                                        anchors.fill: parent
-                                        anchors.margins: Theme.spacingM
-                                        spacing: 6
-
-                                        Row {
-                                            width: parent.width
-                                            spacing: Theme.spacingS
-
-                                            StyledText {
-                                                width: parent.width - valueText.implicitWidth - Theme.spacingS
-                                                text: modelData.label
-                                                color: Theme.surfaceText
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.weight: Font.DemiBold
-                                                elide: Text.ElideRight
-                                            }
-
-                                            StyledText {
-                                                id: valueText
-                                                text: root.formatUsageLine(modelData.data)
-                                                color: root.getUsageColor(Number(modelData.data.usedPercent || 0))
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.weight: Font.DemiBold
-                                            }
-                                        }
-
-                                        Rectangle {
-                                            width: parent.width
-                                            height: 6
-                                            radius: 3
-                                            color: Theme.surfaceContainerHighest
-
-                                            Rectangle {
-                                                width: Math.min(1, Number(modelData.data.usedPercent || 0) / 100) * parent.width
-                                                height: parent.height
-                                                radius: parent.radius
-                                                color: root.getUsageColor(Number(modelData.data.usedPercent || 0))
-
-                                                Behavior on width {
-                                                    NumberAnimation {
-                                                        duration: 280
-                                                        easing.type: Easing.OutCubic
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        SectionFrame {
-                            visible: root.successfulProviders.length > 1 || (root.showErrorProviders && root.errorProviders.length > 0)
-                            title: "Providers"
-                            subtitle: "Configured providers and their current state."
-                            aside: `${root.selectedProviders.length} selected`
-
-                            Repeater {
-                                model: root.providers
-
-                                Rectangle {
-                                    required property var modelData
-
-                                    width: parent.width
-                                    implicitHeight: providerCol.implicitHeight + Theme.spacingM * 2
-                                    radius: Theme.cornerRadius
-                                    color: Theme.surfaceContainer
-                                    border.width: 1
-                                    border.color: modelData.error ? Theme.withAlpha(Theme.error, 0.28) : Theme.withAlpha(root.getUsageColor(root.providerPercent(modelData)), 0.28)
-
-                                    Column {
-                                        id: providerCol
-                                        anchors.fill: parent
-                                        anchors.margins: Theme.spacingM
-                                        spacing: 6
-
-                                        Row {
-                                            width: parent.width
-                                            spacing: Theme.spacingS
-
-                                            StyledText {
-                                                width: parent.width - providerValue.implicitWidth - Theme.spacingS
-                                                text: root.providerName(modelData.provider)
-                                                color: Theme.surfaceText
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.weight: Font.DemiBold
-                                                elide: Text.ElideRight
-                                            }
-
-                                            StyledText {
-                                                id: providerValue
-                                                text: modelData.error ? "Error" : `${Math.round(root.providerPercent(modelData))}%`
-                                                color: modelData.error ? Theme.error : root.getUsageColor(root.providerPercent(modelData))
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.weight: Font.DemiBold
-                                            }
-                                        }
+                                        Layout.fillWidth: true
+                                        spacing: 4
 
                                         StyledText {
                                             width: parent.width
-                                            text: modelData.error ? root.providerErrorText(modelData) : `${modelData.source || root.sourceMode} · ${root.formatUsageLine(modelData.usage.primary)}`
-                                            color: modelData.error ? Theme.error : Theme.surfaceVariantText
-                                            font.pixelSize: Theme.fontSizeSmall - 1
+                                            text: "AI Usage Control"
+                                            color: Theme.surfaceText
+                                            font.pixelSize: Theme.fontSizeLarge
+                                            font.weight: Font.Bold
                                             wrapMode: Text.WordWrap
-                                            maximumLineCount: 3
+                                        }
+
+                                        StyledText {
+                                            width: parent.width
+                                            text: root.statusSubtitle
+                                            color: Theme.surfaceVariantText
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            wrapMode: Text.WordWrap
+                                            maximumLineCount: 2
                                             elide: Text.ElideRight
                                         }
                                     }
+
+                                    Rectangle {
+                                        Layout.alignment: Qt.AlignVCenter
+                                        width: 78
+                                        height: 58
+                                        radius: Theme.cornerRadius
+                                        color: Theme.withAlpha(root.heroAccent, 0.13)
+                                        border.width: 1
+                                        border.color: Theme.withAlpha(root.heroAccent, 0.32)
+
+                                        StyledText {
+                                            anchors.centerIn: parent
+                                            text: root.barText
+                                            color: root.heroAccent
+                                            font.pixelSize: Theme.fontSizeLarge
+                                            font.weight: Font.Bold
+                                        }
+                                    }
+                                }
+
+                                GridLayout {
+                                    width: parent.width
+                                    columns: 4
+                                    columnSpacing: Theme.spacingS
+                                    rowSpacing: Theme.spacingS
+
+                                    MetricTile { Layout.fillWidth: true; label: "Active"; value: String(root.successfulProviders.length); accentColor: Theme.success }
+                                    MetricTile { Layout.fillWidth: true; label: "Attention"; value: String(root.errorProviders.length); accentColor: root.errorProviders.length > 0 ? Theme.warning : Theme.success }
+                                    MetricTile { Layout.fillWidth: true; label: "Source"; value: root.sourceMode; accentColor: Theme.primary }
+                                    MetricTile { Layout.fillWidth: true; label: "Binary"; value: root.resolvedBinaryPath; accentColor: Theme.primary }
                                 }
                             }
                         }
 
-                        SectionFrame {
-                            title: "Identity & runtime"
-                            subtitle: "Account and command context used by this widget."
+                        StyledText {
+                            visible: root.isLoading && root.providers.length === 0
+                            width: parent.width
+                            text: "Fetching provider usage..."
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
 
-                            GridLayout {
-                                width: parent.width
-                                columns: 2
-                                columnSpacing: Theme.spacingS
-                                rowSpacing: Theme.spacingS
+                        StyledText {
+                            visible: !root.isLoading && root.providers.length === 0
+                            width: parent.width
+                            text: "No provider data yet. Check the CodexBar binary path and run your configured CLIs once."
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall
+                            wrapMode: Text.WordWrap
+                        }
 
-                                MetricTile {
-                                    Layout.fillWidth: true
-                                    label: "Account"
-                                    value: root.accountEmail
-                                    accentColor: root.heroAccent
-                                }
+                        Repeater {
+                            model: root.providers
 
-                                MetricTile {
-                                    Layout.fillWidth: true
-                                    label: "Login method"
-                                    value: root.loginMethod
-                                    accentColor: root.heroAccent
-                                }
-
-                                MetricTile {
-                                    Layout.fillWidth: true
-                                    label: "CLI source"
-                                    value: root.providerData ? `${root.providerName(root.providerData.provider)} · ${root.providerData.source || root.sourceMode}` : root.sourceMode
-                                    accentColor: root.heroAccent
-                                }
-
-                                MetricTile {
-                                    Layout.fillWidth: true
-                                    label: "Last update"
-                                    value: root.lastUpdated
-                                    accentColor: root.heroAccent
-                                }
-
-                                MetricTile {
-                                    Layout.fillWidth: true
-                                    label: "Binary"
-                                    value: root.resolvedBinaryPath
-                                    accentColor: root.heroAccent
-                                }
-
-                                MetricTile {
-                                    Layout.fillWidth: true
-                                    label: "Credits"
-                                    value: root.providerData && root.providerData.credits ? String(root.providerData.credits.remaining ?? "—") : "—"
-                                    accentColor: root.heroAccent
-                                }
+                            ProviderDashboardCard {
+                                required property var modelData
+                                provider: modelData
                             }
                         }
                     }

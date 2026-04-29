@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+set -eu
+
+CLAUDE_DIR="${HOME}/.claude"
+CREDENTIALS="${CLAUDE_DIR}/.credentials.json"
+STATS_CACHE="${CLAUDE_DIR}/stats-cache.json"
+PROJECTS_DIR="${CLAUDE_DIR}/projects"
+PRICING_CACHE="${CLAUDE_DIR}/pricing-cache.json"
+USAGE_CACHE="${CLAUDE_DIR}/usage-cache.json"
+USAGE_CACHE_TTL=120  # seconds
+LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+
+CLAUDE_VERSION=$(claude --version 2>/dev/null | head -1 | grep -oP '[\d.]+' || echo "2.0.0")
+TODAY=$(date +%Y-%m-%d)
+# Calendar week: Monday to Sunday
+DOW=$(date +%u)  # 1=Monday, 7=Sunday
+WEEK_START=$(date -d "$((DOW - 1)) days ago" +%Y-%m-%d)
+# Calendar month: 1st of current month
+MONTH_START=$(date +%Y-%m-01)
+
+# Defaults
+SUBSCRIPTION_TYPE="unknown"
+RATE_LIMIT_TIER="unknown"
+FIVE_HOUR_UTIL=0
+FIVE_HOUR_RESET=""
+SEVEN_DAY_UTIL=0
+SEVEN_DAY_RESET=""
+EXTRA_USAGE_ENABLED="false"
+
+WEEK_TOKENS=0
+WEEK_MESSAGES=0
+WEEK_SESSIONS=0
+MONTH_TOKENS=0
+WEEK_MODELS=""
+DAILY="0,0,0,0,0,0,0"
+
+TODAY_COST="0.00"
+WEEK_COST="0.00"
+MONTH_COST="0.00"
+DAILY_COSTS="0,0,0,0,0,0,0"
+
+ALLTIME_SESSIONS=0
+ALLTIME_MESSAGES=0
+FIRST_SESSION="unknown"
+
+# --- Pricing cache (refresh once per day from LiteLLM) ---
+PRICING_JSON=""
+refresh_pricing() {
+    local raw
+    raw=$(curl -s --max-time 10 "$LITELLM_URL" 2>/dev/null) || return 1
+    # Dynamically extract pricing for all Claude model families
+    # Pattern: "claude-{family}-{major}-{minor}" (no date suffix, no provider prefix)
+    # Groups by family name, takes the latest version per family
+    local result
+    result=$(echo "$raw" | jq -c '{
+        updated: "'"$TODAY"'",
+        models: ([to_entries[]
+            | select(.key | test("^claude-[a-z]+-[0-9]+-[0-9]+$"))
+            | select(.value.input_cost_per_token > 0)
+            | {
+                family: (.key | split("-") | .[1]),
+                key: .key,
+                value: .value
+              }
+        ] | group_by(.family)
+          | map(sort_by(.key) | last
+              | {key: .family, value: {
+                    input: .value.input_cost_per_token,
+                    output: .value.output_cost_per_token,
+                    cache_read: .value.cache_read_input_token_cost,
+                    cache_write: .value.cache_creation_input_token_cost
+                }})
+          | from_entries)
+    }' 2>/dev/null) || return 1
+    # Fetch USD→EUR exchange rate from ECB via Frankfurter
+    local eur_rate
+    eur_rate=$(curl -s --max-time 5 "https://api.frankfurter.app/latest?from=USD&to=EUR" 2>/dev/null \
+        | jq -r '.rates.EUR // empty' 2>/dev/null) || eur_rate=""
+    if [ -n "$eur_rate" ] && [[ "$eur_rate" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+        result=$(echo "$result" | jq -c '. + {usd_eur_rate: '"$eur_rate"'}' 2>/dev/null)
+    fi
+
+    # Validate that we got at least one model with pricing
+    local check
+    check=$(echo "$result" | jq -r '.models | to_entries | length' 2>/dev/null) || return 1
+    [ "$check" -gt 0 ] 2>/dev/null && echo "$result" > "$PRICING_CACHE" && return 0
+    return 1
+}
+
+if [ -f "$PRICING_CACHE" ]; then
+    cached_date=$(jq -r '.updated // ""' "$PRICING_CACHE" 2>/dev/null || echo "")
+    if [ "$cached_date" != "$TODAY" ]; then
+        refresh_pricing || true
+    fi
+    PRICING_JSON=$(cat "$PRICING_CACHE")
+else
+    refresh_pricing || true
+    [ -f "$PRICING_CACHE" ] && PRICING_JSON=$(cat "$PRICING_CACHE")
+fi
+
+# Build awk-friendly pricing string: "opus:input:output:cache_read:cache_write,sonnet:...,haiku:..."
+PRICING_AWK=""
+USD_EUR_RATE="0"
+if [ -n "$PRICING_JSON" ]; then
+    PRICING_AWK=$(echo "$PRICING_JSON" | jq -r '
+        [.models | to_entries[] | "\(.key):\(.value.input):\(.value.output):\(.value.cache_read):\(.value.cache_write)"]
+        | join(",")' 2>/dev/null || echo "")
+    USD_EUR_RATE=$(echo "$PRICING_JSON" | jq -r '.usd_eur_rate // 0' 2>/dev/null || echo "0")
+fi
+
+# --- Subscription & API Usage (with cache to avoid rate limits) ---
+if [ -f "$CREDENTIALS" ]; then
+    SUBSCRIPTION_TYPE=$(jq -r '.claudeAiOauth.subscriptionType // "unknown"' "$CREDENTIALS")
+    RATE_LIMIT_TIER=$(jq -r '.claudeAiOauth.rateLimitTier // "unknown"' "$CREDENTIALS")
+
+    # Check if cached usage data is still fresh
+    USE_CACHE=false
+    if [ -f "$USAGE_CACHE" ]; then
+        cache_ts=$(jq -r '.cached_at // 0' "$USAGE_CACHE" 2>/dev/null || echo 0)
+        now_ts=$(date +%s)
+        age=$(( now_ts - cache_ts ))
+        if [ "$age" -lt "$USAGE_CACHE_TTL" ]; then
+            USE_CACHE=true
+        fi
+    fi
+
+    if [ "$USE_CACHE" = true ]; then
+        API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
+    else
+        TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
+        if [ -n "$TOKEN" ]; then
+            API_RESPONSE=$(curl -s --max-time 5 \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Accept: application/json" \
+                -H "Content-Type: application/json" \
+                -H "User-Agent: claude-code/${CLAUDE_VERSION}" \
+                -H "anthropic-beta: oauth-2025-04-20" \
+                "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || echo '{}')
+
+            # Cache successful responses (no error field)
+            if echo "$API_RESPONSE" | jq -e '.five_hour' >/dev/null 2>&1; then
+                jq -n --argjson data "$API_RESPONSE" '{cached_at: (now | floor), data: $data}' > "$USAGE_CACHE" 2>/dev/null
+            elif [ -f "$USAGE_CACHE" ]; then
+                # On rate limit or error, use stale cache if available
+                API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
+            fi
+        fi
+    fi
+
+    FIVE_HOUR_UTIL=$(echo "$API_RESPONSE" | jq -r '.five_hour.utilization // 0')
+    FIVE_HOUR_RESET=$(echo "$API_RESPONSE" | jq -r '.five_hour.resets_at // ""')
+    SEVEN_DAY_UTIL=$(echo "$API_RESPONSE" | jq -r '.seven_day.utilization // 0')
+    SEVEN_DAY_RESET=$(echo "$API_RESPONSE" | jq -r '.seven_day.resets_at // ""')
+    EXTRA_USAGE_ENABLED=$(echo "$API_RESPONSE" | jq -r '.extra_usage.is_enabled // false')
+fi
+
+# --- Token consumption from JSONL session files ---
+if [ -d "$PROJECTS_DIR" ]; then
+    # Calendar week dates: Monday (index 1) to Sunday (index 7)
+    DAY_DATES=""
+    for i in $(seq 0 6); do
+        d=$(date -d "$WEEK_START + ${i} days" +%Y-%m-%d)
+        DAY_DATES="${DAY_DATES:+${DAY_DATES},}${d}"
+    done
+
+    # Single pass: extract granular tokens per message, aggregate with awk
+    while IFS='=' read -r key value; do
+        case "$key" in
+            WEEK_TOKENS) WEEK_TOKENS="$value" ;;
+            WEEK_MESSAGES) WEEK_MESSAGES="$value" ;;
+            WEEK_SESSIONS) WEEK_SESSIONS="$value" ;;
+            MONTH_TOKENS) MONTH_TOKENS="$value" ;;
+            DAILY) DAILY="$value" ;;
+            WEEK_MODELS) WEEK_MODELS="$value" ;;
+            TODAY_COST) TODAY_COST="$value" ;;
+            WEEK_COST) WEEK_COST="$value" ;;
+            MONTH_COST) MONTH_COST="$value" ;;
+            DAILY_COSTS) DAILY_COSTS="$value" ;;
+        esac
+    done < <(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -31 -exec cat {} + 2>/dev/null \
+        | jq -r -R 'fromjson? | select(.type == "assistant") | "\(.timestamp[:10]) \(.message.model // "unknown") \(.message.usage.input_tokens // 0) \(.message.usage.output_tokens // 0) \(.message.usage.cache_read_input_tokens // 0) \(.message.usage.cache_creation_input_tokens // 0) \(.sessionId // "unknown")"' \
+        | awk -v week_start="$WEEK_START" -v month_start="$MONTH_START" -v today="$TODAY" -v day_dates="$DAY_DATES" -v pricing="$PRICING_AWK" '
+        BEGIN {
+            split(day_dates, dates, ",")
+            # Parse pricing: "opus:in:out:cr:cw,sonnet:in:out:cr:cw,haiku:in:out:cr:cw"
+            has_pricing = 0
+            if (pricing != "") {
+                n = split(pricing, pmodels, ",")
+                for (i = 1; i <= n; i++) {
+                    split(pmodels[i], pp, ":")
+                    price_in[pp[1]] = pp[2] + 0
+                    price_out[pp[1]] = pp[3] + 0
+                    price_cr[pp[1]] = pp[4] + 0
+                    price_cw[pp[1]] = pp[5] + 0
+                }
+                has_pricing = 1
+            }
+        }
+        {
+            date = $1; model = $2
+            inp = $3 + 0; out = $4 + 0; cr = $5 + 0; cw = $6 + 0
+            sess = $7
+            total = inp + out + cr + cw
+
+            # Extract family from model name (claude-{family}-{version...})
+            n_parts = split(model, mparts, "-")
+            family = (n_parts >= 3 && mparts[1] == "claude") ? mparts[2] : model
+
+            # Token aggregation (same as before)
+            day[date] += total
+            if (date >= week_start) {
+                week_model[family] += total
+                week_tokens += total
+                week_msgs++
+                week_sess[sess] = 1
+            }
+            if (date >= month_start) month_tokens += total
+
+            # Cost calculation
+            if (has_pricing && (family in price_in)) {
+                cost = inp * price_in[family] + out * price_out[family] + cr * price_cr[family] + cw * price_cw[family]
+                day_cost[date] += cost
+                if (date >= week_start) week_cost += cost
+                if (date >= month_start) month_cost += cost
+            }
+        }
+        END {
+            printf "WEEK_TOKENS=%d\n", week_tokens + 0
+            printf "WEEK_MESSAGES=%d\n", week_msgs + 0
+            n = 0; for (s in week_sess) n++
+            printf "WEEK_SESSIONS=%d\n", n
+            printf "MONTH_TOKENS=%d\n", month_tokens + 0
+
+            daily = ""
+            for (i = 1; i <= 7; i++) {
+                val = (dates[i] in day) ? day[dates[i]] : 0
+                daily = daily (i > 1 ? "," : "") val + 0
+            }
+            printf "DAILY=%s\n", daily
+
+            models = ""
+            first = 1
+            for (m in week_model) {
+                if (week_model[m] > 0) {
+                    models = models (first ? "" : ",") m ":" week_model[m]
+                    first = 0
+                }
+            }
+            printf "WEEK_MODELS=%s\n", models
+
+            # Cost outputs
+            daily_costs = ""
+            for (i = 1; i <= 7; i++) {
+                val = (dates[i] in day_cost) ? day_cost[dates[i]] : 0
+                daily_costs = daily_costs (i > 1 ? "," : "") sprintf("%.2f", val)
+            }
+            printf "DAILY_COSTS=%s\n", daily_costs
+            printf "TODAY_COST=%.2f\n", (today in day_cost) ? day_cost[today] : 0
+            printf "WEEK_COST=%.2f\n", week_cost + 0
+            printf "MONTH_COST=%.2f\n", month_cost + 0
+        }')
+fi
+
+# --- All-time from stats cache (supplementary) ---
+if [ -f "$STATS_CACHE" ]; then
+    ALLTIME_SESSIONS=$(jq -r '.totalSessions // 0' "$STATS_CACHE" 2>/dev/null || echo 0)
+    ALLTIME_MESSAGES=$(jq -r '.totalMessages // 0' "$STATS_CACHE" 2>/dev/null || echo 0)
+    FIRST_SESSION=$(jq -r '.firstSessionDate // "unknown"' "$STATS_CACHE" 2>/dev/null || echo "unknown")
+    FIRST_SESSION="${FIRST_SESSION%%T*}"
+fi
+
+# Output key=value pairs
+echo "SUBSCRIPTION_TYPE=${SUBSCRIPTION_TYPE}"
+echo "RATE_LIMIT_TIER=${RATE_LIMIT_TIER}"
+echo "FIVE_HOUR_UTIL=${FIVE_HOUR_UTIL}"
+echo "FIVE_HOUR_RESET=${FIVE_HOUR_RESET}"
+echo "SEVEN_DAY_UTIL=${SEVEN_DAY_UTIL}"
+echo "SEVEN_DAY_RESET=${SEVEN_DAY_RESET}"
+echo "EXTRA_USAGE_ENABLED=${EXTRA_USAGE_ENABLED}"
+echo "WEEK_MESSAGES=${WEEK_MESSAGES}"
+echo "WEEK_SESSIONS=${WEEK_SESSIONS}"
+echo "WEEK_TOKENS=${WEEK_TOKENS}"
+echo "WEEK_MODELS=${WEEK_MODELS}"
+echo "ALLTIME_SESSIONS=${ALLTIME_SESSIONS}"
+echo "ALLTIME_MESSAGES=${ALLTIME_MESSAGES}"
+echo "FIRST_SESSION=${FIRST_SESSION}"
+echo "DAILY=${DAILY}"
+echo "MONTH_TOKENS=${MONTH_TOKENS}"
+echo "TODAY_COST=${TODAY_COST}"
+echo "WEEK_COST=${WEEK_COST}"
+echo "MONTH_COST=${MONTH_COST}"
+echo "DAILY_COSTS=${DAILY_COSTS}"
+echo "USD_EUR_RATE=${USD_EUR_RATE}"
