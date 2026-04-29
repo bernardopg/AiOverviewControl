@@ -400,7 +400,7 @@ PluginComponent {
                         root.hasError = true;
                         root.errorMessage = root.errorProviders[0].error.message || "Failed to fetch usage from providers.";
                     } else {
-                        root.hasError = root.errorProviders.length > 0 && root.showErrorProviders;
+                        root.hasError = false;
                         root.errorMessage = root.errorProviders.length > 0 ? `${root.errorProviders.length} provider(s) need attention.` : "";
                     }
                     root.lastUpdated = Qt.formatDateTime(new Date(), "hh:mm:ss");
