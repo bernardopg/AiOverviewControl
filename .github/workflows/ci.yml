@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Validate plugin.json
+        run: |
+          if [ -f plugin.json ]; then jq . plugin.json; else echo "plugin.json not found"; fi
+      - name: QML lint (optional)
+        run: |
+          if command -v qmllint >/dev/null 2>&1; then qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml; else echo "qmllint not installed, skipping"; fi

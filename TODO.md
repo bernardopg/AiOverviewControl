@@ -24,3 +24,5 @@
 - Add lightweight shell tests for `get-claude-usage`.
 - Add a release checklist for posting to DankMaterialShell plugins.
 - Add plugin marketplace metadata when the DMS plugin registry format is finalized.
+- Pin action versions com SHA para hardening de supply chain (ex: `actions/checkout@<sha>`).
+- Adicionar step de validação dos scripts `get-*` no workflow de CI (shellcheck).

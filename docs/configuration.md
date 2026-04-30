@@ -1,30 +1,30 @@
-# Configuracao
+# Configuration
 
-As opcoes ficam em **DMS Settings > Plugins > AiOverviewControl**. O dashboard tambem permite adicionar e remover providers diretamente.
+Settings live in **DMS Settings > Plugins > AiOverviewControl**. The dashboard also allows adding/removing providers directly.
 
 ## Runtime
 
 ### Refresh Interval
 
-Define a frequencia de coleta.
+Defines the collection frequency.
 
-Valores comuns:
+Common values:
 
 ```text
-60000    1 minuto
-120000   2 minutos
-300000   5 minutos
-900000   15 minutos
-1800000  30 minutos
+60000    1 minute
+120000   2 minutes
+300000   5 minutes
+900000   15 minutes
+1800000  30 minutes
 ```
 
-Use `120000` para acompanhamento ativo. Use `300000` ou mais se voce tiver muitos providers, estiver em rede lenta ou quiser reduzir chamadas aos servicos.
+Use `120000` for active monitoring. Increase to `300000` or higher when you have many providers, a slow network or want to reduce API calls.
 
 ### Optional fallback
 
-Caminho opcional para o executavel `codexbar`.
+Optional path to the `codexbar` executable.
 
-Se vazio, o widget tenta:
+If empty, the widget tries:
 
 ```text
 PATH
@@ -32,11 +32,11 @@ PATH
 /usr/local/bin/codexbar
 ```
 
-Configure um caminho absoluto quando houver mais de uma instalacao ou quando o DMS nao herdar o mesmo `PATH` do seu terminal.
+Set an absolute path when multiple installations exist or when DMS does not inherit your interactive shell `PATH`.
 
-O plugin ainda funciona com helpers locais quando `codexbar` nao existe, mas Codex e providers genericos normalmente precisam do fallback `codexbar`.
+The plugin still works with local helpers when `codexbar` is missing, but Codex and generic providers usually require the `codexbar` fallback.
 
-Exemplo:
+Example:
 
 ```text
 /home/user/.local/bin/codexbar
@@ -46,7 +46,7 @@ Exemplo:
 
 ### Provider Set
 
-Atalho para listas comuns:
+Shortcuts for common lists:
 
 ```text
 codex
@@ -59,9 +59,9 @@ codex,claude,copilot,gemini,openrouter,perplexity
 
 ### Custom provider list
 
-Campo livre para lista separada por virgula. O plugin normaliza para minusculas, remove espacos e elimina duplicados.
+Comma-separated free text. The plugin normalizes to lower-case, trims spaces and removes duplicates.
 
-Exemplos:
+Examples:
 
 ```text
 codex,claude,copilot
@@ -69,37 +69,37 @@ codex,claude,copilot,gemini
 openrouter,perplexity,cursor
 ```
 
-Evite manter providers que sempre falham se voce quer um painel mais limpo. Falhas sao isoladas por card, mas ainda ocupam espaco.
+Avoid keeping providers that always fail if you prefer a cleaner dashboard. Failures are isolated per card but still occupy space.
 
 ## Fallback source
 
-Modo passado para o backend local. Quando o provider usa fallback CodexBar, o mesmo valor segue para `codexbar usage`.
+Mode passed to the local backend. When a provider uses the CodexBar fallback, the same value is forwarded to `codexbar usage`.
 
 ```text
-cli    melhor padrao no Linux para telemetria local de assinatura
-auto   deixa o CodexBar escolher
-oauth  usa autenticacao OAuth quando o provider e o CodexBar suportam
-api    usa tokens/API configurados no CodexBar
-web    usa dashboards web quando o CodexBar suporta
+cli    best default on Linux for local telemetry
+auto   let CodexBar choose
+oauth  use OAuth where supported
+api    use API tokens configured in CodexBar
+web    use web dashboards when CodexBar supports them
 ```
 
-Recomendacao atual para Linux:
+Current recommendation for Linux:
 
 ```text
 cli
 ```
 
-O modo `web` pode depender de estrategias macOS-only em alguns providers. O modo `api` e util para providers com token de API ou adapter local, mas nem sempre representa consumo de assinatura.
+The `web` mode may rely on macOS-only strategies for some providers. `api` is useful for providers with API tokens or local adapters but does not always represent subscription consumption.
 
 ## Show Provider Errors
 
-Mantenha `true` durante configuracao. Isso faz providers quebrados aparecerem como cards de atencao, com a mensagem retornada pelo `codexbar` ou pelo script local.
+Keep `true` while configuring. This shows broken providers as attention cards with the message returned by `codexbar` or the local script.
 
-Depois de estabilizar sua lista, voce pode usar `false` para esconder cards em erro e manter o dashboard mais limpo.
+After stabilizing your list, set `false` to hide error cards and keep the dashboard minimal.
 
-## Configuracao recomendada por cenario
+## Recommended configurations
 
-### Uso pessoal com Codex, Claude e Copilot
+### Personal use (Codex, Claude, Copilot)
 
 ```text
 Provider Set: codex,claude,copilot
@@ -108,16 +108,16 @@ Refresh Interval: 120000
 Show Provider Errors: true
 ```
 
-### Muitos providers API
+### Many API-based providers
 
 ```text
-Provider Set: lista customizada
+Provider Set: custom list
 Source Mode: api
 Refresh Interval: 300000
 Show Provider Errors: true
 ```
 
-### Barra minimalista
+### Minimal bar
 
 ```text
 Provider Set: codex
@@ -126,9 +126,15 @@ Refresh Interval: 300000
 Show Provider Errors: false
 ```
 
-## Onde as configuracoes aparecem na UI
+## Where settings appear in the UI
 
-- DankBar pill: mostra o percentual do provider bem-sucedido mais perto do limite.
-- Header do popout: mostra ultimo refresh e source mode.
-- Overview: total de providers ativos, providers em atencao, engine local e fallback resolvido.
-- Provider cards: mostram conta, origem, progresso, reset e controles de remover/expandir.
+- DankBar pill: shows the percent of the successful provider closest to quota
+- Popout header: shows last refresh and source mode
+- Overview: total active providers, providers in attention, local engine and resolved fallback
+- Provider cards: show account, origin, progress, reset and controls to remove/expand
+
+---
+
+# Configuracao (PT-BR)
+
+As opcoes e exemplos originais em Portugues aparecem acima como referencia. Ajuste conforme sua instalacao local.

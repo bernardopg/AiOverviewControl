@@ -9,7 +9,6 @@ COPILOT_SCRIPT="${4:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -n "$COPILOT_SCRIPT" ] || COPILOT_SCRIPT="$SCRIPT_DIR/get-copilot-usage"
 CLAUDE_SCRIPT="$SCRIPT_DIR/get-claude-usage"
-CODEXBAR_LAST_ERROR_JSON=""
 
 json_error() {
   local provider="$1"
@@ -100,7 +99,6 @@ try_codexbar() {
   local provider="$1"
   local bin
   if ! bin="$(find_codexbar)"; then
-    CODEXBAR_LAST_ERROR_JSON="$(json_error "$provider" codexbar 127 provider "codexbar was not found; using local provider adapters where available.")"
     return 127
   fi
 
@@ -140,7 +138,6 @@ try_codexbar() {
   [ -n "$message" ] || message="codexbar has no working strategy for $provider."
 
   rm -f "$tmp_out" "$tmp_err"
-  CODEXBAR_LAST_ERROR_JSON="$(json_error "$provider" "codexbar" 1 "provider" "$message")"
   return 1
 }
 

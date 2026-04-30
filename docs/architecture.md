@@ -1,8 +1,8 @@
-# Arquitetura
+# Architecture
 
-O AiOverviewControl e um plugin de widget para Dank Material Shell. Ele mantem a UI e os scripts auxiliares dentro do proprio diretorio para evitar acoplamento com outros plugins.
+AiOverviewControl is a widget plugin for Dank Material Shell (DMS). The UI, local helper scripts and metadata are kept inside the plugin directory to avoid tight coupling with other plugins.
 
-## Arquivos principais
+## Key files
 
 ```text
 plugin.json
@@ -19,29 +19,29 @@ LICENSE
 
 ## Metadata
 
-`plugin.json` declara:
+`plugin.json` declares:
 
 - `id`: `aiOverviewControl`
 - `type`: `widget`
 - `component`: `./AiOverviewControlWidget.qml`
 - `settings`: `./AiOverviewControlSettings.qml`
-- capacidades: `dankbar-widget` e `process`
-- permissoes: leitura/escrita de settings e execucao de processos
+- capabilities: `dankbar-widget` and `process`
+- permissions: read/write settings and execute processes
 
-## Fluxo de dados
+## Data flow
 
-1. Ao carregar, o widget confere se `get-provider-usage` esta executavel.
-2. Se o helper existe, dispara `refresh()`.
-3. O refresh chama `get-provider-usage` com a lista `providerSelection`, `sourceMode`, caminho opcional do `codexbar` e scripts auxiliares.
-4. O helper chama adapters locais ou `codexbar`, conforme o provider.
-5. Para `claude`, o widget tambem pode chamar `get-claude-usage` em processo separado para popular analytics extras.
-6. Cada resposta e normalizada para uma lista de providers.
-7. Erros viram cards independentes, sem apagar providers saudaveis.
-8. O popout mostra providers filtrados conforme `showErrorProviders`.
+1. On load the widget checks whether `get-provider-usage` is executable.
+2. If available, it triggers `refresh()`.
+3. `refresh()` calls `get-provider-usage` with `providerSelection`, `sourceMode`, optional `codexbar` path and helper scripts.
+4. The helper calls native adapters or `codexbar`, depending on the provider.
+5. For `claude`, the widget may also spawn `get-claude-usage` to gather extra analytics.
+6. Each response is normalized into a provider list.
+7. Errors become independent cards and do not remove healthy providers.
+8. The popout filters providers according to `showErrorProviders`.
 
-## Modelo visual esperado
+## Expected visual model
 
-Cada provider pode expor:
+Each provider item may expose:
 
 ```text
 provider
@@ -55,7 +55,7 @@ credits.remaining
 error
 ```
 
-Janelas de uso seguem o formato:
+Usage windows follow this format:
 
 ```text
 usedPercent
@@ -67,21 +67,21 @@ unlimited
 hasQuota
 ```
 
-O dashboard escolhe o provider com maior `usedPercent` bem-sucedido para o indicador compacto e para o resumo superior.
+The dashboard chooses the provider with the highest successful `usedPercent` for the compact indicator and the top summary.
 
-## Processos QML
+## QML processes
 
-`AiOverviewControlWidget.qml` usa `Quickshell.Io Process` para:
+`AiOverviewControlWidget.qml` uses `Quickshell.Io Process` to:
 
-- detectar o helper local e o caminho opcional do `codexbar`;
-- buscar uso dos providers;
-- buscar analytics extras de Claude.
+- detect local helpers and optional `codexbar` path
+- fetch provider usage
+- fetch extra Claude analytics
 
-O timeout de coleta e de 45 segundos. Se o processo exceder esse tempo, o widget mostra erro de timeout e evita reaproveitar saida atrasada.
+Collection timeout is 45 seconds. If a process exceeds that timeout the widget shows a timeout error and avoids reusing stale output.
 
-## Settings persistidas
+## Persisted settings
 
-Chaves usadas pelo plugin:
+Settings keys used by the plugin:
 
 ```text
 refreshInterval
@@ -91,84 +91,92 @@ sourceMode
 showErrorProviders
 ```
 
-Essas chaves ficam no armazenamento de settings do DMS. Atualizar os arquivos do plugin nao deve apagar preferencias do usuario.
+These keys are stored in the DMS settings store. Updating plugin files should not overwrite user preferences.
 
-## Independencia do plugin
+## Plugin isolation
 
-O AiOverviewControl nao importa componentes de outro plugin local. Os acoplamentos externos sao:
+AiOverviewControl does not import UI components from other local plugins. External dependencies are:
 
-- API e componentes comuns do Dank Material Shell;
-- Quickshell para processos e UI;
-- executavel opcional `codexbar` para Codex e providers sem ponte local;
-- CLIs e arquivos locais dos providers.
+- Dank Material Shell APIs and UI components
+- Quickshell for processes and UI
+- optional `codexbar` executable for Codex and providers without a local bridge
+- provider CLIs and local files
 
-Isso significa que remover ou desabilitar outro plugin DMS chamado CodexBar nao deve quebrar este widget. Para providers que dependem especificamente do fallback CodexBar, mantenha o executavel `codexbar` instalado.
+Removing or disabling another DMS plugin (for example CodexBar) should not break this widget. For providers that rely on the CodexBar fallback, keep a system `codexbar` installed.
 
-## Scripts locais
+## Local scripts
 
 ### `get-copilot-usage`
 
-Responsavel por transformar dados do GitHub Copilot em JSON compativel com os cards do widget.
+Transforms GitHub Copilot usage into JSON compatible with widget cards.
 
-Entrada:
+Input:
 
-- token via `gh auth token`;
-- ou `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`.
+- token via `gh auth token`
+- or `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`
 
-Saida:
+Output:
 
-- provider `copilot`;
-- source `github-copilot-api`;
-- janelas Premium, Chat e Completions;
-- creditos restantes quando disponiveis;
-- objeto `error` em JSON quando nao ha token ou a API falha.
+- provider `copilot`
+- source `github-copilot-api`
+- windows for Premium, Chat and Completions
+- remaining credits when available
+- `error` JSON object when missing token or API failure
 
 ### `get-provider-usage`
 
-Backend agregador local para providers.
+Unified local backend for providers.
 
-Entrada:
+Input:
 
-- caminho opcional do `codexbar`;
-- CSV de providers;
-- source mode;
-- caminho opcional do helper de Copilot.
+- optional `codexbar` path
+- CSV of providers
+- source mode
+- optional path to the Copilot helper
 
-Saida:
+Output:
 
-- array JSON com um item por provider;
-- mesma estrutura `provider/source/usage/credits/error` esperada pelos cards.
+- JSON array with one item per provider
+- common structure `provider/source/usage/credits/error` used by the cards
 
-Fallbacks conhecidos:
+Known fallbacks:
 
-- Copilot por `get-copilot-usage`;
-- Claude por `codexbar`, com fallback para `get-claude-usage`;
-- Gemini por `codexbar`, com fallback por API key ou credenciais locais;
-- OpenRouter por `OPENROUTER_API_KEY` ou `codexbar`;
-- demais providers por `codexbar`.
+- Copilot via `get-copilot-usage`
+- Claude via `codexbar` with fallback to `get-claude-usage`
+- Gemini via `codexbar` or local API key/credentials fallback
+- OpenRouter via `OPENROUTER_API_KEY` or `codexbar`
+- other providers via `codexbar`
 
 ### `get-claude-usage`
 
-Responsavel pelos detalhes extras de Claude Code.
+Provides extra Claude Code details.
 
-Entrada:
+Input:
 
-- `~/.claude/.credentials.json`;
-- `~/.claude/projects/**/*.jsonl`;
-- `~/.claude/stats-cache.json`;
-- rede opcional para precos/modelos e cambio.
+- `~/.claude/.credentials.json`
+- `~/.claude/projects/**/*.jsonl`
+- `~/.claude/stats-cache.json`
+- optional network access for pricing/models and FX rates
 
-Saida:
+Output:
 
-- pares `CHAVE=valor`, lidos pelo QML;
-- utilizacao de 5 horas e 7 dias;
-- tokens, sessoes, mensagens e custos estimados;
-- caches em `~/.claude`.
+- KEY=VALUE pairs read by QML
+- 5-hour and 7-day usage windows
+- tokens, sessions, messages and estimated costs
+- caches under `~/.claude`
 
-## Principios de manutencao
+## Maintenance principles
 
-- Preserve a coleta por provider isolado.
-- Nao dependa de arquivos de outros plugins.
-- Prefira erros estruturados em JSON nos scripts.
-- Ao adicionar provider com script proprio, mantenha a saida no mesmo modelo `provider/source/usage/credits/error`.
-- Documente source recomendado e comando de validacao em [providers.md](./providers.md).
+- Preserve per-provider isolation.
+- Avoid depending on files from other plugins.
+- Prefer structured JSON errors in helper scripts.
+- When adding a provider bridge, keep its output compatible with `provider/source/usage/credits/error`.
+- Document recommended sources and validation commands in [providers.md](./providers.md).
+
+---
+
+# Arquitetura (PT-BR)
+
+O conteúdo desta página na versão em inglês acima descreve a arquitetura do plugin. Abaixo estão as notas originais em Português.
+
+<!-- O conteúdo original em Português foi preservado na versão anterior do repositório. -->

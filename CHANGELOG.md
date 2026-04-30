@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+- CI: restored `actions/checkout@v6.0.2` and `softprops/action-gh-release@v3.0.0` (versões corretas, não existentes antes de 2026).
+- Release: corrigido `zip -r "$ZIP" -@` → `zip "$ZIP" -@` (flags `-r` e `-@` são mutuamente exclusivos).
+- Release: substituídas duas etapas separadas `shogo82148/actions-upload-release-asset` pelo parâmetro `files:` nativo do `softprops/action-gh-release@v3.0.0`.
+- Release: `release_name:` corrigido para `name:` (parâmetro correto da action).
+- Release: adicionado `generate_release_notes: true` para notas automáticas a partir do histórico de commits.
+- CI/Release: adicionados blocos `permissions` mínimos (`contents: read` e `contents: write`).
+
 ## 1.2.0 - 2026-04-30
 
 - Added a local `get-provider-usage` backend so AiOverviewControl no longer depends on another DMS plugin for provider aggregation.

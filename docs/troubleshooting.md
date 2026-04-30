@@ -1,8 +1,8 @@
 # Troubleshooting
 
-Use esta pagina para identificar se o problema esta em binario, autenticacao, provider, script local ou renderizacao.
+Use this page to identify whether an issue originates from a binary, authentication, provider, local script or rendering.
 
-## Checklist rapido
+## Quick checklist
 
 ```bash
 command -v bash
@@ -14,30 +14,30 @@ test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
 test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage
 ```
 
-Se algum helper local falhar, corrija antes de investigar a UI. `codexbar` e recomendado para Codex e providers genericos, mas nao e mais o unico caminho de coleta.
+If a local helper fails, fix it before digging into the UI. `codexbar` is recommended for Codex and generic providers but is not the only collection path.
 
 ## `codexbar not found`
 
-O DMS pode iniciar com um `PATH` diferente do seu terminal.
+DMS may start with a different `PATH` than your interactive shell.
 
-Isso afeta Codex e providers sem adapter local. Copilot, Gemini com chave local, OpenRouter com chave local e detalhes de Claude podem continuar funcionando via helpers.
+This affects Codex and providers without a local adapter. Copilot, Gemini with local key, OpenRouter with local key and Claude details may still work via helpers.
 
-Solucoes:
+Solutions:
 
-1. Configure **Optional fallback** com o caminho absoluto do `codexbar`.
-2. Confirme que o arquivo existe e e executavel.
-3. Reinicie o DMS.
+1. Configure **Optional fallback** with the absolute path to `codexbar`.
+2. Ensure the file exists and is executable.
+3. Restart DMS.
 
-Comandos uteis:
+Useful commands:
 
 ```bash
 command -v codexbar
 ls -l ~/.local/bin/codexbar /usr/local/bin/codexbar 2>/dev/null
 ```
 
-## Provider aparece como erro
+## Provider shown as error
 
-Teste o provider fora do widget:
+Test the provider outside the widget:
 
 ```bash
 codexbar usage --format json --provider codex --source cli
@@ -45,9 +45,9 @@ codexbar usage --format json --provider claude --source cli
 codexbar usage --format json --provider gemini --source api
 ```
 
-Se o terminal falhar, ajuste autenticacao, source mode ou remova o provider da lista. O AiOverviewControl preserva providers que funcionam mesmo quando outros falham.
+If the terminal command fails, adjust authentication, source mode or remove the provider from the list. AiOverviewControl preserves working providers even when others fail.
 
-Use o helper principal para testar a agregacao completa fora da UI:
+Use the main helper to test full aggregation outside the UI:
 
 ```bash
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
@@ -57,11 +57,11 @@ Use o helper principal para testar a agregacao completa fora da UI:
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
 ```
 
-## Copilot nao mostra uso
+## Copilot shows no usage
 
-O script local precisa de token GitHub valido.
+The local script requires a valid GitHub token.
 
-Teste:
+Test:
 
 ```bash
 gh auth status
@@ -69,7 +69,7 @@ gh auth token >/dev/null && echo ok
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
 ```
 
-Alternativas de token:
+Token alternatives:
 
 ```bash
 export COPILOT_GITHUB_TOKEN=...
@@ -77,13 +77,13 @@ export GH_TOKEN=...
 export GITHUB_TOKEN=...
 ```
 
-Se a resposta for HTTP 401/403, renove a autenticacao com `gh auth login` e confirme que sua conta tem Copilot ativo.
+If you see HTTP 401/403, re-authenticate with `gh auth login` and confirm your account has Copilot enabled.
 
-## Claude nao mostra detalhes extras
+## Claude missing extra details
 
-O card principal de Claude pode funcionar via CodexBar enquanto os detalhes extras ficam vazios. Isso normalmente indica falta de CLI, credenciais ou logs locais.
+The main Claude card may work via CodexBar while extra details remain empty. This usually indicates a missing CLI, credentials or local logs.
 
-Confira:
+Check:
 
 ```bash
 claude --version
@@ -92,29 +92,29 @@ test -d ~/.claude/projects
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
 ```
 
-Dependencias do script:
+Script dependencies:
 
 ```bash
 command -v jq
 command -v curl
 ```
 
-O script usa cache para reduzir chamadas e tolerar rate limit. Se dados antigos aparecerem, aguarde alguns minutos ou remova caches somente se souber que quer forcar nova leitura:
+The helper uses caches to reduce requests and tolerate rate limits. If stale data appears, wait a few minutes or remove caches only if you intend to force a fresh read:
 
 ```bash
 rm -f ~/.claude/usage-cache.json ~/.claude/pricing-cache.json
 ```
 
-## Painel vazio
+## Empty panel
 
-Possiveis causas:
+Possible causes:
 
-- `get-provider-usage` nao esta executavel.
-- Todos os providers configurados falharam.
-- A lista customizada ficou vazia ou contem IDs sem suporte.
-- O primeiro refresh ainda esta rodando.
+- `get-provider-usage` is not executable.
+- All configured providers failed.
+- The custom list is empty or contains unsupported IDs.
+- The first refresh is still running.
 
-Teste minimo:
+Minimum test:
 
 ```text
 Provider Set: codex
@@ -122,29 +122,35 @@ Source Mode: cli
 Show Provider Errors: true
 ```
 
-Depois rode:
+Then run:
 
 ```bash
 codexbar usage --format json --provider codex --source cli
 ```
 
-## Painel lento ou cheio demais
+## Slow or cluttered panel
 
-Cada provider e consultado em sequencia. Muitos providers, rede lenta ou APIs com timeout podem deixar o refresh pesado.
+Each provider is queried sequentially. Many providers, slow networks or APIs with timeouts can make refreshes heavy.
 
-Melhorias praticas:
+Practical improvements:
 
-- Aumente **Refresh Interval** para `300000` ou mais.
-- Remova providers que sempre falham.
-- Prefira `cli` para providers locais.
-- Use `api` apenas quando o token esta configurado e o provider responde rapido.
+- Increase **Refresh Interval** to `300000` or higher
+- Remove providers that always fail
+- Prefer `cli` for local providers
+- Use `api` only when tokens are configured and the provider responds quickly
 
-## Validar QML
+## Validate QML
 
-Quando estiver desenvolvendo o plugin:
+During development:
 
 ```bash
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml
 ```
 
-Se `qmllint` nao existir, instale as ferramentas Qt/Quickshell da sua distribuicao.
+If `qmllint` is missing, install Qt/Quickshell tooling for your distribution.
+
+---
+
+# Troubleshooting (PT-BR)
+
+As notas originais em Portugues estao preservadas no historico do projeto. Use a versao em ingles acima como referencia principal.

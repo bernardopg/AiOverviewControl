@@ -1,23 +1,23 @@
-# Instalacao
+# Installation
 
-Este guia assume que o Dank Material Shell ja esta instalado e funcionando. O AiOverviewControl deve ficar inteiro em:
+This guide assumes Dank Material Shell is already installed and working. The plugin should reside in:
 
 ```text
 ~/.config/DankMaterialShell/plugins/AiOverviewControl
 ```
 
-## 1. Copiar arquivos
+## 1. Copy files
 
-Se voce esta no diretorio onde baixou ou editou o plugin:
+If you are in the directory where you downloaded or edited the plugin:
 
 ```bash
-cd /caminho/onde/baixou/AiOverviewControl
+cd /path/to/downloaded/AiOverviewControl
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
 cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml plugin.json get-* README.md CHANGELOG.md LICENSE docs screenshot.png \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
 ```
 
-Arquivos esperados:
+Expected files:
 
 ```text
 AiOverviewControlWidget.qml
@@ -32,17 +32,17 @@ LICENSE
 docs/
 ```
 
-O plugin nao precisa de arquivos de outro plugin DMS. `codexbar` e uma integracao externa recomendada para Codex e providers sem adapter local.
+The plugin does not require files from other DMS plugins. `codexbar` is an optional external integration recommended for Codex and providers without a local adapter.
 
-## 2. Permissoes dos scripts
+## 2. Make scripts executable
 
 ```bash
 chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-*
 ```
 
-## 3. Dependencias
+## 3. Dependencies
 
-Instale ou confira:
+Install or verify the following binaries are available:
 
 ```bash
 command -v bash
@@ -51,14 +51,14 @@ command -v jq
 command -v curl
 ```
 
-Para Copilot:
+For Copilot:
 
 ```bash
 command -v gh
 gh auth status
 ```
 
-Para detalhes extras de Claude Code:
+For extra Claude details:
 
 ```bash
 command -v claude
@@ -66,28 +66,28 @@ test -f ~/.claude/.credentials.json
 test -d ~/.claude/projects
 ```
 
-Para Codex e providers sem adapter local, confira tambem:
+For Codex and providers without local adapters:
 
 ```bash
 command -v codexbar
 ```
 
-## 4. Reiniciar o DMS
+## 4. Restart DMS
 
 ```bash
 dms restart
 ```
 
-Depois:
+Then:
 
-1. Abra as configuracoes do Dank Material Shell.
-2. Entre em Plugins.
-3. Habilite **AiOverviewControl**.
-4. Adicione o widget a uma secao da DankBar.
+1. Open Dank Material Shell settings.
+2. Go to Plugins.
+3. Enable **AiOverviewControl**.
+4. Add the widget to a DankBar section.
 
-## 5. Teste inicial recomendado
+## 5. Initial smoke tests
 
-Antes de abrir muitos providers, valide Codex, Claude e Copilot:
+Before enabling many providers, validate Codex, Claude and Copilot:
 
 ```bash
 codexbar usage --format json --provider codex --source cli
@@ -97,11 +97,11 @@ codexbar usage --format json --provider claude --source cli
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
 ```
 
-Se esses comandos retornarem JSON ou pares `CHAVE=valor`, a camada de coleta esta operacional. Se a UI continuar vazia, veja [troubleshooting.md](./troubleshooting.md).
+If those commands return JSON or KEY=VALUE pairs the collection layer is operational. If the UI remains empty, see [troubleshooting.md](./troubleshooting.md).
 
-## Atualizacao
+## Upgrading
 
-Para atualizar sem perder configuracoes salvas no DMS:
+To upgrade without losing DMS-saved settings:
 
 ```bash
 cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml plugin.json get-* README.md CHANGELOG.md LICENSE docs \
@@ -110,4 +110,10 @@ chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-*
 dms restart
 ```
 
-As preferencias do widget ficam no armazenamento de settings do DMS, nao nos arquivos do plugin.
+Widget preferences are stored in the DMS settings store, not in plugin files.
+
+---
+
+# Instalacao (PT-BR)
+
+As instrucoes em Portugues estao preservadas acima como referencia. Siga os passos em ingles caso prefira.

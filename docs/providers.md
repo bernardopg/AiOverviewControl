@@ -1,12 +1,12 @@
 # Providers
 
-O AiOverviewControl consulta cada provider separadamente e combina os resultados no dashboard. Isso evita que uma falha em um provider derrube o painel inteiro.
+AiOverviewControl queries each provider separately and merges results in the dashboard. This prevents a single provider failure from taking down the whole panel.
 
-O caminho atual do widget usa `get-provider-usage` como backend local. Esse helper tenta adapters nativos primeiro quando existem e usa `codexbar` como fallback para Codex e providers compativeis.
+The widget uses `get-provider-usage` as the local backend. The helper prefers native adapters when available and falls back to `codexbar` for Codex and compatible providers.
 
-## IDs conhecidos
+## Known IDs
 
-O seletor do dashboard conhece:
+The provider selector recognizes:
 
 ```text
 codex
@@ -23,29 +23,29 @@ warp
 amp
 ```
 
-Voce tambem pode digitar manualmente outros IDs aceitos pelo seu `codexbar`, desde que ele retorne JSON no formato esperado.
+You can also type provider IDs supported by your `codexbar`, as long as it returns JSON in the expected format.
 
-## Matriz pratica
+## Practical matrix
 
-| Provider | Caminho usado | Melhor source | Observacoes |
-| --- | --- | --- | --- |
-| `codex` | `get-provider-usage` -> `codexbar usage` | `cli` | Recomendado para janela local de Codex/ChatGPT quando suportada pelo CodexBar. |
-| `claude` | `get-provider-usage` -> `codexbar usage` ou `get-claude-usage` | `cli` | Detalhes extras vem dos arquivos locais do Claude Code. |
-| `copilot` | `get-copilot-usage` | independente do source global | Usa GitHub autenticado via `gh` ou token de ambiente. |
-| `gemini` | `get-provider-usage` -> `codexbar` ou chave/OAuth local | `api`, `oauth` ou `auto` | Aceita `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` ou credenciais `~/.gemini`. |
-| `openrouter` | `get-provider-usage` -> `OPENROUTER_API_KEY` ou `codexbar` | `api` | Normalmente exige token/API configurado no CodexBar ou `OPENROUTER_API_KEY`. |
-| `perplexity` | `codexbar usage` | `api` ou `oauth` | Depende de suporte no CodexBar. |
-| `cursor`, `kilo`, `kiro`, `ollama`, `warp`, `amp` | `codexbar usage` | varia | IDs aparecem na UI, mas o funcionamento depende do CodexBar local. |
+| Provider                                          | Path used                                                      | Best source                  | Notes                                                                                                  |
+| ------------------------------------------------- | -------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `codex`                                           | `get-provider-usage` -> `codexbar usage`                       | `cli`                        | Recommended for local Codex/ChatGPT windows when supported by CodexBar.                                |
+| `claude`                                          | `get-provider-usage` -> `codexbar usage` or `get-claude-usage` | `cli`                        | Extra details come from local Claude Code files.                                                       |
+| `copilot`                                         | `get-copilot-usage`                                            | independent of global source | Uses authenticated GitHub via `gh` or environment token.                                               |
+| `gemini`                                          | `get-provider-usage` -> `codexbar` or local key/OAuth          | `api`, `oauth` or `auto`     | Accepts `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` or `~/.gemini` credentials. |
+| `openrouter`                                      | `get-provider-usage` -> `OPENROUTER_API_KEY` or `codexbar`     | `api`                        | Typically requires token/API configured in CodexBar or `OPENROUTER_API_KEY`.                           |
+| `perplexity`                                      | `codexbar usage`                                               | `api` or `oauth`             | Depends on CodexBar support.                                                                           |
+| `cursor`, `kilo`, `kiro`, `ollama`, `warp`, `amp` | `codexbar usage`                                               | varies                       | IDs appear in the UI but functionality depends on a local CodexBar.                                    |
 
 ## Copilot
 
-`copilot` nao usa o caminho `codexbar usage --provider copilot` quando o script local esta executavel. O plugin chama:
+When the local Copilot helper is executable, the plugin bypasses `codexbar usage --provider copilot` and calls:
 
 ```bash
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
 ```
 
-Ordem de autenticacao:
+Authentication order:
 
 ```text
 gh auth token
@@ -54,15 +54,15 @@ GH_TOKEN
 GITHUB_TOKEN
 ```
 
-O script consulta o endpoint interno do GitHub Copilot e normaliza:
+The script normalizes:
 
 - Premium
 - Chat
 - Completions
-- login/plano
-- creditos restantes quando disponiveis
+- login/plan
+- remaining credits when available
 
-Teste direto:
+Direct test:
 
 ```bash
 gh auth status
@@ -71,12 +71,12 @@ gh auth status
 
 ## Claude
 
-O provider `claude` usa duas fontes:
+`claude` uses two sources:
 
-1. `codexbar usage --format json --provider claude --source <modo>` para o card de uso principal.
-2. `get-claude-usage` para analytics de Claude Code.
+1. `codexbar usage --format json --provider claude --source <mode>` for the main usage card
+2. `get-claude-usage` for Claude Code analytics
 
-O script local le:
+The local script reads:
 
 ```text
 ~/.claude/.credentials.json
@@ -84,16 +84,16 @@ O script local le:
 ~/.claude/stats-cache.json
 ```
 
-Ele tambem usa caches locais em:
+It also maintains local caches:
 
 ```text
 ~/.claude/pricing-cache.json
 ~/.claude/usage-cache.json
 ```
 
-Quando a rede esta disponivel, ele tenta atualizar precos de modelos Claude via LiteLLM e a conversao USD/EUR via Frankfurter. Se isso falhar, o painel continua com dados de token e usa cache quando existir.
+When network is available the helper attempts to refresh Claude model prices via LiteLLM and USD/EUR rates via Frankfurter. If that fails, the panel continues showing token data and uses cache when present.
 
-Teste direto:
+Direct test:
 
 ```bash
 claude --version
@@ -102,13 +102,13 @@ claude --version
 
 ## Providers via CodexBar
 
-Para qualquer provider que nao tenha ponte local, o backend local tenta:
+For providers without a local bridge the local backend runs:
 
 ```bash
 codexbar usage --format json --provider <provider> --source <source>
 ```
 
-Exemplos:
+Examples:
 
 ```bash
 codexbar usage --format json --provider gemini --source api
@@ -116,11 +116,11 @@ codexbar usage --format json --provider openrouter --source api
 codexbar usage --format json --provider perplexity --source oauth
 ```
 
-Se o comando falhar no terminal, o AiOverviewControl pode mostrar um card de erro ou tentar um fallback nativo, dependendo do provider. Isso ajuda a diferenciar falha de autenticacao, provider sem suporte e problema de UI.
+If the command fails in the terminal, AiOverviewControl may show an error card or try a native fallback depending on the provider. This helps differentiate authentication failures, unsupported providers and UI issues.
 
-## Backend local unificado
+## Unified local backend
 
-`get-provider-usage` pode ser usado por desenvolvimento e testes fora da UI:
+`get-provider-usage` can be used for development and testing outside the UI:
 
 ```bash
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
@@ -130,25 +130,31 @@ Se o comando falhar no terminal, o AiOverviewControl pode mostrar um card de err
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
 ```
 
-Esse helper tenta:
+This helper attempts:
 
-- `get-copilot-usage` para Copilot;
-- `codexbar` primeiro para Claude, Gemini, Codex e providers genericos;
-- fallback local de Claude a partir de `get-claude-usage`;
-- fallback local de Gemini por chave API ou credenciais `~/.gemini`;
-- fallback local de OpenRouter por `OPENROUTER_API_KEY`.
+- `get-copilot-usage` for Copilot
+- `codexbar` first for Claude, Gemini, Codex and generic providers
+- Claude fallback via `get-claude-usage`
+- Gemini fallback via API key or `~/.gemini` credentials
+- OpenRouter fallback via `OPENROUTER_API_KEY`
 
-## Como escolher uma lista saudavel
+## Choosing a healthy provider list
 
-Comece pequeno:
+Start small:
 
 ```text
 codex,claude,copilot
 ```
 
-Adicione um provider por vez pelo dashboard. Se ele falhar:
+Add one provider at a time from the dashboard. If it fails:
 
-1. Expanda o card e leia a mensagem.
-2. Rode o comando `codexbar usage` equivalente.
-3. Ajuste source ou autenticacao.
-4. Remova o provider se ele nao tiver suporte na sua instalacao atual.
+1. Expand the card and read the message.
+2. Run the equivalent `codexbar usage` command.
+3. Adjust source or authentication.
+4. Remove the provider if it is unsupported on your installation.
+
+---
+
+# Providers (PT-BR)
+
+A versao em Portugues original esta preservada no historico do projeto. Use a versao em ingles acima como referencia principal.
