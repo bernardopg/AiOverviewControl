@@ -56,6 +56,7 @@ PluginComponent {
     }
     property string codexbarPath: (pluginData.codexbarPath || "").trim()
     property string sourceMode: pluginData.sourceMode || "cli"
+    property string providerUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-provider-usage"
     property string claudeUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-claude-usage"
     property string copilotUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-copilot-usage"
     readonly property var availableProviderOptions: [
@@ -105,6 +106,20 @@ PluginComponent {
         for (let i = 0; i < providers.length; i++) {
             const provider = providers[i];
             if (provider && provider.error) {
+                result.push(provider);
+            }
+        }
+        return result;
+    }
+
+    readonly property var displayProviders: {
+        if (showErrorProviders) {
+            return providers;
+        }
+        const result = [];
+        for (let i = 0; i < providers.length; i++) {
+            const provider = providers[i];
+            if (provider && !provider.error) {
                 result.push(provider);
             }
         }
@@ -193,7 +208,7 @@ PluginComponent {
 
     readonly property string statusSubtitle: {
         if (isLoading && !hasProviderData) {
-            return "Fetching usage windows from CodexBar.";
+            return "Fetching usage windows from local provider helpers.";
         }
         if (hasError) {
             return errorMessage;
@@ -203,7 +218,7 @@ PluginComponent {
         }
         const resetLabel = primaryWindow ? formatTimeUntil(primaryWindow.resetsAt) : "";
         if (!resetLabel) {
-            return "Live session and weekly windows are available.";
+            return "Live provider windows are available.";
         }
         return `Primary window resets in ${resetLabel}.`;
     }
@@ -221,7 +236,12 @@ PluginComponent {
         return `${Math.round(primaryPercent)}%`;
     }
 
-    readonly property string resolvedPath: binaryReady && resolvedBinaryPath.length > 0 ? resolvedBinaryPath : "codexbar"
+    readonly property string resolvedPath: binaryReady ? resolvedBinaryPath : ""
+    readonly property string providerEngineLabel: {
+        if (!binaryReady) return "offline";
+        if (resolvedBinaryPath.length > 0) return `local + ${resolvedBinaryPath.split("/").pop()}`;
+        return "local helpers";
+    }
 
     function getUsageColor(percent) {
         if (percent >= 80) {
@@ -286,10 +306,10 @@ PluginComponent {
         if (rawStderrBuffer.length > 0) {
             return rawStderrBuffer.trim();
         }
-        if (sourceMode === "api") return "API mode needs provider API tokens in CodexBar configuration.";
-        if (sourceMode === "oauth") return "OAuth mode requires provider authentication supported by CodexBar.";
-        if (sourceMode === "web") return "Web mode currently depends on CodexBar web support and may be macOS-only.";
-        return `codexbar exited with code ${exitCode}`;
+        if (sourceMode === "api") return "API mode needs provider API tokens or native provider keys.";
+        if (sourceMode === "oauth") return "OAuth mode requires provider authentication supported by the selected provider.";
+        if (sourceMode === "web") return "Web mode depends on the optional fallback provider implementation.";
+        return `provider helper exited with code ${exitCode}`;
     }
 
     function providerName(providerId) {
@@ -419,6 +439,14 @@ PluginComponent {
     function providerCredits(provider) {
         if (!provider || !provider.credits) return "—";
         return String(provider.credits.remaining ?? "—");
+    }
+
+    function compactPath(value) {
+        const text = String(value || "");
+        if (text.length === 0) return "none";
+        const parts = text.split("/");
+        if (parts.length <= 2) return text;
+        return `…/${parts.slice(-2).join("/")}`;
     }
 
     function iconForProvider(providerId) {
@@ -562,7 +590,7 @@ PluginComponent {
 
     Process {
         id: procDetect
-        command: ["sh", "-c", "candidate=\"$1\"; if [ -n \"$candidate\" ] && [ -f \"$candidate\" ] && [ -x \"$candidate\" ]; then printf '%s\\n' \"$candidate\"; exit 0; fi; command -v codexbar 2>/dev/null || (test -x \"$HOME/.local/bin/codexbar\" && echo \"$HOME/.local/bin/codexbar\") || (test -x /usr/local/bin/codexbar && echo /usr/local/bin/codexbar) || true", "sh", root.codexbarPath]
+        command: ["sh", "-c", "usage_script=\"$1\"; candidate=\"$2\"; [ -x \"$usage_script\" ] || exit 1; if [ -n \"$candidate\" ] && [ -f \"$candidate\" ] && [ -x \"$candidate\" ]; then printf '%s\\n' \"$candidate\"; exit 0; fi; command -v codexbar 2>/dev/null || (test -x \"$HOME/.local/bin/codexbar\" && echo \"$HOME/.local/bin/codexbar\") || (test -x /usr/local/bin/codexbar && echo /usr/local/bin/codexbar) || true", "sh", root.providerUsageScript, root.codexbarPath]
         stdout: SplitParser {
             onRead: line => {
                 const trimmed = line.trim();
@@ -572,55 +600,20 @@ PluginComponent {
             }
         }
         onExited: code => {
-            root.binaryReady = root.resolvedBinaryPath.length > 0;
+            root.binaryReady = code === 0;
             if (root.binaryReady) {
                 root.refresh();
             } else {
                 root.providers = [];
                 root.hasError = true;
-                root.errorMessage = root.codexbarPath.length > 0 ? "Configured codexbar path is invalid. Point to the executable file." : "codexbar not found. Install it or set its executable path in settings.";
+                root.errorMessage = "Local provider helper is missing or not executable.";
             }
         }
     }
 
     Process {
         id: procUsage
-        command: {
-            const script = "set -u\n" +
-                "bin=\"$1\"\n" +
-                "providers_csv=\"$2\"\n" +
-                "source_mode=\"$3\"\n" +
-                "copilot_script=\"$4\"\n" +
-                "IFS=',' read -r -a providers <<< \"$providers_csv\"\n" +
-                "first=1\n" +
-                "printf '['\n" +
-                "for provider in \"${providers[@]}\"; do\n" +
-                "  provider=\"$(printf '%s' \"$provider\" | xargs)\"\n" +
-                "  [ -z \"$provider\" ] && continue\n" +
-                "  tmp_err=\"$(mktemp)\"\n" +
-                "  if [ \"$provider\" = \"copilot\" ] && [ -x \"$copilot_script\" ]; then\n" +
-                "    out=\"$(\"$copilot_script\" 2>\"$tmp_err\")\"\n" +
-                "  else\n" +
-                "    cmd=(\"$bin\" usage --format json --provider \"$provider\")\n" +
-                "    if [ -n \"$source_mode\" ]; then cmd+=(--source \"$source_mode\"); fi\n" +
-                "    out=\"$(\"${cmd[@]}\" 2>\"$tmp_err\")\"\n" +
-                "  fi\n" +
-                "  status=$?\n" +
-                "  if [ $first -eq 0 ]; then printf ','; fi\n" +
-                "  first=0\n" +
-                "  if printf '%s' \"$out\" | node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d);process.stdin.on(\"end\",()=>{JSON.parse(s);})' 2>/dev/null; then\n" +
-                "    printf '%s' \"$out\" | PROVIDER=\"$provider\" node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d);process.stdin.on(\"end\",()=>{const v=JSON.parse(s); const a=Array.isArray(v)?v:[v]; const wanted=process.env.PROVIDER; const picked=a.find(x=>x&&x.provider===wanted)||a[0]||{provider:wanted}; if(!picked.provider) picked.provider=wanted; process.stdout.write(JSON.stringify(picked));})'\n" +
-                "  else\n" +
-                "    message=\"$(cat \"$tmp_err\")\"\n" +
-                "    [ -z \"$message\" ] && message=\"$out\"\n" +
-                "    [ -z \"$message\" ] && message=\"codexbar exited with status $status\"\n" +
-                "    PROVIDER=\"$provider\" SOURCE=\"$source_mode\" STATUS=\"$status\" MESSAGE=\"$message\" node -e 'process.stdout.write(JSON.stringify({provider:process.env.PROVIDER,source:process.env.SOURCE,error:{code:Number(process.env.STATUS)||1,kind:\"runtime\",message:process.env.MESSAGE}}))'\n" +
-                "  fi\n" +
-                "  rm -f \"$tmp_err\"\n" +
-                "done\n" +
-                "printf ']'\n";
-            return ["bash", "-lc", script, "bash", root.resolvedPath, root.selectedProviders.join(","), root.sourceMode, root.copilotUsageScript];
-        }
+        command: ["bash", root.providerUsageScript, root.resolvedPath, root.selectedProviders.join(","), root.sourceMode, root.copilotUsageScript]
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => root.rawJsonBuffer += data
@@ -676,7 +669,7 @@ PluginComponent {
                     root.lastUpdated = Qt.formatDateTime(new Date(), "hh:mm:ss");
                 } catch (error) {
                     root.hasError = true;
-                    root.errorMessage = root.rawStderrBuffer.length > 0 ? root.rawStderrBuffer : "Failed to parse CodexBar output.";
+                    root.errorMessage = root.rawStderrBuffer.length > 0 ? root.rawStderrBuffer : "Failed to parse provider helper output.";
                 }
             } else if (code !== 0) {
                 root.hasError = true;
@@ -734,7 +727,7 @@ PluginComponent {
                 procUsage.running = false;
                 root.isLoading = false;
                 root.hasError = true;
-                root.errorMessage = "codexbar timed out while fetching usage data.";
+                root.errorMessage = "Provider helper timed out while fetching usage data.";
             }
         }
     }
@@ -935,8 +928,9 @@ PluginComponent {
         required property string label
         required property string value
         property color accentColor: Theme.primary
+        property bool multilineValue: false
 
-        implicitHeight: 78
+        implicitHeight: multilineValue ? 88 : 78
         radius: Theme.cornerRadius
         color: Theme.withAlpha(accentColor, 0.08)
         border.width: 1
@@ -963,6 +957,8 @@ PluginComponent {
                 color: Theme.surfaceText
                 font.pixelSize: Theme.fontSizeMedium
                 font.weight: Font.Bold
+                maximumLineCount: tile.multilineValue ? 2 : 1
+                wrapMode: tile.multilineValue ? Text.WrapAnywhere : Text.NoWrap
                 elide: Text.ElideRight
             }
         }
@@ -1128,6 +1124,8 @@ PluginComponent {
         property bool hasUsage: !!provider && !!provider.usage && !provider.error
         property color accentColor: provider && provider.error ? Theme.error : root.providerAccent(provider ? provider.provider : "")
         property var windows: root.windowsForProvider(provider)
+        property bool compact: width < 560
+        property bool veryCompact: width < 430
 
         width: parent ? parent.width : implicitWidth
         radius: Theme.cornerRadius + 6
@@ -1143,18 +1141,19 @@ PluginComponent {
         Column {
             id: cardColumn
             anchors.fill: parent
-            anchors.margins: Theme.spacingL
+            anchors.margins: card.compact ? Theme.spacingM : Theme.spacingL
             spacing: expanded ? Theme.spacingL : Theme.spacingM
 
             RowLayout {
                 width: parent.width
-                spacing: Theme.spacingL
+                spacing: card.compact ? Theme.spacingS : Theme.spacingL
 
                 Rectangle {
                     Layout.alignment: Qt.AlignTop
-                    width: 48
-                    height: 48
-                    radius: 24
+                    visible: !card.veryCompact
+                    width: card.compact ? 40 : 48
+                    height: width
+                    radius: width / 2
                     color: Theme.withAlpha(card.accentColor, 0.14)
                     border.width: 1
                     border.color: Theme.withAlpha(card.accentColor, 0.34)
@@ -1162,7 +1161,7 @@ PluginComponent {
                     DankIcon {
                         anchors.centerIn: parent
                         name: root.iconForProvider(card.provider.provider)
-                        size: 24
+                        size: card.compact ? 20 : 24
                         color: card.accentColor
                     }
                 }
@@ -1176,7 +1175,7 @@ PluginComponent {
                         width: parent.width
                         text: root.providerName(card.provider.provider)
                         color: Theme.surfaceText
-                        font.pixelSize: Theme.fontSizeLarge
+                        font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
@@ -1185,7 +1184,7 @@ PluginComponent {
                         width: parent.width
                         text: root.providerSubtitle(card.provider)
                         color: card.provider.error ? Theme.error : Theme.surfaceVariantText
-                        font.pixelSize: Theme.fontSizeMedium
+                        font.pixelSize: card.compact ? Theme.fontSizeSmall : Theme.fontSizeMedium
                         maximumLineCount: expanded ? 2 : 1
                         wrapMode: Text.WordWrap
                         elide: Text.ElideRight
@@ -1196,7 +1195,7 @@ PluginComponent {
                     Layout.alignment: Qt.AlignVCenter
                     text: card.provider.error ? "Error" : `${Math.round(root.providerPercent(card.provider))}%`
                     color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
-                    font.pixelSize: Theme.fontSizeLarge
+                    font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                     font.weight: Font.Bold
                 }
 
@@ -1204,9 +1203,9 @@ PluginComponent {
                     Layout.alignment: Qt.AlignVCenter
                     visible: root.selectedProviders.length > 1
                     z: 2
-                    width: 36
-                    height: 36
-                    radius: 18
+                    width: card.compact ? 32 : 36
+                    height: width
+                    radius: width / 2
                     color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.14) : Theme.withAlpha(Theme.surfaceText, 0.06)
                     border.width: 1
                     border.color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.32) : Theme.withAlpha(Theme.surfaceText, 0.1)
@@ -1214,7 +1213,7 @@ PluginComponent {
                     DankIcon {
                         anchors.centerIn: parent
                         name: "close"
-                        size: 18
+                        size: card.compact ? 16 : 18
                         color: removeArea.containsMouse ? Theme.error : Theme.surfaceVariantText
                     }
 
@@ -1233,7 +1232,7 @@ PluginComponent {
                 DankIcon {
                     Layout.alignment: Qt.AlignVCenter
                     name: card.expanded ? "keyboard_arrow_up" : "keyboard_arrow_down"
-                    size: 28
+                    size: card.compact ? 24 : 28
                     color: Theme.surfaceVariantText
                 }
             }
@@ -1268,7 +1267,7 @@ PluginComponent {
                 GridLayout {
                     visible: card.hasUsage
                     width: parent.width
-                    columns: 3
+                    columns: card.width < 520 ? 1 : (card.width < 760 ? 2 : 3)
                     columnSpacing: Theme.spacingM
                     rowSpacing: Theme.spacingM
 
@@ -1277,6 +1276,7 @@ PluginComponent {
                         label: "Account"
                         value: root.providerAccount(card.provider)
                         accentColor: card.accentColor
+                        multilineValue: true
                     }
 
                     MetricTile {
@@ -1347,7 +1347,7 @@ PluginComponent {
 
                         GridLayout {
                             width: parent.width
-                            columns: 3
+                            columns: card.width < 520 ? 1 : 3
                             columnSpacing: Theme.spacingM
                             rowSpacing: Theme.spacingM
 
@@ -1403,7 +1403,7 @@ PluginComponent {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 82
+            height: card.compact ? 76 : 82
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.focusedProviderId = card.expanded ? "" : card.provider.provider
@@ -1426,12 +1426,12 @@ PluginComponent {
             anchors.margins: Theme.spacingL
             spacing: Theme.spacingM
 
-            RowLayout {
+            Flow {
                 width: parent.width
                 spacing: Theme.spacingM
 
                 Column {
-                    Layout.fillWidth: true
+                    width: parent.width < 620 ? parent.width : Math.max(220, parent.width - 220 - 118 - Theme.spacingM * 2)
                     spacing: 4
 
                     StyledText {
@@ -1453,9 +1453,9 @@ PluginComponent {
 
                 DankDropdown {
                     id: addProviderDropdown
-                    Layout.preferredWidth: 220
+                    width: parent.width < 620 ? parent.width : 220
                     text: "Provider"
-                    description: "Choose a provider supported by CodexBar."
+                    description: "Choose a provider supported by local helpers or fallback."
                     currentValue: root.pendingProviderId
                     options: root.availableProviderOptions
                     dropdownWidth: 220
@@ -1465,6 +1465,8 @@ PluginComponent {
                 }
 
                 SurfaceButton {
+                    id: addProviderButton
+                    width: parent.width < 620 ? parent.width : implicitWidth
                     iconName: "add"
                     label: "Add provider"
                     compact: true
@@ -1476,8 +1478,8 @@ PluginComponent {
         }
     }
 
-    popoutWidth: 920
-    popoutHeight: 900
+    popoutWidth: 860
+    popoutHeight: 820
 
     popoutContent: Component {
         PopoutComponent {
@@ -1517,11 +1519,11 @@ PluginComponent {
                 Flickable {
                     id: contentFlick
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.spacingL
-                    anchors.rightMargin: Theme.spacingL
+                    anchors.leftMargin: popout.width < 620 ? Theme.spacingS : Theme.spacingL
+                    anchors.rightMargin: popout.width < 620 ? Theme.spacingS : Theme.spacingL
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
-                    contentWidth: width - Theme.spacingL * 2
+                    contentWidth: width
                     contentHeight: contentColumn.implicitHeight
                     ScrollBar.vertical: ScrollBar { anchors.right: parent.right; anchors.rightMargin: -Theme.spacingM }
 
@@ -1536,7 +1538,7 @@ PluginComponent {
                             color: Theme.surfaceContainerHigh
                             border.width: 1
                             border.color: Theme.withAlpha(root.heroAccent, 0.32)
-                            implicitHeight: overviewCol.implicitHeight + Theme.spacingXL * 2
+                            implicitHeight: overviewCol.implicitHeight + (contentColumn.width < 560 ? Theme.spacingL : Theme.spacingXL) * 2
                             clip: true
 
                             Rectangle {
@@ -1551,12 +1553,12 @@ PluginComponent {
                             Column {
                                 id: overviewCol
                                 anchors.fill: parent
-                                anchors.margins: Theme.spacingXL
+                                anchors.margins: contentColumn.width < 560 ? Theme.spacingL : Theme.spacingXL
                                 spacing: Theme.spacingL
 
                                 RowLayout {
                                     width: parent.width
-                                    spacing: Theme.spacingL
+                                    spacing: Theme.spacingM
 
                                     Column {
                                         Layout.fillWidth: true
@@ -1566,7 +1568,7 @@ PluginComponent {
                                             width: parent.width
                                             text: "AI Usage Control"
                                             color: Theme.surfaceText
-                                            font.pixelSize: Theme.fontSizeLarge + 4
+                                            font.pixelSize: contentColumn.width < 560 ? Theme.fontSizeLarge : Theme.fontSizeLarge + 4
                                             font.weight: Font.Bold
                                             wrapMode: Text.WordWrap
                                         }
@@ -1584,6 +1586,7 @@ PluginComponent {
 
                                     Rectangle {
                                         Layout.alignment: Qt.AlignVCenter
+                                        visible: contentColumn.width >= 520
                                         width: 104
                                         height: 74
                                         radius: Theme.cornerRadius + 4
@@ -1603,14 +1606,14 @@ PluginComponent {
 
                                 GridLayout {
                                     width: parent.width
-                                    columns: 4
+                                    columns: contentColumn.width < 520 ? 1 : (contentColumn.width < 760 ? 2 : 4)
                                     columnSpacing: Theme.spacingM
                                     rowSpacing: Theme.spacingM
 
                                     MetricTile { Layout.fillWidth: true; label: "Active"; value: String(root.successfulProviders.length); accentColor: Theme.success }
                                     MetricTile { Layout.fillWidth: true; label: "Attention"; value: String(root.errorProviders.length); accentColor: root.errorProviders.length > 0 ? Theme.warning : Theme.success }
-                                    MetricTile { Layout.fillWidth: true; label: "Source"; value: root.sourceMode; accentColor: Theme.primary }
-                                    MetricTile { Layout.fillWidth: true; label: "Binary"; value: root.resolvedBinaryPath; accentColor: Theme.primary }
+                                    MetricTile { Layout.fillWidth: true; label: "Engine"; value: root.providerEngineLabel; accentColor: Theme.primary }
+                                    MetricTile { Layout.fillWidth: true; label: "Fallback"; value: root.compactPath(root.resolvedBinaryPath); accentColor: Theme.primary; multilineValue: true }
                                 }
                             }
                         }
@@ -1635,7 +1638,7 @@ PluginComponent {
                         StyledText {
                             visible: !root.isLoading && root.providers.length === 0
                             width: parent.width
-                            text: "No provider data yet. Check the CodexBar binary path and run your configured CLIs once."
+                            text: "No provider data yet. Check provider credentials, local CLIs, or the optional fallback path."
                             color: Theme.surfaceVariantText
                             font.pixelSize: Theme.fontSizeSmall
                             wrapMode: Text.WordWrap
@@ -1646,7 +1649,7 @@ PluginComponent {
                         }
 
                         Repeater {
-                            model: root.providers
+                            model: root.displayProviders
 
                             ProviderDashboardCard {
                                 required property var modelData

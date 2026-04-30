@@ -51,7 +51,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: "Configure CodexBar-powered usage telemetry for Codex, Claude, Copilot, and other AI providers."
+                text: "Configure local AI usage telemetry for Codex, Claude, Copilot, Gemini, OpenRouter, and fallback providers."
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceVariantText
                 wrapMode: Text.WordWrap
@@ -70,7 +70,7 @@ PluginSettings {
     DankDropdown {
         id: refreshDropdown
         text: "Refresh Interval"
-        description: "How often usage telemetry is fetched from CodexBar."
+        description: "How often usage telemetry is fetched from local provider helpers."
         currentValue: root.loadValue("refreshInterval", "120000")
         options: ["60000", "120000", "300000", "900000", "1800000"]
         dropdownWidth: 180
@@ -99,7 +99,7 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "Binary"
+        text: "Optional fallback"
         font.pixelSize: Theme.fontSizeSmall
         font.weight: Font.DemiBold
         color: Theme.surfaceVariantText
@@ -111,7 +111,7 @@ PluginSettings {
 
         StyledText {
             width: parent.width
-            text: "Path to the codexbar executable. Leave empty to auto-detect PATH, ~/.local/bin, and /usr/local/bin."
+            text: "Path to the optional codexbar executable for providers without a native local reader. Leave empty to auto-detect it."
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.surfaceVariantText
             wrapMode: Text.WordWrap
@@ -189,7 +189,7 @@ PluginSettings {
         leftPadding: Theme.spacingM
         text: {
             const value = providerDropdown.currentValue;
-            if (value === "codex,claude,copilot") return "Recommended overview: Codex/ChatGPT, Claude, and Copilot when supported by the installed CodexBar build.";
+            if (value === "codex,claude,copilot") return "Recommended overview: Codex through fallback when available, plus native Claude and Copilot readers.";
             if (value.indexOf(",") >= 0) return "Multiple providers are fetched separately and merged in the widget.";
             return "Single-provider mode keeps the bar focused on one account.";
         }
@@ -201,7 +201,7 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "Source mode"
+        text: "Fallback source"
         font.pixelSize: Theme.fontSizeSmall
         font.weight: Font.DemiBold
         color: Theme.surfaceVariantText
@@ -210,7 +210,7 @@ PluginSettings {
     DankDropdown {
         id: sourceDropdown
         text: "Source Mode"
-        description: "CLI is the most reliable default on Linux. API requires CodexBar token config."
+        description: "Used by fallback providers. Native readers ignore this setting."
         currentValue: root.loadValue("sourceMode", "cli")
         options: ["cli", "auto", "oauth", "api", "web"]
         dropdownWidth: 180
@@ -224,11 +224,11 @@ PluginSettings {
         leftPadding: Theme.spacingM
         text: {
             const value = sourceDropdown.currentValue;
-            if (value === "cli") return "CLI: Works for your current Codex and Claude subscription telemetry on Linux.";
-            if (value === "auto") return "Auto: Lets CodexBar choose; it may choose web paths that are macOS-only.";
+            if (value === "cli") return "CLI: Best default for fallback Codex telemetry on Linux.";
+            if (value === "auto") return "Auto: Lets the fallback choose the provider source.";
             if (value === "oauth") return "OAuth: Uses supported provider OAuth/session auth when available.";
-            if (value === "api") return "API: Uses provider API tokens configured in CodexBar; subscriptions do not always expose API usage.";
-            if (value === "web") return "Web: Uses provider web dashboards; CodexBar reports this as macOS-only for some providers.";
+            if (value === "api") return "API: Uses provider API tokens when the fallback supports them.";
+            if (value === "web") return "Web: Uses provider web dashboards when supported by the fallback.";
             return "";
         }
         font.pixelSize: Theme.fontSizeSmall
@@ -261,7 +261,7 @@ PluginSettings {
             id: cautionText
             anchors.fill: parent
             anchors.margins: Theme.spacingM
-            text: "On Linux, CodexBar currently reports web dashboard fetching as macOS-only. Use CLI for subscription telemetry, or API only when you have provider API tokens configured."
+            text: "Native readers run from this plugin directory. Codex and less common providers can still use the optional fallback binary when no local reader exists."
             color: Theme.warning
             font.pixelSize: Theme.fontSizeSmall
             wrapMode: Text.WordWrap
@@ -292,9 +292,9 @@ PluginSettings {
 
             Repeater {
                 model: [
-                    "1. Install CodexBar CLI",
-                    "2. Test: codexbar usage --format json --provider codex --source cli",
-                    "3. Add Claude, Copilot, or API providers as CodexBar supports them"
+                    "1. Test local helper: ./get-provider-usage \"$(command -v codexbar || true)\" claude,copilot,gemini",
+                    "2. Add OPENROUTER_API_KEY for OpenRouter credits",
+                    "3. Keep codexbar optional for Codex or unsupported providers"
                 ]
 
                 StyledText {

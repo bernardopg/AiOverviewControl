@@ -1,0 +1,369 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+CODEXBAR_BIN="${1:-}"
+PROVIDERS_CSV="${2:-codex,claude,copilot}"
+SOURCE_MODE="${3:-cli}"
+COPILOT_SCRIPT="${4:-}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -n "$COPILOT_SCRIPT" ] || COPILOT_SCRIPT="$SCRIPT_DIR/get-copilot-usage"
+CLAUDE_SCRIPT="$SCRIPT_DIR/get-claude-usage"
+CODEXBAR_LAST_ERROR_JSON=""
+
+json_error() {
+  local provider="$1"
+  local source="$2"
+  local code="$3"
+  local kind="$4"
+  local message="$5"
+  case "$code" in
+    ""|*[!0-9]*) code=1 ;;
+  esac
+  code="$((10#$code))"
+  [ "$code" -gt 0 ] 2>/dev/null || code=1
+  jq -cn \
+    --arg provider "$provider" \
+    --arg source "$source" \
+    --arg kind "$kind" \
+    --arg message "$message" \
+    --argjson code "${code:-1}" \
+    '{provider:$provider,source:$source,error:{code:$code,kind:$kind,message:$message}}'
+}
+
+json_note_usage() {
+  local provider="$1"
+  local source="$2"
+  local account="$3"
+  local login="$4"
+  local label="$5"
+  local credits="${6:-unknown}"
+  jq -cn \
+    --arg provider "$provider" \
+    --arg source "$source" \
+    --arg account "$account" \
+    --arg login "$login" \
+    --arg label "$label" \
+    --arg credits "$credits" \
+    '{
+      provider:$provider,
+      source:$source,
+      usage:{
+        identity:{providerID:$provider,accountEmail:$account,loginMethod:$login},
+        accountEmail:$account,
+        loginMethod:$login,
+        primary:{usedPercent:0,windowMinutes:null,resetsAt:null,resetDescription:$label},
+        secondary:null,
+        tertiary:null,
+        updatedAt:(now|todateiso8601)
+      },
+      credits:{remaining:$credits}
+    }'
+}
+
+find_codexbar() {
+  if [ -n "$CODEXBAR_BIN" ] && [ -x "$CODEXBAR_BIN" ]; then
+    printf '%s\n' "$CODEXBAR_BIN"
+    return 0
+  fi
+  command -v codexbar 2>/dev/null && return 0
+  [ -x "$HOME/.local/bin/codexbar" ] && printf '%s\n' "$HOME/.local/bin/codexbar" && return 0
+  [ -x /usr/local/bin/codexbar ] && printf '%s\n' /usr/local/bin/codexbar && return 0
+  return 1
+}
+
+pick_codexbar_item() {
+  local provider="$1"
+  jq -c --arg provider "$provider" '
+    ([if type == "array" then .[] else . end]
+      | map(if (.provider // "") == "" then . + {provider:$provider} else . end)) as $items
+    | (($items[] | select(.provider == $provider)) // $items[0] // {provider:$provider})
+  '
+}
+
+source_candidates() {
+  local provider="$1"
+  case "$provider" in
+    gemini)
+      printf '%s\n' "$SOURCE_MODE" auto oauth api web | awk 'NF && !seen[$0]++'
+      ;;
+    openrouter)
+      printf '%s\n' "$SOURCE_MODE" api auto | awk 'NF && !seen[$0]++'
+      ;;
+    *)
+      printf '%s\n' "$SOURCE_MODE" cli auto oauth api web | awk 'NF && !seen[$0]++'
+      ;;
+  esac
+}
+
+try_codexbar() {
+  local provider="$1"
+  local bin
+  if ! bin="$(find_codexbar)"; then
+    CODEXBAR_LAST_ERROR_JSON="$(json_error "$provider" codexbar 127 provider "codexbar was not found; using local provider adapters where available.")"
+    return 127
+  fi
+
+  local source tmp_out tmp_err status picked
+  tmp_out="$(mktemp)"
+  tmp_err="$(mktemp)"
+
+  while IFS= read -r source; do
+    [ -n "$source" ] || continue
+    : > "$tmp_out"
+    : > "$tmp_err"
+
+    "$bin" usage --format json --provider "$provider" --source "$source" >"$tmp_out" 2>"$tmp_err"
+    status=$?
+
+    if [ -s "$tmp_out" ] && jq -e . "$tmp_out" >/dev/null 2>&1; then
+      picked="$(pick_codexbar_item "$provider" < "$tmp_out" 2>/dev/null || true)"
+      if [ -n "$picked" ] && printf '%s' "$picked" | jq -e 'has("error") | not' >/dev/null 2>&1; then
+        printf '%s\n' "$picked"
+        rm -f "$tmp_out" "$tmp_err"
+        return 0
+      fi
+    fi
+
+    [ "$status" -eq 0 ] && break
+  done < <(source_candidates "$provider")
+
+  local message
+  message="$(cat "$tmp_err" 2>/dev/null || true)"
+  if [ -z "$message" ] && [ -s "$tmp_out" ]; then
+    message="$(jq -r --arg provider "$provider" '
+      ([if type == "array" then .[] else . end]
+       | map(select((.provider // $provider) == $provider))
+       | .[0].error.message) // empty
+    ' "$tmp_out" 2>/dev/null || true)"
+  fi
+  [ -n "$message" ] || message="codexbar has no working strategy for $provider."
+
+  rm -f "$tmp_out" "$tmp_err"
+  CODEXBAR_LAST_ERROR_JSON="$(json_error "$provider" "codexbar" 1 "provider" "$message")"
+  return 1
+}
+
+fetch_copilot() {
+  if [ -x "$COPILOT_SCRIPT" ]; then
+    "$COPILOT_SCRIPT"
+    return 0
+  fi
+  try_codexbar copilot || json_error copilot github-copilot-api 127 runtime "Copilot helper script is missing or not executable."
+}
+
+fetch_claude_native() {
+  if [ ! -f "$CLAUDE_SCRIPT" ]; then
+    json_error claude claude-local 127 runtime "Local Claude usage helper is missing."
+    return 0
+  fi
+
+  local tmp_out tmp_err status
+  tmp_out="$(mktemp)"
+  tmp_err="$(mktemp)"
+  bash "$CLAUDE_SCRIPT" >"$tmp_out" 2>"$tmp_err"
+  status=$?
+
+  if [ "$status" -ne 0 ]; then
+    local message
+    message="$(cat "$tmp_err" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Claude local usage helper exited with status $status."
+    rm -f "$tmp_out" "$tmp_err"
+    json_error claude claude-local "$status" runtime "$message"
+    return 0
+  fi
+
+  jq -Rn '
+    def num($k): ((.[$k] // 0) | tonumber? // 0);
+    def text($k): (.[$k] // "");
+    def nullable($v): if ($v == null or $v == "") then null else $v end;
+    def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+    reduce inputs as $line ({};
+      ($line | capture("^(?<key>[^=]+)=(?<value>.*)$")?) as $kv
+      | if $kv then .[$kv.key] = $kv.value else . end
+    )
+    | . as $d
+    | {
+      provider:"claude",
+      source:"claude-local",
+      usage:{
+        identity:{
+          providerID:"claude",
+          accountEmail:"Claude Code",
+          loginMethod:($d.SUBSCRIPTION_TYPE // "unknown")
+        },
+        accountEmail:"Claude Code",
+        loginMethod:($d.SUBSCRIPTION_TYPE // "unknown"),
+        primary:{
+          usedPercent:clamp(($d.FIVE_HOUR_UTIL // 0 | tonumber? // 0)),
+          windowMinutes:300,
+          resetsAt:nullable($d.FIVE_HOUR_RESET),
+          resetDescription:"5 hour"
+        },
+        secondary:{
+          usedPercent:clamp(($d.SEVEN_DAY_UTIL // 0 | tonumber? // 0)),
+          windowMinutes:10080,
+          resetsAt:nullable($d.SEVEN_DAY_RESET),
+          resetDescription:"7 day"
+        },
+        tertiary:null,
+        updatedAt:(now|todateiso8601)
+      },
+      credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")}
+    }
+  ' < "$tmp_out"
+  rm -f "$tmp_out" "$tmp_err"
+}
+
+fetch_gemini_native() {
+  local key="${GEMINI_API_KEY:-${GOOGLE_API_KEY:-${GOOGLE_GENERATIVE_AI_API_KEY:-}}}"
+  if [ -n "$key" ]; then
+    local tmp_body http_status
+    tmp_body="$(mktemp)"
+    http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+      "https://generativelanguage.googleapis.com/v1beta/models?key=$key" 2>/dev/null || true)"
+    if [ "$http_status" = "200" ]; then
+      rm -f "$tmp_body"
+      json_note_usage gemini gemini-api-key "Gemini API key" "api-key" "Quota visible in AI Studio" "AI Studio"
+      return 0
+    fi
+
+    local message
+    message="$(jq -r '.error.message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Gemini API key check returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error gemini gemini-api-key "${http_status:-1}" provider "$message"
+    return 0
+  fi
+
+  local creds="$HOME/.gemini/oauth_creds.json"
+  if [ -f "$creds" ] && jq -e '.access_token or .refresh_token' "$creds" >/dev/null 2>&1; then
+    local account
+    account="$(jq -r '.active // "Gemini CLI"' "$HOME/.gemini/google_accounts.json" 2>/dev/null || printf 'Gemini CLI')"
+    [ -n "$account" ] && [ "$account" != "null" ] || account="Gemini CLI"
+    json_note_usage gemini gemini-cli "$account" "oauth" "Gemini CLI authenticated" "AI Studio"
+    return 0
+  fi
+
+  json_error gemini gemini-local 2 provider "Gemini is not authenticated locally. Run gemini once, or set GEMINI_API_KEY/GOOGLE_API_KEY."
+}
+
+fetch_openrouter_native() {
+  local key="${OPENROUTER_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error openrouter openrouter-api 2 provider "OPENROUTER_API_KEY is not set, and codexbar has no OpenRouter strategy here."
+    return 0
+  fi
+
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer $key" \
+    -H "Accept: application/json" \
+    "https://openrouter.ai/api/v1/key" 2>/dev/null || true)"
+
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="OpenRouter key check returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error openrouter openrouter-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+
+  jq -c '
+    def pct($used; $limit):
+      if (($limit // 0) | tonumber) > 0 then
+        ((($used // 0) | tonumber) / (($limit // 0) | tonumber) * 100)
+        | if . < 0 then 0 elif . > 100 then 100 else . end
+      else 0 end;
+    .data as $d
+    | ($d.label // $d.name // "OpenRouter API key") as $label
+    | ($d.limit // null) as $limit
+    | {
+      provider:"openrouter",
+      source:"openrouter-api",
+      usage:{
+        identity:{
+          providerID:"openrouter",
+          accountEmail:$label,
+          loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end)
+        },
+        accountEmail:$label,
+        loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end),
+        primary:{
+          usedPercent:pct($d.usage; $limit),
+          windowMinutes:null,
+          resetsAt:null,
+          resetDescription:"Key limit"
+        },
+        secondary:{
+          usedPercent:pct($d.usage_daily; $limit),
+          windowMinutes:1440,
+          resetsAt:null,
+          resetDescription:"Daily"
+        },
+        tertiary:{
+          usedPercent:pct($d.usage_monthly; $limit),
+          windowMinutes:43200,
+          resetsAt:null,
+          resetDescription:"Monthly"
+        },
+        updatedAt:(now|todateiso8601)
+      },
+      credits:{
+        remaining:(
+          if ($d.limit_remaining != null) then ($d.limit_remaining | tostring)
+          elif $limit == null then "unlimited"
+          else "unknown"
+          end
+        )
+      }
+    }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_provider() {
+  local provider="$1"
+  case "$provider" in
+    copilot)
+      fetch_copilot
+      ;;
+    claude)
+      try_codexbar claude || fetch_claude_native
+      ;;
+    gemini)
+      try_codexbar gemini || fetch_gemini_native
+      ;;
+    openrouter)
+      if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+        fetch_openrouter_native
+      else
+        try_codexbar openrouter || fetch_openrouter_native
+      fi
+      ;;
+    codex)
+      try_codexbar codex || json_error codex codexbar 127 provider "Codex usage needs codexbar because the Codex CLI does not expose a stable usage command."
+      ;;
+    *)
+      try_codexbar "$provider" || json_error "$provider" codexbar 1 provider "No local provider adapter is available for $provider."
+      ;;
+  esac
+}
+
+IFS=',' read -r -a providers <<< "$PROVIDERS_CSV"
+first=1
+printf '['
+for raw_provider in "${providers[@]}"; do
+  provider="$(printf '%s' "$raw_provider" | xargs | tr '[:upper:]' '[:lower:]')"
+  [ -n "$provider" ] || continue
+  item="$(fetch_provider "$provider")"
+  if ! printf '%s' "$item" | jq -e . >/dev/null 2>&1; then
+    item="$(json_error "$provider" provider-backend 1 runtime "Provider backend returned invalid JSON.")"
+  fi
+  if [ "$first" -eq 0 ]; then printf ','; fi
+  first=0
+  printf '%s' "$item"
+done
+printf ']'

@@ -2,3 +2,8 @@
 *.swo
 *~
 .DS_Store
+
+.vscode/
+
+.codex
+.claude

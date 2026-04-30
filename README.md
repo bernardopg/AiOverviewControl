@@ -1,73 +1,109 @@
 # AiOverviewControl
 
-AiOverviewControl is a Dank Material Shell widget for tracking AI assistant usage in one place. It uses the CodexBar CLI for provider quota windows, includes native GitHub Copilot subscription usage, and embeds Claude Code analytics directly in the dashboard.
+Painel de telemetria para acompanhar uso, limites e janelas de reset de assistentes de IA dentro do Dank Material Shell.
 
-## What It Shows
+O plugin foi feito para ser autocontido: todos os arquivos de interface, configuracao e scripts auxiliares ficam neste diretorio. Ele nao depende de outro plugin como `codexbar`. O executavel `codexbar` e usado como fallback para Codex e providers compativeis, mas os helpers locais cobrem Copilot, Claude, Gemini e OpenRouter quando ha credenciais disponiveis.
 
-- A compact DankBar pill for the provider closest to its limit.
-- A large floating dashboard with one foldable card per provider.
-- Dashboard controls for adding providers without editing JSON by hand.
-- Per-card remove controls for providers you no longer want to poll.
-- Provider windows for Codex, Claude, Copilot, and any other provider supported by your installed CodexBar build.
-- Native Copilot usage through the authenticated GitHub Copilot API when CodexBar has no Linux fetch strategy.
-- Partial-failure handling, so unsupported providers show an error card without hiding working providers.
-- Claude Code details migrated from the standalone `claudeCodeUsage` plugin:
-  - 5-hour and weekly subscription utilization
-  - token consumption for week and month
-  - estimated API-style cost from local Claude Code JSONL usage
-  - daily activity bars
-  - model mix for the current week
-  - all-time sessions and message count
+![AiOverviewControl](./screenshot.png)
 
-## Requirements
+## O que ele mostra
 
-- Dank Material Shell on Quickshell
-- `codexbar`
-- `bash`, `node`, `jq`, `curl`, and `gh`
-- Optional for Claude details: `claude` CLI with `~/.claude/.credentials.json` and local Claude Code project logs
+- Indicador compacto na DankBar com o provider mais perto do limite.
+- Dashboard flutuante com cartoes por provider, barras de progresso e estados de erro isolados.
+- Controle visual para adicionar ou remover providers sem editar JSON manualmente.
+- Busca separada por provider, para que uma falha em Gemini, OpenRouter ou outro servico nao esconda Codex, Claude ou Copilot funcionando.
+- Copilot via script local `get-copilot-usage`, usando a autenticacao atual do GitHub.
+- Claude com dados do CodexBar e painel extra de Claude Code:
+  - uso de janela de 5 horas e 7 dias;
+  - tokens da semana e do mes;
+  - custo estimado a partir dos JSONL locais;
+  - atividade diaria, mix de modelos, sessoes e mensagens.
 
-## Install
+## Requisitos
+
+- Dank Material Shell rodando sobre Quickshell.
+- `bash`, `node`, `jq` e `curl`.
+- Recomendado: `codexbar` instalado como executavel de sistema, em `PATH`, `~/.local/bin`, `/usr/local/bin` ou no caminho configurado no plugin.
+- `gh` para Copilot, ou token em `COPILOT_GITHUB_TOKEN`, `GH_TOKEN` ou `GITHUB_TOKEN`.
+- Opcional para detalhes de Claude Code: CLI `claude`, `~/.claude/.credentials.json` e logs locais em `~/.claude/projects`.
+
+## Instalacao rapida
+
+Copie o diretorio inteiro para a pasta de plugins do Dank Material Shell:
 
 ```bash
+cd /caminho/onde/baixou/AiOverviewControl
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
-cp plugin.json AiOverviewControlWidget.qml AiOverviewControlSettings.qml get-claude-usage get-copilot-usage LICENSE screenshot.png \
+cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml plugin.json get-* README.md CHANGELOG.md LICENSE docs screenshot.png \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
+chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-*
 dms restart
 ```
 
-Enable **AiOverviewControl** in DMS Settings, then add it to a DankBar section.
+Depois abra as configuracoes do DMS, habilite **AiOverviewControl** e adicione o widget a uma secao da DankBar.
 
-## Recommended Settings On Linux
+Guia completo: [docs/installation.md](./docs/installation.md).
 
-Use:
+## Configuracao recomendada
 
-- Provider Set: `codex,claude,copilot`
-- Source Mode: `cli`
+Para Linux, use:
 
-CodexBar currently reports web dashboard fetching as macOS-only for some providers on Linux. `cli` works for the local Codex and Claude subscription telemetry tested here. Copilot is handled by `get-copilot-usage`, which reads the current GitHub authentication from `gh auth token` or standard GitHub token environment variables and calls the GitHub Copilot usage endpoint directly.
+- **Provider Set:** `codex,claude,copilot`
+- **Source Mode:** `cli`
+- **Show Provider Errors:** `true` enquanto estiver adicionando providers
+- **Refresh Interval:** `120000` ou `300000`
 
-## Managing Providers
+O modo `cli` e usado apenas por providers que caem no fallback `codexbar`. Os helpers locais deste plugin cobrem lacunas comuns no Linux, especialmente Copilot, Claude Code, Gemini e OpenRouter.
 
-Use the dashboard **Provider control** row to add a provider from the known CodexBar provider list. The selection is saved to DMS plugin settings as a comma-separated `providerSelection` value.
+Detalhes de cada opcao: [docs/configuration.md](./docs/configuration.md).
 
-For providers not listed in the dashboard dropdown, use Settings > Plugins > AiOverviewControl > **Custom provider list** and enter IDs such as:
+## Providers
 
-```text
-codex,claude,copilot,gemini,openrouter
-```
+O plugin conhece os IDs `codex`, `claude`, `copilot`, `gemini`, `openrouter`, `perplexity`, `cursor`, `kilo`, `kiro`, `ollama`, `warp` e `amp`.
 
-## Local Validation Commands
+O suporte real depende de duas coisas:
+
+- Providers com ponte local propria dentro deste diretorio.
+- Providers consultados pelo fallback `codexbar usage --format json --provider <id> --source <modo>`.
+
+Matriz pratica: [docs/providers.md](./docs/providers.md).
+
+## Validacao local
+
+Use estes comandos para separar problema de ambiente, autenticacao e UI:
 
 ```bash
 codexbar usage --format json --provider codex --source cli
 codexbar usage --format json --provider claude --source cli
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml
 ```
 
-## Design Notes
+Se algo aparecer no terminal, mas nao no painel, veja [docs/troubleshooting.md](./docs/troubleshooting.md).
 
-The dashboard follows the existing DMS plugin language: token-driven colors, restrained cards, fast status scanning, and provider-specific accents. The top summary gives a quick operational read; detailed data stays inside foldable provider cards.
+## Arquitetura
+
+O widget e composto por:
+
+- `plugin.json`: metadata, capacidades e requisitos.
+- `AiOverviewControlWidget.qml`: DankBar pill, popout, processos de coleta e normalizacao visual.
+- `AiOverviewControlSettings.qml`: configuracoes expostas pelo DMS.
+- `get-provider-usage`: backend local unificado para providers e fallbacks.
+- `get-copilot-usage`: ponte local para uso do GitHub Copilot.
+- `get-claude-usage`: analytics local de Claude Code e consulta OAuth de uso Anthropic.
+
+Visao tecnica: [docs/architecture.md](./docs/architecture.md).
+
+## Troubleshooting curto
+
+- **Codex sem dados**: instale `codexbar` ou configure **Optional fallback** com o caminho absoluto.
+- **Copilot sem dados**: rode `gh auth login` e confirme `gh auth token`.
+- **Claude sem detalhes extras**: confirme `claude --version`, `jq`, `curl` e `~/.claude/.credentials.json`.
+- **Gemini/OpenRouter/etc. em erro**: teste `get-provider-usage`, configure as chaves locais quando existirem e mantenha **Show Provider Errors** ativo.
+- **Painel cheio demais**: remova providers que falham ou use uma lista customizada menor.
+
+## Licenca
+
+Veja [LICENSE](./LICENSE).

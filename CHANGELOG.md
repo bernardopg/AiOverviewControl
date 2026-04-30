@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 - 2026-04-30
+
+- Added a local `get-provider-usage` backend so AiOverviewControl no longer depends on another DMS plugin for provider aggregation.
+- Made `codexbar` an optional executable fallback instead of a hard plugin requirement.
+- Added native/fallback provider handling for Claude, Copilot, Gemini, and OpenRouter with structured per-provider errors.
+- Improved dashboard responsiveness with adaptive cards, grids, provider controls, and long-text handling.
+- Made **Show Provider Errors** actually filter provider cards when disabled.
+- Updated settings copy to describe local helpers, fallback source mode, and optional fallback binary behavior.
+- Reworked the user documentation in Portuguese with a shorter README and focused guides under `docs/`.
+- Added practical installation, configuration, provider, troubleshooting, and architecture references.
+- Clarified that the plugin is self-contained in `AiOverviewControl` and uses the `codexbar` executable only as a provider fallback, not as another DMS plugin.
+
 ## 1.1.3 - 2026-04-29
 
 - Fixed Copilot on Linux by bypassing the unsupported CodexBar `copilot --source cli` path.
