@@ -3,7 +3,7 @@
   "name": "AiOverviewControl",
   "description": "Monitor AI assistant subscription and API usage across Codex, Claude, Copilot, Gemini, OpenRouter, and compatible local providers",
   "version": "1.2.0",
-  "author": "Bernardo Gomes",
+  "author": "bernardopg",
   "icon": "monitoring",
   "type": "widget",
   "capabilities": ["dankbar-widget", "process"],
