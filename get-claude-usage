@@ -130,7 +130,7 @@ if [ -f "$CREDENTIALS" ]; then
         TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
         if [ -n "$TOKEN" ]; then
             API_RESPONSE=$(curl -s --max-time 5 \
-                -H "Authorization: Bearer $TOKEN" \
+                -H "Authorization: Bearer ${TOKEN}" \
                 -H "Accept: application/json" \
                 -H "Content-Type: application/json" \
                 -H "User-Agent: claude-code/${CLAUDE_VERSION}" \

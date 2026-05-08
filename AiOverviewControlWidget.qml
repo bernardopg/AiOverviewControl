@@ -48,6 +48,7 @@ PluginComponent {
     property var claudeDailyTokens: [0, 0, 0, 0, 0, 0, 0]
     property var claudeDailyCosts: [0, 0, 0, 0, 0, 0, 0]
     property var dayLabels: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    readonly property int currentWeekdayIndex: (new Date().getDay() + 6) % 7
 
     property int refreshIntervalMs: {
         const val = pluginData.refreshInterval;
@@ -270,6 +271,9 @@ PluginComponent {
         if (windowMinutes <= 10080) {
             return "Weekly";
         }
+        if (windowMinutes <= 43200) {
+            return "Monthly";
+        }
         return `${Math.floor(windowMinutes / 1440)}d`;
     }
 
@@ -320,8 +324,8 @@ PluginComponent {
             cursor: "Cursor",
             gemini: "Gemini",
             openrouter: "OpenRouter",
+            "9router": "OpenRouter",
             perplexity: "Perplexity",
-            cursor: "Cursor",
             ollama: "Ollama",
             kilo: "Kilo",
             kiro: "Kiro",
@@ -350,7 +354,13 @@ PluginComponent {
         const normalized = providersCsv(csv.split(","));
         if (normalized.length === 0) return;
         providerSelection = normalized;
+        providers = [];
         PluginService.savePluginData("aiOverviewControl", "providerSelection", normalized);
+        if (procUsage.running) {
+            procUsage.running = false;
+        }
+        usageDidTimeout = false;
+        timedOutRequestId = -1;
         refresh();
     }
 
@@ -374,7 +384,7 @@ PluginComponent {
             }
         }
         if (next.length === 0) {
-            next.push("codex");
+            next.push("9router");
         }
         if (focusedProviderId === provider) {
             focusedProviderId = "";
@@ -454,7 +464,7 @@ PluginComponent {
         if (providerId === "claude") return "psychology";
         if (providerId === "copilot") return "hub";
         if (providerId === "gemini") return "auto_awesome";
-        if (providerId === "openrouter") return "route";
+        if (providerId === "openrouter" || providerId === "9router") return "route";
         if (providerId === "perplexity") return "travel_explore";
         if (providerId === "cursor") return "ads_click";
         if (providerId === "ollama") return "dns";
@@ -466,6 +476,7 @@ PluginComponent {
         if (providerId === "codex") return Theme.success;
         if (providerId === "copilot") return Theme.primary;
         if (providerId === "gemini") return Theme.secondary;
+        if (providerId === "openrouter" || providerId === "9router") return Theme.primary;
         return Theme.secondary;
     }
 
@@ -606,7 +617,7 @@ PluginComponent {
             } else {
                 root.providers = [];
                 root.hasError = true;
-                root.errorMessage = "Local provider helper is missing or not executable.";
+                root.errorMessage = `Local provider helper is missing or not executable: ${root.providerUsageScript}`;
             }
         }
     }
@@ -931,10 +942,32 @@ PluginComponent {
         property bool multilineValue: false
 
         implicitHeight: multilineValue ? 88 : 78
-        radius: Theme.cornerRadius
-        color: Theme.withAlpha(accentColor, 0.08)
+        radius: Theme.cornerRadius + 2
+        color: Theme.withAlpha(accentColor, 0.075)
         border.width: 1
-        border.color: Theme.withAlpha(accentColor, 0.24)
+        border.color: Theme.withAlpha(accentColor, 0.22)
+        clip: true
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 4
+            radius: 2
+            color: Theme.withAlpha(accentColor, 0.78)
+        }
+
+        Rectangle {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            width: parent.width * 0.42
+            height: parent.height
+            opacity: 0.7
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Theme.withAlpha(accentColor, 0.12) }
+                GradientStop { position: 1.0; color: Theme.withAlpha(accentColor, 0.0) }
+            }
+        }
 
         Column {
             id: tileCol
@@ -1061,7 +1094,10 @@ PluginComponent {
             width: parent.width
             height: 10
             radius: 5
-            color: Theme.surfaceContainerHighest
+            color: Theme.withAlpha(Theme.surfaceText, 0.075)
+            border.width: 1
+            border.color: Theme.withAlpha(Theme.surfaceText, 0.045)
+            clip: true
 
             Rectangle {
                 width: Math.max(3, Math.min(1, usageBar.percent / 100) * parent.width)
@@ -1101,7 +1137,7 @@ PluginComponent {
                         anchors.bottom: parent.bottom
                         width: parent.width
                         height: Math.max(3, (Number(root.claudeDailyTokens[index] || 0) / dailyBars.maxDaily) * parent.height)
-                        color: index === 2 ? Theme.warning : Theme.withAlpha(Theme.primary, 0.55)
+                        color: index === root.currentWeekdayIndex ? Theme.warning : Theme.withAlpha(Theme.primary, 0.55)
                     }
                 }
 
@@ -1126,20 +1162,43 @@ PluginComponent {
         property var windows: root.windowsForProvider(provider)
         property bool compact: width < 560
         property bool veryCompact: width < 430
+        property bool hovered: cardMouse.containsMouse
 
         width: parent ? parent.width : implicitWidth
-        radius: Theme.cornerRadius + 6
-        color: expanded ? Theme.surfaceContainerHigh : Theme.surfaceContainer
+        radius: Theme.cornerRadius + 8
+        color: expanded ? Theme.surfaceContainerHigh : (hovered ? Theme.surfaceContainerHigh : Theme.surfaceContainer)
         border.width: 1
-        border.color: Theme.withAlpha(accentColor, expanded ? 0.48 : 0.28)
+        border.color: provider && provider.error ? Theme.withAlpha(Theme.error, expanded ? 0.42 : 0.22) : Theme.withAlpha(accentColor, expanded ? 0.58 : (hovered ? 0.34 : 0.16))
         implicitHeight: cardColumn.implicitHeight + Theme.spacingL * 2
         clip: true
+        scale: hovered ? 1.006 : 1.0
 
-        Behavior on color { ColorAnimation { duration: 160 } }
-        Behavior on border.color { ColorAnimation { duration: 160 } }
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            opacity: expanded || hovered ? 1 : 0.72
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Theme.withAlpha(card.accentColor, expanded ? 0.16 : 0.09) }
+                GradientStop { position: 0.45; color: Theme.withAlpha(card.accentColor, 0.035) }
+                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surfaceContainer, 0.0) }
+            }
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: expanded ? 5 : 3
+            color: Theme.withAlpha(card.accentColor, expanded ? 0.9 : 0.62)
+        }
+
+        Behavior on color { ColorAnimation { duration: 180 } }
+        Behavior on border.color { ColorAnimation { duration: 180 } }
+        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
         Column {
             id: cardColumn
+            z: 2
             anchors.fill: parent
             anchors.margins: card.compact ? Theme.spacingM : Theme.spacingL
             spacing: expanded ? Theme.spacingL : Theme.spacingM
@@ -1154,9 +1213,16 @@ PluginComponent {
                     width: card.compact ? 40 : 48
                     height: width
                     radius: width / 2
-                    color: Theme.withAlpha(card.accentColor, 0.14)
+                    color: Theme.withAlpha(card.accentColor, 0.16)
                     border.width: 1
-                    border.color: Theme.withAlpha(card.accentColor, 0.34)
+                    border.color: Theme.withAlpha(card.accentColor, 0.42)
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 5
+                        radius: width / 2
+                        color: Theme.withAlpha(card.accentColor, 0.08)
+                    }
 
                     DankIcon {
                         anchors.centerIn: parent
@@ -1183,9 +1249,9 @@ PluginComponent {
                     StyledText {
                         width: parent.width
                         text: root.providerSubtitle(card.provider)
-                        color: card.provider.error ? Theme.error : Theme.surfaceVariantText
+                        color: card.provider.error ? Theme.withAlpha(Theme.error, 0.92) : Theme.surfaceVariantText
                         font.pixelSize: card.compact ? Theme.fontSizeSmall : Theme.fontSizeMedium
-                        maximumLineCount: expanded ? 2 : 1
+                        maximumLineCount: card.provider.error ? (expanded ? 3 : 2) : (expanded ? 2 : 1)
                         wrapMode: Text.WordWrap
                         elide: Text.ElideRight
                     }
@@ -1206,9 +1272,9 @@ PluginComponent {
                     width: card.compact ? 32 : 36
                     height: width
                     radius: width / 2
-                    color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.14) : Theme.withAlpha(Theme.surfaceText, 0.06)
+                    color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.14) : Theme.withAlpha(card.accentColor, 0.08)
                     border.width: 1
-                    border.color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.32) : Theme.withAlpha(Theme.surfaceText, 0.1)
+                    border.color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.32) : Theme.withAlpha(card.accentColor, 0.18)
 
                     DankIcon {
                         anchors.centerIn: parent
@@ -1351,7 +1417,7 @@ PluginComponent {
                             columnSpacing: Theme.spacingM
                             rowSpacing: Theme.spacingM
 
-                            MetricTile { Layout.fillWidth: true; label: "Today"; value: `${root.formatTokens(0)} · ${root.formatCost(root.claudeTodayCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: "Today"; value: `${root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0)} · ${root.formatCost(root.claudeTodayCost)}`; accentColor: Theme.warning }
                             MetricTile { Layout.fillWidth: true; label: "Week"; value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
                             MetricTile { Layout.fillWidth: true; label: "Month"; value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`; accentColor: Theme.warning }
                         }
@@ -1400,6 +1466,7 @@ PluginComponent {
         }
 
         MouseArea {
+            z: 0
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
@@ -1537,7 +1604,7 @@ PluginComponent {
                             radius: Theme.cornerRadius + 8
                             color: Theme.surfaceContainerHigh
                             border.width: 1
-                            border.color: Theme.withAlpha(root.heroAccent, 0.32)
+                            border.color: Theme.withAlpha(root.heroAccent, 0.38)
                             implicitHeight: overviewCol.implicitHeight + (contentColumn.width < 560 ? Theme.spacingL : Theme.spacingXL) * 2
                             clip: true
 
@@ -1545,9 +1612,32 @@ PluginComponent {
                                 anchors.fill: parent
                                 radius: parent.radius
                                 gradient: Gradient {
-                                    GradientStop { position: 0.0; color: Theme.withAlpha(root.heroAccent, 0.14) }
+                                    GradientStop { position: 0.0; color: Theme.withAlpha(root.heroAccent, 0.18) }
+                                    GradientStop { position: 0.52; color: Theme.withAlpha(root.heroAccent, 0.055) }
                                     GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surfaceContainer, 0.02) }
                                 }
+                            }
+
+                            Rectangle {
+                                width: 180
+                                height: 180
+                                radius: 90
+                                anchors.right: parent.right
+                                anchors.rightMargin: -56
+                                anchors.top: parent.top
+                                anchors.topMargin: -68
+                                color: Theme.withAlpha(root.heroAccent, 0.10)
+                            }
+
+                            Rectangle {
+                                width: 92
+                                height: 92
+                                radius: 46
+                                anchors.right: parent.right
+                                anchors.rightMargin: 82
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: -42
+                                color: Theme.withAlpha(Theme.primary, 0.07)
                             }
 
                             Column {
@@ -1618,13 +1708,37 @@ PluginComponent {
                             }
                         }
 
-                        StyledText {
+                        RowLayout {
                             visible: root.providers.length > 0
                             width: parent.width
-                            text: "Providers"
-                            color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeLarge
-                            font.weight: Font.Bold
+                            spacing: Theme.spacingM
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: "Providers"
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeLarge
+                                font.weight: Font.Bold
+                            }
+
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                implicitWidth: providerCountLabel.implicitWidth + Theme.spacingM * 2
+                                implicitHeight: 28
+                                radius: 14
+                                color: Theme.withAlpha(root.heroAccent, 0.12)
+                                border.width: 1
+                                border.color: Theme.withAlpha(root.heroAccent, 0.24)
+
+                                StyledText {
+                                    id: providerCountLabel
+                                    anchors.centerIn: parent
+                                    text: `${root.displayProviders.length} shown`
+                                    color: root.heroAccent
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.DemiBold
+                                }
+                            }
                         }
 
                         StyledText {

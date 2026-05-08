@@ -83,14 +83,25 @@ pick_codexbar_item() {
 source_candidates() {
   local provider="$1"
   case "$provider" in
-    gemini)
-      printf '%s\n' "$SOURCE_MODE" auto oauth api web | awk 'NF && !seen[$0]++'
+    codex)
+      printf '%s\n' cli auto api oauth web | awk 'NF && !seen[$0]++'
       ;;
-    openrouter)
-      printf '%s\n' "$SOURCE_MODE" api auto | awk 'NF && !seen[$0]++'
+    gemini)
+      if [ -n "$SOURCE_MODE" ] && [ "$SOURCE_MODE" != "auto" ]; then
+        printf '%s\n' "$SOURCE_MODE" auto oauth api web | awk 'NF && !seen[$0]++'
+      else
+        printf '%s\n' auto oauth api web | awk 'NF && !seen[$0]++'
+      fi
+      ;;
+    openrouter|9router)
+      printf '%s\n' api auto cli oauth web | awk 'NF && !seen[$0]++'
       ;;
     *)
-      printf '%s\n' "$SOURCE_MODE" cli auto oauth api web | awk 'NF && !seen[$0]++'
+      if [ -n "$SOURCE_MODE" ] && [ "$SOURCE_MODE" != "auto" ]; then
+        printf '%s\n' "$SOURCE_MODE"
+      else
+        printf '%s\n' cli auto oauth api web | awk 'NF && !seen[$0]++'
+      fi
       ;;
   esac
 }
@@ -111,7 +122,7 @@ try_codexbar() {
     : > "$tmp_out"
     : > "$tmp_err"
 
-    "$bin" usage --format json --provider "$provider" --source "$source" >"$tmp_out" 2>"$tmp_err"
+    timeout --kill-after=5s 40s "$bin" usage --format json --provider "$provider" --source "$source" >"$tmp_out" 2>"$tmp_err"
     status=$?
 
     if [ -s "$tmp_out" ] && jq -e . "$tmp_out" >/dev/null 2>&1; then
@@ -218,7 +229,7 @@ fetch_gemini_native() {
     local tmp_body http_status
     tmp_body="$(mktemp)"
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-      "https://generativelanguage.googleapis.com/v1beta/models?key=$key" 2>/dev/null || true)"
+      "https://generativelanguage.googleapis.com/v1beta/models?key=${key}" 2>/dev/null || true)"
     if [ "$http_status" = "200" ]; then
       rm -f "$tmp_body"
       json_note_usage gemini gemini-api-key "Gemini API key" "api-key" "Quota visible in AI Studio" "AI Studio"
@@ -255,7 +266,7 @@ fetch_openrouter_native() {
   local tmp_body http_status
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer $key" \
+    -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
     "https://openrouter.ai/api/v1/key" 2>/dev/null || true)"
 
@@ -333,7 +344,7 @@ fetch_provider() {
     gemini)
       try_codexbar gemini || fetch_gemini_native
       ;;
-    openrouter)
+    openrouter|9router)
       if [ -n "${OPENROUTER_API_KEY:-}" ]; then
         fetch_openrouter_native
       else
@@ -341,7 +352,7 @@ fetch_provider() {
       fi
       ;;
     codex)
-      try_codexbar codex || json_error codex codexbar 127 provider "Codex usage needs codexbar because the Codex CLI does not expose a stable usage command."
+      try_codexbar codex || json_note_usage codex codex-cli "Codex CLI" "local" "Usage unavailable" "Install/enable codexbar for live usage"
       ;;
     *)
       try_codexbar "$provider" || json_error "$provider" codexbar 1 provider "No local provider adapter is available for $provider."
