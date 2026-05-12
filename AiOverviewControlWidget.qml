@@ -65,6 +65,7 @@ PluginComponent {
         "claude",
         "copilot",
         "gemini",
+        "9router",
         "openrouter",
         "perplexity",
         "cursor",
@@ -301,6 +302,9 @@ PluginComponent {
         if (!windowData) {
             return "";
         }
+        if (windowData.displayValue && String(windowData.displayValue).length > 0) {
+            return String(windowData.displayValue);
+        }
         const percent = Math.round(Number(windowData.usedPercent || 0));
         const reset = formatTimeUntil(windowData.resetsAt);
         return reset.length > 0 ? `${percent}% · ${reset}` : `${percent}%`;
@@ -512,6 +516,11 @@ PluginComponent {
         if (!provider) return "No provider data";
         if (provider.error) return root.providerErrorText(provider);
         const source = provider.source || root.sourceMode;
+        const windowData = primaryUsageWindow(provider);
+        if (windowData && windowData.displayValue && String(windowData.displayValue).length > 0) {
+            const label = windowData.resetDescription || "usage";
+            return `${source} · ${label} · ${windowData.displayValue}`;
+        }
         const reset = providerReset(provider);
         return reset !== "—" ? `${source} · reset ${reset}` : `${source} · no reset window`;
     }
@@ -762,8 +771,8 @@ PluginComponent {
 
         signal triggered
 
-        implicitWidth: compact ? 118 : 190
-        implicitHeight: compact ? 46 : (description.length > 0 ? 62 : 52)
+        implicitWidth: compact ? 104 : 176
+        implicitHeight: compact ? 40 : (description.length > 0 ? 56 : 48)
         radius: Theme.cornerRadius
         color: {
             if (!actionEnabled) {
@@ -810,21 +819,21 @@ PluginComponent {
             anchors.fill: parent
             anchors.leftMargin: compact ? Theme.spacingS : Theme.spacingM
             anchors.rightMargin: compact ? Theme.spacingS : Theme.spacingM
-            anchors.topMargin: compact ? Theme.spacingS : Theme.spacingM
-            anchors.bottomMargin: compact ? Theme.spacingS : Theme.spacingM
+            anchors.topMargin: compact ? Theme.spacingXS : Theme.spacingM
+            anchors.bottomMargin: compact ? Theme.spacingXS : Theme.spacingM
             spacing: compact ? Theme.spacingXS : Theme.spacingS
 
             Rectangle {
                 Layout.alignment: Qt.AlignVCenter
-                width: compact ? 28 : 32
-                height: compact ? 28 : 32
+                width: compact ? 24 : 32
+                height: compact ? 24 : 32
                 radius: width / 2
                 color: buttonRoot.prominent ? Theme.withAlpha(Theme.primary, 0.18) : Theme.withAlpha(Theme.surfaceText, 0.08)
 
                 DankIcon {
                     anchors.centerIn: parent
                     name: buttonRoot.iconName
-                    size: compact ? 16 : 18
+                    size: compact ? 14 : 18
                     color: buttonRoot.prominent ? Theme.primary : Theme.surfaceText
                 }
             }
@@ -941,18 +950,18 @@ PluginComponent {
         property color accentColor: Theme.primary
         property bool multilineValue: false
 
-        implicitHeight: multilineValue ? 88 : 78
-        radius: Theme.cornerRadius + 2
-        color: Theme.withAlpha(accentColor, 0.075)
+        implicitHeight: multilineValue ? 68 : 58
+        radius: Theme.cornerRadius
+        color: Theme.withAlpha(accentColor, 0.055)
         border.width: 1
-        border.color: Theme.withAlpha(accentColor, 0.22)
+        border.color: Theme.withAlpha(accentColor, 0.16)
         clip: true
 
         Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            width: 4
+            width: 3
             radius: 2
             color: Theme.withAlpha(accentColor, 0.78)
         }
@@ -960,9 +969,9 @@ PluginComponent {
         Rectangle {
             anchors.right: parent.right
             anchors.top: parent.top
-            width: parent.width * 0.42
+            width: parent.width * 0.32
             height: parent.height
-            opacity: 0.7
+            opacity: 0.42
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Theme.withAlpha(accentColor, 0.12) }
                 GradientStop { position: 1.0; color: Theme.withAlpha(accentColor, 0.0) }
@@ -972,14 +981,14 @@ PluginComponent {
         Column {
             id: tileCol
             anchors.fill: parent
-            anchors.margins: Theme.spacingM
-            spacing: 6
+            anchors.margins: Theme.spacingS
+            spacing: 4
 
             StyledText {
                 width: parent.width
                 text: tile.label
                 color: Theme.surfaceVariantText
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.fontSizeSmall - 1
                 font.weight: Font.Medium
                 elide: Text.ElideRight
             }
@@ -988,7 +997,7 @@ PluginComponent {
                 width: parent.width
                 text: tile.value.length > 0 ? tile.value : "—"
                 color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeMedium
+                font.pixelSize: Theme.fontSizeSmall + 1
                 font.weight: Font.Bold
                 maximumLineCount: tile.multilineValue ? 2 : 1
                 wrapMode: tile.multilineValue ? Text.WrapAnywhere : Text.NoWrap
@@ -1066,7 +1075,7 @@ PluginComponent {
         property color accentColor: root.getUsageColor(percent)
 
         width: parent ? parent.width : implicitWidth
-        spacing: 8
+        spacing: 6
 
         Row {
             width: parent.width
@@ -1076,7 +1085,7 @@ PluginComponent {
                 width: parent.width - valueText.implicitWidth - Theme.spacingS
                 text: usageBar.label
                 color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeMedium
+                font.pixelSize: Theme.fontSizeSmall + 1
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -1085,15 +1094,15 @@ PluginComponent {
                 id: valueText
                 text: usageBar.aside.length > 0 ? usageBar.aside : `${Math.round(usageBar.percent)}%`
                 color: usageBar.accentColor
-                font.pixelSize: Theme.fontSizeMedium
+                font.pixelSize: Theme.fontSizeSmall + 1
                 font.weight: Font.DemiBold
             }
         }
 
         Rectangle {
             width: parent.width
-            height: 10
-            radius: 5
+            height: 8
+            radius: 4
             color: Theme.withAlpha(Theme.surfaceText, 0.075)
             border.width: 1
             border.color: Theme.withAlpha(Theme.surfaceText, 0.045)
@@ -1165,11 +1174,11 @@ PluginComponent {
         property bool hovered: cardMouse.containsMouse
 
         width: parent ? parent.width : implicitWidth
-        radius: Theme.cornerRadius + 8
+        radius: Theme.cornerRadius + 4
         color: expanded ? Theme.surfaceContainerHigh : (hovered ? Theme.surfaceContainerHigh : Theme.surfaceContainer)
         border.width: 1
-        border.color: provider && provider.error ? Theme.withAlpha(Theme.error, expanded ? 0.42 : 0.22) : Theme.withAlpha(accentColor, expanded ? 0.58 : (hovered ? 0.34 : 0.16))
-        implicitHeight: cardColumn.implicitHeight + Theme.spacingL * 2
+        border.color: provider && provider.error ? Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16) : Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.12))
+        implicitHeight: cardColumn.implicitHeight + (card.compact ? Theme.spacingM : Theme.spacingL) * 2
         clip: true
         scale: hovered ? 1.006 : 1.0
 
@@ -1178,8 +1187,8 @@ PluginComponent {
             radius: parent.radius
             opacity: expanded || hovered ? 1 : 0.72
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(card.accentColor, expanded ? 0.16 : 0.09) }
-                GradientStop { position: 0.45; color: Theme.withAlpha(card.accentColor, 0.035) }
+                GradientStop { position: 0.0; color: Theme.withAlpha(card.accentColor, expanded ? 0.12 : 0.055) }
+                GradientStop { position: 0.52; color: Theme.withAlpha(card.accentColor, 0.025) }
                 GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surfaceContainer, 0.0) }
             }
         }
@@ -1200,8 +1209,8 @@ PluginComponent {
             id: cardColumn
             z: 2
             anchors.fill: parent
-            anchors.margins: card.compact ? Theme.spacingM : Theme.spacingL
-            spacing: expanded ? Theme.spacingL : Theme.spacingM
+            anchors.margins: card.compact ? Theme.spacingS : Theme.spacingM
+            spacing: expanded ? Theme.spacingM : Theme.spacingS
 
             RowLayout {
                 width: parent.width
@@ -1210,7 +1219,7 @@ PluginComponent {
                 Rectangle {
                     Layout.alignment: Qt.AlignTop
                     visible: !card.veryCompact
-                    width: card.compact ? 40 : 48
+                    width: card.compact ? 34 : 40
                     height: width
                     radius: width / 2
                     color: Theme.withAlpha(card.accentColor, 0.16)
@@ -1227,7 +1236,7 @@ PluginComponent {
                     DankIcon {
                         anchors.centerIn: parent
                         name: root.iconForProvider(card.provider.provider)
-                        size: card.compact ? 20 : 24
+                        size: card.compact ? 18 : 21
                         color: card.accentColor
                     }
                 }
@@ -1235,13 +1244,13 @@ PluginComponent {
                 Column {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 6
+                    spacing: 3
 
                     StyledText {
                         width: parent.width
                         text: root.providerName(card.provider.provider)
                         color: Theme.surfaceText
-                        font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
+                        font.pixelSize: card.compact ? Theme.fontSizeSmall + 1 : Theme.fontSizeMedium
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
@@ -1250,7 +1259,7 @@ PluginComponent {
                         width: parent.width
                         text: root.providerSubtitle(card.provider)
                         color: card.provider.error ? Theme.withAlpha(Theme.error, 0.92) : Theme.surfaceVariantText
-                        font.pixelSize: card.compact ? Theme.fontSizeSmall : Theme.fontSizeMedium
+                        font.pixelSize: Theme.fontSizeSmall - 1
                         maximumLineCount: card.provider.error ? (expanded ? 3 : 2) : (expanded ? 2 : 1)
                         wrapMode: Text.WordWrap
                         elide: Text.ElideRight
