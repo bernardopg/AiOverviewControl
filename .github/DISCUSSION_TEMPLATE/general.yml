@@ -1,0 +1,22 @@
+title: "[General]: "
+labels:
+  - discussion
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for general AiOverviewControl questions, ideas, and usage notes.
+  - type: textarea
+    id: topic
+    attributes:
+      label: Topic
+      description: What would you like to discuss?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Add relevant setup details, screenshots, or links.
+    validations:
+      required: false

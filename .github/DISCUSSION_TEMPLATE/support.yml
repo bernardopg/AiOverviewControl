@@ -1,0 +1,32 @@
+title: "[Support]: "
+labels:
+  - support
+body:
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: DMS/Quickshell version, distro, compositor, and provider set.
+      placeholder: |
+        DMS:
+        Quickshell:
+        Distro:
+        Compositor:
+        Providers:
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to configure or understand?
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks already tried
+      description: Paste sanitized command output if useful.
+      render: shell
+    validations:
+      required: false

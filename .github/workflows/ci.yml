@@ -5,16 +5,28 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CROWDIN_CLI_VERSION: "4.14.2"
 
 jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+
       - name: Validate JSON metadata and translations
         run: |
           jq . plugin.json >/dev/null
@@ -32,21 +44,29 @@ jobs:
               if missing or extra:
                   raise SystemExit(f'{locale}: missing={missing} extra={extra}')
           PY
-      - name: Validate Crowdin config
-        env:
-          CROWLIN_API_TOKEN: ${{ secrets.CROWLIN_API_TOKEN }}
+
+      - name: Validate shell helpers
         run: |
-          test -n "$CROWLIN_API_TOKEN"
-          curl -fsSL https://github.com/crowdin/crowdin-cli/releases/download/4.14.2/crowdin-cli.zip -o /tmp/crowdin-cli.zip
+          bash -n get-provider-usage get-copilot-usage get-claude-usage
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck -S warning get-provider-usage get-copilot-usage get-claude-usage
+
+      - name: Validate Crowdin config
+        run: |
+          curl -fsSL "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-cli.zip" -o /tmp/crowdin-cli.zip
           unzip -q /tmp/crowdin-cli.zip -d /tmp/crowdin-cli
-          python - <<'PY'
-          import os
-          from pathlib import Path
-          Path('/tmp/crowdin-identity.yml').write_text('api_token: ' + os.environ['CROWLIN_API_TOKEN'] + '\n')
-          PY
-          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config lint --identity /tmp/crowdin-identity.yml
-          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config sources --identity /tmp/crowdin-identity.yml
-          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config translations --identity /tmp/crowdin-identity.yml
+          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config lint --config .github/crowdin.yml
+          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config sources --config .github/crowdin.yml
+          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config translations --config .github/crowdin.yml
+
+      - name: Validate GitHub Actions workflows
+        uses: raven-actions/actionlint@v2.0.1
+
       - name: QML lint (optional)
         run: |
-          if command -v qmllint >/dev/null 2>&1; then qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml; else echo "qmllint not installed, skipping"; fi
+          if command -v qmllint >/dev/null 2>&1; then
+            qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
+          else
+            echo "qmllint not installed, skipping"
+          fi

@@ -8,21 +8,38 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   package_and_release:
+    name: Package and release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate release tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="$(jq -r '.version' plugin.json)"
+          test "$TAG" = "v$VERSION" || {
+            echo "Tag $TAG does not match plugin.json version v$VERSION" >&2
+            exit 1
+          }
 
       - name: Create release artifacts
         run: |
-          TAG=${GITHUB_REF_NAME}
-          ZIP=AiOverviewControl-${TAG}.zip
-          TAR=AiOverviewControl-${TAG}.tar.gz
-          git ls-files -z | xargs -0 tar --exclude-vcs -czf "$TAR"
-          git ls-files | zip "$ZIP" -@
-          ls -lh "$ZIP" "$TAR"
+          TAG="${GITHUB_REF_NAME}"
+          NAME="AiOverviewControl-${TAG}"
+          mkdir -p dist
+          git archive --format=zip --prefix="${NAME}/" -o "dist/${NAME}.zip" HEAD
+          git archive --format=tar --prefix="${NAME}/" HEAD | gzip -9 > "dist/${NAME}.tar.gz"
+          sha256sum "dist/${NAME}.zip" "dist/${NAME}.tar.gz" > "dist/${NAME}.sha256"
+          ls -lh dist/
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3.0.0
@@ -30,7 +47,8 @@ jobs:
           name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            AiOverviewControl-${{ github.ref_name }}.zip
-            AiOverviewControl-${{ github.ref_name }}.tar.gz
+            dist/AiOverviewControl-${{ github.ref_name }}.zip
+            dist/AiOverviewControl-${{ github.ref_name }}.tar.gz
+            dist/AiOverviewControl-${{ github.ref_name }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

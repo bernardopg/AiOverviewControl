@@ -32,32 +32,32 @@ Do not add English as a target language; English is the source file. Remove Span
 
 ## Crowdin CLI
 
-The repository config is `crowdin.yml`.
+The repository config is `.github/crowdin.yml`.
 
 Validate config:
 
 ```bash
-crowdin config lint
-crowdin config sources
+crowdin config lint --config .github/crowdin.yml
+crowdin config sources --config .github/crowdin.yml
 ```
 
 Upload source strings:
 
 ```bash
-crowdin upload sources
+crowdin upload sources --config .github/crowdin.yml
 ```
 
 Upload local translations after adding the target languages in Crowdin:
 
 ```bash
-crowdin upload translations --language pt-BR
-crowdin upload translations --language zh-CN
+crowdin upload translations --language pt-BR --config .github/crowdin.yml
+crowdin upload translations --language zh-CN --config .github/crowdin.yml
 ```
 
 Download translations:
 
 ```bash
-crowdin download
+crowdin download --config .github/crowdin.yml
 ```
 
 If Crowdin downloads `i18n/en_US.json` or `i18n/es_ES.json`, the Crowdin target languages are still wrong. Fix the project languages, delete those files, then download again.
@@ -77,5 +77,5 @@ CI validates:
 - `plugin.json` JSON syntax.
 - `i18n/en.json`, `i18n/pt_BR.json`, `i18n/zh_CN.json` JSON syntax.
 - Translation key parity against `i18n/en.json`.
-- `crowdin.yml` syntax.
+- `.github/crowdin.yml` syntax.
 - QML files when `qmllint` is available.

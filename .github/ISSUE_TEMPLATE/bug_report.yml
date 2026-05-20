@@ -1,0 +1,78 @@
+name: Bug report
+description: Report a reproducible AiOverviewControl problem.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include enough local evidence to reproduce or isolate the failure.
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      description: The version from plugin.json, release tag, or commit SHA.
+      placeholder: "1.2.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - DankBar widget
+        - Settings UI
+        - Provider usage helper
+        - Installation
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: DMS/Quickshell version, compositor, distro, and relevant CLI versions.
+      placeholder: |
+        DMS:
+        Quickshell:
+        Compositor:
+        Distro:
+        bash/node/jq/curl:
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List exact commands, settings, and interactions.
+      placeholder: |
+        1. Enable provider set ...
+        2. Run ...
+        3. Open ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized logs or command output. Do not paste tokens or credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Local checks
+      description: Paste sanitized output from relevant validation commands.
+      render: shell
+      placeholder: |
+        jq . plugin.json
+        bash -n get-provider-usage get-copilot-usage get-claude-usage
+        ./get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ./get-copilot-usage

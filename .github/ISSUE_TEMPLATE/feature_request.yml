@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose an improvement to the plugin, docs, or provider support.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow or limitation should this improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the expected behavior and any UI, script, or docs impact.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - Provider support
+        - Widget UI
+        - Settings UI
+        - Helper scripts
+        - Documentation
+        - Release or CI
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional context about workarounds or rejected approaches.
+    validations:
+      required: false
