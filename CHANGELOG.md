@@ -10,8 +10,6 @@
 - Fixed Claude daily totals to use the current weekday instead of a hard-coded weekday index.
 - Fixed the plugin author metadata.
 - Added `codexbar` timeout handling and safer shell interpolation in usage helpers.
-- Ignored local `.gitnexus` index files.
-
 - CI: restored `actions/checkout@v6.0.2` and `softprops/action-gh-release@v3.0.0` (versões corretas, não existentes antes de 2026).
 - Release: corrigido `zip -r "$ZIP" -@` → `zip "$ZIP" -@` (flags `-r` e `-@` são mutuamente exclusivos).
 - Release: substituídas duas etapas separadas `shogo82148/actions-upload-release-asset` pelo parâmetro `files:` nativo do `softprops/action-gh-release@v3.0.0`.

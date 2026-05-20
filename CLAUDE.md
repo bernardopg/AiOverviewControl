@@ -1,43 +1,88 @@
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
+# CLAUDE.md
 
-This project is indexed by GitNexus as **AiOverviewControl** (777 symbols, 767 relationships, 1 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+## Project Overview
 
-## Always Do
+DMS widget plugin that monitors AI provider quota health. Shows most-limited provider in DankBar pill; floating dashboard with per-provider cards.
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+**Runtime stack:** QML (Quickshell), bash helper scripts, optional `codexbar` CLI fallback.
 
-## Never Do
+**Key dependencies:** `bash`, `node`, `jq`, `curl`. Optional: `codexbar`, `gh` (Copilot), `claude` CLI.
 
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+## Key Files
 
-## Resources
+| File | Role |
+|------|------|
+| `AiOverviewControlWidget.qml` | DankBar pill, popout dashboard, QML data collection and normalization |
+| `AiOverviewControlSettings.qml` | DMS settings UI |
+| `get-provider-usage` | Unified shell backend — dispatches per-provider, returns JSON array |
+| `get-copilot-usage` | GitHub Copilot bridge via `gh auth token` or env tokens |
+| `get-claude-usage` | Claude Code analytics from `~/.claude` JSONL logs + optional OAuth |
+| `plugin.json` | Plugin metadata, capabilities, permissions |
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/AiOverviewControl/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/AiOverviewControl/clusters` | All functional areas |
-| `gitnexus://repo/AiOverviewControl/processes` | All execution flows |
-| `gitnexus://repo/AiOverviewControl/process/{name}` | Step-by-step execution trace |
+## Data Flow
 
-## CLI
+1. Widget calls `get-provider-usage` with `providerSelection`, `sourceMode`, optional `codexbarPath`, optional Copilot helper path.
+2. Script dispatches per provider — local bridges first, `codexbar` fallback for others.
+3. Returns JSON array. Each item: `{ provider, source, usage, credits, error }`.
+4. Widget normalizes and renders cards. Errors become isolated cards — do not suppress healthy providers.
+5. Provider with highest `usedPercent` drives the compact DankBar indicator.
+6. For `claude`, widget may also spawn `get-claude-usage` for 5h/7d windows, token counts, cost estimates.
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+## Provider Output Schema
 
-<!-- gitnexus:end -->
+```text
+provider / source / error
+usage.identity.accountEmail
+usage.primary / secondary / tertiary
+  usedPercent, windowMinutes, resetsAt, resetDescription, remaining, unlimited, hasQuota
+credits.remaining
+```
+
+## Settings Keys
+
+`refreshInterval`, `codexbarPath`, `providerSelection`, `sourceMode`, `showErrorProviders`
+
+Stored in DMS settings store — never overwrite user preferences when updating plugin files.
+
+## Validation Commands
+
+```bash
+# Lint QML
+qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml || true
+
+# Validate plugin metadata
+jq . plugin.json
+
+# Test data pipeline end-to-end
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
+  "$(command -v codexbar)" "codex,claude,copilot" "cli" \
+  ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
+
+# Test individual bridges
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+
+# Test via codexbar fallback
+codexbar usage --format json --provider codex --source cli
+codexbar usage --format json --provider claude --source cli
+```
+
+## Release
+
+Releases trigger on `v*` tags. CI runs on push/PR to `main` (validates `plugin.json` + optional `qmllint`).
+
+```bash
+git tag v1.x.y && git push origin v1.x.y
+```
+
+Artifacts: `AiOverviewControl-vX.Y.Z.zip` and `.tar.gz` built from `git ls-files`.
+
+## Design Constraints
+
+- Plugin must be self-contained — no imports from other DMS plugins.
+- Per-provider isolation: one provider failure must not hide others.
+- New provider bridges must output `provider/source/usage/credits/error` schema.
+- Collection timeout: 45 seconds. Exceeded → show timeout error, discard stale output.
+- Follow DMS theme tokens and Quickshell UI patterns for visual consistency.
