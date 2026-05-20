@@ -446,6 +446,422 @@ fetch_9router_native() {
   printf '%s\n' "$item"
 }
 
+fetch_deepseek_native() {
+  local key="${DEEPSEEK_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error deepseek deepseek-api 2 provider "DEEPSEEK_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    "https://api.deepseek.com/user/balance" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="DeepSeek balance API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error deepseek deepseek-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    def pct($used; $total):
+      if num($total) > 0 then ((num($used) / num($total)) * 100) | if . < 0 then 0 elif . > 100 then 100 else . end
+      else 0 end;
+    (.balance_infos // []) as $infos
+    | ($infos[0] // {}) as $b
+    | num($b.total_balance) as $total
+    | num($b.topped_up_balance) as $topped
+    | num($b.granted_balance) as $granted
+    | (num($b.total_balance) - num($b.topped_up_balance)) as $used
+    | {
+        provider: "deepseek",
+        source: "deepseek-api",
+        usage: {
+          identity: { providerID: "deepseek", accountEmail: "DeepSeek account", loginMethod: "api-key" },
+          accountEmail: "DeepSeek account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: pct($used; $total),
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Balance",
+            displayValue: (($b.currency // "CNY") + " " + ($b.total_balance // "0"))
+          },
+          secondary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Granted credits",
+            displayValue: (($b.currency // "CNY") + " " + ($b.granted_balance // "0"))
+          },
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: {
+          remaining: (($b.currency // "CNY") + " " + ($b.total_balance // "0"))
+        }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_kimi_native() {
+  local key="${MOONSHOT_API_KEY:-${KIMI_API_KEY:-}}"
+  if [ -z "$key" ]; then
+    json_error kimi kimi-api 2 provider "MOONSHOT_API_KEY or KIMI_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    "https://api.moonshot.cn/v1/users/me/balance" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Kimi/Moonshot balance API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error kimi kimi-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    .data as $d
+    | num($d.available_balance) as $avail
+    | num($d.voucher_balance) as $voucher
+    | num($d.cash_balance) as $cash
+    | (if $avail <= 0 then 100 else 0 end) as $used_pct
+    | {
+        provider: "kimi",
+        source: "kimi-api",
+        usage: {
+          identity: { providerID: "kimi", accountEmail: "Kimi account", loginMethod: "api-key" },
+          accountEmail: "Kimi account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: $used_pct,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Available balance (CNY)",
+            displayValue: ("¥" + ($d.available_balance | tostring))
+          },
+          secondary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Voucher / Cash",
+            displayValue: ("¥" + ($voucher | tostring) + " / ¥" + ($cash | tostring))
+          },
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: {
+          remaining: ("¥" + ($d.available_balance | tostring))
+        }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_minimax_native() {
+  local key="${MINIMAX_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error minimax minimax-api 2 provider "MINIMAX_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Content-Type: application/json" \
+    "https://www.minimax.io/v1/token_plan/remains" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.base_resp.status_msg // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="MiniMax token_plan/remains returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error minimax minimax-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    . as $d
+    | (num($d.remains // $d.remaining // 0)) as $remains
+    | (num($d.total // 0)) as $total
+    | (if $total > 0 then ((($total - $remains) / $total) * 100) | if . < 0 then 0 elif . > 100 then 100 else . end else 0 end) as $used_pct
+    | {
+        provider: "minimax",
+        source: "minimax-api",
+        usage: {
+          identity: { providerID: "minimax", accountEmail: "MiniMax account", loginMethod: "api-key" },
+          accountEmail: "MiniMax account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: $used_pct,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Token plan remaining",
+            displayValue: (($remains | tostring) + " tokens")
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: (($remains | tostring) + " tokens") }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_glm_native() {
+  local key="${GLM_API_KEY:-${ZHIPU_API_KEY:-}}"
+  if [ -z "$key" ]; then
+    json_error glm glm-api 2 provider "GLM_API_KEY or ZHIPU_API_KEY is not set."
+    return 0
+  fi
+  local base_url="https://bigmodel.cn"
+  [ -n "${GLM_API_BASE:-}" ] && base_url="${GLM_API_BASE%/}"
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Content-Type: application/json" \
+    "${base_url}/api/monitor/usage/quota/limit" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.message // .msg // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="GLM quota API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error glm glm-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    def pct($used; $total):
+      if num($total) > 0 then ((num($used) / num($total)) * 100) | if . < 0 then 0 elif . > 100 then 100 else . end
+      else 0 end;
+    . as $d
+    | (num($d.used // $d.usedTokens // 0)) as $used
+    | (num($d.total // $d.totalTokens // 0)) as $total
+    | ($d.resetTime // $d.reset_time // null) as $reset
+    | {
+        provider: "glm",
+        source: "glm-api",
+        usage: {
+          identity: { providerID: "glm", accountEmail: ($d.accountId // "Zhipu account"), loginMethod: "api-key" },
+          accountEmail: ($d.accountId // "Zhipu account"),
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: pct($used; $total),
+            windowMinutes: (if ($d.windowHours // null) != null then (($d.windowHours // 5) * 60 | round) else null end),
+            resetsAt: $reset,
+            resetDescription: "Quota window",
+            displayValue: (($used | tostring) + " / " + ($total | tostring) + " tokens")
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: {
+          remaining: ((num($total) - num($used) | tostring) + " tokens")
+        }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_mistral_native() {
+  local key="${MISTRAL_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error mistral mistral-api 2 provider "MISTRAL_API_KEY is not set. Mistral has no programmatic usage endpoint — set key to confirm authentication only."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.mistral.ai/v1/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage mistral mistral-api "Mistral account" "api-key" "Authenticated — usage at console.mistral.ai" "console.mistral.ai"
+    return 0
+  fi
+  json_error mistral mistral-api "${http_status:-1}" provider "Mistral API key invalid (HTTP ${http_status:-0}). Mistral has no programmatic quota endpoint."
+}
+
+fetch_ollama_native() {
+  local base="${OLLAMA_HOST:-http://localhost:11434}"
+  base="${base%/}"
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 5 -o "$tmp_body" -w '%{http_code}' \
+    "${base}/api/tags" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    rm -f "$tmp_body"
+    json_error ollama ollama-local 2 provider "Ollama not running at ${base}. Start with: ollama serve"
+    return 0
+  fi
+  jq -c --arg base "$base" '
+    def num($v): ($v // 0 | tonumber? // 0);
+    (.models // []) as $models
+    | ($models | length) as $count
+    | ($models | map(.name // "") | join(", ") | if . == "" then "No models loaded" else . end) as $model_list
+    | {
+        provider: "ollama",
+        source: "ollama-local",
+        usage: {
+          identity: { providerID: "ollama", accountEmail: ($base), loginMethod: "local" },
+          accountEmail: $base,
+          loginMethod: "local",
+          primary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: ("Local — " + ($count | tostring) + " model(s)"),
+            displayValue: $model_list
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: "local" }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_nvidia_native() {
+  local key="${NVIDIA_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error nvidia nvidia-nim 2 provider "NVIDIA_API_KEY is not set (prefix: nvapi-). NVIDIA NIM has no programmatic balance endpoint — set key to confirm auth."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://integrate.api.nvidia.com/v1/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage nvidia nvidia-nim "NVIDIA NIM account" "api-key" "Authenticated — credits at build.nvidia.com" "build.nvidia.com"
+    return 0
+  fi
+  json_error nvidia nvidia-nim "${http_status:-1}" provider "NVIDIA NIM API key invalid (HTTP ${http_status:-0}). Credits visible at build.nvidia.com only."
+}
+
+fetch_cloudflare_native() {
+  local token="${CLOUDFLARE_AI_TOKEN:-${CLOUDFLARE_API_TOKEN:-}}"
+  local account="${CLOUDFLARE_ACCOUNT_ID:-}"
+  if [ -z "$token" ]; then
+    json_error cloudflare cloudflare-ai 2 provider "CLOUDFLARE_AI_TOKEN or CLOUDFLARE_API_TOKEN is not set."
+    return 0
+  fi
+  if [ -z "$account" ]; then
+    json_error cloudflare cloudflare-ai 2 provider "CLOUDFLARE_ACCOUNT_ID is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${token}" \
+    "https://api.cloudflare.com/client/v4/accounts/${account}/ai/usage" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.errors[0].message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Cloudflare AI usage returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error cloudflare cloudflare-ai "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    (.result // .) as $r
+    | (num($r.neurons_used // $r.total_neurons // 0)) as $neurons
+    | (num($r.neurons_limit // 10000)) as $limit
+    | (if $limit > 0 then (($neurons / $limit) * 100) | if . < 0 then 0 elif . > 100 then 100 else . end else 0 end) as $pct
+    | {
+        provider: "cloudflare",
+        source: "cloudflare-ai",
+        usage: {
+          identity: { providerID: "cloudflare", accountEmail: "Cloudflare account", loginMethod: "api-token" },
+          accountEmail: "Cloudflare account",
+          loginMethod: "api-token",
+          primary: {
+            usedPercent: $pct,
+            windowMinutes: 1440,
+            resetsAt: null,
+            resetDescription: "Neurons today",
+            displayValue: (($neurons | tostring) + " / " + ($limit | tostring) + " neurons")
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: ((($limit - $neurons) | tostring) + " neurons") }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_vertexai_native() {
+  local project="${GOOGLE_CLOUD_PROJECT:-${GCLOUD_PROJECT:-${VERTEXAI_PROJECT:-}}}"
+  if command -v gcloud >/dev/null 2>&1 && gcloud auth print-access-token >/dev/null 2>&1; then
+    local account
+    account="$(gcloud config get-value account 2>/dev/null || echo "GCP account")"
+    [ -n "$account" ] && [ "$account" != "(unset)" ] || account="GCP account"
+    local label="Authenticated"
+    [ -n "$project" ] && label="Project: ${project}"
+    json_note_usage vertexai vertexai-gcloud "$account" "gcloud-oauth" "$label" "console.cloud.google.com/vertex-ai"
+    return 0
+  fi
+  json_error vertexai vertexai-gcloud 2 provider "gcloud not authenticated. Run: gcloud auth login && gcloud auth application-default login"
+}
+
+fetch_byteplus_native() {
+  local key="${BYTEPLUS_API_KEY:-${ARK_API_KEY:-}}"
+  if [ -z "$key" ]; then
+    json_error byteplus byteplus-ark 2 provider "BYTEPLUS_API_KEY or ARK_API_KEY is not set. BytePlus ModelArk has no programmatic balance endpoint."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://ark.ap-southeast.bytepluses.com/api/v3/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage byteplus byteplus-ark "BytePlus ModelArk account" "api-key" "Authenticated — balance at console.volcengine.com" "console.volcengine.com"
+    return 0
+  fi
+  json_error byteplus byteplus-ark "${http_status:-1}" provider "BytePlus ModelArk API key invalid (HTTP ${http_status:-0}). No programmatic balance endpoint — check console.volcengine.com."
+}
+
+fetch_qwen_native() {
+  local key="${DASHSCOPE_API_KEY:-${QWEN_API_KEY:-}}"
+  if [ -z "$key" ]; then
+    json_error qwen dashscope-api 2 provider "DASHSCOPE_API_KEY or QWEN_API_KEY is not set. Alibaba DashScope has no programmatic quota endpoint."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://dashscope.aliyuncs.com/compatible-mode/v1/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage qwen dashscope-api "DashScope account" "api-key" "Authenticated — quota at dashscope.console.aliyun.com" "dashscope.console.aliyun.com"
+    return 0
+  fi
+  json_error qwen dashscope-api "${http_status:-1}" provider "DashScope API key invalid (HTTP ${http_status:-0}). Quota visible at dashscope.console.aliyun.com only."
+}
+
 fetch_provider() {
   local provider="$1"
   case "$provider" in
@@ -472,6 +888,63 @@ fetch_provider() {
       ;;
     codex)
       try_codexbar codex || fetch_9router_native codex codex soft || json_note_usage codex codex-cli "Codex CLI" "local" "Usage unavailable" "Install/enable codexbar or 9router for live usage"
+      ;;
+    deepseek)
+      fetch_deepseek_native
+      ;;
+    kimi|moonshot)
+      fetch_kimi_native
+      ;;
+    minimax)
+      fetch_minimax_native
+      ;;
+    glm|zhipu)
+      fetch_glm_native
+      ;;
+    mistral)
+      fetch_mistral_native
+      ;;
+    ollama)
+      fetch_ollama_native
+      ;;
+    nvidia|nim)
+      fetch_nvidia_native
+      ;;
+    cloudflare)
+      fetch_cloudflare_native
+      ;;
+    vertexai|vertex)
+      fetch_vertexai_native
+      ;;
+    byteplus|ark|modelark)
+      fetch_byteplus_native
+      ;;
+    qwen|dashscope|alibaba)
+      fetch_qwen_native
+      ;;
+    perplexity)
+      try_codexbar perplexity || json_note_usage perplexity perplexity-web "Perplexity account" "subscription" "Usage at perplexity.ai/settings/billing" "perplexity.ai"
+      ;;
+    cursor)
+      try_codexbar cursor || json_note_usage cursor cursor-local "Cursor account" "subscription" "Usage at cursor.com/settings" "cursor.com"
+      ;;
+    kilo)
+      try_codexbar kilo || json_note_usage kilo kilo-local "Kilo account" "subscription" "Usage at kilo.ai" "kilo.ai"
+      ;;
+    kiro)
+      try_codexbar kiro || json_note_usage kiro kiro-local "Kiro account" "subscription" "Usage at kiro.ai" "kiro.ai"
+      ;;
+    warp)
+      try_codexbar warp || json_note_usage warp warp-local "Warp account" "subscription" "Usage at app.warp.dev" "app.warp.dev"
+      ;;
+    amp)
+      try_codexbar amp || json_note_usage amp amp-local "Amp account" "subscription" "Usage at ampcode.com" "ampcode.com"
+      ;;
+    cline)
+      try_codexbar cline || json_note_usage cline cline-local "Cline account" "subscription" "Usage visible in VS Code Cline panel — no REST endpoint" "app.cline.bot"
+      ;;
+    opencode)
+      json_note_usage opencode opencode-local "OpenCode" "proxy" "OpenCode routes to underlying providers directly — check each provider's card" "opencode.ai"
       ;;
     *)
       try_codexbar "$provider" || json_error "$provider" codexbar 1 provider "No local provider adapter is available for $provider."

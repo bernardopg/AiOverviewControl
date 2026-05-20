@@ -82,6 +82,38 @@ git tag v1.x.y && git push origin v1.x.y
 
 Artifacts: `AiOverviewControl-vX.Y.Z.zip` and `.tar.gz` built from `git ls-files`.
 
+## Provider Matrix
+
+| ID | Name | Source | Env vars required | API endpoint |
+|----|------|--------|-------------------|--------------|
+| `codex` | Codex | codexbar → 9router fallback | — | codexbar CLI |
+| `claude` | Claude | OAuth local + JSONL | `~/.claude/.credentials.json` | `api.anthropic.com/api/oauth/usage` |
+| `copilot` | Copilot | GitHub API | `gh auth login` or `COPILOT_GITHUB_TOKEN` | `api.github.com/copilot_internal/user` |
+| `gemini` | Gemini | OAuth local or API key | `GEMINI_API_KEY` or `~/.gemini/oauth_creds.json` | Validates key only |
+| `openrouter` | OpenRouter | REST API | `OPENROUTER_API_KEY` | `openrouter.ai/api/v1/key` |
+| `9router` | 9Router | SQLite local | — | `~/.9router/db/data.sqlite` |
+| `deepseek` | DeepSeek | REST API | `DEEPSEEK_API_KEY` | `api.deepseek.com/user/balance` |
+| `kimi` | Kimi | REST API | `MOONSHOT_API_KEY` or `KIMI_API_KEY` | `api.moonshot.cn/v1/users/me/balance` |
+| `mistral` | Mistral | API key validation only | `MISTRAL_API_KEY` | `api.mistral.ai/v1/models` (no quota endpoint) |
+| `glm` | GLM/Zhipu | REST API | `GLM_API_KEY` or `ZHIPU_API_KEY` | `bigmodel.cn/api/monitor/usage/quota/limit` |
+| `minimax` | MiniMax | REST API | `MINIMAX_API_KEY` | `minimax.io/v1/token_plan/remains` |
+| `qwen` | Qwen | API key validation only | `DASHSCOPE_API_KEY` or `QWEN_API_KEY` | No quota endpoint — UI only |
+| `nvidia` | NVIDIA NIM | API key validation only | `NVIDIA_API_KEY` | No quota endpoint — UI only |
+| `cloudflare` | Cloudflare AI | REST API | `CLOUDFLARE_AI_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `api.cloudflare.com/v4/accounts/{id}/ai/usage` |
+| `vertexai` | Vertex AI | gcloud OAuth | `gcloud auth login` | gcloud local auth check |
+| `byteplus` | BytePlus Ark | API key validation only | `BYTEPLUS_API_KEY` or `ARK_API_KEY` | No quota endpoint — UI only |
+| `ollama` | Ollama | Local HTTP | `OLLAMA_HOST` (default: localhost:11434) | `localhost:11434/api/tags` |
+| `perplexity` | Perplexity | codexbar or note | — | No public quota endpoint |
+| `cursor` | Cursor | codexbar or note | — | No public quota endpoint |
+| `cline` | Cline | note | — | No REST endpoint |
+| `opencode` | OpenCode | note | — | Proxy only, no billing |
+| `kilo` | Kilo | codexbar or note | — | No public quota endpoint |
+| `kiro` | Kiro | codexbar or note | — | No public quota endpoint |
+| `warp` | Warp | codexbar or note | — | No public quota endpoint |
+| `amp` | Amp | codexbar or note | — | No public quota endpoint |
+
+**Providers not implemented (no API, ToS issues):** Antigravity (Google, ToS violation risk).
+
 ## Design Constraints
 
 - Plugin must be self-contained — no imports from other DMS plugins.

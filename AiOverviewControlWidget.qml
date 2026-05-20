@@ -67,11 +67,23 @@ PluginComponent {
         "gemini",
         "9router",
         "openrouter",
+        "deepseek",
+        "kimi",
+        "mistral",
+        "glm",
+        "minimax",
+        "qwen",
+        "nvidia",
+        "cloudflare",
+        "vertexai",
+        "byteplus",
+        "ollama",
         "perplexity",
         "cursor",
+        "cline",
+        "opencode",
         "kilo",
         "kiro",
-        "ollama",
         "warp",
         "amp"
     ]
@@ -329,8 +341,28 @@ PluginComponent {
             gemini: "Gemini",
             openrouter: "OpenRouter",
             "9router": "9Router",
-            perplexity: "Perplexity",
+            deepseek: "DeepSeek",
+            kimi: "Kimi",
+            moonshot: "Kimi",
+            mistral: "Mistral",
+            glm: "GLM",
+            zhipu: "GLM",
+            minimax: "MiniMax",
+            qwen: "Qwen",
+            dashscope: "Qwen",
+            alibaba: "Qwen",
+            nvidia: "NVIDIA NIM",
+            nim: "NVIDIA NIM",
+            cloudflare: "Cloudflare AI",
+            vertexai: "Vertex AI",
+            vertex: "Vertex AI",
+            byteplus: "BytePlus Ark",
+            ark: "BytePlus Ark",
+            modelark: "BytePlus Ark",
             ollama: "Ollama",
+            perplexity: "Perplexity",
+            cline: "Cline",
+            opencode: "OpenCode",
             kilo: "Kilo",
             kiro: "Kiro",
             amp: "Amp",
@@ -470,9 +502,25 @@ PluginComponent {
         if (providerId === "gemini") return "auto_awesome";
         if (providerId === "openrouter") return "route";
         if (providerId === "9router") return "share";
+        if (providerId === "deepseek") return "tsunami";
+        if (providerId === "kimi" || providerId === "moonshot") return "dark_mode";
+        if (providerId === "mistral") return "air";
+        if (providerId === "glm" || providerId === "zhipu") return "bubble_chart";
+        if (providerId === "minimax") return "grid_view";
+        if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return "cloud";
+        if (providerId === "nvidia" || providerId === "nim") return "memory";
+        if (providerId === "cloudflare") return "shield";
+        if (providerId === "vertexai" || providerId === "vertex") return "hexagon";
+        if (providerId === "byteplus" || providerId === "ark" || providerId === "modelark") return "bolt";
         if (providerId === "perplexity") return "travel_explore";
         if (providerId === "cursor") return "ads_click";
         if (providerId === "ollama") return "dns";
+        if (providerId === "cline") return "terminal";
+        if (providerId === "opencode") return "code";
+        if (providerId === "warp") return "rocket_launch";
+        if (providerId === "amp") return "electric_bolt";
+        if (providerId === "kilo") return "speed";
+        if (providerId === "kiro") return "tune";
         return "monitoring";
     }
 
@@ -483,6 +531,16 @@ PluginComponent {
         if (providerId === "gemini") return Theme.secondary;
         if (providerId === "openrouter") return Theme.primary;
         if (providerId === "9router") return Theme.secondary;
+        if (providerId === "deepseek") return Theme.primary;
+        if (providerId === "kimi" || providerId === "moonshot") return Theme.secondary;
+        if (providerId === "mistral") return Theme.warning;
+        if (providerId === "glm" || providerId === "zhipu") return Theme.primary;
+        if (providerId === "minimax") return Theme.success;
+        if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return Theme.warning;
+        if (providerId === "nvidia" || providerId === "nim") return Theme.success;
+        if (providerId === "cloudflare") return Theme.warning;
+        if (providerId === "vertexai" || providerId === "vertex") return Theme.primary;
+        if (providerId === "byteplus" || providerId === "ark" || providerId === "modelark") return Theme.secondary;
         return Theme.secondary;
     }
 
