@@ -1,51 +1,70 @@
 # Providers
 
-AiOverviewControl queries each provider separately and merges results in the dashboard. This prevents a single provider failure from taking down the whole panel.
+AiOverviewControl queries each provider independently. A single provider failure produces an error card without affecting healthy providers.
 
-The widget uses `get-provider-usage` as the local backend. The helper prefers native adapters when available and falls back to `codexbar` for Codex and compatible providers.
+The local backend is `get-provider-usage`. It prefers native adapters and falls back to `codexbar` only for providers without one.
 
-## Known IDs
+---
 
-The provider selector recognizes:
+## Provider Matrix
+
+| ID | Display name | Auth env var(s) | Endpoint / method | Quota available | Notes |
+|----|-------------|-----------------|-------------------|-----------------|-------|
+| `codex` | Codex / ChatGPT | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `claude` | Claude | — | `get-claude-usage` + `codexbar` | ✓ (5 h / 7 d windows) | Uses local JSONL + OAuth. |
+| `copilot` | GitHub Copilot | `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` / `GITHUB_TOKEN` | `GET api.github.com/copilot_internal/user` | ✓ (Premium / Chat / Completions) | Prefers `gh auth token`. |
+| `gemini` | Gemini | `GEMINI_API_KEY` / `GOOGLE_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | codexbar or `~/.gemini` credentials | via codexbar | Accepts local OAuth creds. |
+| `9router` | 9Router | — | `~/.9router/db/data.sqlite` (local SQLite) | ✓ (today / week by provider) | Local DB only; no API key needed. |
+| `openrouter` | OpenRouter | `OPENROUTER_API_KEY` | `GET openrouter.ai/api/v1/auth/key` | ✓ (credits remaining) | Falls back to 9Router local DB. |
+| `deepseek` | DeepSeek | `DEEPSEEK_API_KEY` | `GET api.deepseek.com/user/balance` | ✓ (CNY balance: total / topped-up / granted) | |
+| `kimi` / `moonshot` | Kimi | `MOONSHOT_API_KEY` / `KIMI_API_KEY` | `GET api.moonshot.cn/v1/users/me/balance` | ✓ (available / voucher / cash CNY) | |
+| `minimax` | MiniMax | `MINIMAX_API_KEY` | `GET www.minimax.io/v1/token_plan/remains` | ✓ (token quota remaining) | |
+| `glm` / `zhipu` | GLM | `GLM_API_KEY` / `ZHIPU_API_KEY` | `GET bigmodel.cn/api/monitor/usage/quota/limit` | ✓ (quota used / limit) | Set `GLM_API_BASE` to override base URL. |
+| `mistral` | Mistral | `MISTRAL_API_KEY` | `GET api.mistral.ai/v1/models` (key validation) | ✗ (no quota endpoint) | Shows note-card directing to console.mistral.ai. |
+| `ollama` | Ollama | — | `GET {OLLAMA_HOST}/api/tags` (default `http://localhost:11434`) | ✗ (no global quota) | Lists loaded models. Set `OLLAMA_HOST` to override. |
+| `nvidia` / `nim` | NVIDIA NIM | `NVIDIA_API_KEY` | `GET integrate.api.nvidia.com/v1/models` (key validation) | ✗ (no quota endpoint) | Shows note-card directing to build.nvidia.com. |
+| `cloudflare` | Cloudflare AI | `CLOUDFLARE_AI_TOKEN` / `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` | `GET api.cloudflare.com/client/v4/accounts/{id}/ai/usage` | ✓ (neurons used / limit) | Both vars required. |
+| `vertexai` / `vertex` | Vertex AI | via `gcloud auth print-access-token` | gcloud CLI check | ✗ (no programmatic quota) | Shows note-card if authenticated; error if not. |
+| `byteplus` / `ark` / `modelark` | BytePlus Ark | `BYTEPLUS_API_KEY` / `ARK_API_KEY` | `GET ark.ap-southeast.bytepluses.com/api/v3/models` (key validation) | ✗ (no balance endpoint) | Shows note-card directing to console.byteplus.com. |
+| `qwen` / `dashscope` / `alibaba` | Qwen | `DASHSCOPE_API_KEY` / `QWEN_API_KEY` | `GET dashscope.aliyuncs.com/compatible-mode/v1/models` (key validation) | ✗ (no public balance endpoint) | Shows note-card directing to dashscope.console.aliyun.com. |
+| `perplexity` | Perplexity | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `cursor` | Cursor | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `kilo` | Kilo Code | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `kiro` | Kiro | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `warp` | Warp | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `amp` | Amp | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `cline` | Cline | — | `codexbar usage` | via codexbar | Requires codexbar. |
+| `opencode` | OpenCode | — | `codexbar usage` | via codexbar | Requires codexbar. |
+
+---
+
+## Provider details
+
+### Claude
+
+Two data sources merged:
+
+1. `get-claude-usage` — local JSONL analytics + OAuth subscription windows
+2. `codexbar usage --provider claude` — fallback for the main usage card
+
+Local files read:
 
 ```text
-codex
-claude
-copilot
-gemini
-openrouter
-perplexity
-cursor
-kilo
-kiro
-ollama
-warp
-amp
+~/.claude/.credentials.json         OAuth token
+~/.claude/projects/**/*.jsonl       per-session usage logs
+~/.claude/pricing-cache.json        LiteLLM model prices (auto-refreshed)
+~/.claude/usage-cache.json          aggregated token counts (auto-refreshed)
 ```
 
-You can also type provider IDs supported by your `codexbar`, as long as it returns JSON in the expected format.
-
-## Practical matrix
-
-| Provider                                          | Path used                                                      | Best source                  | Notes                                                                                                  |
-| ------------------------------------------------- | -------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `codex`                                           | `get-provider-usage` -> `codexbar usage`                       | `cli`                        | Recommended for local Codex/ChatGPT windows when supported by CodexBar.                                |
-| `claude`                                          | `get-provider-usage` -> `codexbar usage` or `get-claude-usage` | `cli`                        | Extra details come from local Claude Code files.                                                       |
-| `copilot`                                         | `get-copilot-usage`                                            | independent of global source | Uses authenticated GitHub via `gh` or environment token.                                               |
-| `gemini`                                          | `get-provider-usage` -> `codexbar` or local key/OAuth          | `api`, `oauth` or `auto`     | Accepts `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` or `~/.gemini` credentials. |
-| `openrouter`                                      | `get-provider-usage` -> `OPENROUTER_API_KEY` or `codexbar`     | `api`                        | Typically requires token/API configured in CodexBar or `OPENROUTER_API_KEY`.                           |
-| `perplexity`                                      | `codexbar usage`                                               | `api` or `oauth`             | Depends on CodexBar support.                                                                           |
-| `cursor`, `kilo`, `kiro`, `ollama`, `warp`, `amp` | `codexbar usage`                                               | varies                       | IDs appear in the UI but functionality depends on a local CodexBar.                                    |
-
-## Copilot
-
-When the local Copilot helper is executable, the plugin bypasses `codexbar usage --provider copilot` and calls:
+Test:
 
 ```bash
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
 ```
 
-Authentication order:
+### Copilot
+
+Auth priority:
 
 ```text
 gh auth token
@@ -54,107 +73,161 @@ GH_TOKEN
 GITHUB_TOKEN
 ```
 
-The script normalizes:
+API: `GET https://api.github.com/copilot_internal/user` with `X-Github-Api-Version: 2025-04-01`.
 
-- Premium
-- Chat
-- Completions
-- login/plan
-- remaining credits when available
+Windows surfaced: Premium, Chat, Completions.
 
-Direct test:
+Test:
 
 ```bash
 gh auth status
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
 ```
 
-## Claude
+### 9Router vs OpenRouter
 
-`claude` uses two sources:
+These are two distinct providers sharing no code:
 
-1. `codexbar usage --format json --provider claude --source <mode>` for the main usage card
-2. `get-claude-usage` for Claude Code analytics
+| | 9Router | OpenRouter |
+|-|---------|-----------|
+| ID | `9router` | `openrouter` |
+| Data source | Local SQLite `~/.9router/db/data.sqlite` | REST API `openrouter.ai/api/v1/auth/key` |
+| Auth | None | `OPENROUTER_API_KEY` |
+| Fallback | — | Uses 9Router local DB when no key is set |
 
-The local script reads:
-
-```text
-~/.claude/.credentials.json
-~/.claude/projects/**/*.jsonl
-~/.claude/stats-cache.json
-```
-
-It also maintains local caches:
-
-```text
-~/.claude/pricing-cache.json
-~/.claude/usage-cache.json
-```
-
-When network is available the helper attempts to refresh Claude model prices via LiteLLM and USD/EUR rates via Frankfurter. If that fails, the panel continues showing token data and uses cache when present.
-
-Direct test:
+### DeepSeek
 
 ```bash
-claude --version
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+export DEEPSEEK_API_KEY=sk-...
+curl -s https://api.deepseek.com/user/balance \
+  -H "Authorization: Bearer $DEEPSEEK_API_KEY" | jq .
 ```
 
-## Providers via CodexBar
+Balance fields: `balance_infos[0].{total_balance,topped_up_balance,granted_balance}` in CNY.
 
-For providers without a local bridge the local backend runs:
+### Kimi (Moonshot)
 
 ```bash
-codexbar usage --format json --provider <provider> --source <source>
+export MOONSHOT_API_KEY=sk-...   # or KIMI_API_KEY
+curl -s https://api.moonshot.cn/v1/users/me/balance \
+  -H "Authorization: Bearer $MOONSHOT_API_KEY" | jq .
 ```
 
-Examples:
+Balance fields: `data.{available_balance,voucher_balance,cash_balance}` in CNY.
+
+### MiniMax
 
 ```bash
-codexbar usage --format json --provider gemini --source api
-codexbar usage --format json --provider openrouter --source api
-codexbar usage --format json --provider perplexity --source oauth
+export MINIMAX_API_KEY=...
+curl -s https://www.minimax.io/v1/token_plan/remains \
+  -H "Authorization: Bearer $MINIMAX_API_KEY" | jq .
 ```
 
-If the command fails in the terminal, AiOverviewControl may show an error card or try a native fallback depending on the provider. This helps differentiate authentication failures, unsupported providers and UI issues.
+### GLM (Zhipu AI)
 
-## Unified local backend
+```bash
+export GLM_API_KEY=...   # or ZHIPU_API_KEY
+curl -s https://bigmodel.cn/api/monitor/usage/quota/limit \
+  -H "Authorization: Bearer $GLM_API_KEY" | jq .
+```
 
-`get-provider-usage` can be used for development and testing outside the UI:
+Set `GLM_API_BASE` to use an alternative base URL (e.g. `open.bigmodel.cn`).
+
+### Mistral
+
+No public balance/quota endpoint. Key is validated via `GET https://api.mistral.ai/v1/models`. The card shows a note directing to [console.mistral.ai](https://console.mistral.ai).
+
+```bash
+export MISTRAL_API_KEY=...
+curl -s https://api.mistral.ai/v1/models \
+  -H "Authorization: Bearer $MISTRAL_API_KEY" | jq '.data | length'
+```
+
+### Ollama
+
+No global quota. Lists models loaded locally via `/api/tags`. Set `OLLAMA_HOST` for non-default host.
+
+```bash
+curl -s http://localhost:11434/api/tags | jq '.models[].name'
+```
+
+### NVIDIA NIM
+
+No public balance endpoint. Key validated via `GET https://integrate.api.nvidia.com/v1/models`. Card shows note directing to [build.nvidia.com](https://build.nvidia.com).
+
+```bash
+export NVIDIA_API_KEY=nvapi-...
+curl -s https://integrate.api.nvidia.com/v1/models \
+  -H "Authorization: Bearer $NVIDIA_API_KEY" | jq '.data | length'
+```
+
+### Cloudflare AI
+
+Requires both `CLOUDFLARE_ACCOUNT_ID` and a token with `AI Gateway:Read` permission.
+
+```bash
+export CLOUDFLARE_ACCOUNT_ID=...
+export CLOUDFLARE_AI_TOKEN=...
+curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/usage" \
+  -H "Authorization: Bearer $CLOUDFLARE_AI_TOKEN" | jq '.result'
+```
+
+Fields: `neurons_used`, `neurons_limit`.
+
+### Vertex AI
+
+Requires `gcloud` CLI and an active authenticated session. No programmatic quota endpoint — shows authenticated note-card or auth-error card.
+
+```bash
+gcloud auth print-access-token
+gcloud config get-value project
+```
+
+### BytePlus ModelArk
+
+No public balance endpoint. Key validated via models list. Card shows note directing to [console.byteplus.com](https://console.byteplus.com).
+
+```bash
+export BYTEPLUS_API_KEY=...   # or ARK_API_KEY
+curl -s https://ark.ap-southeast.bytepluses.com/api/v3/models \
+  -H "Authorization: Bearer $BYTEPLUS_API_KEY" | jq '.data | length'
+```
+
+### Qwen (DashScope / Alibaba)
+
+No public balance endpoint via DashScope compatible-mode API. Key validated via models list. Card shows note directing to [dashscope.console.aliyun.com](https://dashscope.console.aliyun.com).
+
+```bash
+export DASHSCOPE_API_KEY=sk-...   # or QWEN_API_KEY
+curl -s https://dashscope.aliyuncs.com/compatible-mode/v1/models \
+  -H "Authorization: Bearer $DASHSCOPE_API_KEY" | jq '.data | length'
+```
+
+---
+
+## Testing the full backend
 
 ```bash
 ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
   "$(command -v codexbar)" \
-  "codex,claude,copilot,gemini,openrouter" \
+  "claude,copilot,deepseek,kimi,minimax,glm,mistral,ollama" \
   "cli" \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
 ```
 
-This helper attempts:
+---
 
-- `get-copilot-usage` for Copilot
-- `codexbar` first for Claude, Gemini, Codex and generic providers
-- Claude fallback via `get-claude-usage`
-- Gemini fallback via API key or `~/.gemini` credentials
-- OpenRouter fallback via `OPENROUTER_API_KEY`
-
-## Choosing a healthy provider list
+## Choosing a provider list
 
 Start small:
 
 ```text
-codex,claude,copilot
+claude,copilot
 ```
 
-Add one provider at a time from the dashboard. If it fails:
+Add one provider at a time. If a card shows an error:
 
 1. Expand the card and read the message.
-2. Run the equivalent `codexbar usage` command.
-3. Adjust source or authentication.
-4. Remove the provider if it is unsupported on your installation.
-
----
-
-# Providers (PT-BR)
-
-A versao em Portugues original esta preservada no historico do projeto. Use a versao em ingles acima como referencia principal.
+2. Run the test command for that provider (see sections above).
+3. Set the required env var or configure auth.
+4. Remove the provider from the list if it is unsupported in your environment.

@@ -1,23 +1,24 @@
 # Architecture
 
-AiOverviewControl is a widget plugin for Dank Material Shell (DMS). The UI, local helper scripts and metadata are kept inside the plugin directory to avoid tight coupling with other plugins.
+AiOverviewControl is a self-contained widget plugin for Dank Material Shell (DMS). All UI, helper scripts and metadata live inside the plugin directory with no runtime dependency on other DMS plugins.
 
-## Key files
+## File layout
 
 ```text
-plugin.json
-AiOverviewControlWidget.qml
-AiOverviewControlSettings.qml
-get-copilot-usage
-get-claude-usage
-get-provider-usage
-README.md
-docs/
+plugin.json                         Plugin metadata
+AiOverviewControlWidget.qml         Main widget UI and logic
+AiOverviewControlSettings.qml       Settings panel
+get-provider-usage                  Unified provider backend (bash)
+get-claude-usage                    Claude Code analytics backend (bash)
+get-copilot-usage                   GitHub Copilot bridge (bash)
+docs/                               Documentation
 CHANGELOG.md
 LICENSE
+README.md
+TODO.md
 ```
 
-## Metadata
+## Plugin metadata
 
 `plugin.json` declares:
 
@@ -25,158 +26,177 @@ LICENSE
 - `type`: `widget`
 - `component`: `./AiOverviewControlWidget.qml`
 - `settings`: `./AiOverviewControlSettings.qml`
-- capabilities: `dankbar-widget` and `process`
-- permissions: read/write settings and execute processes
+- capabilities: `dankbar-widget`, `process`
+- permissions: read/write settings, execute processes
 
 ## Data flow
 
-1. On load the widget checks whether `get-provider-usage` is executable.
-2. If available, it triggers `refresh()`.
-3. `refresh()` calls `get-provider-usage` with `providerSelection`, `sourceMode`, optional `codexbar` path and helper scripts.
-4. The helper calls native adapters or `codexbar`, depending on the provider.
-5. For `claude`, the widget may also spawn `get-claude-usage` to gather extra analytics.
-6. Each response is normalized into a provider list.
-7. Errors become independent cards and do not remove healthy providers.
-8. The popout filters providers according to `showErrorProviders`.
-
-## Expected visual model
-
-Each provider item may expose:
-
-```text
-provider
-source
-usage.identity.accountEmail
-usage.identity.loginMethod
-usage.primary
-usage.secondary
-usage.tertiary
-credits.remaining
-error
+```
+QML widget
+  │
+  ├─ on load: check get-provider-usage executable
+  │
+  ├─ refresh()
+  │    │
+  │    └─ spawn: get-provider-usage <codexbar> <providers> <sourceMode> <copilot-helper>
+  │              │
+  │              ├─ copilot       → get-copilot-usage
+  │              ├─ claude        → codexbar usage  ──fallback──→ get-claude-usage
+  │              ├─ gemini        → codexbar usage  ──fallback──→ GEMINI_API_KEY / ~/.gemini
+  │              ├─ 9router       → ~/.9router/db/data.sqlite (SQLite, no API)
+  │              ├─ openrouter    → OPENROUTER_API_KEY  ──fallback──→ 9router local DB
+  │              ├─ deepseek      → api.deepseek.com/user/balance
+  │              ├─ kimi/moonshot → api.moonshot.cn/v1/users/me/balance
+  │              ├─ minimax       → www.minimax.io/v1/token_plan/remains
+  │              ├─ glm/zhipu     → bigmodel.cn/api/monitor/usage/quota/limit
+  │              ├─ mistral       → api.mistral.ai/v1/models (key validation only)
+  │              ├─ ollama        → {OLLAMA_HOST}/api/tags
+  │              ├─ nvidia/nim    → integrate.api.nvidia.com/v1/models (key validation)
+  │              ├─ cloudflare    → api.cloudflare.com/…/ai/usage
+  │              ├─ vertexai      → gcloud auth print-access-token (check only)
+  │              ├─ byteplus/ark  → ark.ap-southeast.bytepluses.com/api/v3/models (key validation)
+  │              ├─ qwen/dashscope→ dashscope.aliyuncs.com/…/models (key validation)
+  │              └─ others        → codexbar usage --provider <id>
+  │
+  └─ claude extra analytics
+       └─ spawn: get-claude-usage   → ~/.claude/projects/**/*.jsonl + OAuth API
 ```
 
-Usage windows follow this format:
+## Provider output schema
 
-```text
-usedPercent
-windowMinutes
-resetsAt
-resetDescription
-remaining
-unlimited
-hasQuota
+Every provider item in the JSON array must conform to:
+
+```json
+{
+  "provider": "string",
+  "source": "string",
+  "usage": {
+    "identity": {
+      "accountEmail": "string",
+      "loginMethod": "string"
+    },
+    "primary":   { "usedPercent": 0, "windowMinutes": 0, "resetsAt": "...", "resetDescription": "...", "remaining": 0, "unlimited": false, "hasQuota": true, "displayValue": "..." },
+    "secondary": { ... },
+    "tertiary":  { ... },
+    "updatedAt": "ISO8601"
+  },
+  "credits": {
+    "remaining": 0,
+    "currency": "USD"
+  },
+  "error": null
+}
 ```
 
-The dashboard chooses the provider with the highest successful `usedPercent` for the compact indicator and the top summary.
+Error path (replaces `usage` and `credits`):
+
+```json
+{
+  "provider": "string",
+  "source": "string",
+  "error": {
+    "code": "string",
+    "message": "string"
+  }
+}
+```
+
+Providers without a quota API use `json_note_usage` which fills `usage.primary` with `unlimited: true` and a `displayValue` note string. This is distinct from an error.
+
+## Provider count
+
+25 provider IDs are registered in `availableProviderOptions`:
+
+```text
+codex, claude, copilot, gemini, 9router, openrouter,
+deepseek, kimi, mistral, glm, minimax, qwen, nvidia,
+cloudflare, vertexai, byteplus, ollama, perplexity,
+cursor, cline, opencode, kilo, kiro, warp, amp
+```
 
 ## QML processes
 
 `AiOverviewControlWidget.qml` uses `Quickshell.Io Process` to:
 
-- detect local helpers and optional `codexbar` path
-- fetch provider usage
-- fetch extra Claude analytics
+- detect local helpers and optional `codexbar` path on load
+- run `get-provider-usage` on each refresh
+- run `get-claude-usage` for Claude extra analytics
 
-Collection timeout is 45 seconds. If a process exceeds that timeout the widget shows a timeout error and avoids reusing stale output.
+Process timeout: 45 seconds. Exceeded timeout produces a timeout error card and discards partial output.
 
 ## Persisted settings
 
-Settings keys used by the plugin:
-
 ```text
-refreshInterval
-codexbarPath
-providerSelection
-sourceMode
-showErrorProviders
+refreshInterval       ms between automatic refreshes
+codexbarPath          absolute path to codexbar binary (optional)
+providerSelection     comma-separated provider ID list
+sourceMode            cli | auto | oauth | api | web
+showErrorProviders    boolean — show/hide error cards
 ```
 
-These keys are stored in the DMS settings store. Updating plugin files should not overwrite user preferences.
+These are stored in the DMS settings store and are not overwritten by plugin updates.
 
-## Plugin isolation
-
-AiOverviewControl does not import UI components from other local plugins. External dependencies are:
-
-- Dank Material Shell APIs and UI components
-- Quickshell for processes and UI
-- optional `codexbar` executable for Codex and providers without a local bridge
-- provider CLIs and local files
-
-Removing or disabling another DMS plugin (for example CodexBar) should not break this widget. For providers that rely on the CodexBar fallback, keep a system `codexbar` installed.
-
-## Local scripts
-
-### `get-copilot-usage`
-
-Transforms GitHub Copilot usage into JSON compatible with widget cards.
-
-Input:
-
-- token via `gh auth token`
-- or `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`
-
-Output:
-
-- provider `copilot`
-- source `github-copilot-api`
-- windows for Premium, Chat and Completions
-- remaining credits when available
-- `error` JSON object when missing token or API failure
+## Helper scripts
 
 ### `get-provider-usage`
 
-Unified local backend for providers.
+Arguments: `<codexbar-path> <provider-csv> <source-mode> <copilot-helper-path>`
 
-Input:
+Iterates providers sequentially. Each provider dispatched by `fetch_provider()` case statement. Helper functions:
 
-- optional `codexbar` path
-- CSV of providers
-- source mode
-- optional path to the Copilot helper
-
-Output:
-
-- JSON array with one item per provider
-- common structure `provider/source/usage/credits/error` used by the cards
-
-Known fallbacks:
-
-- Copilot via `get-copilot-usage`
-- Claude via `codexbar` with fallback to `get-claude-usage`
-- Gemini via `codexbar` or local API key/credentials fallback
-- OpenRouter via `OPENROUTER_API_KEY` or `codexbar`
-- other providers via `codexbar`
+- `fetch_copilot_native()` — calls `get-copilot-usage`
+- `fetch_claude_native()` — reads `get-claude-usage` output
+- `fetch_gemini_native()` — GEMINI_API_KEY or `~/.gemini` credentials
+- `fetch_9router_native()` — SQLite query via `sqlite3`
+- `fetch_openrouter_native()` — OPENROUTER_API_KEY REST call
+- `fetch_deepseek_native()` — DEEPSEEK_API_KEY balance endpoint
+- `fetch_kimi_native()` — MOONSHOT_API_KEY / KIMI_API_KEY balance endpoint
+- `fetch_minimax_native()` — MINIMAX_API_KEY token-plan endpoint
+- `fetch_glm_native()` — GLM_API_KEY / ZHIPU_API_KEY quota endpoint
+- `fetch_mistral_native()` — MISTRAL_API_KEY key validation → note-card
+- `fetch_ollama_native()` — local /api/tags → model list
+- `fetch_nvidia_native()` — NVIDIA_API_KEY key validation → note-card
+- `fetch_cloudflare_native()` — CLOUDFLARE_AI_TOKEN + CLOUDFLARE_ACCOUNT_ID
+- `fetch_vertexai_native()` — gcloud auth check → note-card
+- `fetch_byteplus_native()` — BYTEPLUS_API_KEY / ARK_API_KEY key validation → note-card
+- `fetch_qwen_native()` — DASHSCOPE_API_KEY / QWEN_API_KEY key validation → note-card
+- `try_codexbar()` — codexbar fallback for any provider
+- `json_note_usage()` — structured note card for providers without quota APIs
+- `json_error()` — structured error card
 
 ### `get-claude-usage`
 
-Provides extra Claude Code details.
+- Reads `~/.claude/.credentials.json` for OAuth token
+- Calls `GET https://api.anthropic.com/api/oauth/usage` with `anthropic-beta: oauth-2025-04-20`
+- Parses `five_hour.utilization`, `seven_day.utilization`, `resets_at`
+- Scans `~/.claude/projects/**/*.jsonl` via `jq` + `awk` for token counts and cost estimates
+- Fetches LiteLLM model prices and USD→EUR rate if network available
+- Caches results in `~/.claude/usage-cache.json` and `~/.claude/pricing-cache.json`
+- Output: KEY=VALUE pairs consumed by QML
 
-Input:
+### `get-copilot-usage`
 
-- `~/.claude/.credentials.json`
-- `~/.claude/projects/**/*.jsonl`
-- `~/.claude/stats-cache.json`
-- optional network access for pricing/models and FX rates
+- Auth: `gh auth token` → `COPILOT_GITHUB_TOKEN` → `GH_TOKEN` → `GITHUB_TOKEN`
+- API: `GET https://api.github.com/copilot_internal/user` with `X-Github-Api-Version: 2025-04-01`
+- Maps `quota_snapshots.{premium_interactions,chat,completions}` to primary/secondary/tertiary windows
+- Output: single JSON provider item
 
-Output:
+## Plugin isolation
 
-- KEY=VALUE pairs read by QML
-- 5-hour and 7-day usage windows
-- tokens, sessions, messages and estimated costs
-- caches under `~/.claude`
+No imports from other DMS plugins at runtime. External dependencies:
+
+- DMS APIs and UI components
+- Quickshell (processes and UI primitives)
+- Optional `codexbar` executable for Codex and codexbar-only providers
+- Provider CLIs (`gcloud`, `gh`, `sqlite3`) when relevant
+- `curl`, `jq`, `bash` — assumed present on Linux
+
+Removing or disabling another DMS plugin does not break this widget.
 
 ## Maintenance principles
 
-- Preserve per-provider isolation.
-- Avoid depending on files from other plugins.
-- Prefer structured JSON errors in helper scripts.
-- When adding a provider bridge, keep its output compatible with `provider/source/usage/credits/error`.
-- Document recommended sources and validation commands in [providers.md](./providers.md).
-
----
-
-# Arquitetura (PT-BR)
-
-O conteúdo desta página na versão em inglês acima descreve a arquitetura do plugin. Abaixo estão as notas originais em Português.
-
-<!-- O conteúdo original em Português foi preservado na versão anterior do repositório. -->
+- Keep per-provider isolation: one provider failure must not affect others.
+- Output from every `fetch_*` function must be valid JSON matching the provider schema.
+- Use `json_note_usage` for providers with no quota API rather than returning an error.
+- Document env vars, endpoints and test commands in [providers.md](./providers.md) for every new provider.
+- Run `shellcheck get-provider-usage get-claude-usage get-copilot-usage` before committing changes to helper scripts.

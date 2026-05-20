@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## 1.2.2 - 2026-05-20
+
+- Fixed 9Router displaying as "OpenRouter" in the dashboard (`providerName()` mapping corrected to `"9router": "9Router"`).
+- Gave 9Router a distinct icon (`"share"`) and accent color to visually separate it from OpenRouter.
+- Added `fetch_openrouter_native` → 9Router local DB as silent fallback when `OPENROUTER_API_KEY` is unset.
+- Added 12 new provider adapters in `get-provider-usage`:
+  - **DeepSeek** — balance endpoint (`api.deepseek.com/user/balance`), CNY fields.
+  - **Kimi (Moonshot)** — balance endpoint (`api.moonshot.cn/v1/users/me/balance`), CNY fields.
+  - **MiniMax** — token-plan endpoint (`www.minimax.io/v1/token_plan/remains`).
+  - **GLM / Zhipu AI** — quota endpoint (`bigmodel.cn/api/monitor/usage/quota/limit`); `GLM_API_BASE` override.
+  - **Mistral** — key validation via models endpoint; note-card (no quota API).
+  - **Ollama** — local `/api/tags` model list; `OLLAMA_HOST` override.
+  - **NVIDIA NIM** — key validation via models endpoint; note-card (no quota API).
+  - **Cloudflare AI** — neurons usage endpoint; requires `CLOUDFLARE_ACCOUNT_ID`.
+  - **Vertex AI** — `gcloud` auth check; note-card (no quota API).
+  - **BytePlus ModelArk** — key validation via models endpoint; note-card (no quota API).
+  - **Qwen / DashScope / Alibaba** — key validation via models endpoint; note-card (no quota API).
+- Added 12 new provider entries to `availableProviderOptions` in the QML widget.
+- Added `providerName`, `iconForProvider`, and `providerAccent` mappings for all new providers.
+- Rewrote `docs/providers.md` with full 25-provider matrix, auth methods, env vars, and test commands.
+- Rewrote `docs/architecture.md` to document all fetch functions and updated data flow diagram.
+- Rewrote `docs/configuration.md` with env var reference table and per-provider source recommendations.
+- Rewrote `docs/troubleshooting.md` with per-provider debugging sections for all new providers.
+- Rewrote `TODO.md` with organized categories and current state reflecting v1.2.x.
+
 ## 1.2.1 - 2026-05-08
 
 - Added `9router`/OpenRouter-compatible provider handling in the dashboard and provider helper.
