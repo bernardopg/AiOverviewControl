@@ -33,11 +33,20 @@ jobs:
                   raise SystemExit(f'{locale}: missing={missing} extra={extra}')
           PY
       - name: Validate Crowdin config
+        env:
+          CROWLIN_API_TOKEN: ${{ secrets.CROWLIN_API_TOKEN }}
         run: |
+          test -n "$CROWLIN_API_TOKEN"
           curl -fsSL https://github.com/crowdin/crowdin-cli/releases/download/4.14.2/crowdin-cli.zip -o /tmp/crowdin-cli.zip
           unzip -q /tmp/crowdin-cli.zip -d /tmp/crowdin-cli
-          printf 'api_token: dummy\n' > /tmp/crowdin-identity.yml
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          Path('/tmp/crowdin-identity.yml').write_text('api_token: ' + os.environ['CROWLIN_API_TOKEN'] + '\n')
+          PY
           java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config lint --identity /tmp/crowdin-identity.yml
+          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config sources --identity /tmp/crowdin-identity.yml
+          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config translations --identity /tmp/crowdin-identity.yml
       - name: QML lint (optional)
         run: |
           if command -v qmllint >/dev/null 2>&1; then qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml; else echo "qmllint not installed, skipping"; fi
