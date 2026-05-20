@@ -57,9 +57,10 @@ PluginComponent {
     }
     property string codexbarPath: (pluginData.codexbarPath || "").trim()
     property string sourceMode: pluginData.sourceMode || "cli"
-    property string providerUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-provider-usage"
-    property string claudeUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-claude-usage"
-    property string copilotUsageScript: PluginService.pluginDirectory + "/AiOverviewControl/get-copilot-usage"
+    readonly property string _pluginDir: (pluginService ? pluginService.getPluginPath(pluginId) : "") || (PluginService.pluginDirectory + "/aiOverviewControl")
+    property string providerUsageScript: _pluginDir + "/get-provider-usage"
+    property string claudeUsageScript: _pluginDir + "/get-claude-usage"
+    property string copilotUsageScript: _pluginDir + "/get-copilot-usage"
     readonly property var availableProviderOptions: [
         "codex",
         "claude",
