@@ -53,12 +53,40 @@ jobs:
           shellcheck -S warning get-provider-usage get-copilot-usage get-claude-usage
 
       - name: Validate Crowdin config
+        env:
+          CROWDIN_API_TOKEN: ${{ secrets.CROWDIN_API_TOKEN || secrets.CROWLIN_API_TOKEN }}
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          config = Path('.github/crowdin.yml').read_text()
+          required = [
+              'project_id: "899362"',
+              'base_path: ".."',
+              'source: "/i18n/en.json"',
+              'translation: "/i18n/%locale_with_underscore%.json"',
+          ]
+          missing = [item for item in required if item not in config]
+          if missing:
+              raise SystemExit(f'Crowdin config missing expected entries: {missing}')
+          if not Path('i18n/en.json').is_file():
+              raise SystemExit('Crowdin source file i18n/en.json is missing')
+          PY
+
+          if [ -z "${CROWDIN_API_TOKEN:-}" ]; then
+            echo "Crowdin token is not available; skipping remote Crowdin CLI validation."
+            exit 0
+          fi
+
           curl -fsSL "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-cli.zip" -o /tmp/crowdin-cli.zip
           unzip -q /tmp/crowdin-cli.zip -d /tmp/crowdin-cli
-          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config lint --config .github/crowdin.yml
-          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config sources --config .github/crowdin.yml
-          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config translations --config .github/crowdin.yml
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          Path('/tmp/crowdin-identity.yml').write_text('api_token: ' + os.environ['CROWDIN_API_TOKEN'] + '\n')
+          PY
+          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config lint --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
+          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config sources --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
+          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config translations --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
 
       - name: Validate GitHub Actions workflows
         uses: raven-actions/actionlint@v2.0.1
