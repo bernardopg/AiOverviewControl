@@ -16,6 +16,7 @@ concurrency:
 
 env:
   CROWDIN_CLI_VERSION: "4.14.2"
+  ACTIONLINT_VERSION: "1.7.12"
 
 jobs:
   validate:
@@ -89,7 +90,10 @@ jobs:
           java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config translations --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
 
       - name: Validate GitHub Actions workflows
-        uses: raven-actions/actionlint@v2.0.1
+        run: |
+          curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o /tmp/actionlint.tar.gz
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          /tmp/actionlint -color
 
       - name: QML lint (optional)
         run: |
