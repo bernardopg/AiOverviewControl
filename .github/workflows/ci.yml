@@ -36,7 +36,8 @@ jobs:
         run: |
           curl -fsSL https://github.com/crowdin/crowdin-cli/releases/download/4.14.2/crowdin-cli.zip -o /tmp/crowdin-cli.zip
           unzip -q /tmp/crowdin-cli.zip -d /tmp/crowdin-cli
-          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config lint
+          printf 'api_token: dummy\n' > /tmp/crowdin-identity.yml
+          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config lint --identity /tmp/crowdin-identity.yml
       - name: QML lint (optional)
         run: |
           if command -v qmllint >/dev/null 2>&1; then qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml; else echo "qmllint not installed, skipping"; fi
