@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Cooauthor
+Do not mention the AI provider/model as a cooauthor in the commit message or PR description.
+
 ## Project Overview
 
 DMS widget plugin that monitors AI provider quota health. Shows most-limited provider in DankBar pill; floating dashboard with per-provider cards.
