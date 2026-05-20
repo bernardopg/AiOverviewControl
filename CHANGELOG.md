@@ -4,6 +4,20 @@
 
 ## 1.2.2 - 2026-05-20
 
+### UI/UX
+- Translated all user-visible widget strings to Portuguese (status titles, subtitles, metric labels, error messages, button labels, empty states).
+- Day-of-week labels in Claude daily bars now use Portuguese abbreviations (Seg/Ter/Qua/Qui/Sex/Sáb/Dom).
+- Provider count chip now pluralizes correctly ("1 exibido" vs "2 exibidos").
+- "Refresh" button relabeled "Atualizar"; "CLI" button (detect binary) relabeled "Detectar" for clarity.
+- "Provider control" section renamed "Gerenciar provedores"; "Add provider" button → "Adicionar".
+- Metric tiles renamed: Active→Ativos, Attention→Atenção, Engine→Motor, Account→Conta, Credits→Créditos.
+- Claude Code details section: Week→Semana, 5h window label unchanged, Today→Hoje, Month→Mês, "Models this week"→"Modelos esta semana".
+- `pendingProviderId` default now binds to first entry of `availableProviderOptions` instead of hardcoded `"gemini"`.
+- `removeProvider` fallback when list empties now uses first `availableProviderOptions` entry instead of hardcoded `"9router"`.
+- Fixed dynamic path resolution in widget (`getPluginPath(pluginId)` with lowercase fallback) so scripts resolve correctly on case-sensitive filesystems regardless of install path.
+- Redesigned Settings panel: interactive provider chips, live env-var reference table, collapsible sections, diagnostic commands, auth reference, source mode hints, and DankToggle for error visibility.
+
+### Providers
 - Fixed 9Router displaying as "OpenRouter" in the dashboard (`providerName()` mapping corrected to `"9router": "9Router"`).
 - Gave 9Router a distinct icon (`"share"`) and accent color to visually separate it from OpenRouter.
 - Added `fetch_openrouter_native` → 9Router local DB as silent fallback when `OPENROUTER_API_KEY` is unset.

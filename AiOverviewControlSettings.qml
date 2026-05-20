@@ -8,6 +8,12 @@ import qs.Modules.Plugins
 PluginSettings {
     id: root
     pluginId: "aiOverviewControl"
+    readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
+
+    function t(key, fallback, params) {
+        root.i18nLocale;
+        return AiOverviewControlI18n.tr(key, fallback, params);
+    }
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -120,7 +126,7 @@ PluginSettings {
                 }
 
                 StyledText {
-                    text: "AiOverviewControl"
+                    text: root.t("app.name", "AiOverviewControl")
                     font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Bold
                     color: Theme.surfaceText
@@ -139,7 +145,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: "Monitora quotas de uso de " + allProviders.length + " provedores de IA diretamente na DankBar. Provedores são consultados isoladamente — uma falha não afeta os demais."
+                text: root.t("settings.hero.description", "Monitor usage quotas for {count} AI providers directly in the DankBar. Providers are queried independently — one failure does not affect the others.", { count: allProviders.length })
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceVariantText
                 wrapMode: Text.WordWrap
@@ -162,7 +168,7 @@ PluginSettings {
 
                         DankIcon { name: "check_circle"; size: 14; color: Theme.primary }
                         StyledText {
-                            text: selectedIds.length + " ativos"
+                            text: root.t("settings.active_count", "{count} active", { count: selectedIds.length })
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.primary
                         }
@@ -182,7 +188,7 @@ PluginSettings {
 
                         DankIcon { name: "database"; size: 14; color: Theme.surfaceVariantText }
                         StyledText {
-                            text: allProviders.length + " disponíveis"
+                            text: root.t("settings.available_count", "{count} available", { count: allProviders.length })
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceVariantText
                         }
@@ -192,11 +198,33 @@ PluginSettings {
         }
     }
 
+    // ── Interface ─────────────────────────────────────────────────────────────
+
+    StyledText {
+        width: parent.width
+        text: root.t("settings.section.interface", "Interface")
+        font.pixelSize: Theme.fontSizeSmall
+        font.weight: Font.DemiBold
+        color: Theme.surfaceVariantText
+    }
+
+    DankDropdown {
+        id: languageDropdown
+        width: parent.width
+        text: root.t("settings.language.label", "Language")
+        description: root.t("settings.language.description", "UI language for this plugin. Auto follows system locale.")
+        currentValue: root.loadValue("languageOverride", "auto")
+        options: ["auto", "en_US", "pt_BR", "zh_CN"]
+        optionIcons: ["language", "translate", "translate", "translate"]
+        dropdownWidth: 220
+        onValueChanged: function(value) { root.saveValue("languageOverride", value); }
+    }
+
     // ── Refresh ───────────────────────────────────────────────────────────────
 
     StyledText {
         width: parent.width
-        text: "Atualização"
+        text: root.t("settings.refresh", "Refresh")
         font.pixelSize: Theme.fontSizeSmall
         font.weight: Font.DemiBold
         color: Theme.surfaceVariantText
@@ -205,8 +233,8 @@ PluginSettings {
     DankDropdown {
         id: refreshDropdown
         width: parent.width
-        text: "Intervalo de atualização"
-        description: "Frequência com que os scripts locais buscam dados de cada provedor."
+        text: root.t("settings.refresh_interval", "Refresh interval")
+        description: root.t("settings.refresh_description", "How often local scripts fetch data from each provider.")
         currentValue: root.loadValue("refreshInterval", "120000")
         options: ["60000", "120000", "300000", "900000", "1800000"]
         optionIcons: ["timer", "timer", "timer_off", "timer_off", "timer_off"]
@@ -241,11 +269,11 @@ PluginSettings {
                 text: {
                     const v = refreshDropdown.currentValue;
                     const map = {
-                        "60000":   "1 minuto — monitoramento ativo. Aumenta chamadas de API.",
-                        "120000":  "2 minutos — padrão recomendado para uso normal.",
-                        "300000":  "5 minutos — adequado para muitos provedores ou redes lentas.",
-                        "900000":  "15 minutos — conservador, reduz rate-limit em APIs externas.",
-                        "1800000": "30 minutos — mínimo, apenas para verificação ocasional."
+                        "60000":   root.t("settings.refresh.60000", "1 minute — active monitoring. Increases API calls."),
+                        "120000":  root.t("settings.refresh.120000", "2 minutes — recommended default for normal use."),
+                        "300000":  root.t("settings.refresh.300000", "5 minutes — suitable for many providers or slow networks."),
+                        "900000":  root.t("settings.refresh.900000", "15 minutes — conservative, reduces rate limits on external APIs."),
+                        "1800000": root.t("settings.refresh.1800000", "30 minutes — minimum, occasional checks only.")
                     };
                     return map[v] || "";
                 }
@@ -261,7 +289,7 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "Provedores nativos"
+        text: root.t("settings.native_providers", "Native providers")
         font.pixelSize: Theme.fontSizeSmall
         font.weight: Font.DemiBold
         color: Theme.surfaceVariantText
@@ -269,7 +297,7 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "Estes provedores usam scripts locais ou APIs diretas — funcionam sem o codexbar. Clique para ativar/desativar."
+        text: root.t("settings.native_providers_desc", "These providers use local scripts or direct APIs — they work without codexbar. Click to enable/disable.")
         font.pixelSize: Theme.fontSizeSmall
         color: Theme.surfaceVariantText
         wrapMode: Text.WordWrap
@@ -353,7 +381,7 @@ PluginSettings {
 
         StyledText {
             width: parent.width
-            text: "Variáveis de ambiente necessárias para provedores ativos:"
+            text: root.t("settings.required_env", "Environment variables required for active providers:")
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.surfaceVariantText
             wrapMode: Text.WordWrap
@@ -414,8 +442,8 @@ PluginSettings {
     DankCollapsibleSection {
         id: codexbarProvidersSection
         width: parent.width
-        title: "Provedores via codexbar"
-        description: "Requerem o codexbar instalado. Sem ele, aparecem como erro."
+        title: root.t("settings.codexbar_providers", "Providers via codexbar")
+        description: root.t("settings.codexbar_providers_desc", "Require codexbar installed. Without it, they appear as errors.")
         expanded: false
 
         Flow {
@@ -493,7 +521,7 @@ PluginSettings {
                 DankIcon { name: "playlist_add_check"; size: 16; color: Theme.primary; anchors.verticalCenter: parent.verticalCenter }
 
                 StyledText {
-                    text: "Seleção atual"
+                    text: root.t("settings.current_selection", "Current selection")
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.DemiBold
                     color: Theme.primary
@@ -503,7 +531,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: selectedIds.length > 0 ? selectedIds.join(", ") : "(nenhum)"
+                text: selectedIds.length > 0 ? selectedIds.join(", ") : root.t("status.none", "(none)")
                 font.pixelSize: Theme.fontSizeSmall
                 font.family: "monospace"
                 color: Theme.surfaceVariantText
@@ -512,7 +540,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: "Editar manualmente (separado por vírgula):"
+                text: root.t("settings.manual_edit", "Edit manually (comma-separated):")
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceVariantText
             }
@@ -542,7 +570,7 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "Fallback codexbar"
+        text: root.t("settings.codexbar_fallback", "codexbar fallback")
         font.pixelSize: Theme.fontSizeSmall
         font.weight: Font.DemiBold
         color: Theme.surfaceVariantText
@@ -554,7 +582,7 @@ PluginSettings {
 
         StyledText {
             width: parent.width
-            text: "Caminho absoluto para o executável codexbar. Necessário apenas para provedores sem adaptador nativo. Deixe vazio para auto-detectar em PATH, ~/.local/bin e /usr/local/bin."
+            text: root.t("settings.codexbar_path_desc", "Absolute path to the codexbar executable. Only required for providers without a native adapter. Leave empty to auto-detect in PATH, ~/.local/bin, and /usr/local/bin.")
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.surfaceVariantText
             wrapMode: Text.WordWrap
@@ -564,7 +592,7 @@ PluginSettings {
             id: codexbarField
             width: parent.width
             text: root.loadValue("codexbarPath", "")
-            placeholderText: "/home/user/.local/bin/codexbar  (auto se vazio)"
+            placeholderText: root.t("settings.codexbar_placeholder", "/home/user/.local/bin/codexbar  (auto if empty)")
             onEditingFinished: root.saveValue("codexbarPath", text)
         }
 
@@ -582,8 +610,8 @@ PluginSettings {
 
             StyledText {
                 text: codexbarField.text.trim().length > 0
-                      ? "Usando caminho customizado: " + codexbarField.text.trim()
-                      : "Auto-detectando codexbar no PATH do sistema."
+                      ? root.t("settings.custom_path", "Using custom path: {path}", { path: codexbarField.text.trim() })
+                      : root.t("settings.auto_detecting", "Auto-detecting codexbar in system PATH.")
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceVariantText
             }
@@ -594,7 +622,7 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "Modo de fonte (fallback)"
+        text: root.t("settings.source_fallback", "Source mode (fallback)")
         font.pixelSize: Theme.fontSizeSmall
         font.weight: Font.DemiBold
         color: Theme.surfaceVariantText
@@ -603,8 +631,8 @@ PluginSettings {
     DankDropdown {
         id: sourceDropdown
         width: parent.width
-        text: "Modo de fonte"
-        description: "Passado ao codexbar para provedores que o usam. Adaptadores nativos ignoram este valor."
+        text: root.t("settings.source_mode", "Source mode")
+        description: root.t("settings.source_mode_desc", "Passed to codexbar for providers that use it. Native adapters ignore this value.")
         currentValue: root.loadValue("sourceMode", "cli")
         options: ["cli", "auto", "oauth", "api", "web"]
         optionIcons: ["terminal", "auto_awesome", "key", "api", "language"]
@@ -626,11 +654,11 @@ PluginSettings {
 
             Repeater {
                 model: [
-                    { mode: "cli",   icon: "check_circle", color: Theme.secondary,          text: "cli — melhor padrão no Linux. Telemetria local, zero chamadas de rede." },
-                    { mode: "auto",  icon: "info",          color: Theme.surfaceVariantText, text: "auto — deixa o codexbar escolher a fonte por provedor." },
-                    { mode: "oauth", icon: "key",           color: Theme.surfaceVariantText, text: "oauth — autentica via OAuth onde suportado pelo provedor." },
-                    { mode: "api",   icon: "api",           color: Theme.surfaceVariantText, text: "api — usa tokens de API configurados no codexbar." },
-                    { mode: "web",   icon: "warning",       color: Theme.warning,            text: "web — scraping de dashboards. Pode ser exclusivo do macOS para alguns provedores." }
+                    { mode: "cli",   icon: "check_circle", color: Theme.secondary,          text: root.t("settings.source.cli", "cli — best default on Linux. Local telemetry, zero network calls.") },
+                    { mode: "auto",  icon: "info",          color: Theme.surfaceVariantText, text: root.t("settings.source.auto", "auto — lets codexbar choose the source per provider.") },
+                    { mode: "oauth", icon: "key",           color: Theme.surfaceVariantText, text: root.t("settings.source.oauth", "oauth — authenticates via OAuth where the provider supports it.") },
+                    { mode: "api",   icon: "api",           color: Theme.surfaceVariantText, text: root.t("settings.source.api", "api — uses API tokens configured in codexbar.") },
+                    { mode: "web",   icon: "warning",       color: Theme.warning,            text: root.t("settings.source.web", "web — dashboard scraping. May be macOS-only for some providers.") }
                 ]
 
                 delegate: Row {
@@ -663,8 +691,8 @@ PluginSettings {
 
     DankToggle {
         width: parent.width
-        text: "Mostrar provedores com erro"
-        description: "Mantém cartões de erro visíveis no painel. Recomendado ao configurar novos provedores para identificar falhas de autenticação."
+        text: root.t("settings.show_errors", "Show providers with errors")
+        description: root.t("settings.show_errors_desc", "Keeps error cards visible in the panel. Recommended while configuring new providers to identify authentication failures.")
         checked: root.loadValue("showErrorProviders", "true") === "true"
         onToggled: function(checked) {
             root.saveValue("showErrorProviders", checked ? "true" : "false");
@@ -676,8 +704,8 @@ PluginSettings {
     DankCollapsibleSection {
         id: authSection
         width: parent.width
-        title: "Referência de autenticação"
-        description: "Como cada tipo de provedor obtém credenciais."
+        title: root.t("settings.auth_ref", "Authentication reference")
+        description: root.t("settings.auth_ref_desc", "How each provider type obtains credentials.")
         expanded: false
 
         Column {
@@ -687,28 +715,28 @@ PluginSettings {
             Repeater {
                 model: [
                     {
-                        title: "Nativos sem chave",
+                        title: root.t("settings.auth.native_title", "Native without key"),
                         icon: "check_circle",
                         color: Theme.secondary,
-                        items: ["claude — lê ~/.claude/ (JSONL + OAuth local)", "9router — lê ~/.9router/db/data.sqlite", "ollama — GET localhost:11434/api/tags", "vertexai — gcloud auth print-access-token"]
+                        items: [root.t("settings.auth.native_1", "claude — reads ~/.claude/ (JSONL + local OAuth)"), root.t("settings.auth.native_2", "9router — reads ~/.9router/db/data.sqlite"), root.t("settings.auth.native_3", "ollama — GET localhost:11434/api/tags"), root.t("settings.auth.native_4", "vertexai — gcloud auth print-access-token")]
                     },
                     {
-                        title: "Chave de API via env var",
+                        title: root.t("settings.auth.env_title", "API key via env var"),
                         icon: "key",
                         color: Theme.primary,
-                        items: ["openrouter — OPENROUTER_API_KEY", "deepseek — DEEPSEEK_API_KEY", "kimi — MOONSHOT_API_KEY ou KIMI_API_KEY", "minimax — MINIMAX_API_KEY", "glm — GLM_API_KEY ou ZHIPU_API_KEY", "mistral — MISTRAL_API_KEY", "nvidia — NVIDIA_API_KEY", "cloudflare — CLOUDFLARE_AI_TOKEN + CLOUDFLARE_ACCOUNT_ID", "byteplus — BYTEPLUS_API_KEY ou ARK_API_KEY", "qwen — DASHSCOPE_API_KEY ou QWEN_API_KEY"]
+                        items: [root.t("settings.auth.env_1", "openrouter — OPENROUTER_API_KEY"), root.t("settings.auth.env_2", "deepseek — DEEPSEEK_API_KEY"), root.t("settings.auth.env_3", "kimi — MOONSHOT_API_KEY or KIMI_API_KEY"), root.t("settings.auth.env_4", "minimax — MINIMAX_API_KEY"), root.t("settings.auth.env_5", "glm — GLM_API_KEY or ZHIPU_API_KEY"), root.t("settings.auth.env_6", "mistral — MISTRAL_API_KEY"), root.t("settings.auth.env_7", "nvidia — NVIDIA_API_KEY"), root.t("settings.auth.env_8", "cloudflare — CLOUDFLARE_AI_TOKEN + CLOUDFLARE_ACCOUNT_ID"), root.t("settings.auth.env_9", "byteplus — BYTEPLUS_API_KEY or ARK_API_KEY"), root.t("settings.auth.env_10", "qwen — DASHSCOPE_API_KEY or QWEN_API_KEY")]
                     },
                     {
-                        title: "GitHub token (Copilot)",
+                        title: root.t("settings.auth.copilot_title", "GitHub token (Copilot)"),
                         icon: "code",
                         color: Theme.primary,
-                        items: ["Prioridade: gh auth token → COPILOT_GITHUB_TOKEN → GH_TOKEN → GITHUB_TOKEN", "Execute: gh auth login"]
+                        items: [root.t("settings.auth.copilot_1", "Priority: gh auth token → COPILOT_GITHUB_TOKEN → GH_TOKEN → GITHUB_TOKEN"), root.t("settings.auth.copilot_2", "Run: gh auth login")]
                     },
                     {
-                        title: "Via codexbar (fallback)",
+                        title: root.t("settings.auth.codexbar_title", "Via codexbar (fallback)"),
                         icon: "terminal",
                         color: Theme.surfaceVariantText,
-                        items: ["codex, gemini, perplexity, cursor, cline, opencode, kilo, kiro, warp, amp", "Requer codexbar instalado e configurado com as credenciais do provedor"]
+                        items: [root.t("settings.auth.codexbar_1", "codex, gemini, perplexity, cursor, cline, opencode, kilo, kiro, warp, amp"), root.t("settings.auth.codexbar_2", "Requires codexbar installed and configured with provider credentials")]
                     }
                 ]
 
@@ -754,8 +782,8 @@ PluginSettings {
     DankCollapsibleSection {
         id: diagSection
         width: parent.width
-        title: "Diagnóstico e testes"
-        description: "Comandos para validar a pipeline fora do widget."
+        title: root.t("settings.diagnostics", "Diagnostics and tests")
+        description: root.t("settings.diagnostics_desc", "Commands to validate the pipeline outside the widget.")
         expanded: false
 
         Column {
@@ -765,23 +793,23 @@ PluginSettings {
             Repeater {
                 model: [
                     {
-                        label: "Testar backend completo (provedores selecionados)",
+                        label: root.t("settings.test_backend", "Test complete backend (selected providers)"),
                         cmd: "PLUGIN=~/.config/DankMaterialShell/plugins/aiOverviewControl\n$PLUGIN/get-provider-usage \"$(command -v codexbar)\" \"" + root.selectedIds.join(",") + "\" cli $PLUGIN/get-copilot-usage | jq ."
                     },
                     {
-                        label: "Testar Claude",
+                        label: root.t("settings.test_claude", "Test Claude"),
                         cmd: "~/.config/DankMaterialShell/plugins/aiOverviewControl/get-claude-usage"
                     },
                     {
-                        label: "Testar Copilot",
+                        label: root.t("settings.test_copilot", "Test Copilot"),
                         cmd: "gh auth status\n~/.config/DankMaterialShell/plugins/aiOverviewControl/get-copilot-usage | jq ."
                     },
                     {
-                        label: "Verificar dependências",
+                        label: root.t("settings.test_deps", "Check dependencies"),
                         cmd: "command -v bash jq curl sqlite3 gh gcloud codexbar 2>&1 | cat"
                     },
                     {
-                        label: "Validar QML",
+                        label: root.t("settings.test_qml", "Validate QML"),
                         cmd: "qmllint ~/.config/DankMaterialShell/plugins/aiOverviewControl/AiOverviewControlWidget.qml"
                     }
                 ]
@@ -842,7 +870,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width - 16 - Theme.spacingM
-                text: "Adaptadores nativos (Claude, Copilot, DeepSeek, Kimi, GLM, MiniMax, Cloudflare, Ollama, Vertex AI) funcionam sem codexbar. Mistral, NVIDIA, Qwen e BytePlus validam a chave mas não têm endpoint de quota — exibem cartão informativo."
+                text: root.t("settings.footer", "Native adapters (Claude, Copilot, DeepSeek, Kimi, GLM, MiniMax, Cloudflare, Ollama, Vertex AI) work without codexbar. Mistral, NVIDIA, Qwen, and BytePlus validate the key but have no quota endpoint — they display an informational card.")
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceVariantText
                 wrapMode: Text.WordWrap

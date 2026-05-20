@@ -15,9 +15,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - name: Validate plugin.json
+      - name: Validate JSON metadata and translations
         run: |
-          if [ -f plugin.json ]; then jq . plugin.json; else echo "plugin.json not found"; fi
+          jq . plugin.json >/dev/null
+          jq . i18n/en.json >/dev/null
+          jq . i18n/pt_BR.json >/dev/null
+          jq . i18n/zh_CN.json >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          base = set(json.loads(Path('i18n/en.json').read_text()).keys())
+          for locale in ('pt_BR', 'zh_CN'):
+              keys = set(json.loads(Path(f'i18n/{locale}.json').read_text()).keys())
+              missing = sorted(base - keys)
+              extra = sorted(keys - base)
+              if missing or extra:
+                  raise SystemExit(f'{locale}: missing={missing} extra={extra}')
+          PY
+      - name: Validate Crowdin config
+        run: |
+          curl -fsSL https://github.com/crowdin/crowdin-cli/releases/download/4.14.2/crowdin-cli.zip -o /tmp/crowdin-cli.zip
+          unzip -q /tmp/crowdin-cli.zip -d /tmp/crowdin-cli
+          java -jar /tmp/crowdin-cli/4.14.2/crowdin-cli.jar config lint
       - name: QML lint (optional)
         run: |
-          if command -v qmllint >/dev/null 2>&1; then qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml; else echo "qmllint not installed, skipping"; fi
+          if command -v qmllint >/dev/null 2>&1; then qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml; else echo "qmllint not installed, skipping"; fi

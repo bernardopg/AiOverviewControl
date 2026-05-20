@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/bernardopg/AiOverviewControl?style=social)](https://github.com/bernardopg/AiOverviewControl/stargazers)
 [![Issues](https://img.shields.io/github/issues/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/issues)
+[![Crowdin](https://badges.crowdin.net/aioverviewcontrol/localized.svg)](https://crowdin.com/project/aioverviewcontrol)
 
 Telemetry panel for tracking usage, limits and reset windows of AI assistants inside Dank Material Shell (DMS).
 

@@ -181,6 +181,31 @@ Iterates providers sequentially. Each provider dispatched by `fetch_provider()` 
 - Maps `quota_snapshots.{premium_interactions,chat,completions}` to primary/secondary/tertiary windows
 - Output: single JSON provider item
 
+## Plugin directory resolution
+
+The widget resolves its own directory at runtime to avoid path case mismatches on Linux filesystems:
+
+```qml
+readonly property string _pluginDir:
+    (pluginService ? pluginService.getPluginPath(pluginId) : "")
+    || (PluginService.pluginDirectory + "/aiOverviewControl")
+```
+
+`PluginService.getPluginPath(pluginId)` returns the exact registered path (case-correct). The fallback appends `"/aiOverviewControl"` (lowercase, matching the `id` in `plugin.json`). All three helper script properties derive from `_pluginDir`.
+
+## Settings panel
+
+`AiOverviewControlSettings.qml` provides:
+
+- Interactive provider chips with live multi-select (Flow + Repeater pattern — `DankFilterChips` is single-select only)
+- Dynamic env-var table showing only variables required by currently active providers
+- Collapsible codexbar provider section (collapsed by default, since most users use native adapters)
+- Source mode dropdown with per-mode contextual hints
+- DankToggle for error provider visibility
+- Auth reference and diagnostic command blocks with interpolated provider selection
+
+Settings are persisted via `root.saveValue` / `root.loadValue` (DMS settings store). Plugin updates never overwrite user preferences.
+
 ## Plugin isolation
 
 No imports from other DMS plugins at runtime. External dependencies:

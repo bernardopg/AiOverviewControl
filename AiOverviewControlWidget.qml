@@ -27,7 +27,7 @@ PluginComponent {
     property string providerSelection: (pluginData.providerSelection || "codex,claude,copilot").trim()
     property bool showErrorProviders: String(pluginData.showErrorProviders || "true") === "true"
     property string focusedProviderId: ""
-    property string pendingProviderId: "gemini"
+    property string pendingProviderId: availableProviderOptions[0] || "codex"
     property string claudeRawBuffer: ""
     property string claudeSubscriptionType: ""
     property string claudeRateLimitTier: ""
@@ -47,8 +47,14 @@ PluginComponent {
     property real claudeMonthCost: 0
     property var claudeDailyTokens: [0, 0, 0, 0, 0, 0, 0]
     property var claudeDailyCosts: [0, 0, 0, 0, 0, 0, 0]
-    property var dayLabels: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    property var dayLabels: [Qt.locale(root.i18nLocale).dayName(1, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(2, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(3, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(4, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(5, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(6, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(0, Locale.ShortFormat)]
     readonly property int currentWeekdayIndex: (new Date().getDay() + 6) % 7
+    readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
+
+    function t(key, fallback, params) {
+        root.i18nLocale;
+        return AiOverviewControlI18n.tr(key, fallback, params);
+    }
 
     property int refreshIntervalMs: {
         const val = pluginData.refreshInterval;
@@ -201,7 +207,7 @@ PluginComponent {
         if (tertiaryWindow) {
             windows.push({
                 key: "tertiary",
-                label: tertiaryWindow.resetDescription || "Tertiary",
+                label: tertiaryWindow.resetDescription || t("window.tertiary", "Tertiary"),
                 data: tertiaryWindow
             });
         }
@@ -210,32 +216,32 @@ PluginComponent {
 
     readonly property string statusTitle: {
         if (isLoading && !hasProviderData) {
-            return "Syncing usage";
+            return t("status.syncing", "Syncing usage");
         }
         if (hasError) {
-            return "Needs attention";
+            return t("status.needs_attention", "Needs attention");
         }
         if (!hasProviderData) {
-            return "Waiting for data";
+            return t("status.waiting", "Waiting for data");
         }
-        return "AI telemetry online";
+        return t("status.online", "AI telemetry online");
     }
 
     readonly property string statusSubtitle: {
         if (isLoading && !hasProviderData) {
-            return "Fetching usage windows from local provider helpers.";
+            return t("status.fetching", "Fetching usage windows from local provider helpers.");
         }
         if (hasError) {
             return errorMessage;
         }
         if (!hasProviderData) {
-            return "Run your configured AI CLIs and refresh to populate usage windows.";
+            return t("status.no_data_hint", "Run your configured AI CLIs and refresh to populate usage windows.");
         }
         const resetLabel = primaryWindow ? formatTimeUntil(primaryWindow.resetsAt) : "";
         if (!resetLabel) {
-            return "Live provider windows are available.";
+            return t("status.windows_available", "Provider windows are available.");
         }
-        return `Primary window resets in ${resetLabel}.`;
+        return t("status.primary_resets", "Primary window resets in {time}.", { time: resetLabel });
     }
 
     readonly property string barText: {
@@ -255,7 +261,7 @@ PluginComponent {
     readonly property string providerEngineLabel: {
         if (!binaryReady) return "offline";
         if (resolvedBinaryPath.length > 0) return `local + ${resolvedBinaryPath.split("/").pop()}`;
-        return "local helpers";
+        return t("status.local_helpers", "local helpers");
     }
 
     function getUsageColor(percent) {
@@ -280,13 +286,13 @@ PluginComponent {
             return "";
         }
         if (windowMinutes <= 300) {
-            return "Session";
+            return t("window.session", "Session");
         }
         if (windowMinutes <= 10080) {
-            return "Weekly";
+            return t("window.weekly", "Weekly");
         }
         if (windowMinutes <= 43200) {
-            return "Monthly";
+            return t("window.monthly", "Monthly");
         }
         return `${Math.floor(windowMinutes / 1440)}d`;
     }
@@ -297,7 +303,7 @@ PluginComponent {
         }
         const diff = new Date(isoDate).getTime() - Date.now();
         if (diff <= 0) {
-            return "now";
+            return t("time.now", "now");
         }
         const mins = Math.floor(diff / 60000);
         if (mins < 60) {
@@ -327,10 +333,10 @@ PluginComponent {
         if (rawStderrBuffer.length > 0) {
             return rawStderrBuffer.trim();
         }
-        if (sourceMode === "api") return "API mode needs provider API tokens or native provider keys.";
-        if (sourceMode === "oauth") return "OAuth mode requires provider authentication supported by the selected provider.";
-        if (sourceMode === "web") return "Web mode depends on the optional fallback provider implementation.";
-        return `provider helper exited with code ${exitCode}`;
+        if (sourceMode === "api") return t("error.api_mode", "API mode needs provider API tokens or native provider keys.");
+        if (sourceMode === "oauth") return t("error.oauth_mode", "OAuth mode requires provider authentication supported by the selected provider.");
+        if (sourceMode === "web") return t("error.web_mode", "Web mode depends on the optional fallback provider implementation.");
+        return t("error.helper_exit", "provider helper exited with code {code}", { code: exitCode });
     }
 
     function providerName(providerId) {
@@ -421,7 +427,7 @@ PluginComponent {
             }
         }
         if (next.length === 0) {
-            next.push("9router");
+            next.push(availableProviderOptions[0] || "codex");
         }
         if (focusedProviderId === provider) {
             focusedProviderId = "";
@@ -551,7 +557,7 @@ PluginComponent {
         const windows = [];
         if (usage.primary) windows.push({ key: "primary", label: usage.primary.resetDescription || getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
         if (usage.secondary) windows.push({ key: "secondary", label: usage.secondary.resetDescription || getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
-        if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || "Tertiary", data: usage.tertiary });
+        if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || t("window.tertiary", "Tertiary"), data: usage.tertiary });
         return windows;
     }
 
@@ -574,16 +580,16 @@ PluginComponent {
     }
 
     function providerSubtitle(provider) {
-        if (!provider) return "No provider data";
+        if (!provider) return t("status.provider_missing", "No provider data");
         if (provider.error) return root.providerErrorText(provider);
         const source = provider.source || root.sourceMode;
         const windowData = primaryUsageWindow(provider);
         if (windowData && windowData.displayValue && String(windowData.displayValue).length > 0) {
-            const label = windowData.resetDescription || "usage";
+            const label = windowData.resetDescription || t("status.usage", "usage");
             return `${source} · ${label} · ${windowData.displayValue}`;
         }
         const reset = providerReset(provider);
-        return reset !== "—" ? `${source} · reset ${reset}` : `${source} · no reset window`;
+        return reset !== "—" ? `${source} · ${t("status.reset", "reset")} ${reset}` : `${source} · ${t("status.no_reset", "no reset window")}`;
     }
 
     function formatTokens(n) {
@@ -687,7 +693,7 @@ PluginComponent {
             } else {
                 root.providers = [];
                 root.hasError = true;
-                root.errorMessage = `Local provider helper is missing or not executable: ${root.providerUsageScript}`;
+                root.errorMessage = t("error.helper_missing", "Local provider helper is missing or not executable: {path}", { path: root.providerUsageScript });
             }
         }
     }
@@ -808,7 +814,7 @@ PluginComponent {
                 procUsage.running = false;
                 root.isLoading = false;
                 root.hasError = true;
-                root.errorMessage = "Provider helper timed out while fetching usage data.";
+                root.errorMessage = t("error.helper_timeout", "Provider helper timed out while fetching usage data.");
             }
         }
     }
@@ -1329,7 +1335,7 @@ PluginComponent {
 
                 StyledText {
                     Layout.alignment: Qt.AlignVCenter
-                    text: card.provider.error ? "Error" : `${Math.round(root.providerPercent(card.provider))}%`
+                    text: card.provider.error ? t("status.error", "Error") : `${Math.round(root.providerPercent(card.provider))}%`
                     color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
                     font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                     font.weight: Font.Bold
@@ -1376,7 +1382,7 @@ PluginComponent {
             UsageBar {
                 visible: card.hasUsage && !card.expanded
                 width: parent.width
-                label: card.windows.length > 0 ? card.windows[0].label : "Usage"
+                label: card.windows.length > 0 ? card.windows[0].label : t("status.usage", "Usage")
                 percent: root.providerPercent(card.provider)
                 aside: card.windows.length > 0 ? root.formatUsageLine(card.windows[0].data) : `${Math.round(root.providerPercent(card.provider))}%`
                 accentColor: root.getUsageColor(root.providerPercent(card.provider))
@@ -1409,7 +1415,7 @@ PluginComponent {
 
                     MetricTile {
                         Layout.fillWidth: true
-                        label: "Account"
+                        label: t("card.account", "Account")
                         value: root.providerAccount(card.provider)
                         accentColor: card.accentColor
                         multilineValue: true
@@ -1417,14 +1423,14 @@ PluginComponent {
 
                     MetricTile {
                         Layout.fillWidth: true
-                        label: "Login"
+                        label: t("card.login", "Login")
                         value: root.providerLogin(card.provider)
                         accentColor: card.accentColor
                     }
 
                     MetricTile {
                         Layout.fillWidth: true
-                        label: "Credits"
+                        label: t("card.credits", "Credits")
                         value: root.providerCredits(card.provider)
                         accentColor: card.accentColor
                     }
@@ -1451,7 +1457,7 @@ PluginComponent {
 
                             StyledText {
                                 Layout.fillWidth: true
-                                text: "Claude Code details"
+                                text: t("card.claude_details", "Claude Code details")
                                 color: Theme.surfaceText
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Bold
@@ -1467,7 +1473,7 @@ PluginComponent {
 
                         UsageBar {
                             width: parent.width
-                            label: "Week"
+                            label: t("card.week", "Week")
                             percent: root.claudeSevenDayUtil
                             aside: `${Math.round(root.claudeSevenDayUtil)}%`
                             accentColor: root.getUsageColor(root.claudeSevenDayUtil)
@@ -1487,9 +1493,9 @@ PluginComponent {
                             columnSpacing: Theme.spacingM
                             rowSpacing: Theme.spacingM
 
-                            MetricTile { Layout.fillWidth: true; label: "Today"; value: `${root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0)} · ${root.formatCost(root.claudeTodayCost)}`; accentColor: Theme.warning }
-                            MetricTile { Layout.fillWidth: true; label: "Week"; value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
-                            MetricTile { Layout.fillWidth: true; label: "Month"; value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: t("card.today", "Today"); value: `${root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0)} · ${root.formatCost(root.claudeTodayCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: t("card.week", "Week"); value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: t("card.month", "Month"); value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`; accentColor: Theme.warning }
                         }
 
                         ClaudeDailyBars {
@@ -1502,7 +1508,7 @@ PluginComponent {
 
                             StyledText {
                                 width: parent.width
-                                text: "Models this week"
+                                text: t("card.models_week", "Models this week")
                                 color: Theme.surfaceText
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
@@ -1525,7 +1531,7 @@ PluginComponent {
 
                         StyledText {
                             width: parent.width
-                            text: `Since ${root.claudeFirstSession || "—"} · ${root.claudeAlltimeSessions} sessions · ${root.claudeAlltimeMessages} messages`
+                            text: t("card.claude_since", "Since {date} · {sessions} sessions · {messages} messages", { date: root.claudeFirstSession || "—", sessions: root.claudeAlltimeSessions, messages: root.claudeAlltimeMessages })
                             color: Theme.surfaceVariantText
                             font.pixelSize: Theme.fontSizeMedium
                             elide: Text.ElideRight
@@ -1573,7 +1579,7 @@ PluginComponent {
 
                     StyledText {
                         width: parent.width
-                        text: "Provider control"
+                        text: t("card.provider_control", "Provider control")
                         color: Theme.surfaceText
                         font.pixelSize: Theme.fontSizeLarge
                         font.weight: Font.Bold
@@ -1591,8 +1597,8 @@ PluginComponent {
                 DankDropdown {
                     id: addProviderDropdown
                     width: parent.width < 620 ? parent.width : 220
-                    text: "Provider"
-                    description: "Choose a provider supported by local helpers or fallback."
+                    text: t("card.provider", "Provider")
+                    description: t("card.provider_description", "Choose a provider supported by local helpers or fallback.")
                     currentValue: root.pendingProviderId
                     options: root.availableProviderOptions
                     dropdownWidth: 220
@@ -1605,7 +1611,7 @@ PluginComponent {
                     id: addProviderButton
                     width: parent.width < 620 ? parent.width : implicitWidth
                     iconName: "add"
-                    label: "Add provider"
+                    label: t("card.add_provider", "Add provider")
                     compact: true
                     prominent: true
                     actionEnabled: root.selectedProviders.indexOf(root.pendingProviderId) < 0
@@ -1622,8 +1628,8 @@ PluginComponent {
         PopoutComponent {
             id: popout
 
-            headerText: "AI Usage Control"
-            detailsText: root.lastUpdated.length > 0 ? `Updated ${root.lastUpdated} · ${root.sourceMode}` : "Provider dashboard"
+            headerText: t("app.title", "AI Usage Control")
+            detailsText: root.lastUpdated.length > 0 ? t("popout.details_updated", "Updated {time} · {source}", { time: root.lastUpdated, source: root.sourceMode }) : t("popout.provider_dashboard", "Provider dashboard")
             showCloseButton: true
 
             headerActions: Component {
@@ -1632,7 +1638,7 @@ PluginComponent {
 
                     SurfaceButton {
                         iconName: "terminal"
-                        label: "CLI"
+                        label: t("card.detect", "Detect")
                         compact: true
                         actionEnabled: !procDetect.running
                         onTriggered: root.detectBinary()
@@ -1640,7 +1646,7 @@ PluginComponent {
 
                     SurfaceButton {
                         iconName: "refresh"
-                        label: "Refresh"
+                        label: t("card.refresh", "Refresh")
                         compact: true
                         prominent: true
                         actionEnabled: root.binaryReady && !root.isLoading
@@ -1726,7 +1732,7 @@ PluginComponent {
 
                                         StyledText {
                                             width: parent.width
-                                            text: "AI Usage Control"
+                                            text: t("app.title", "AI Usage Control")
                                             color: Theme.surfaceText
                                             font.pixelSize: contentColumn.width < 560 ? Theme.fontSizeLarge : Theme.fontSizeLarge + 4
                                             font.weight: Font.Bold
@@ -1770,10 +1776,10 @@ PluginComponent {
                                     columnSpacing: Theme.spacingM
                                     rowSpacing: Theme.spacingM
 
-                                    MetricTile { Layout.fillWidth: true; label: "Active"; value: String(root.successfulProviders.length); accentColor: Theme.success }
-                                    MetricTile { Layout.fillWidth: true; label: "Attention"; value: String(root.errorProviders.length); accentColor: root.errorProviders.length > 0 ? Theme.warning : Theme.success }
-                                    MetricTile { Layout.fillWidth: true; label: "Engine"; value: root.providerEngineLabel; accentColor: Theme.primary }
-                                    MetricTile { Layout.fillWidth: true; label: "Fallback"; value: root.compactPath(root.resolvedBinaryPath); accentColor: Theme.primary; multilineValue: true }
+                                    MetricTile { Layout.fillWidth: true; label: t("card.active", "Active"); value: String(root.successfulProviders.length); accentColor: Theme.success }
+                                    MetricTile { Layout.fillWidth: true; label: t("card.attention", "Attention"); value: String(root.errorProviders.length); accentColor: root.errorProviders.length > 0 ? Theme.warning : Theme.success }
+                                    MetricTile { Layout.fillWidth: true; label: t("card.engine", "Engine"); value: root.providerEngineLabel; accentColor: Theme.primary }
+                                    MetricTile { Layout.fillWidth: true; label: t("card.fallback", "Fallback"); value: root.compactPath(root.resolvedBinaryPath); accentColor: Theme.primary; multilineValue: true }
                                 }
                             }
                         }
@@ -1785,7 +1791,7 @@ PluginComponent {
 
                             StyledText {
                                 Layout.fillWidth: true
-                                text: "Providers"
+                                text: t("card.providers", "Providers")
                                 color: Theme.surfaceText
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Bold
@@ -1803,7 +1809,7 @@ PluginComponent {
                                 StyledText {
                                     id: providerCountLabel
                                     anchors.centerIn: parent
-                                    text: `${root.displayProviders.length} shown`
+                                    text: root.displayProviders.length === 1 ? t("status.displayed", "{count} displayed", { count: root.displayProviders.length }) : t("status.displayed_plural", "{count} displayed", { count: root.displayProviders.length })
                                     color: root.heroAccent
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.DemiBold
@@ -1814,7 +1820,7 @@ PluginComponent {
                         StyledText {
                             visible: root.isLoading && root.providers.length === 0
                             width: parent.width
-                            text: "Fetching provider usage..."
+                            text: t("status.loading_usage", "Fetching provider usage data...")
                             color: Theme.surfaceVariantText
                             font.pixelSize: Theme.fontSizeSmall
                         }
@@ -1822,7 +1828,7 @@ PluginComponent {
                         StyledText {
                             visible: !root.isLoading && root.providers.length === 0
                             width: parent.width
-                            text: "No provider data yet. Check provider credentials, local CLIs, or the optional fallback path."
+                            text: t("status.no_provider_data", "No provider data available. Check credentials, local CLIs, or the optional fallback path.")
                             color: Theme.surfaceVariantText
                             font.pixelSize: Theme.fontSizeSmall
                             wrapMode: Text.WordWrap
