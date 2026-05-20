@@ -465,7 +465,9 @@ fetch_provider() {
       if [ -n "${OPENROUTER_API_KEY:-}" ]; then
         fetch_openrouter_native
       else
-        try_codexbar openrouter || fetch_openrouter_native
+        try_codexbar openrouter \
+          || fetch_9router_native openrouter openrouter soft \
+          || fetch_openrouter_native
       fi
       ;;
     codex)

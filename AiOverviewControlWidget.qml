@@ -328,7 +328,7 @@ PluginComponent {
             cursor: "Cursor",
             gemini: "Gemini",
             openrouter: "OpenRouter",
-            "9router": "OpenRouter",
+            "9router": "9Router",
             perplexity: "Perplexity",
             ollama: "Ollama",
             kilo: "Kilo",
@@ -468,7 +468,8 @@ PluginComponent {
         if (providerId === "claude") return "psychology";
         if (providerId === "copilot") return "hub";
         if (providerId === "gemini") return "auto_awesome";
-        if (providerId === "openrouter" || providerId === "9router") return "route";
+        if (providerId === "openrouter") return "route";
+        if (providerId === "9router") return "share";
         if (providerId === "perplexity") return "travel_explore";
         if (providerId === "cursor") return "ads_click";
         if (providerId === "ollama") return "dns";
@@ -480,7 +481,8 @@ PluginComponent {
         if (providerId === "codex") return Theme.success;
         if (providerId === "copilot") return Theme.primary;
         if (providerId === "gemini") return Theme.secondary;
-        if (providerId === "openrouter" || providerId === "9router") return Theme.primary;
+        if (providerId === "openrouter") return Theme.primary;
+        if (providerId === "9router") return Theme.secondary;
         return Theme.secondary;
     }
 
