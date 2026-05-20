@@ -3,7 +3,6 @@
 <img width="100%" alt="AiOverviewControl" src="https://capsule-render.vercel.app/api?type=wave&color=0:0F172A,45:2563EB,100:22C55E&height=220&section=header&text=AiOverviewControl&fontSize=52&fontColor=FFFFFF&animation=fadeIn&fontAlignY=36&desc=AI%20usage%20telemetry%20for%20Dank%20Material%20Shell&descSize=18&descAlignY=58" />
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bernardopg/AiOverviewControl/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/bernardopg/AiOverviewControl/codeql.yml?branch=main&label=CodeQL&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/tag/bernardopg/AiOverviewControl?label=Release&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/releases)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl?style=flat-square)](LICENSE)
 [![Crowdin](https://badges.crowdin.net/aioverviewcontrol/localized.svg)](https://crowdin.com/project/aioverviewcontrol)
@@ -31,7 +30,7 @@ The plugin is designed to stay useful even when one provider fails: each provide
 - 🛠️ **Self-contained local helpers** for Copilot, Claude Code, Codex fallbacks, and compatible providers.
 - ⚙️ **Visual provider controls** so users can add or remove providers without editing JSON by hand.
 - 🌍 **Crowdin-powered translations** using JSON locale files under `i18n/`.
-- 🔒 **Repository hygiene** with CI, CodeQL, Dependabot, issue templates, discussions, and a security policy.
+- 🔒 **Repository hygiene** with CI, code scanning, Dependabot, issue templates, discussions, and a security policy.
 
 ## 📦 Requirements
 
@@ -117,7 +116,7 @@ If a provider works in the terminal but not in the panel, start with [docs/troub
 | `get-copilot-usage` | GitHub Copilot usage bridge. |
 | `get-claude-usage` | Claude Code local analytics and usage bridge. |
 | `i18n/` | Locale JSON files managed with Crowdin. |
-| `.github/` | CI, CodeQL, Dependabot, funding, templates, and community health files. |
+| `.github/` | CI, code scanning defaults, Dependabot, funding, templates, and community health files. |
 
 Technical overview: [docs/architecture.md](./docs/architecture.md)
 

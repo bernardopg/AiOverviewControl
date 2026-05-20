@@ -3,7 +3,6 @@
 <img width="100%" alt="AiOverviewControl" src="https://capsule-render.vercel.app/api?type=wave&color=0:0F172A,45:2563EB,100:22C55E&height=220&section=header&text=AiOverviewControl&fontSize=52&fontColor=FFFFFF&animation=fadeIn&fontAlignY=36&desc=Telemetria%20de%20uso%20de%20IA%20para%20Dank%20Material%20Shell&descSize=18&descAlignY=58" />
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bernardopg/AiOverviewControl/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/bernardopg/AiOverviewControl/codeql.yml?branch=main&label=CodeQL&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/tag/bernardopg/AiOverviewControl?label=Release&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/releases)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl?style=flat-square)](../LICENSE)
 [![Crowdin](https://badges.crowdin.net/aioverviewcontrol/localized.svg)](https://crowdin.com/project/aioverviewcontrol)
@@ -31,7 +30,7 @@ O plugin foi desenhado para continuar útil mesmo quando um provider falha: cada
 - 🛠️ **Helpers locais autocontidos** para Copilot, Claude Code, fallbacks de Codex e providers compatíveis.
 - ⚙️ **Controles visuais de provider** para adicionar ou remover providers sem editar JSON manualmente.
 - 🌍 **Traduções via Crowdin** usando arquivos JSON em `i18n/`.
-- 🔒 **Repositório organizado** com CI, CodeQL, Dependabot, templates, discussions e política de segurança.
+- 🔒 **Repositório organizado** com CI, code scanning, Dependabot, templates, discussions e política de segurança.
 
 ## 📦 Requisitos
 
@@ -117,7 +116,7 @@ Se um provider funciona no terminal, mas não aparece no painel, comece por [tro
 | `get-copilot-usage` | Ponte para uso do GitHub Copilot. |
 | `get-claude-usage` | Analytics local de Claude Code e ponte de uso. |
 | `i18n/` | Arquivos JSON de idioma gerenciados com Crowdin. |
-| `.github/` | CI, CodeQL, Dependabot, funding, templates e arquivos comunitários. |
+| `.github/` | CI, code scanning padrão, Dependabot, funding, templates e arquivos comunitários. |
 
 Visão técnica: [architecture.md](./architecture.md)
 
