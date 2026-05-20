@@ -89,7 +89,7 @@ jobs:
           java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config translations --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
 
       - name: Validate GitHub Actions workflows
-        uses: raven-actions/actionlint@v2.0.1
+        uses: raven-actions/actionlint@v2.1.2
 
       - name: QML lint (optional)
         run: |
