@@ -2,7 +2,7 @@
 
 AiOverviewControl queries each provider independently. A single provider failure produces an error card without affecting healthy providers.
 
-The local backend is `get-provider-usage`. It prefers native adapters and falls back to `codexbar` only for providers without one.
+The local backend is `providers/get-provider-usage`. It prefers native adapters and falls back to `codexbar` only for providers without one. Each canonical provider also has a dedicated `providers/get-<provider>-usage` wrapper for direct smoke tests.
 
 ---
 
@@ -10,8 +10,8 @@ The local backend is `get-provider-usage`. It prefers native adapters and falls 
 
 | ID | Display name | Auth env var(s) | Endpoint / method | Quota available | Notes |
 |----|-------------|-----------------|-------------------|-----------------|-------|
-| `codex` | Codex / ChatGPT | — | `codexbar usage` | via codexbar | Requires codexbar. |
-| `claude` | Claude | — | `get-claude-usage` + `codexbar` | ✓ (5 h / 7 d windows) | Uses local JSONL + OAuth. |
+| `codex` | Codex / ChatGPT | — | `providers/get-codex-usage` | via codexbar | Requires codexbar. |
+| `claude` | Claude | — | `providers/get-claude-usage` + `codexbar` | ✓ (5 h / 7 d windows) | Uses local JSONL + OAuth. |
 | `copilot` | GitHub Copilot | `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` / `GITHUB_TOKEN` | `GET api.github.com/copilot_internal/user` | ✓ (Premium / Chat / Completions) | Prefers `gh auth token`. |
 | `gemini` | Gemini | `GEMINI_API_KEY` / `GOOGLE_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | codexbar or `~/.gemini` credentials | via codexbar | Accepts local OAuth creds. |
 | `9router` | 9Router | — | `~/.9router/db/data.sqlite` (local SQLite) | ✓ (today / week by provider) | Local DB only; no API key needed. |
@@ -44,7 +44,7 @@ The local backend is `get-provider-usage`. It prefers native adapters and falls 
 
 Two data sources merged:
 
-1. `get-claude-usage` — local JSONL analytics + OAuth subscription windows
+1. `providers/get-claude-usage` — local JSONL analytics + OAuth subscription windows
 2. `codexbar usage --provider claude` — fallback for the main usage card
 
 Local files read:
@@ -59,7 +59,7 @@ Local files read:
 Test:
 
 ```bash
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-claude-usage
 ```
 
 ### Copilot
@@ -81,7 +81,7 @@ Test:
 
 ```bash
 gh auth status
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage | jq .
 ```
 
 ### 9Router vs OpenRouter
@@ -208,11 +208,11 @@ curl -s https://dashscope.aliyuncs.com/compatible-mode/v1/models \
 ## Testing the full backend
 
 ```bash
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-usage \
   "$(command -v codexbar)" \
   "claude,copilot,deepseek,kimi,minimax,glm,mistral,ollama" \
   "cli" \
-  ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
+  ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage | jq .
 ```
 
 ---

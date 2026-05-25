@@ -74,5 +74,5 @@ body:
       render: shell
       placeholder: |
         jq . plugin.json
-        bash -n get-provider-usage get-copilot-usage get-claude-usage
-        ./get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ./get-copilot-usage
+        bash -n providers/get-provider-usage providers/get-copilot-usage providers/get-claude-usage
+        ./providers/get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ./providers/get-copilot-usage

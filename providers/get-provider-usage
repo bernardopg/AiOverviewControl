@@ -154,7 +154,28 @@ try_codexbar() {
 
 fetch_copilot() {
   if [ -x "$COPILOT_SCRIPT" ]; then
-    "$COPILOT_SCRIPT"
+    local tmp_out tmp_err status message
+    tmp_out="$(mktemp)"
+    tmp_err="$(mktemp)"
+    "$COPILOT_SCRIPT" >"$tmp_out" 2>"$tmp_err"
+    status=$?
+
+    if [ -s "$tmp_out" ] && jq -e . "$tmp_out" >/dev/null 2>&1; then
+      cat "$tmp_out"
+      rm -f "$tmp_out" "$tmp_err"
+      return 0
+    fi
+
+    message="$(cat "$tmp_err" 2>/dev/null || true)"
+    [ -n "$message" ] || message="GitHub Copilot usage helper returned invalid output."
+    rm -f "$tmp_out" "$tmp_err"
+
+    if [ "$status" -ne 0 ]; then
+      try_codexbar copilot || json_error copilot github-copilot-api "$status" runtime "$message"
+      return 0
+    fi
+
+    json_error copilot github-copilot-api 1 runtime "$message"
     return 0
   fi
   try_codexbar copilot || json_error copilot github-copilot-api 127 runtime "Copilot helper script is missing or not executable."
@@ -268,7 +289,7 @@ fetch_openrouter_native() {
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
-    "https://openrouter.ai/api/v1/key" 2>/dev/null || true)"
+    "https://openrouter.ai/api/v1/auth/key" 2>/dev/null || true)"
 
   if [ "$http_status" != "200" ]; then
     local message

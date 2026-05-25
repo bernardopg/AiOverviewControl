@@ -19,19 +19,19 @@ DMS widget plugin that monitors AI provider quota health. Shows most-limited pro
 |------|------|
 | `AiOverviewControlWidget.qml` | DankBar pill, popout dashboard, QML data collection and normalization |
 | `AiOverviewControlSettings.qml` | DMS settings UI |
-| `get-provider-usage` | Unified shell backend — dispatches per-provider, returns JSON array |
-| `get-copilot-usage` | GitHub Copilot bridge via `gh auth token` or env tokens |
-| `get-claude-usage` | Claude Code analytics from `~/.claude` JSONL logs + optional OAuth |
+| `providers/get-provider-usage` | Unified shell backend — dispatches per-provider, returns JSON array |
+| `providers/get-copilot-usage` | GitHub Copilot bridge via `gh auth token` or env tokens |
+| `providers/get-claude-usage` | Claude Code analytics from `~/.claude` JSONL logs + optional OAuth |
 | `plugin.json` | Plugin metadata, capabilities, permissions |
 
 ## Data Flow
 
-1. Widget calls `get-provider-usage` with `providerSelection`, `sourceMode`, optional `codexbarPath`, optional Copilot helper path.
+1. Widget calls `providers/get-provider-usage` with `providerSelection`, `sourceMode`, optional `codexbarPath`, optional Copilot helper path.
 2. Script dispatches per provider — local bridges first, `codexbar` fallback for others.
 3. Returns JSON array. Each item: `{ provider, source, usage, credits, error }`.
 4. Widget normalizes and renders cards. Errors become isolated cards — do not suppress healthy providers.
 5. Provider with highest `usedPercent` drives the compact DankBar indicator.
-6. For `claude`, widget may also spawn `get-claude-usage` for 5h/7d windows, token counts, cost estimates.
+6. For `claude`, widget may also spawn `providers/get-claude-usage` for 5h/7d windows, token counts, cost estimates.
 
 ## Provider Output Schema
 
@@ -59,13 +59,13 @@ qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml || true
 jq . plugin.json
 
 # Test data pipeline end-to-end
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-usage \
   "$(command -v codexbar)" "codex,claude,copilot" "cli" \
-  ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
+  ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage
 
 # Test individual bridges
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-claude-usage
 
 # Test via codexbar fallback
 codexbar usage --format json --provider codex --source cli
@@ -90,7 +90,7 @@ Artifacts: `AiOverviewControl-vX.Y.Z.zip` and `.tar.gz` built from `git ls-files
 | `claude` | Claude | OAuth local + JSONL | `~/.claude/.credentials.json` | `api.anthropic.com/api/oauth/usage` |
 | `copilot` | Copilot | GitHub API | `gh auth login` or `COPILOT_GITHUB_TOKEN` | `api.github.com/copilot_internal/user` |
 | `gemini` | Gemini | OAuth local or API key | `GEMINI_API_KEY` or `~/.gemini/oauth_creds.json` | Validates key only |
-| `openrouter` | OpenRouter | REST API | `OPENROUTER_API_KEY` | `openrouter.ai/api/v1/key` |
+| `openrouter` | OpenRouter | REST API | `OPENROUTER_API_KEY` | `openrouter.ai/api/v1/auth/key` |
 | `9router` | 9Router | SQLite local | — | `~/.9router/db/data.sqlite` |
 | `deepseek` | DeepSeek | REST API | `DEEPSEEK_API_KEY` | `api.deepseek.com/user/balance` |
 | `kimi` | Kimi | REST API | `MOONSHOT_API_KEY` or `KIMI_API_KEY` | `api.moonshot.cn/v1/users/me/balance` |
@@ -121,3 +121,22 @@ Artifacts: `AiOverviewControl-vX.Y.Z.zip` and `.tar.gz` built from `git ls-files
 - New provider bridges must output `provider/source/usage/credits/error` schema.
 - Collection timeout: 45 seconds. Exceeded → show timeout error, discard stale output.
 - Follow DMS theme tokens and Quickshell UI patterns for visual consistency.
+
+## Design Context
+
+### Users
+Power users and developers using Dank Material Shell as a daily desktop control surface. They need to glance at AI assistant quota health while switching between CLIs, editors, and providers.
+
+### Brand Personality
+Refined, premium, calm. The interface should feel like a dependable shell instrument: compact, readable, and direct, without marketing-style decoration.
+
+### Aesthetic Direction
+Dark, token-driven DMS styling with restrained provider accents. Prefer layered surfaces, precise spacing, and a premium control-surface feel that adapts from narrow popouts to larger desktop panels without hiding core actions.
+
+### Design Principles
+- Make provider health scannable first, details second.
+- Keep every dependency local to AiOverviewControl unless it is an explicit external CLI/API fallback.
+- Use responsive component reflow instead of fixed desktop-only rows.
+- Treat errors as actionable provider states, not global failure.
+- Preserve DMS theme tokens and interaction patterns for consistency with the shell.
+- Keep motion subtle, purposeful, and calm.

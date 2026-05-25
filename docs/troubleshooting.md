@@ -10,9 +10,9 @@ Use this page to identify whether an issue originates from a binary, authenticat
 command -v bash
 command -v jq
 command -v curl
-test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
-test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
-test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage
+test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage
+test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-claude-usage
+test -x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-usage
 ```
 
 Fix any failing check before investigating the UI.
@@ -38,11 +38,11 @@ Solutions:
 Test the provider outside the widget using the direct backend:
 
 ```bash
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-usage \
   "$(command -v codexbar)" \
   "<provider-id>" \
   "cli" \
-  ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
+  ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage | jq .
 ```
 
 Replace `<provider-id>` with the failing provider. Read the `error` field in the output.
@@ -63,7 +63,7 @@ codexbar usage --format json --provider claude --source cli
 claude --version
 test -f ~/.claude/.credentials.json && echo "credentials ok"
 test -d ~/.claude/projects && echo "projects dir ok"
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-claude-usage
 ```
 
 Remove stale caches if data looks frozen:
@@ -79,7 +79,7 @@ rm -f ~/.claude/usage-cache.json ~/.claude/pricing-cache.json
 ```bash
 gh auth status
 gh auth token >/dev/null && echo "gh token ok"
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage | jq .
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage | jq .
 ```
 
 If output shows HTTP 401 or 403: re-authenticate with `gh auth login` and confirm Copilot is enabled on your GitHub account.
@@ -245,7 +245,7 @@ Both IDs must be present in the provider list with distinct cards. If they look 
 
 Possible causes:
 
-- `get-provider-usage` is not executable.
+- `providers/get-provider-usage` is not executable.
 - All configured providers failed.
 - Custom provider list is empty or contains invalid IDs.
 - First refresh still running.
@@ -261,7 +261,7 @@ Show Provider Errors: true
 Then:
 
 ```bash
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage \
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-usage \
   "" "claude" "cli" "" | jq .
 ```
 

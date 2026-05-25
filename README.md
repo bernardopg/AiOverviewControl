@@ -48,9 +48,9 @@ Copy the plugin into your DMS plugins directory, make helper scripts executable,
 cd /path/to/downloaded/AiOverviewControl
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
 cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml \
-  plugin.json qmldir get-* README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
+  plugin.json qmldir providers README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-*
+chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
 dms restart
 ```
 
@@ -82,8 +82,8 @@ Support depends on local credentials, provider APIs, bundled helper scripts, and
 | Provider | Collection path | Notes |
 | -------- | --------------- | ----- |
 | `codex` | `codexbar` fallback | Reads usage from compatible local CodexBar providers. |
-| `claude` | `get-claude-usage` | Adds Claude Code analytics, windows, tokens, sessions, and estimated costs. |
-| `copilot` | `get-copilot-usage` | Uses GitHub auth from `gh` or token environment variables. |
+| `claude` | `providers/get-claude-usage` | Adds Claude Code analytics, windows, tokens, sessions, and estimated costs. |
+| `copilot` | `providers/get-copilot-usage` | Uses GitHub auth from `gh` or token environment variables. |
 | `gemini`, `openrouter`, others | Native helpers or fallback | Coverage varies by provider API and local credentials. |
 
 Provider matrix: [docs/providers.md](./docs/providers.md)
@@ -94,12 +94,12 @@ From the repository root, use these commands to separate environment, authentica
 
 ```bash
 jq . plugin.json
-bash -n get-provider-usage get-copilot-usage get-claude-usage
+bash -n providers/get-*
 codexbar usage --format json --provider codex --source cli
 codexbar usage --format json --provider claude --source cli
-./get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ./get-copilot-usage
-./get-copilot-usage
-./get-claude-usage
+./providers/get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ./providers/get-copilot-usage
+./providers/get-copilot-usage
+./providers/get-claude-usage
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
 ```
 
@@ -112,9 +112,10 @@ If a provider works in the terminal but not in the panel, start with [docs/troub
 | `AiOverviewControlWidget.qml` | DankBar indicator, popout dashboard, collection orchestration, and rendering. |
 | `AiOverviewControlSettings.qml` | DMS settings UI. |
 | `AiOverviewControlI18n.qml` | Translation loader and lookup helpers. |
-| `get-provider-usage` | Unified provider backend and fallback dispatcher. |
-| `get-copilot-usage` | GitHub Copilot usage bridge. |
-| `get-claude-usage` | Claude Code local analytics and usage bridge. |
+| `providers/get-provider-usage` | Unified provider backend and fallback dispatcher. |
+| `providers/get-provider-wrapper` / `providers/get-*-usage` | Per-provider entrypoints that delegate to the shared backend. |
+| `providers/get-copilot-usage` | GitHub Copilot usage bridge. |
+| `providers/get-claude-usage` | Claude Code local analytics and usage bridge. |
 | `i18n/` | Locale JSON files managed with Crowdin. |
 | `.github/` | CI, code scanning defaults, Dependabot, funding, templates, and community health files. |
 

@@ -8,9 +8,11 @@ AiOverviewControl is a self-contained widget plugin for Dank Material Shell (DMS
 plugin.json                         Plugin metadata
 AiOverviewControlWidget.qml         Main widget UI and logic
 AiOverviewControlSettings.qml       Settings panel
-get-provider-usage                  Unified provider backend (bash)
-get-claude-usage                    Claude Code analytics backend (bash)
-get-copilot-usage                   GitHub Copilot bridge (bash)
+providers/get-provider-usage         Unified provider backend (bash)
+providers/get-provider-wrapper       Shared provider wrapper (bash)
+providers/get-*-usage                Per-provider wrapper entrypoints (bash)
+providers/get-claude-usage           Claude Code analytics backend (bash)
+providers/get-copilot-usage          GitHub Copilot bridge (bash)
 docs/                               Documentation
 CHANGELOG.md
 LICENSE
@@ -34,14 +36,14 @@ TODO.md
 ```
 QML widget
   │
-  ├─ on load: check get-provider-usage executable
+  ├─ on load: check providers/get-provider-usage executable
   │
   ├─ refresh()
   │    │
-  │    └─ spawn: get-provider-usage <codexbar> <providers> <sourceMode> <copilot-helper>
+  │    └─ spawn: providers/get-provider-usage <codexbar> <providers> <sourceMode> <copilot-helper>
   │              │
-  │              ├─ copilot       → get-copilot-usage
-  │              ├─ claude        → codexbar usage  ──fallback──→ get-claude-usage
+  │              ├─ copilot       → providers/get-copilot-usage
+  │              ├─ claude        → codexbar usage  ──fallback──→ providers/get-claude-usage
   │              ├─ gemini        → codexbar usage  ──fallback──→ GEMINI_API_KEY / ~/.gemini
   │              ├─ 9router       → ~/.9router/db/data.sqlite (SQLite, no API)
   │              ├─ openrouter    → OPENROUTER_API_KEY  ──fallback──→ 9router local DB
@@ -59,7 +61,7 @@ QML widget
   │              └─ others        → codexbar usage --provider <id>
   │
   └─ claude extra analytics
-       └─ spawn: get-claude-usage   → ~/.claude/projects/**/*.jsonl + OAuth API
+       └─ spawn: providers/get-claude-usage   → ~/.claude/projects/**/*.jsonl + OAuth API
 ```
 
 ## Provider output schema
@@ -119,8 +121,8 @@ cursor, cline, opencode, kilo, kiro, warp, amp
 `AiOverviewControlWidget.qml` uses `Quickshell.Io Process` to:
 
 - detect local helpers and optional `codexbar` path on load
-- run `get-provider-usage` on each refresh
-- run `get-claude-usage` for Claude extra analytics
+- run `providers/get-provider-usage` on each refresh
+- run `providers/get-claude-usage` for Claude extra analytics
 
 Process timeout: 45 seconds. Exceeded timeout produces a timeout error card and discards partial output.
 
@@ -138,14 +140,14 @@ These are stored in the DMS settings store and are not overwritten by plugin upd
 
 ## Helper scripts
 
-### `get-provider-usage`
+### `providers/get-provider-usage`
 
 Arguments: `<codexbar-path> <provider-csv> <source-mode> <copilot-helper-path>`
 
 Iterates providers sequentially. Each provider dispatched by `fetch_provider()` case statement. Helper functions:
 
-- `fetch_copilot_native()` — calls `get-copilot-usage`
-- `fetch_claude_native()` — reads `get-claude-usage` output
+- `fetch_copilot_native()` — calls `providers/get-copilot-usage`
+- `fetch_claude_native()` — reads `providers/get-claude-usage` output
 - `fetch_gemini_native()` — GEMINI_API_KEY or `~/.gemini` credentials
 - `fetch_9router_native()` — SQLite query via `sqlite3`
 - `fetch_openrouter_native()` — OPENROUTER_API_KEY REST call
@@ -164,7 +166,13 @@ Iterates providers sequentially. Each provider dispatched by `fetch_provider()` 
 - `json_note_usage()` — structured note card for providers without quota APIs
 - `json_error()` — structured error card
 
-### `get-claude-usage`
+### Per-provider wrappers
+
+Each canonical provider also has a dedicated `providers/get-<provider>-usage` wrapper script.
+These wrappers delegate to `providers/get-provider-wrapper`, which forwards a single provider ID
+to the shared backend and keeps the provider-specific entrypoints easy to test.
+
+### `providers/get-claude-usage`
 
 - Reads `~/.claude/.credentials.json` for OAuth token
 - Calls `GET https://api.anthropic.com/api/oauth/usage` with `anthropic-beta: oauth-2025-04-20`
@@ -174,7 +182,7 @@ Iterates providers sequentially. Each provider dispatched by `fetch_provider()` 
 - Caches results in `~/.claude/usage-cache.json` and `~/.claude/pricing-cache.json`
 - Output: KEY=VALUE pairs consumed by QML
 
-### `get-copilot-usage`
+### `providers/get-copilot-usage`
 
 - Auth: `gh auth token` → `COPILOT_GITHUB_TOKEN` → `GH_TOKEN` → `GITHUB_TOKEN`
 - API: `GET https://api.github.com/copilot_internal/user` with `X-Github-Api-Version: 2025-04-01`
@@ -224,4 +232,4 @@ Removing or disabling another DMS plugin does not break this widget.
 - Output from every `fetch_*` function must be valid JSON matching the provider schema.
 - Use `json_note_usage` for providers with no quota API rather than returning an error.
 - Document env vars, endpoints and test commands in [providers.md](./providers.md) for every new provider.
-- Run `shellcheck get-provider-usage get-claude-usage get-copilot-usage` before committing changes to helper scripts.
+- Run `shellcheck providers/get-provider-usage providers/get-claude-usage providers/get-copilot-usage` before committing changes to helper scripts.

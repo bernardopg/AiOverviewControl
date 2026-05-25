@@ -15,6 +15,19 @@ PluginSettings {
         return AiOverviewControlI18n.tr(key, fallback, params);
     }
 
+    function normalizeProviderSelection(value) {
+        const raw = String(value || "");
+        const parts = raw.split(",");
+        const result = [];
+        for (let i = 0; i < parts.length; i++) {
+            const v = parts[i].trim().toLowerCase();
+            if (v.length > 0 && result.indexOf(v) < 0) {
+                result.push(v);
+            }
+        }
+        return result.length > 0 ? result : ["codex"];
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     readonly property var allProviders: [
@@ -53,29 +66,14 @@ PluginSettings {
     })
 
     // current selection as array (live, reflects text field edits)
-    property var selectedIds: {
-        const raw = root.loadValue("providerSelection", "codex,claude,copilot");
-        const parts = raw.split(",");
-        const result = [];
-        for (let i = 0; i < parts.length; i++) {
-            const v = parts[i].trim().toLowerCase();
-            if (v.length > 0 && result.indexOf(v) < 0) result.push(v);
-        }
-        return result;
-    }
+    property var selectedIds: normalizeProviderSelection(root.loadValue("providerSelection", "codex,claude,copilot"))
 
     function isSelected(id) {
         return selectedIds.indexOf(id) >= 0;
     }
 
     function toggleProvider(id) {
-        const current = root.loadValue("providerSelection", "codex,claude,copilot");
-        const parts = current.split(",");
-        const result = [];
-        for (let i = 0; i < parts.length; i++) {
-            const v = parts[i].trim().toLowerCase();
-            if (v.length > 0 && result.indexOf(v) < 0) result.push(v);
-        }
+        const result = normalizeProviderSelection(root.loadValue("providerSelection", "codex,claude,copilot"));
         const idx = result.indexOf(id);
         if (idx >= 0) {
             result.splice(idx, 1);
@@ -794,15 +792,15 @@ PluginSettings {
                 model: [
                     {
                         label: root.t("settings.test_backend", "Test complete backend (selected providers)"),
-                        cmd: "PLUGIN=~/.config/DankMaterialShell/plugins/aiOverviewControl\n$PLUGIN/get-provider-usage \"$(command -v codexbar)\" \"" + root.selectedIds.join(",") + "\" cli $PLUGIN/get-copilot-usage | jq ."
+                        cmd: "PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl\n$PLUGIN/providers/get-provider-usage \"$(command -v codexbar)\" \"" + root.selectedIds.join(",") + "\" cli $PLUGIN/providers/get-copilot-usage | jq ."
                     },
                     {
                         label: root.t("settings.test_claude", "Test Claude"),
-                        cmd: "~/.config/DankMaterialShell/plugins/aiOverviewControl/get-claude-usage"
+                        cmd: "~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-claude-usage"
                     },
                     {
                         label: root.t("settings.test_copilot", "Test Copilot"),
-                        cmd: "gh auth status\n~/.config/DankMaterialShell/plugins/aiOverviewControl/get-copilot-usage | jq ."
+                        cmd: "gh auth status\n~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage | jq ."
                     },
                     {
                         label: root.t("settings.test_deps", "Check dependencies"),
@@ -810,7 +808,7 @@ PluginSettings {
                     },
                     {
                         label: root.t("settings.test_qml", "Validate QML"),
-                        cmd: "qmllint ~/.config/DankMaterialShell/plugins/aiOverviewControl/AiOverviewControlWidget.qml"
+                        cmd: "qmllint ~/.config/DankMaterialShell/plugins/AiOverviewControl/AiOverviewControlWidget.qml"
                     }
                 ]
 

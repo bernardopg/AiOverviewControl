@@ -13,7 +13,8 @@ If you are in the directory where you downloaded or edited the plugin:
 ```bash
 cd /path/to/downloaded/AiOverviewControl
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
-cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml plugin.json get-* README.md CHANGELOG.md LICENSE docs screenshot.png \
+cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml \
+  plugin.json qmldir providers README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
 ```
 
@@ -22,14 +23,15 @@ Expected files:
 ```text
 AiOverviewControlWidget.qml
 AiOverviewControlSettings.qml
+AiOverviewControlI18n.qml
 plugin.json
-get-claude-usage
-get-copilot-usage
-get-provider-usage
+qmldir
+providers/
 README.md
 CHANGELOG.md
 LICENSE
 docs/
+i18n/
 ```
 
 The plugin does not require files from other DMS plugins. `codexbar` is an optional external integration recommended for Codex and providers without a local adapter.
@@ -92,9 +94,9 @@ Before enabling many providers, validate Codex, Claude and Copilot:
 ```bash
 codexbar usage --format json --provider codex --source cli
 codexbar usage --format json --provider claude --source cli
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-copilot-usage
-~/.config/DankMaterialShell/plugins/AiOverviewControl/get-claude-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-copilot-usage
+~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-claude-usage
 ```
 
 If those commands return JSON or KEY=VALUE pairs the collection layer is operational. If the UI remains empty, see [troubleshooting.md](./troubleshooting.md).
@@ -104,9 +106,10 @@ If those commands return JSON or KEY=VALUE pairs the collection layer is operati
 To upgrade without losing DMS-saved settings:
 
 ```bash
-cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml plugin.json get-* README.md CHANGELOG.md LICENSE docs \
+cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml \
+  plugin.json qmldir providers README.md CHANGELOG.md LICENSE docs i18n \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/get-*
+chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
 dms restart
 ```
 

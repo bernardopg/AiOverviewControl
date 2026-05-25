@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROVIDER="${1:?provider id required}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CODEXBAR_BIN="${CODEXBAR_BIN:-}"
+SOURCE_MODE="${SOURCE_MODE:-cli}"
+COPILOT_SCRIPT="${COPILOT_SCRIPT:-$SCRIPT_DIR/get-copilot-usage}"
+
+exec "$SCRIPT_DIR/get-provider-usage" "${CODEXBAR_BIN:-}" "$PROVIDER" "$SOURCE_MODE" "$COPILOT_SCRIPT"

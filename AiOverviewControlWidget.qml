@@ -64,9 +64,9 @@ PluginComponent {
     property string codexbarPath: (pluginData.codexbarPath || "").trim()
     property string sourceMode: pluginData.sourceMode || "cli"
     readonly property string _pluginDir: (pluginService ? pluginService.getPluginPath(pluginId) : "") || (PluginService.pluginDirectory + "/aiOverviewControl")
-    property string providerUsageScript: _pluginDir + "/get-provider-usage"
-    property string claudeUsageScript: _pluginDir + "/get-claude-usage"
-    property string copilotUsageScript: _pluginDir + "/get-copilot-usage"
+    property string providerUsageScript: _pluginDir + "/providers/get-provider-usage"
+    property string claudeUsageScript: _pluginDir + "/providers/get-claude-usage"
+    property string copilotUsageScript: _pluginDir + "/providers/get-copilot-usage"
     readonly property var availableProviderOptions: [
         "codex",
         "claude",
@@ -448,6 +448,19 @@ PluginComponent {
         if (provider.error) return "error";
         if (provider.usage) return "active";
         return "empty";
+    }
+
+    function providerStatusLabel(provider) {
+        const status = root.providerStatus(provider);
+        if (status === "error") return t("status.error", "Error");
+        if (status === "active") return t("status.online", "Live");
+        if (status === "empty") return t("status.waiting", "Waiting");
+        return t("status.none", "(none)");
+    }
+
+    function providerSourceLabel(provider) {
+        const source = provider && provider.source ? String(provider.source) : String(root.sourceMode || "cli");
+        return source.length > 0 ? source : "cli";
     }
 
     function providerErrorText(provider) {
@@ -940,6 +953,44 @@ PluginComponent {
         }
     }
 
+    component BadgePill: StyledRect {
+        id: pill
+
+        required property string label
+        property string iconName: "circle"
+        property color accentColor: Theme.primary
+        property bool emphasized: false
+
+        implicitWidth: pillRow.implicitWidth + Theme.spacingM * 2
+        implicitHeight: 28
+        radius: 999
+        color: emphasized ? Theme.withAlpha(accentColor, 0.16) : Theme.withAlpha(accentColor, 0.1)
+        border.width: 1
+        border.color: Theme.withAlpha(accentColor, emphasized ? 0.3 : 0.18)
+
+        Row {
+            id: pillRow
+            anchors.centerIn: parent
+            spacing: Theme.spacingXS
+
+            DankIcon {
+                visible: pill.iconName.length > 0
+                name: pill.iconName
+                size: 12
+                color: pill.accentColor
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            StyledText {
+                text: pill.label
+                color: pill.accentColor
+                font.pixelSize: Theme.fontSizeSmall - 1
+                font.weight: Font.DemiBold
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
     component SectionFrame: StyledRect {
         id: sectionRoot
 
@@ -1311,7 +1362,7 @@ PluginComponent {
                 Column {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 3
+                    spacing: 6
 
                     StyledText {
                         width: parent.width
@@ -1330,6 +1381,23 @@ PluginComponent {
                         maximumLineCount: card.provider.error ? (expanded ? 3 : 2) : (expanded ? 2 : 1)
                         wrapMode: Text.WordWrap
                         elide: Text.ElideRight
+                    }
+
+                    Flow {
+                        width: parent.width
+                        spacing: Theme.spacingXS
+
+                        BadgePill {
+                            label: root.providerSourceLabel(card.provider)
+                            iconName: "sync_alt"
+                            accentColor: Theme.primary
+                        }
+
+                        BadgePill {
+                            label: root.providerStatusLabel(card.provider)
+                            iconName: card.provider && card.provider.error ? "warning" : "check_circle"
+                            accentColor: card.provider && card.provider.error ? Theme.warning : root.providerAccent(card.provider.provider)
+                        }
                     }
                 }
 
@@ -1750,22 +1818,62 @@ PluginComponent {
                                         }
                                     }
 
-                                    Rectangle {
+                                    StyledRect {
                                         Layout.alignment: Qt.AlignVCenter
                                         visible: contentColumn.width >= 520
-                                        width: 104
-                                        height: 74
-                                        radius: Theme.cornerRadius + 4
-                                        color: Theme.withAlpha(root.heroAccent, 0.13)
+                                        width: 188
+                                        height: 124
+                                        radius: Theme.cornerRadius + 8
+                                        color: Theme.withAlpha(root.heroAccent, 0.08)
                                         border.width: 1
-                                        border.color: Theme.withAlpha(root.heroAccent, 0.32)
+                                        border.color: Theme.withAlpha(root.heroAccent, 0.24)
 
-                                        StyledText {
-                                            anchors.centerIn: parent
-                                            text: root.barText
-                                            color: root.heroAccent
-                                            font.pixelSize: Theme.fontSizeLarge + 3
-                                            font.weight: Font.Bold
+                                        Column {
+                                            anchors.fill: parent
+                                            anchors.margins: Theme.spacingM
+                                            spacing: Theme.spacingS
+
+                                            BadgePill {
+                                                label: root.providerData ? root.providerName(root.providerData.provider) : t("status.provider_missing", "No provider")
+                                                iconName: root.providerData ? root.iconForProvider(root.providerData.provider) : "monitoring"
+                                                accentColor: root.heroAccent
+                                                emphasized: true
+                                            }
+
+                                            StyledText {
+                                                width: parent.width
+                                                text: root.barText
+                                                color: root.heroAccent
+                                                font.pixelSize: Theme.fontSizeLarge + 8
+                                                font.weight: Font.Bold
+                                            }
+
+                                            StyledText {
+                                                width: parent.width
+                                                text: root.providerData ? root.providerSubtitle(root.providerData) : root.statusSubtitle
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                                wrapMode: Text.WordWrap
+                                                maximumLineCount: 2
+                                                elide: Text.ElideRight
+                                            }
+
+                                            Row {
+                                                width: parent.width
+                                                spacing: Theme.spacingXS
+
+                                                BadgePill {
+                                                    label: root.providerData ? root.providerSourceLabel(root.providerData) : root.sourceMode
+                                                    iconName: "sync_alt"
+                                                    accentColor: Theme.primary
+                                                }
+
+                                                BadgePill {
+                                                    label: root.hasError ? t("status.needs_attention", "Needs attention") : root.providerStatusLabel(root.providerData)
+                                                    iconName: root.hasError ? "warning" : "check_circle"
+                                                    accentColor: root.hasError ? Theme.warning : root.getUsageColor(root.primaryPercent)
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1825,13 +1933,89 @@ PluginComponent {
                             font.pixelSize: Theme.fontSizeSmall
                         }
 
-                        StyledText {
+                        StyledRect {
                             visible: !root.isLoading && root.providers.length === 0
                             width: parent.width
-                            text: t("status.no_provider_data", "No provider data available. Check credentials, local CLIs, or the optional fallback path.")
-                            color: Theme.surfaceVariantText
-                            font.pixelSize: Theme.fontSizeSmall
-                            wrapMode: Text.WordWrap
+                            radius: Theme.cornerRadius + 6
+                            color: Theme.surfaceContainerHigh
+                            border.width: 1
+                            border.color: Theme.withAlpha(root.heroAccent, 0.18)
+                            implicitHeight: emptyStateCol.implicitHeight + Theme.spacingL * 2
+
+                            Column {
+                                id: emptyStateCol
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingL
+                                spacing: Theme.spacingM
+
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+
+                                    Rectangle {
+                                        Layout.alignment: Qt.AlignTop
+                                        width: 36
+                                        height: 36
+                                        radius: 18
+                                        color: Theme.withAlpha(root.heroAccent, 0.14)
+                                        border.width: 1
+                                        border.color: Theme.withAlpha(root.heroAccent, 0.28)
+
+                                        DankIcon {
+                                            anchors.centerIn: parent
+                                            name: "monitoring"
+                                            size: 18
+                                            color: root.heroAccent
+                                        }
+                                    }
+
+                                    Column {
+                                        Layout.fillWidth: true
+                                        spacing: 4
+
+                                        StyledText {
+                                            width: parent.width
+                                            text: t("status.no_provider_data", "No provider data available. Check credentials, local CLIs, or the optional fallback path.")
+                                            color: Theme.surfaceText
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            font.weight: Font.DemiBold
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        StyledText {
+                                            width: parent.width
+                                            text: t("status.no_data_hint", "Run your configured AI CLIs and refresh to populate usage windows.")
+                                            color: Theme.surfaceVariantText
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
+
+                                Flow {
+                                    width: parent.width
+                                    spacing: Theme.spacingS
+
+                                    BadgePill {
+                                        label: t("card.refresh", "Refresh")
+                                        iconName: "refresh"
+                                        accentColor: Theme.primary
+                                        emphasized: true
+                                    }
+
+                                    BadgePill {
+                                        label: t("card.detect", "Detect")
+                                        iconName: "terminal"
+                                        accentColor: Theme.secondary
+                                    }
+
+                                    BadgePill {
+                                        label: root.t("settings.active_count", "{count} active", { count: root.selectedProviders.length })
+                                        iconName: "playlist_add_check"
+                                        accentColor: Theme.surfaceVariantText
+                                    }
+                                }
+                            }
                         }
 
                         ProviderManager {
