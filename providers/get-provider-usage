@@ -890,7 +890,7 @@ fetch_provider() {
       fetch_copilot
       ;;
     claude)
-      try_codexbar claude || fetch_claude_native
+      fetch_claude_native
       ;;
     gemini)
       try_codexbar gemini || fetch_gemini_native

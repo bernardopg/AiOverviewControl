@@ -26,6 +26,8 @@ PluginComponent {
     property int timedOutRequestId: -1
     property string providerSelection: (pluginData.providerSelection || "codex,claude,copilot").trim()
     property bool showErrorProviders: String(pluginData.showErrorProviders || "true") === "true"
+    property string pillMode: (pluginData.pillMode || "auto")
+    property string pillProviders: (pluginData.pillProviders || providerSelection).trim()
     property string focusedProviderId: ""
     property string pendingProviderId: availableProviderOptions[0] || "codex"
     property string claudeRawBuffer: ""
@@ -63,7 +65,10 @@ PluginComponent {
     }
     property string codexbarPath: (pluginData.codexbarPath || "").trim()
     property string sourceMode: pluginData.sourceMode || "cli"
-    readonly property string _pluginDir: (pluginService ? pluginService.getPluginPath(pluginId) : "") || (PluginService.pluginDirectory + "/aiOverviewControl")
+    // Resolved imperatively in Component.onCompleted — Qt.resolvedUrl is only reliable
+    // when called from the file's own execution context, not from a declarative binding
+    // that may be evaluated before the component URL context is established.
+    property string _pluginDir: ""
     property string providerUsageScript: _pluginDir + "/providers/get-provider-usage"
     property string claudeUsageScript: _pluginDir + "/providers/get-claude-usage"
     property string copilotUsageScript: _pluginDir + "/providers/get-copilot-usage"
@@ -145,6 +150,32 @@ PluginComponent {
             }
         }
         return result;
+    }
+
+    readonly property var pillDisplayProviders: {
+        if (pillMode === "custom") {
+            const ids = pillProviders.split(",");
+            const result = [];
+            for (let i = 0; i < ids.length; i++) {
+                const id = ids[i].trim().toLowerCase();
+                if (id.length === 0) continue;
+                for (let j = 0; j < providers.length; j++) {
+                    if (providers[j] && providers[j].provider === id && !providers[j].error) {
+                        result.push(providers[j]);
+                        break;
+                    }
+                }
+            }
+            return result.length > 0 ? result : successfulProviders;
+        }
+        // auto: show all with usedPercent > 0, else all successful
+        const active = [];
+        for (let i = 0; i < successfulProviders.length; i++) {
+            if (providerPercent(successfulProviders[i]) > 0) {
+                active.push(successfulProviders[i]);
+            }
+        }
+        return active.length > 0 ? active : successfulProviders;
     }
 
     readonly property var providerData: {
@@ -686,7 +717,24 @@ PluginComponent {
         procDetect.running = true;
     }
 
-    Component.onCompleted: detectBinary()
+    Component.onCompleted: {
+        // Resolve plugin dir imperatively — only reliable from within the component's own context
+        // 1. Try PluginService (authoritative, case-correct)
+        if (pluginService && pluginId) {
+            const fromService = pluginService.getPluginPath(pluginId);
+            if (fromService && fromService.length > 0) {
+                _pluginDir = fromService;
+            }
+        }
+        // 2. Fallback: derive from this file's URL (Qt.resolvedUrl is reliable here)
+        if (!_pluginDir) {
+            const selfUrl = Qt.resolvedUrl("AiOverviewControlWidget.qml").toString();
+            const withoutScheme = selfUrl.startsWith("file://") ? selfUrl.substring(7) : selfUrl;
+            const lastSlash = withoutScheme.lastIndexOf("/");
+            _pluginDir = lastSlash !== -1 ? withoutScheme.substring(0, lastSlash) : withoutScheme;
+        }
+        detectBinary();
+    }
 
     Process {
         id: procDetect
@@ -960,6 +1008,7 @@ PluginComponent {
         property string iconName: "circle"
         property color accentColor: Theme.primary
         property bool emphasized: false
+        signal tapped
 
         implicitWidth: pillRow.implicitWidth + Theme.spacingM * 2
         implicitHeight: 28
@@ -967,6 +1016,10 @@ PluginComponent {
         color: emphasized ? Theme.withAlpha(accentColor, 0.16) : Theme.withAlpha(accentColor, 0.1)
         border.width: 1
         border.color: Theme.withAlpha(accentColor, emphasized ? 0.3 : 0.18)
+
+        TapHandler {
+            onTapped: pill.tapped()
+        }
 
         Row {
             id: pillRow
@@ -1135,6 +1188,7 @@ PluginComponent {
                 color: Theme.withAlpha(root.heroAccent, 0.16)
                 border.width: 1
                 border.color: Theme.withAlpha(root.heroAccent, 0.28)
+                anchors.verticalCenter: parent.verticalCenter
 
                 DankIcon {
                     anchors.centerIn: parent
@@ -1144,9 +1198,43 @@ PluginComponent {
                 }
             }
 
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 0
+                visible: !root.hasError || root.hasProviderData
+
+                Repeater {
+                    model: root.pillDisplayProviders.length > 0 ? root.pillDisplayProviders : (root.hasProviderData ? [root.providerData] : [])
+
+                    Row {
+                        required property var modelData
+                        required property int index
+                        spacing: 0
+
+                        StyledText {
+                            visible: index > 0
+                            text: " | "
+                            color: Theme.withAlpha(Theme.surfaceText, 0.38)
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: `${root.providerName(modelData.provider)} ${Math.round(root.providerPercent(modelData))}%`
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+            }
+
             StyledText {
-                text: `${root.providerData ? root.providerName(root.providerData.provider) : "AI"} ${root.barText}`
-                color: root.hasError ? Theme.error : Theme.surfaceText
+                visible: root.hasError && !root.hasProviderData
+                text: root.isLoading ? "..." : "ERR"
+                color: root.isLoading ? Theme.surfaceVariantText : Theme.error
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.DemiBold
                 anchors.verticalCenter: parent.verticalCenter
@@ -1175,9 +1263,23 @@ PluginComponent {
                 }
             }
 
+            Repeater {
+                model: root.pillDisplayProviders.length > 0 ? root.pillDisplayProviders : (root.hasProviderData ? [root.providerData] : [])
+
+                StyledText {
+                    required property var modelData
+                    text: `${root.providerName(modelData.provider)} ${Math.round(root.providerPercent(modelData))}%`
+                    color: root.heroAccent
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.weight: Font.DemiBold
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+            }
+
             StyledText {
-                text: root.barText
-                color: root.hasError ? Theme.error : root.heroAccent
+                visible: (root.hasError && !root.hasProviderData) || (root.pillDisplayProviders.length === 0 && !root.hasProviderData)
+                text: root.isLoading ? "..." : (root.hasError ? "ERR" : "N/A")
+                color: root.hasError ? Theme.error : Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.DemiBold
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -1637,12 +1739,15 @@ PluginComponent {
             anchors.margins: Theme.spacingL
             spacing: Theme.spacingM
 
-            Flow {
+            GridLayout {
                 width: parent.width
-                spacing: Theme.spacingM
+                columns: width < 560 ? 1 : 3
+                columnSpacing: Theme.spacingM
+                rowSpacing: Theme.spacingM
 
                 Column {
-                    width: parent.width < 620 ? parent.width : Math.max(220, parent.width - 220 - 118 - Theme.spacingM * 2)
+                    Layout.fillWidth: true
+                    Layout.columnSpan: width < 560 ? 1 : 1
                     spacing: 4
 
                     StyledText {
@@ -1664,7 +1769,8 @@ PluginComponent {
 
                 DankDropdown {
                     id: addProviderDropdown
-                    width: parent.width < 620 ? parent.width : 220
+                    Layout.preferredWidth: 220
+                    Layout.fillWidth: managerColumn.width < 560
                     text: t("card.provider", "Provider")
                     description: t("card.provider_description", "Choose a provider supported by local helpers or fallback.")
                     currentValue: root.pendingProviderId
@@ -1677,7 +1783,7 @@ PluginComponent {
 
                 SurfaceButton {
                     id: addProviderButton
-                    width: parent.width < 620 ? parent.width : implicitWidth
+                    Layout.fillWidth: managerColumn.width < 560
                     iconName: "add"
                     label: t("card.add_provider", "Add provider")
                     compact: true
@@ -1821,14 +1927,16 @@ PluginComponent {
                                     StyledRect {
                                         Layout.alignment: Qt.AlignVCenter
                                         visible: contentColumn.width >= 520
-                                        width: 188
-                                        height: 124
+                                        Layout.preferredWidth: Math.min(220, contentColumn.width * 0.28)
+                                        implicitHeight: heroMiniCol.implicitHeight + Theme.spacingM * 2
                                         radius: Theme.cornerRadius + 8
                                         color: Theme.withAlpha(root.heroAccent, 0.08)
                                         border.width: 1
                                         border.color: Theme.withAlpha(root.heroAccent, 0.24)
+                                        clip: true
 
                                         Column {
+                                            id: heroMiniCol
                                             anchors.fill: parent
                                             anchors.margins: Theme.spacingM
                                             spacing: Theme.spacingS
@@ -1850,7 +1958,7 @@ PluginComponent {
 
                                             StyledText {
                                                 width: parent.width
-                                                text: root.providerData ? root.providerSubtitle(root.providerData) : root.statusSubtitle
+                                                text: root.providerData ? root.providerSubtitle(root.providerData) : (root.isLoading ? t("status.fetching", "Fetching…") : t("status.check_settings", "Check settings & credentials."))
                                                 color: Theme.surfaceVariantText
                                                 font.pixelSize: Theme.fontSizeSmall
                                                 wrapMode: Text.WordWrap
@@ -1858,7 +1966,7 @@ PluginComponent {
                                                 elide: Text.ElideRight
                                             }
 
-                                            Row {
+                                            Flow {
                                                 width: parent.width
                                                 spacing: Theme.spacingXS
 
@@ -1869,7 +1977,11 @@ PluginComponent {
                                                 }
 
                                                 BadgePill {
-                                                    label: root.hasError ? t("status.needs_attention", "Needs attention") : root.providerStatusLabel(root.providerData)
+                                                    label: root.hasError && !root.hasProviderData
+                                                        ? t("status.setup_required", "Setup required")
+                                                        : root.hasError
+                                                            ? t("status.needs_attention", "Needs attention")
+                                                            : root.providerStatusLabel(root.providerData)
                                                     iconName: root.hasError ? "warning" : "check_circle"
                                                     accentColor: root.hasError ? Theme.warning : root.getUsageColor(root.primaryPercent)
                                                 }
@@ -2001,16 +2113,18 @@ PluginComponent {
                                         iconName: "refresh"
                                         accentColor: Theme.primary
                                         emphasized: true
+                                        onTapped: root.refresh()
                                     }
 
                                     BadgePill {
                                         label: t("card.detect", "Detect")
                                         iconName: "terminal"
                                         accentColor: Theme.secondary
+                                        onTapped: root.detectBinary()
                                     }
 
                                     BadgePill {
-                                        label: root.t("settings.active_count", "{count} active", { count: root.selectedProviders.length })
+                                        label: root.t("settings.configured_count", "{count} configured", { count: root.selectedProviders.length })
                                         iconName: "playlist_add_check"
                                         accentColor: Theme.surfaceVariantText
                                     }

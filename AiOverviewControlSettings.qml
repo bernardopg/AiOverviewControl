@@ -218,6 +218,39 @@ PluginSettings {
         onValueChanged: function(value) { root.saveValue("languageOverride", value); }
     }
 
+    // ── Pill display ──────────────────────────────────────────────────────────
+
+    StyledText {
+        width: parent.width
+        text: root.t("settings.section.pill", "Bar pill")
+        font.pixelSize: Theme.fontSizeSmall
+        font.weight: Font.DemiBold
+        color: Theme.surfaceVariantText
+    }
+
+    DankDropdown {
+        id: pillModeDropdown
+        width: parent.width
+        text: root.t("settings.pill_mode.label", "Pill mode")
+        description: root.t("settings.pill_mode.description", "Auto shows all providers with usage > 0. Custom lets you pick which providers appear.")
+        currentValue: root.loadValue("pillMode", "auto")
+        options: ["auto", "custom"]
+        optionIcons: ["auto_awesome", "tune"]
+        dropdownWidth: 180
+        onValueChanged: function(value) { root.saveValue("pillMode", value); }
+    }
+
+    DankTextField {
+        id: pillProvidersField
+        width: parent.width
+        visible: root.loadValue("pillMode", "auto") === "custom"
+        label: root.t("settings.pill_providers.label", "Pill providers")
+        description: root.t("settings.pill_providers.description", "Comma-separated provider IDs to show in the pill. E.g. claude,codex,copilot")
+        placeholderText: "claude,codex,copilot"
+        text: root.loadValue("pillProviders", "")
+        onTextChanged: function() { root.saveValue("pillProviders", pillProvidersField.text.trim()); }
+    }
+
     // ── Refresh ───────────────────────────────────────────────────────────────
 
     StyledText {
