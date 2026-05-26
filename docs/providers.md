@@ -27,6 +27,12 @@ The local backend is `providers/get-provider-usage`. It prefers native adapters 
 | `vertexai` / `vertex` | Vertex AI | via `gcloud auth print-access-token` | gcloud CLI check | ✗ (no programmatic quota) | Shows note-card if authenticated; error if not. |
 | `byteplus` / `ark` / `modelark` | BytePlus Ark | `BYTEPLUS_API_KEY` / `ARK_API_KEY` | `GET ark.ap-southeast.bytepluses.com/api/v3/models` (key validation) | ✗ (no balance endpoint) | Shows note-card directing to console.byteplus.com. |
 | `qwen` / `dashscope` / `alibaba` | Qwen | `DASHSCOPE_API_KEY` / `QWEN_API_KEY` | `GET dashscope.aliyuncs.com/compatible-mode/v1/models` (key validation) | ✗ (no public balance endpoint) | Shows note-card directing to dashscope.console.aliyun.com. |
+| `together` | Together AI | `TOGETHER_API_KEY` | `GET api.together.xyz/v1/credits` | ✓ (credit balance) | |
+| `groq` | Groq | `GROQ_API_KEY` | `GET api.groq.com/openai/v1/models` (key validation) | ✗ (no quota endpoint) | Shows note-card directing to console.groq.com/usage. |
+| `cohere` | Cohere | `COHERE_API_KEY` | `GET api.cohere.ai/v1/users/me` | ✓ (trial_credits) | trial_credits is a USD value on a 0–5 scale. |
+| `replicate` | Replicate | `REPLICATE_API_TOKEN` | `GET api.replicate.com/v1/account` | ✗ (no balance endpoint) | Confirms auth and surfaces username. |
+| `fireworks` | Fireworks AI | `FIREWORKS_API_KEY` | `GET api.fireworks.ai/v1/account/billing` | ✓ (credit balance) | |
+| `ai21` | AI21 | `AI21_API_KEY` | `GET api.ai21.com/studio/v1/usage` | ✓ (monthly tokens used/quota) | |
 | `perplexity` | Perplexity | — | `codexbar usage` | via codexbar | Requires codexbar. |
 | `cursor` | Cursor | — | `codexbar usage` | via codexbar | Requires codexbar. |
 | `kilo` | Kilo Code | — | `codexbar usage` | via codexbar | Requires codexbar. |
@@ -202,6 +208,66 @@ export DASHSCOPE_API_KEY=sk-...   # or QWEN_API_KEY
 curl -s https://dashscope.aliyuncs.com/compatible-mode/v1/models \
   -H "Authorization: Bearer $DASHSCOPE_API_KEY" | jq '.data | length'
 ```
+
+### Together AI
+
+```bash
+export TOGETHER_API_KEY=...
+curl -s https://api.together.xyz/v1/credits \
+  -H "Authorization: Bearer $TOGETHER_API_KEY" | jq .
+```
+
+Field: `credits` (USD balance).
+
+### Groq
+
+No public quota endpoint. Key is validated via `GET https://api.groq.com/openai/v1/models`. The card shows a note directing to [console.groq.com/usage](https://console.groq.com/usage).
+
+```bash
+export GROQ_API_KEY=gsk_...
+curl -s https://api.groq.com/openai/v1/models \
+  -H "Authorization: Bearer $GROQ_API_KEY" | jq '.data | length'
+```
+
+### Cohere
+
+```bash
+export COHERE_API_KEY=...
+curl -s https://api.cohere.ai/v1/users/me \
+  -H "Authorization: Bearer $COHERE_API_KEY" | jq '.trial_credits'
+```
+
+`trial_credits` is a USD value on a 0–5 scale. Used percent is approximated as `(5 - trial_credits) / 5 * 100`.
+
+### Replicate
+
+No balance endpoint. Account info returned by the API confirms auth and surfaces the username.
+
+```bash
+export REPLICATE_API_TOKEN=r8_...
+curl -s https://api.replicate.com/v1/account \
+  -H "Authorization: Token $REPLICATE_API_TOKEN" | jq '.username'
+```
+
+### Fireworks AI
+
+```bash
+export FIREWORKS_API_KEY=fw_...
+curl -s https://api.fireworks.ai/v1/account/billing \
+  -H "Authorization: Bearer $FIREWORKS_API_KEY" | jq .
+```
+
+Field: `balance` (USD credit balance).
+
+### AI21
+
+```bash
+export AI21_API_KEY=...
+curl -s https://api.ai21.com/studio/v1/usage \
+  -H "Authorization: Bearer $AI21_API_KEY" | jq .
+```
+
+Fields: `tokens_used`, `tokens_quota` for the current monthly window.
 
 ---
 

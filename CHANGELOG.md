@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## 1.2.4 - 2026-05-26
+
+### Dashboard — UX
+- Added stale-data indicator per provider card: a warning badge appears when the last refresh is older than 2× the configured refresh interval.
+- Added `updatedAt` timestamp footer on each expanded provider card, with a warning tint when data is stale.
+- Stale state is detected via a lightweight 10 s tick timer (`staleClock`) so cards update reactively without polling every frame.
+- Stale indicator also surfaces in the popout header detail line ("Stale since {time} · {source}").
+
+### Claude Analytics
+- Split the "Today" metric tile into two separate tiles: **Today tokens** and **Today cost**, so both figures are visible at a glance without truncation.
+- Claude card grid now uses a 4-column layout at ≥ 760 px and a 2-column layout at 520–759 px (was: 1 or 3).
+
+### Providers — New
+- **Together AI** (`together`): `GET https://api.together.xyz/v1/credits` with `TOGETHER_API_KEY` — shows credit balance.
+- **Groq** (`groq`): key validation via models endpoint; note-card directing to console.groq.com/usage (no public quota API).
+- **Cohere** (`cohere`): `GET https://api.cohere.ai/v1/users/me` with `COHERE_API_KEY` — surfaces `trial_credits` balance.
+- **Replicate** (`replicate`): `GET https://api.replicate.com/v1/account` with `REPLICATE_API_TOKEN` — confirms auth and surfaces username.
+- **Fireworks AI** (`fireworks`): `GET https://api.fireworks.ai/v1/account/billing` with `FIREWORKS_API_KEY` — shows credit balance.
+- **AI21** (`ai21`): `GET https://api.ai21.com/studio/v1/usage` with `AI21_API_KEY` — shows monthly tokens used/quota window.
+- Added all 6 providers to `availableProviderOptions`, `providerName()`, `iconForProvider()`, `providerAccent()`, and `allProviders` in Settings.
+- Added 6 new stub scripts (`get-together-usage`, `get-groq-usage`, `get-cohere-usage`, `get-replicate-usage`, `get-fireworks-usage`, `get-ai21-usage`).
+
+### Quality
+- Expanded `shellcheck` CI step to cover all `providers/get-*` scripts (previously only the 3 main helpers were checked).
+
+## 1.2.3 - 2026-05-22
+
+### Dashboard — UX
+- Multi-provider pill: DankBar indicator now shows up to 3 provider accents when multiple providers are near their limit.
+- UI layout fixes: resolved card overflow and misaligned progress bars in narrow popout widths.
+- Pill settings: added pill display options (single/multi accent, label visibility) to the Settings panel.
+
+### Providers — New
+- **Warp** (`warp`): codexbar fallback + note-card.
+- **Qwen / DashScope** (`qwen`): key validation via DashScope compatible-mode models endpoint; note-card (no public balance API).
+- **Vertex AI** (`vertexai`): `gcloud auth print-access-token` check; note-card (no programmatic quota endpoint).
+- Added all 3 providers to `availableProviderOptions`, `providerName()`, `iconForProvider()`, `providerAccent()`, and `allProviders` in Settings.
+
 ## 1.2.2 - 2026-05-20
 
 ### UI/UX

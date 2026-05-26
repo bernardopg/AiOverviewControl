@@ -1,7 +1,6 @@
 <div align="center">
 
-<img width="100%" alt="AiOverviewControl" src="https://capsule-render.vercel.app/api?type=wave&color=0:0F172A,45:2563EB,100:22C55E&height=220&section=header&text=AiOverviewControl&fontSize=52&fontColor=FFFFFF&animation=fadeIn&fontAlignY=36&desc=Telemetria%20de%20uso%20de%20IA%20para%20Dank%20Material%20Shell&descSize=18&descAlignY=58" />
-
+![header](https://capsule-render.vercel.app/api?type=waving&height=300&fontAlignY=40&color=0:0F172A,45:2563EB,100:22C55E&text=AiOverviewControl&fontColor=FFFFFF&textBg=false&animation=fadeIn&fontFamily=Montserrat&desc=A%20self-contained%20Dank%20Material%20Shell%20widget%20for%20monitoring%20AI%20assistant%20usage&descAlign=50&descSize=0&fontSize=72&reversal=true&descAlignY=60")
 [![CI](https://img.shields.io/github/actions/workflow/status/bernardopg/AiOverviewControl/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/tag/bernardopg/AiOverviewControl?label=Release&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/releases)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl?style=flat-square)](../LICENSE)
@@ -60,12 +59,12 @@ Guia completo: [installation.md](./installation.md)
 
 ## ⚙️ Configuração Recomendada
 
-| Opção | Valor recomendado | Motivo |
-| ----- | ----------------- | ------ |
-| Provider Set | `codex,claude,copilot` | Boa cobertura padrão para uso local de assistentes de IA. |
-| Source Mode | `cli` | Usa CLIs locais e helpers nativos primeiro. |
-| Show Provider Errors | `true` | Facilita setup e diagnóstico de providers. |
-| Refresh Interval | `120000` ou `300000` | Mantém a telemetria atualizada sem polling excessivo. |
+| Opção                | Valor recomendado      | Motivo                                                    |
+| -------------------- | ---------------------- | --------------------------------------------------------- |
+| Provider Set         | `codex,claude,copilot` | Boa cobertura padrão para uso local de assistentes de IA. |
+| Source Mode          | `cli`                  | Usa CLIs locais e helpers nativos primeiro.               |
+| Show Provider Errors | `true`                 | Facilita setup e diagnóstico de providers.                |
+| Refresh Interval     | `120000` ou `300000`   | Mantém a telemetria atualizada sem polling excessivo.     |
 
 Referência de configuração: [configuration.md](./configuration.md)
 
@@ -74,7 +73,9 @@ Referência de configuração: [configuration.md](./configuration.md)
 O AiOverviewControl reconhece estes IDs de provider:
 
 ```text
-codex, claude, copilot, gemini, openrouter, perplexity, cursor, kilo, kiro, ollama, warp, amp
+codex, claude, copilot, gemini, openrouter, 9router, deepseek, kimi, minimax, glm, mistral,
+ollama, nvidia, cloudflare, vertexai, byteplus, qwen, together, groq, cohere, replicate,
+fireworks, ai21, perplexity, cursor, kilo, kiro, warp, amp, cline, opencode
 ```
 
 O suporte real depende das credenciais locais, APIs disponíveis, scripts auxiliares incluídos no plugin e suporte opcional via `codexbar`.
@@ -84,7 +85,13 @@ O suporte real depende das credenciais locais, APIs disponíveis, scripts auxili
 | `codex` | fallback via `codexbar` | Lê uso de providers compatíveis com CodexBar local. |
 | `claude` | `providers/get-claude-usage` | Inclui analytics de Claude Code, janelas, tokens, sessões e custo estimado. |
 | `copilot` | `providers/get-copilot-usage` | Usa autenticação do GitHub via `gh` ou variáveis de ambiente. |
-| `gemini`, `openrouter`, outros | helpers nativos ou fallback | Cobertura varia por API do provider e credenciais locais. |
+| `deepseek`, `kimi`, `minimax`, `glm` | helpers nativos | APIs de saldo em CNY ou cota de tokens. |
+| `openrouter`, `9router`, `cloudflare` | helpers nativos | Créditos ou cota de neurons. |
+| `together`, `cohere`, `fireworks`, `ai21` | helpers nativos | Saldo de crédito ou trial_credits. |
+| `groq`, `replicate` | helpers nativos | Validação de chave + note-card (sem API de cota pública). |
+| `mistral`, `nvidia`, `byteplus`, `qwen`, `vertexai` | helpers nativos | Validação de chave/auth + note-card (sem endpoint de cota). |
+| `ollama` | helper nativo | Lista de modelos locais via `/api/tags`. |
+| `gemini`, `perplexity`, `cursor`, `kilo`, `kiro`, `warp`, `amp`, `cline`, `opencode` | helpers nativos ou fallback via `codexbar` | Cobertura varia por API do provider e credenciais locais. |
 
 Matriz completa: [providers.md](./providers.md)
 
@@ -107,17 +114,17 @@ Se um provider funciona no terminal, mas não aparece no painel, comece por [tro
 
 ## 🗂️ Estrutura Do Projeto
 
-| Caminho | Função |
-| ------- | ------ |
-| `AiOverviewControlWidget.qml` | Indicador da DankBar, dashboard, coleta e renderização. |
-| `AiOverviewControlSettings.qml` | Interface de configurações no DMS. |
-| `AiOverviewControlI18n.qml` | Loader e lookup de traduções. |
-| `providers/get-provider-usage` | Backend unificado e dispatcher de fallbacks. |
-| `providers/get-provider-wrapper` / `providers/get-*-usage` | Entrypoints por provider que delegam ao backend compartilhado. |
-| `providers/get-copilot-usage` | Ponte para uso do GitHub Copilot. |
-| `providers/get-claude-usage` | Analytics local de Claude Code e ponte de uso. |
-| `i18n/` | Arquivos JSON de idioma gerenciados com Crowdin. |
-| `.github/` | CI, code scanning padrão, Dependabot, funding, templates e arquivos comunitários. |
+| Caminho                                                    | Função                                                                            |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `AiOverviewControlWidget.qml`                              | Indicador da DankBar, dashboard, coleta e renderização.                           |
+| `AiOverviewControlSettings.qml`                            | Interface de configurações no DMS.                                                |
+| `AiOverviewControlI18n.qml`                                | Loader e lookup de traduções.                                                     |
+| `providers/get-provider-usage`                             | Backend unificado e dispatcher de fallbacks.                                      |
+| `providers/get-provider-wrapper` / `providers/get-*-usage` | Entrypoints por provider que delegam ao backend compartilhado.                    |
+| `providers/get-copilot-usage`                              | Ponte para uso do GitHub Copilot.                                                 |
+| `providers/get-claude-usage`                               | Analytics local de Claude Code e ponte de uso.                                    |
+| `i18n/`                                                    | Arquivos JSON de idioma gerenciados com Crowdin.                                  |
+| `.github/`                                                 | CI, code scanning padrão, Dependabot, funding, templates e arquivos comunitários. |
 
 Visão técnica: [architecture.md](./architecture.md)
 
@@ -141,6 +148,8 @@ Issues, pedidos de provider, traduções e pull requests são bem-vindos.
 - Reporte vulnerabilidades pelo fluxo de segurança do repositório e siga [../.github/SECURITY.md](../.github/SECURITY.md).
 - Para traduções, veja [i18n-crowdin.md](./i18n-crowdin.md).
 
+<div align="center">
+
 ## 💜 Apoio
 
 Se o AiOverviewControl ajuda no seu setup do DMS, você pode apoiar a manutenção pelo GitHub Sponsors:
@@ -151,4 +160,4 @@ Se o AiOverviewControl ajuda no seu setup do DMS, você pode apoiar a manutenç�
 
 Distribuído nos termos de [LICENSE](../LICENSE).
 
-<img width="100%" alt="" src="https://capsule-render.vercel.app/api?type=wave&color=0:22C55E,45:2563EB,100:0F172A&height=110&section=footer" />
+![footer](https://capsule-render.vercel.app/api?type=waving&height=150&fontAlignY=40&color=0:0F172A,45:2563EB,100:22C55E&section=footer)
