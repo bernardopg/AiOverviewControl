@@ -315,7 +315,7 @@ jobs:
 
       - name: Validate with Crowdin CLI (requires secret)
         env:
-          CROWDIN_API_TOKEN: ${{ secrets.CROWLIN_API_TOKEN }}
+          CROWDIN_API_TOKEN: ${{ secrets.CROWDIN_API_TOKEN }}
         run: |
           if [ -z "${CROWDIN_API_TOKEN:-}" ]; then
             echo "Crowdin token not available — skipping remote CLI validation."
