@@ -58,6 +58,12 @@ QML widget
   │              ├─ vertexai      → gcloud auth print-access-token (check only)
   │              ├─ byteplus/ark  → ark.ap-southeast.bytepluses.com/api/v3/models (key validation)
   │              ├─ qwen/dashscope→ dashscope.aliyuncs.com/…/models (key validation)
+  │              ├─ together      → api.together.xyz/v1/credits
+  │              ├─ groq          → api.groq.com/openai/v1/models (key validation)
+  │              ├─ cohere        → api.cohere.ai/v1/users/me
+  │              ├─ replicate     → api.replicate.com/v1/account
+  │              ├─ fireworks     → api.fireworks.ai/v1/account/billing
+  │              ├─ ai21          → api.ai21.com/studio/v1/usage
   │              └─ others        → codexbar usage --provider <id>
   │
   └─ claude extra analytics
@@ -107,13 +113,14 @@ Providers without a quota API use `json_note_usage` which fills `usage.primary` 
 
 ## Provider count
 
-25 provider IDs are registered in `availableProviderOptions`:
+31 provider IDs are registered in `availableProviderOptions`:
 
 ```text
 codex, claude, copilot, gemini, 9router, openrouter,
 deepseek, kimi, mistral, glm, minimax, qwen, nvidia,
-cloudflare, vertexai, byteplus, ollama, perplexity,
-cursor, cline, opencode, kilo, kiro, warp, amp
+cloudflare, vertexai, byteplus, ollama,
+together, groq, cohere, replicate, fireworks, ai21,
+perplexity, cursor, cline, opencode, kilo, kiro, warp, amp
 ```
 
 ## QML processes
@@ -162,6 +169,12 @@ Iterates providers sequentially. Each provider dispatched by `fetch_provider()` 
 - `fetch_vertexai_native()` — gcloud auth check → note-card
 - `fetch_byteplus_native()` — BYTEPLUS_API_KEY / ARK_API_KEY key validation → note-card
 - `fetch_qwen_native()` — DASHSCOPE_API_KEY / QWEN_API_KEY key validation → note-card
+- `fetch_together_native()` — TOGETHER_API_KEY credits endpoint
+- `fetch_groq_native()` — GROQ_API_KEY key validation → note-card
+- `fetch_cohere_native()` — COHERE_API_KEY users/me endpoint
+- `fetch_replicate_native()` — REPLICATE_API_TOKEN account endpoint
+- `fetch_fireworks_native()` — FIREWORKS_API_KEY billing endpoint
+- `fetch_ai21_native()` — AI21_API_KEY usage endpoint
 - `try_codexbar()` — codexbar fallback for any provider
 - `json_note_usage()` — structured note card for providers without quota APIs
 - `json_error()` — structured error card

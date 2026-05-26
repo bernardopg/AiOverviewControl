@@ -232,6 +232,80 @@ curl -s https://dashscope.aliyuncs.com/compatible-mode/v1/models \
 
 ---
 
+## Together AI
+
+```bash
+export TOGETHER_API_KEY=...
+curl -s https://api.together.xyz/v1/credits \
+  -H "Authorization: Bearer $TOGETHER_API_KEY" | jq .
+```
+
+Expected: `credits` object with `total`, `used`, `remaining` fields. If you see `401`, the key is invalid or expired.
+
+---
+
+## Groq
+
+Groq has no public quota endpoint. The card shows a note-card (not an error) when the key is valid:
+
+```bash
+export GROQ_API_KEY=gsk_...
+curl -s https://api.groq.com/openai/v1/models \
+  -H "Authorization: Bearer $GROQ_API_KEY" | jq '.data | length'
+```
+
+A number means auth succeeded. For usage limits, visit [console.groq.com](https://console.groq.com).
+
+---
+
+## Cohere
+
+```bash
+export COHERE_API_KEY=...
+curl -s https://api.cohere.ai/v1/users/me \
+  -H "Authorization: Bearer $COHERE_API_KEY" | jq .
+```
+
+Expected: object with `id`, `name`, `email`, `username`, `trial_credits`. If `trial_credits` is present, the widget surfaces it as remaining credit.
+
+---
+
+## Replicate
+
+```bash
+export REPLICATE_API_TOKEN=r8_...
+curl -s https://api.replicate.com/v1/account \
+  -H "Authorization: Bearer $REPLICATE_API_TOKEN" | jq .
+```
+
+Expected: `type`, `username`, `name`, `github_url`. The widget shows account identity; Replicate charges per-run with no preset quota.
+
+---
+
+## Fireworks AI
+
+```bash
+export FIREWORKS_API_KEY=fw_...
+curl -s https://api.fireworks.ai/v1/account/billing \
+  -H "Authorization: Bearer $FIREWORKS_API_KEY" | jq .
+```
+
+Expected: object with `balance`, `currency`. If you see `403`, your key may lack billing read permissions.
+
+---
+
+## AI21
+
+```bash
+export AI21_API_KEY=...
+curl -s https://api.ai21.com/studio/v1/usage \
+  -H "Authorization: Bearer $AI21_API_KEY" | jq .
+```
+
+Expected: usage object with `credits_used`, `credits_limit`, `credits_remaining`. A `401` means the key is invalid.
+
+---
+
 ## 9Router vs OpenRouter both showing same name
 
 Both IDs must be present in the provider list with distinct cards. If they look identical, verify the widget version is ≥ 1.2.2 where the `providerName()` fix was applied:

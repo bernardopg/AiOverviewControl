@@ -145,7 +145,7 @@ PluginSettings {
 
                 StyledText {
                     id: heroVersion
-                    text: "v1.2.3"
+                    text: "v1.2.4"
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.withAlpha(Theme.primary, 0.7)
                     anchors.verticalCenter: parent.verticalCenter
