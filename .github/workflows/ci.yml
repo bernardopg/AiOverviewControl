@@ -49,9 +49,11 @@ jobs:
       - name: Validate shell helpers
         run: |
           bash -n providers/get-provider-usage providers/get-copilot-usage providers/get-claude-usage
+          find providers -name 'get-*' -type f | xargs bash -n
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends shellcheck
           shellcheck -S warning providers/get-provider-usage providers/get-copilot-usage providers/get-claude-usage
+          find providers -name 'get-*' ! -name 'get-provider-usage' ! -name 'get-copilot-usage' ! -name 'get-claude-usage' -type f | xargs shellcheck -S warning
 
       - name: Validate Crowdin config
         env:

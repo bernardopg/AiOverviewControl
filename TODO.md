@@ -17,24 +17,24 @@
 
 ## Providers — New / Unimplemented
 
-- [ ] **Together AI** (`together`): `GET https://api.together.xyz/v1/credits` with `TOGETHER_API_KEY`.
-- [ ] **Groq** (`groq`): no public quota endpoint; show note-card directing to console.groq.com.
-- [ ] **Cohere** (`cohere`): `GET https://api.cohere.ai/v1/users` with `COHERE_API_KEY`; check `trial_credits`.
-- [ ] **Replicate** (`replicate`): `GET https://api.replicate.com/v1/account` with `REPLICATE_API_TOKEN`.
-- [ ] **Fireworks AI** (`fireworks`): `GET https://api.fireworks.ai/v1/account/billing` with `FIREWORKS_API_KEY`.
-- [ ] **AI21** (`ai21`): `GET https://api.ai21.com/studio/v1/usage` with `AI21_API_KEY`.
+- [x] **Together AI** (`together`): `GET https://api.together.xyz/v1/credits` with `TOGETHER_API_KEY`.
+- [x] **Groq** (`groq`): no public quota endpoint; show note-card directing to console.groq.com.
+- [x] **Cohere** (`cohere`): `GET https://api.cohere.ai/v1/users` with `COHERE_API_KEY`; check `trial_credits`.
+- [x] **Replicate** (`replicate`): `GET https://api.replicate.com/v1/account` with `REPLICATE_API_TOKEN`.
+- [x] **Fireworks AI** (`fireworks`): `GET https://api.fireworks.ai/v1/account/billing` with `FIREWORKS_API_KEY`.
+- [x] **AI21** (`ai21`): `GET https://api.ai21.com/studio/v1/usage` with `AI21_API_KEY`.
 
 ## Dashboard — UX
 
 - [ ] Add compact/expanded density modes (toggle in settings or per-card).
-- [ ] Add stale-data indicator per card when provider has not refreshed within 2× the refresh interval.
+- [x] Add stale-data indicator per card when provider has not refreshed within 2× the refresh interval.
 - [ ] Add provider filter row (search/filter chip bar) when more than 8 providers are selected.
 - [ ] Add screenshot assets for documentation and marketplace listing.
-- [ ] Surface `updatedAt` timestamp in card footer for providers that return it.
+- [x] Surface `updatedAt` timestamp in card footer for providers that return it.
 
 ## Claude Analytics
 
-- [ ] Show today's token count separately from today's estimated cost in the summary row.
+- [x] Show today's token count separately from today's estimated cost in the summary row.
 - [ ] Add cache-status and API-fallback messaging when `get-claude-usage` falls back to local JSONL only.
 - [ ] Add optional EUR display when Frankfurter exchange-rate lookup succeeds.
 - [ ] Expose per-project breakdown toggle (top 5 projects by cost today).
@@ -46,7 +46,7 @@
 
 ## Quality
 
-- [ ] Add `shellcheck` to CI workflow for all `get-*` scripts.
+- [x] Add `shellcheck` to CI workflow for all `get-*` scripts.
 - [ ] Add lightweight integration tests for `get-claude-usage` (mock `~/.claude` fixtures).
 - [ ] Add lightweight integration tests for `get-provider-usage` (mock API responses with `curl` shim).
 - [ ] Pin GitHub Actions to SHA for supply-chain hardening (e.g. `actions/checkout@<sha>`).

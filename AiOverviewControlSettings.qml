@@ -31,31 +31,37 @@ PluginSettings {
     // ── helpers ──────────────────────────────────────────────────────────────
 
     readonly property var allProviders: [
-        { id: "claude",      name: "Claude",        icon: "psychology",     auth: "native",    envVar: "" },
-        { id: "copilot",     name: "Copilot",       icon: "code",           auth: "gh/token",  envVar: "COPILOT_GITHUB_TOKEN" },
-        { id: "codex",       name: "Codex",         icon: "terminal",       auth: "codexbar",  envVar: "" },
-        { id: "gemini",      name: "Gemini",        icon: "star",           auth: "key/oauth", envVar: "GEMINI_API_KEY" },
-        { id: "9router",     name: "9Router",       icon: "share",          auth: "local db",  envVar: "" },
-        { id: "openrouter",  name: "OpenRouter",    icon: "route",          auth: "key",       envVar: "OPENROUTER_API_KEY" },
-        { id: "deepseek",    name: "DeepSeek",      icon: "search",         auth: "key",       envVar: "DEEPSEEK_API_KEY" },
-        { id: "kimi",        name: "Kimi",          icon: "language",       auth: "key",       envVar: "MOONSHOT_API_KEY" },
-        { id: "mistral",     name: "Mistral",       icon: "wind_power",     auth: "key",       envVar: "MISTRAL_API_KEY" },
-        { id: "glm",         name: "GLM",           icon: "memory",         auth: "key",       envVar: "GLM_API_KEY" },
-        { id: "minimax",     name: "MiniMax",       icon: "bar_chart",      auth: "key",       envVar: "MINIMAX_API_KEY" },
-        { id: "qwen",        name: "Qwen",          icon: "hub",            auth: "key",       envVar: "DASHSCOPE_API_KEY" },
-        { id: "nvidia",      name: "NVIDIA NIM",    icon: "developer_board",auth: "key",       envVar: "NVIDIA_API_KEY" },
-        { id: "cloudflare",  name: "Cloudflare AI", icon: "cloud",          auth: "key+id",    envVar: "CLOUDFLARE_AI_TOKEN" },
-        { id: "vertexai",    name: "Vertex AI",     icon: "settings_remote",auth: "gcloud",    envVar: "" },
-        { id: "byteplus",    name: "BytePlus Ark",  icon: "rocket_launch",  auth: "key",       envVar: "BYTEPLUS_API_KEY" },
-        { id: "ollama",      name: "Ollama",        icon: "dns",            auth: "local",     envVar: "" },
-        { id: "perplexity",  name: "Perplexity",    icon: "auto_awesome",   auth: "codexbar",  envVar: "" },
-        { id: "cursor",      name: "Cursor",        icon: "mouse",          auth: "codexbar",  envVar: "" },
-        { id: "cline",       name: "Cline",         icon: "code_blocks",    auth: "codexbar",  envVar: "" },
-        { id: "opencode",    name: "OpenCode",      icon: "open_in_new",    auth: "codexbar",  envVar: "" },
-        { id: "kilo",        name: "Kilo",          icon: "straighten",     auth: "codexbar",  envVar: "" },
-        { id: "kiro",        name: "Kiro",          icon: "tune",           auth: "codexbar",  envVar: "" },
-        { id: "warp",        name: "Warp",          icon: "speed",          auth: "codexbar",  envVar: "" },
-        { id: "amp",         name: "Amp",           icon: "bolt",           auth: "codexbar",  envVar: "" }
+        { id: "claude",      name: "Claude",        icon: "psychology",      auth: "native",    envVar: "" },
+        { id: "copilot",     name: "Copilot",       icon: "code",            auth: "gh/token",  envVar: "COPILOT_GITHUB_TOKEN" },
+        { id: "codex",       name: "Codex",         icon: "terminal",        auth: "codexbar",  envVar: "" },
+        { id: "gemini",      name: "Gemini",        icon: "star",            auth: "key/oauth", envVar: "GEMINI_API_KEY" },
+        { id: "9router",     name: "9Router",       icon: "share",           auth: "local db",  envVar: "" },
+        { id: "openrouter",  name: "OpenRouter",    icon: "route",           auth: "key",       envVar: "OPENROUTER_API_KEY" },
+        { id: "deepseek",    name: "DeepSeek",      icon: "search",          auth: "key",       envVar: "DEEPSEEK_API_KEY" },
+        { id: "kimi",        name: "Kimi",          icon: "language",        auth: "key",       envVar: "MOONSHOT_API_KEY" },
+        { id: "mistral",     name: "Mistral",       icon: "wind_power",      auth: "key",       envVar: "MISTRAL_API_KEY" },
+        { id: "glm",         name: "GLM",           icon: "memory",          auth: "key",       envVar: "GLM_API_KEY" },
+        { id: "minimax",     name: "MiniMax",       icon: "bar_chart",       auth: "key",       envVar: "MINIMAX_API_KEY" },
+        { id: "qwen",        name: "Qwen",          icon: "hub",             auth: "key",       envVar: "DASHSCOPE_API_KEY" },
+        { id: "nvidia",      name: "NVIDIA NIM",    icon: "developer_board", auth: "key",       envVar: "NVIDIA_API_KEY" },
+        { id: "cloudflare",  name: "Cloudflare AI", icon: "cloud",           auth: "key+id",    envVar: "CLOUDFLARE_AI_TOKEN" },
+        { id: "vertexai",    name: "Vertex AI",     icon: "settings_remote", auth: "gcloud",    envVar: "" },
+        { id: "byteplus",    name: "BytePlus Ark",  icon: "rocket_launch",   auth: "key",       envVar: "BYTEPLUS_API_KEY" },
+        { id: "ollama",      name: "Ollama",        icon: "dns",             auth: "local",     envVar: "" },
+        { id: "together",    name: "Together AI",   icon: "join_inner",      auth: "key",       envVar: "TOGETHER_API_KEY" },
+        { id: "groq",        name: "Groq",          icon: "fast_forward",    auth: "key",       envVar: "GROQ_API_KEY" },
+        { id: "cohere",      name: "Cohere",        icon: "waves",           auth: "key",       envVar: "COHERE_API_KEY" },
+        { id: "replicate",   name: "Replicate",     icon: "content_copy",    auth: "token",     envVar: "REPLICATE_API_TOKEN" },
+        { id: "fireworks",   name: "Fireworks AI",  icon: "local_fire_department", auth: "key", envVar: "FIREWORKS_API_KEY" },
+        { id: "ai21",        name: "AI21",          icon: "looks_21",        auth: "key",       envVar: "AI21_API_KEY" },
+        { id: "perplexity",  name: "Perplexity",    icon: "auto_awesome",    auth: "codexbar",  envVar: "" },
+        { id: "cursor",      name: "Cursor",        icon: "mouse",           auth: "codexbar",  envVar: "" },
+        { id: "cline",       name: "Cline",         icon: "code_blocks",     auth: "codexbar",  envVar: "" },
+        { id: "opencode",    name: "OpenCode",      icon: "open_in_new",     auth: "codexbar",  envVar: "" },
+        { id: "kilo",        name: "Kilo",          icon: "straighten",      auth: "codexbar",  envVar: "" },
+        { id: "kiro",        name: "Kiro",          icon: "tune",            auth: "codexbar",  envVar: "" },
+        { id: "warp",        name: "Warp",          icon: "speed",           auth: "codexbar",  envVar: "" },
+        { id: "amp",         name: "Amp",           icon: "bolt",            auth: "codexbar",  envVar: "" }
     ]
 
     readonly property var nativeProviders: allProviders.filter(function(p) {
@@ -65,7 +71,6 @@ PluginSettings {
         return p.auth === "codexbar";
     })
 
-    // current selection as array (live, reflects text field edits)
     property var selectedIds: normalizeProviderSelection(root.loadValue("providerSelection", "codex,claude,copilot"))
 
     function isSelected(id) {
@@ -100,9 +105,9 @@ PluginSettings {
             anchors.fill: parent
             radius: parent.radius
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.16) }
+                GradientStop { position: 0.0;  color: Theme.withAlpha(Theme.primary, 0.16) }
                 GradientStop { position: 0.56; color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.08) }
-                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surfaceContainer, 0.02) }
+                GradientStop { position: 1.0;  color: Theme.withAlpha(Theme.surfaceContainer, 0.02) }
             }
         }
 
@@ -124,6 +129,7 @@ PluginSettings {
                 }
 
                 StyledText {
+                    id: heroNameText
                     text: root.t("app.name", "AiOverviewControl")
                     font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Bold
@@ -131,10 +137,15 @@ PluginSettings {
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
-                Item { Layout.fillWidth: true; width: 1 }
+                Item {
+                    width: parent.width - parent.spacing * 2 - 20 - heroVersion.implicitWidth
+                             - heroNameText.implicitWidth
+                    height: 1
+                }
 
                 StyledText {
-                    text: "v1.2.2"
+                    id: heroVersion
+                    text: "v1.2.3"
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.withAlpha(Theme.primary, 0.7)
                     anchors.verticalCenter: parent.verticalCenter
@@ -149,7 +160,6 @@ PluginSettings {
                 wrapMode: Text.WordWrap
             }
 
-            // summary chips
             Row {
                 spacing: Theme.spacingS
 
@@ -240,15 +250,34 @@ PluginSettings {
         onValueChanged: function(value) { root.saveValue("pillMode", value); }
     }
 
-    DankTextField {
-        id: pillProvidersField
+    Column {
         width: parent.width
-        visible: root.loadValue("pillMode", "auto") === "custom"
-        label: root.t("settings.pill_providers.label", "Pill providers")
-        description: root.t("settings.pill_providers.description", "Comma-separated provider IDs to show in the pill. E.g. claude,codex,copilot")
-        placeholderText: "claude,codex,copilot"
-        text: root.loadValue("pillProviders", "")
-        onTextChanged: function() { root.saveValue("pillProviders", pillProvidersField.text.trim()); }
+        spacing: Theme.spacingXS
+        visible: pillModeDropdown.currentValue === "custom"
+
+        StyledText {
+            width: parent.width
+            text: root.t("settings.pill_providers.label", "Pill providers")
+            font.pixelSize: Theme.fontSizeSmall
+            font.weight: Font.DemiBold
+            color: Theme.surfaceVariantText
+        }
+
+        StyledText {
+            width: parent.width
+            text: root.t("settings.pill_providers.description", "Comma-separated provider IDs to show in the pill. E.g. claude,codex,copilot")
+            font.pixelSize: Theme.fontSizeSmall
+            color: Theme.surfaceVariantText
+            wrapMode: Text.WordWrap
+        }
+
+        DankTextField {
+            id: pillProvidersField
+            width: parent.width
+            placeholderText: "claude,codex,copilot"
+            text: root.loadValue("pillProviders", "")
+            onEditingFinished: root.saveValue("pillProviders", pillProvidersField.text.trim())
+        }
     }
 
     // ── Refresh ───────────────────────────────────────────────────────────────
@@ -300,10 +329,10 @@ PluginSettings {
                 text: {
                     const v = refreshDropdown.currentValue;
                     const map = {
-                        "60000":   root.t("settings.refresh.60000", "1 minute — active monitoring. Increases API calls."),
-                        "120000":  root.t("settings.refresh.120000", "2 minutes — recommended default for normal use."),
-                        "300000":  root.t("settings.refresh.300000", "5 minutes — suitable for many providers or slow networks."),
-                        "900000":  root.t("settings.refresh.900000", "15 minutes — conservative, reduces rate limits on external APIs."),
+                        "60000":   root.t("settings.refresh.60000",   "1 minute — active monitoring. Increases API calls."),
+                        "120000":  root.t("settings.refresh.120000",  "2 minutes — recommended default for normal use."),
+                        "300000":  root.t("settings.refresh.300000",  "5 minutes — suitable for many providers or slow networks."),
+                        "900000":  root.t("settings.refresh.900000",  "15 minutes — conservative, reduces rate limits on external APIs."),
                         "1800000": root.t("settings.refresh.1800000", "30 minutes — minimum, occasional checks only.")
                     };
                     return map[v] || "";
@@ -346,7 +375,6 @@ PluginSettings {
                 required property var modelData
 
                 readonly property bool active: root.isSelected(modelData.id)
-                readonly property bool hasEnvVar: modelData.envVar.length > 0
 
                 width: nativeChipRow.implicitWidth + Theme.spacingM * 2
                 height: 36
@@ -377,11 +405,10 @@ PluginSettings {
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    // auth indicator dot
                     Rectangle {
                         width: 6; height: 6; radius: 3
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: modelData.auth === "codexbar" || modelData.envVar.length > 0
+                        visible: modelData.envVar.length > 0
                         color: modelData.auth === "local db" || modelData.auth === "local" || modelData.auth === "native" || modelData.auth === "gcloud"
                                ? Theme.withAlpha(Theme.secondary, 0.7)
                                : Theme.withAlpha(Theme.warning, 0.8)
@@ -391,7 +418,6 @@ PluginSettings {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    hoverEnabled: true
                     onClicked: root.toggleProvider(modelData.id)
                 }
             }
@@ -453,9 +479,6 @@ PluginSettings {
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    Item { width: 1; Layout.fillWidth: true }
-
-                    // extra hint for cloudflare
                     StyledText {
                         visible: modelData.id === "cloudflare"
                         text: "+ CLOUDFLARE_ACCOUNT_ID"
@@ -470,12 +493,12 @@ PluginSettings {
 
     // ── Providers: codexbar-only ──────────────────────────────────────────────
 
-    DankCollapsibleSection {
-        id: codexbarProvidersSection
+    CollapsibleSection {
+        id: codexbarSection
         width: parent.width
-        title: root.t("settings.codexbar_providers", "Providers via codexbar")
-        description: root.t("settings.codexbar_providers_desc", "Require codexbar installed. Without it, they appear as errors.")
-        expanded: false
+        sectionTitle: root.t("settings.codexbar_providers", "Providers via codexbar")
+        sectionDesc: root.t("settings.codexbar_providers_desc", "Require codexbar installed. Without it, they appear as errors.")
+        startExpanded: false
 
         Flow {
             width: parent.width
@@ -627,10 +650,8 @@ PluginSettings {
             onEditingFinished: root.saveValue("codexbarPath", text)
         }
 
-        // codexbar status hint based on field content
         Row {
             spacing: Theme.spacingXS
-            visible: true
 
             DankIcon {
                 name: codexbarField.text.trim().length > 0 ? "folder_open" : "search"
@@ -685,11 +706,11 @@ PluginSettings {
 
             Repeater {
                 model: [
-                    { mode: "cli",   icon: "check_circle", color: Theme.secondary,          text: root.t("settings.source.cli", "cli — best default on Linux. Local telemetry, zero network calls.") },
-                    { mode: "auto",  icon: "info",          color: Theme.surfaceVariantText, text: root.t("settings.source.auto", "auto — lets codexbar choose the source per provider.") },
+                    { mode: "cli",   icon: "check_circle", color: Theme.secondary,          text: root.t("settings.source.cli",   "cli — best default on Linux. Local telemetry, zero network calls.") },
+                    { mode: "auto",  icon: "info",          color: Theme.surfaceVariantText, text: root.t("settings.source.auto",  "auto — lets codexbar choose the source per provider.") },
                     { mode: "oauth", icon: "key",           color: Theme.surfaceVariantText, text: root.t("settings.source.oauth", "oauth — authenticates via OAuth where the provider supports it.") },
-                    { mode: "api",   icon: "api",           color: Theme.surfaceVariantText, text: root.t("settings.source.api", "api — uses API tokens configured in codexbar.") },
-                    { mode: "web",   icon: "warning",       color: Theme.warning,            text: root.t("settings.source.web", "web — dashboard scraping. May be macOS-only for some providers.") }
+                    { mode: "api",   icon: "api",           color: Theme.surfaceVariantText, text: root.t("settings.source.api",   "api — uses API tokens configured in codexbar.") },
+                    { mode: "web",   icon: "warning",       color: Theme.warning,            text: root.t("settings.source.web",   "web — dashboard scraping. May be macOS-only for some providers.") }
                 ]
 
                 delegate: Row {
@@ -732,12 +753,12 @@ PluginSettings {
 
     // ── Auth quick reference ──────────────────────────────────────────────────
 
-    DankCollapsibleSection {
+    CollapsibleSection {
         id: authSection
         width: parent.width
-        title: root.t("settings.auth_ref", "Authentication reference")
-        description: root.t("settings.auth_ref_desc", "How each provider type obtains credentials.")
-        expanded: false
+        sectionTitle: root.t("settings.auth_ref", "Authentication reference")
+        sectionDesc: root.t("settings.auth_ref_desc", "How each provider type obtains credentials.")
+        startExpanded: false
 
         Column {
             width: parent.width
@@ -749,25 +770,47 @@ PluginSettings {
                         title: root.t("settings.auth.native_title", "Native without key"),
                         icon: "check_circle",
                         color: Theme.secondary,
-                        items: [root.t("settings.auth.native_1", "claude — reads ~/.claude/ (JSONL + local OAuth)"), root.t("settings.auth.native_2", "9router — reads ~/.9router/db/data.sqlite"), root.t("settings.auth.native_3", "ollama — GET localhost:11434/api/tags"), root.t("settings.auth.native_4", "vertexai — gcloud auth print-access-token")]
+                        items: [
+                            root.t("settings.auth.native_1", "claude — reads ~/.claude/ (JSONL + local OAuth)"),
+                            root.t("settings.auth.native_2", "9router — reads ~/.9router/db/data.sqlite"),
+                            root.t("settings.auth.native_3", "ollama — GET localhost:11434/api/tags"),
+                            root.t("settings.auth.native_4", "vertexai — gcloud auth print-access-token")
+                        ]
                     },
                     {
                         title: root.t("settings.auth.env_title", "API key via env var"),
                         icon: "key",
                         color: Theme.primary,
-                        items: [root.t("settings.auth.env_1", "openrouter — OPENROUTER_API_KEY"), root.t("settings.auth.env_2", "deepseek — DEEPSEEK_API_KEY"), root.t("settings.auth.env_3", "kimi — MOONSHOT_API_KEY or KIMI_API_KEY"), root.t("settings.auth.env_4", "minimax — MINIMAX_API_KEY"), root.t("settings.auth.env_5", "glm — GLM_API_KEY or ZHIPU_API_KEY"), root.t("settings.auth.env_6", "mistral — MISTRAL_API_KEY"), root.t("settings.auth.env_7", "nvidia — NVIDIA_API_KEY"), root.t("settings.auth.env_8", "cloudflare — CLOUDFLARE_AI_TOKEN + CLOUDFLARE_ACCOUNT_ID"), root.t("settings.auth.env_9", "byteplus — BYTEPLUS_API_KEY or ARK_API_KEY"), root.t("settings.auth.env_10", "qwen — DASHSCOPE_API_KEY or QWEN_API_KEY")]
+                        items: [
+                            root.t("settings.auth.env_1",  "openrouter — OPENROUTER_API_KEY"),
+                            root.t("settings.auth.env_2",  "deepseek — DEEPSEEK_API_KEY"),
+                            root.t("settings.auth.env_3",  "kimi — MOONSHOT_API_KEY or KIMI_API_KEY"),
+                            root.t("settings.auth.env_4",  "minimax — MINIMAX_API_KEY"),
+                            root.t("settings.auth.env_5",  "glm — GLM_API_KEY or ZHIPU_API_KEY"),
+                            root.t("settings.auth.env_6",  "mistral — MISTRAL_API_KEY"),
+                            root.t("settings.auth.env_7",  "nvidia — NVIDIA_API_KEY"),
+                            root.t("settings.auth.env_8",  "cloudflare — CLOUDFLARE_AI_TOKEN + CLOUDFLARE_ACCOUNT_ID"),
+                            root.t("settings.auth.env_9",  "byteplus — BYTEPLUS_API_KEY or ARK_API_KEY"),
+                            root.t("settings.auth.env_10", "qwen — DASHSCOPE_API_KEY or QWEN_API_KEY")
+                        ]
                     },
                     {
                         title: root.t("settings.auth.copilot_title", "GitHub token (Copilot)"),
                         icon: "code",
                         color: Theme.primary,
-                        items: [root.t("settings.auth.copilot_1", "Priority: gh auth token → COPILOT_GITHUB_TOKEN → GH_TOKEN → GITHUB_TOKEN"), root.t("settings.auth.copilot_2", "Run: gh auth login")]
+                        items: [
+                            root.t("settings.auth.copilot_1", "Priority: gh auth token → COPILOT_GITHUB_TOKEN → GH_TOKEN → GITHUB_TOKEN"),
+                            root.t("settings.auth.copilot_2", "Run: gh auth login")
+                        ]
                     },
                     {
                         title: root.t("settings.auth.codexbar_title", "Via codexbar (fallback)"),
                         icon: "terminal",
                         color: Theme.surfaceVariantText,
-                        items: [root.t("settings.auth.codexbar_1", "codex, gemini, perplexity, cursor, cline, opencode, kilo, kiro, warp, amp"), root.t("settings.auth.codexbar_2", "Requires codexbar installed and configured with provider credentials")]
+                        items: [
+                            root.t("settings.auth.codexbar_1", "codex, gemini, perplexity, cursor, cline, opencode, kilo, kiro, warp, amp"),
+                            root.t("settings.auth.codexbar_2", "Requires codexbar installed and configured with provider credentials")
+                        ]
                     }
                 ]
 
@@ -778,9 +821,7 @@ PluginSettings {
 
                     Row {
                         spacing: Theme.spacingXS
-
                         DankIcon { name: modelData.icon; size: 14; color: modelData.color; anchors.verticalCenter: parent.verticalCenter }
-
                         StyledText {
                             text: modelData.title
                             font.pixelSize: Theme.fontSizeSmall
@@ -792,7 +833,6 @@ PluginSettings {
 
                     Repeater {
                         model: modelData.items
-
                         StyledText {
                             required property string modelData
                             width: parent.width
@@ -808,14 +848,14 @@ PluginSettings {
         }
     }
 
-    // ── Diagnóstico ───────────────────────────────────────────────────────────
+    // ── Diagnostics ───────────────────────────────────────────────────────────
 
-    DankCollapsibleSection {
+    CollapsibleSection {
         id: diagSection
         width: parent.width
-        title: root.t("settings.diagnostics", "Diagnostics and tests")
-        description: root.t("settings.diagnostics_desc", "Commands to validate the pipeline outside the widget.")
-        expanded: false
+        sectionTitle: root.t("settings.diagnostics", "Diagnostics and tests")
+        sectionDesc: root.t("settings.diagnostics_desc", "Commands to validate the pipeline outside the widget.")
+        startExpanded: false
 
         Column {
             width: parent.width
@@ -906,6 +946,114 @@ PluginSettings {
                 color: Theme.surfaceVariantText
                 wrapMode: Text.WordWrap
                 anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    // ── CollapsibleSection component ──────────────────────────────────────────
+    // Inline because DankCollapsibleSection does not exist in this DMS version.
+
+    component CollapsibleSection: Item {
+        id: csRoot
+        property string sectionTitle: ""
+        property string sectionDesc: ""
+        property bool startExpanded: false
+        default property alias sectionContent: csBody.data
+
+        property bool expanded: startExpanded
+
+        width: parent ? parent.width : 0
+        implicitHeight: csHeader.implicitHeight + csBodyClip.height + (csBodyClip.height > 0 ? Theme.spacingS : 0)
+        height: implicitHeight
+
+        // header row — full click target
+        Rectangle {
+            id: csHeader
+            width: parent.width
+            implicitHeight: csHeaderCol.implicitHeight + Theme.spacingS * 2
+            height: implicitHeight
+            radius: expanded ? Theme.cornerRadius : Theme.cornerRadius
+            color: csHeaderMouse.containsMouse
+                   ? Theme.withAlpha(Theme.surfaceContainerHighest, 0.6)
+                   : Theme.withAlpha(Theme.surfaceContainerHigh, 0.5)
+            border.width: 1
+            border.color: Theme.withAlpha(Theme.primary, expanded ? 0.25 : 0.12)
+
+            Behavior on color { ColorAnimation { duration: 120 } }
+            Behavior on border.color { ColorAnimation { duration: 120 } }
+
+            Column {
+                id: csHeaderCol
+                anchors.left: parent.left
+                anchors.right: csChevron.left
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Theme.spacingM
+                anchors.rightMargin: Theme.spacingXS
+                spacing: Theme.spacingXS
+
+                StyledText {
+                    text: csRoot.sectionTitle
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.DemiBold
+                    color: expanded ? Theme.primary : Theme.surfaceText
+                    width: parent.width
+
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+
+                StyledText {
+                    visible: csRoot.sectionDesc.length > 0 && !expanded
+                    text: csRoot.sectionDesc
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceVariantText
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            DankIcon {
+                id: csChevron
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.spacingM
+                anchors.verticalCenter: parent.verticalCenter
+                name: "expand_more"
+                size: 18
+                color: Theme.primary
+
+                rotation: expanded ? 180 : 0
+                Behavior on rotation { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            }
+
+            MouseArea {
+                id: csHeaderMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: csRoot.expanded = !csRoot.expanded
+            }
+        }
+
+        // animated body
+        Item {
+            id: csBodyClip
+            anchors.top: csHeader.bottom
+            anchors.topMargin: expanded ? Theme.spacingS : 0
+            width: parent.width
+            clip: true
+
+            height: expanded ? csBody.implicitHeight : 0
+
+            Behavior on height {
+                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            }
+            Behavior on anchors.topMargin {
+                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            }
+
+            Column {
+                id: csBody
+                width: parent.width
+                spacing: Theme.spacingM
             }
         }
     }

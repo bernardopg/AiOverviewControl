@@ -91,6 +91,12 @@ PluginComponent {
         "vertexai",
         "byteplus",
         "ollama",
+        "together",
+        "groq",
+        "cohere",
+        "replicate",
+        "fireworks",
+        "ai21",
         "perplexity",
         "cursor",
         "cline",
@@ -403,6 +409,12 @@ PluginComponent {
             ark: "BytePlus Ark",
             modelark: "BytePlus Ark",
             ollama: "Ollama",
+            together: "Together AI",
+            groq: "Groq",
+            cohere: "Cohere",
+            replicate: "Replicate",
+            fireworks: "Fireworks AI",
+            ai21: "AI21",
             perplexity: "Perplexity",
             cline: "Cline",
             opencode: "OpenCode",
@@ -571,6 +583,12 @@ PluginComponent {
         if (providerId === "perplexity") return "travel_explore";
         if (providerId === "cursor") return "ads_click";
         if (providerId === "ollama") return "dns";
+        if (providerId === "together") return "join_inner";
+        if (providerId === "groq") return "fast_forward";
+        if (providerId === "cohere") return "waves";
+        if (providerId === "replicate") return "content_copy";
+        if (providerId === "fireworks") return "local_fire_department";
+        if (providerId === "ai21") return "looks_21";
         if (providerId === "cline") return "terminal";
         if (providerId === "opencode") return "code";
         if (providerId === "warp") return "rocket_launch";
@@ -597,6 +615,12 @@ PluginComponent {
         if (providerId === "cloudflare") return Theme.warning;
         if (providerId === "vertexai" || providerId === "vertex") return Theme.primary;
         if (providerId === "byteplus" || providerId === "ark" || providerId === "modelark") return Theme.secondary;
+        if (providerId === "together") return Theme.primary;
+        if (providerId === "groq") return Theme.success;
+        if (providerId === "cohere") return Theme.secondary;
+        if (providerId === "replicate") return Theme.primary;
+        if (providerId === "fireworks") return Theme.warning;
+        if (providerId === "ai21") return Theme.secondary;
         return Theme.secondary;
     }
 

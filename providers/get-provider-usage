@@ -863,6 +863,264 @@ fetch_byteplus_native() {
   json_error byteplus byteplus-ark "${http_status:-1}" provider "BytePlus ModelArk API key invalid (HTTP ${http_status:-0}). No programmatic balance endpoint — check console.volcengine.com."
 }
 
+fetch_together_native() {
+  local key="${TOGETHER_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error together together-api 2 provider "TOGETHER_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    "https://api.together.xyz/v1/credits" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Together AI credits API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error together together-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    . as $r
+    | (num($r.credits)) as $credits
+    | {
+        provider: "together",
+        source: "together-api",
+        usage: {
+          identity: { providerID: "together", accountEmail: "Together AI account", loginMethod: "api-key" },
+          accountEmail: "Together AI account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Credits",
+            displayValue: ("$" + ($credits | tostring))
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: ("$" + ($credits | tostring)) }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_groq_native() {
+  local key="${GROQ_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error groq groq-api 2 provider "GROQ_API_KEY is not set. Groq has no public quota endpoint — set key to confirm auth."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.groq.com/openai/v1/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage groq groq-api "Groq account" "api-key" "Authenticated — usage at console.groq.com/usage" "console.groq.com/usage"
+    return 0
+  fi
+  json_error groq groq-api "${http_status:-1}" provider "Groq API key invalid (HTTP ${http_status:-0}). No public quota endpoint — check console.groq.com/usage."
+}
+
+fetch_cohere_native() {
+  local key="${COHERE_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error cohere cohere-api 2 provider "COHERE_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.cohere.ai/v1/users/me" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Cohere users API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error cohere cohere-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    . as $r
+    | (num($r.trial_credits // 0)) as $trial
+    | (if $trial > 0 then (((5 - $trial) / 5.0) * 100) | if . < 0 then 0 elif . > 100 then 100 else . end else 0 end) as $pct
+    | {
+        provider: "cohere",
+        source: "cohere-api",
+        usage: {
+          identity: { providerID: "cohere", accountEmail: ($r.username // $r.email // "Cohere account"), loginMethod: "api-key" },
+          accountEmail: ($r.username // $r.email // "Cohere account"),
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: $pct,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Trial credits",
+            displayValue: ("$" + ($trial | tostring) + " remaining")
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: ("$" + ($trial | tostring)) }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_replicate_native() {
+  local token="${REPLICATE_API_TOKEN:-}"
+  if [ -z "$token" ]; then
+    json_error replicate replicate-api 2 provider "REPLICATE_API_TOKEN is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${token}" \
+    "https://api.replicate.com/v1/account" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.detail // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Replicate account API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error replicate replicate-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    . as $r
+    | {
+        provider: "replicate",
+        source: "replicate-api",
+        usage: {
+          identity: { providerID: "replicate", accountEmail: ($r.username // $r.github_url // "Replicate account"), loginMethod: "api-token" },
+          accountEmail: ($r.username // "Replicate account"),
+          loginMethod: "api-token",
+          primary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Account",
+            displayValue: ("Authenticated as " + ($r.username // "account"))
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: "replicate.com/account/billing" }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_fireworks_native() {
+  local key="${FIREWORKS_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error fireworks fireworks-api 2 provider "FIREWORKS_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Content-Type: application/json" \
+    "https://api.fireworks.ai/v1/account/billing" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Fireworks AI billing API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error fireworks fireworks-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    . as $r
+    | (num($r.balance // $r.credits // 0)) as $bal
+    | {
+        provider: "fireworks",
+        source: "fireworks-api",
+        usage: {
+          identity: { providerID: "fireworks", accountEmail: "Fireworks AI account", loginMethod: "api-key" },
+          accountEmail: "Fireworks AI account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Balance",
+            displayValue: ("$" + ($bal | tostring))
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: ("$" + ($bal | tostring)) }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
+fetch_ai21_native() {
+  local key="${AI21_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error ai21 ai21-api 2 provider "AI21_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    "https://api.ai21.com/studio/v1/usage" 2>/dev/null || true)"
+  if [ "$http_status" != "200" ]; then
+    local message
+    message="$(jq -r '.detail // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="AI21 usage API returned HTTP ${http_status:-0}."
+    rm -f "$tmp_body"
+    json_error ai21 ai21-api "${http_status:-1}" provider "$message"
+    return 0
+  fi
+  jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
+    . as $r
+    | (num($r.tokens_used // $r.tokensUsed // 0)) as $used
+    | (num($r.tokens_quota // $r.tokensQuota // 0)) as $quota
+    | (if $quota > 0 then (($used / $quota) * 100) | if . < 0 then 0 elif . > 100 then 100 else . end else 0 end) as $pct
+    | {
+        provider: "ai21",
+        source: "ai21-api",
+        usage: {
+          identity: { providerID: "ai21", accountEmail: "AI21 account", loginMethod: "api-key" },
+          accountEmail: "AI21 account",
+          loginMethod: "api-key",
+          primary: {
+            usedPercent: $pct,
+            windowMinutes: 43200,
+            resetsAt: null,
+            resetDescription: "Monthly tokens",
+            displayValue: (($used | tostring) + " / " + ($quota | tostring) + " tokens")
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: { remaining: (($quota - $used | tostring) + " tokens") }
+      }
+  ' "$tmp_body"
+  rm -f "$tmp_body"
+}
+
 fetch_qwen_native() {
   local key="${DASHSCOPE_API_KEY:-${QWEN_API_KEY:-}}"
   if [ -z "$key" ]; then
@@ -966,6 +1224,24 @@ fetch_provider() {
       ;;
     opencode)
       json_note_usage opencode opencode-local "OpenCode" "proxy" "OpenCode routes to underlying providers directly — check each provider's card" "opencode.ai"
+      ;;
+    together)
+      fetch_together_native
+      ;;
+    groq)
+      fetch_groq_native
+      ;;
+    cohere)
+      fetch_cohere_native
+      ;;
+    replicate)
+      fetch_replicate_native
+      ;;
+    fireworks)
+      fetch_fireworks_native
+      ;;
+    ai21)
+      fetch_ai21_native
       ;;
     *)
       try_codexbar "$provider" || json_error "$provider" codexbar 1 provider "No local provider adapter is available for $provider."
