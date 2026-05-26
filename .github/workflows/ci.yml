@@ -19,47 +19,143 @@ env:
   ACTIONLINT_VERSION: "1.7.12"
 
 jobs:
-  validate:
-    name: Validate
+  # ─── metadata ────────────────────────────────────────────────────────────────
+  metadata:
+    name: Metadata
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Validate JSON metadata and translations
+      - name: Validate plugin.json
+        run: jq --exit-status . plugin.json >/dev/null
+
+      - name: Validate i18n files
         run: |
-          jq . plugin.json >/dev/null
-          jq . i18n/en.json >/dev/null
-          jq . i18n/pt_BR.json >/dev/null
-          jq . i18n/zh_CN.json >/dev/null
-          python - <<'PY'
-          import json
+          for f in i18n/en.json i18n/pt_BR.json i18n/zh_CN.json; do
+            jq --exit-status . "$f" >/dev/null
+          done
+          python3 - <<'PY'
+          import json, sys
           from pathlib import Path
           base = set(json.loads(Path('i18n/en.json').read_text()).keys())
+          errors = []
           for locale in ('pt_BR', 'zh_CN'):
               keys = set(json.loads(Path(f'i18n/{locale}.json').read_text()).keys())
               missing = sorted(base - keys)
-              extra = sorted(keys - base)
-              if missing or extra:
-                  raise SystemExit(f'{locale}: missing={missing} extra={extra}')
+              extra   = sorted(keys - base)
+              if missing:
+                  errors.append(f'{locale}: missing keys: {missing}')
+              if extra:
+                  errors.append(f'{locale}: extra keys (not in en.json): {extra}')
+          if errors:
+              sys.exit('\n'.join(errors))
           PY
 
-      - name: Validate shell helpers
+      - name: Validate plugin.json version format
         run: |
-          bash -n providers/get-provider-usage providers/get-copilot-usage providers/get-claude-usage
-          find providers -name 'get-*' -type f | xargs bash -n
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends shellcheck
-          shellcheck -S warning providers/get-provider-usage providers/get-copilot-usage providers/get-claude-usage
-          find providers -name 'get-*' ! -name 'get-provider-usage' ! -name 'get-copilot-usage' ! -name 'get-claude-usage' -type f | xargs shellcheck -S warning
+          VERSION="$(jq -r '.version' plugin.json)"
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+            echo "plugin.json version '$VERSION' is not semver" >&2
+            exit 1
+          }
 
-      - name: Validate Crowdin config
-        env:
-          CROWDIN_API_TOKEN: ${{ secrets.CROWLIN_API_TOKEN }}
+  # ─── shell ───────────────────────────────────────────────────────────────────
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Syntax check — all get-* scripts
+        run: find providers -name 'get-*' -type f -print0 | xargs -0 bash -n
+
+      - name: Install shellcheck
         run: |
-          python - <<'PY'
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends shellcheck
+
+      - name: shellcheck — main backends
+        run: |
+          shellcheck -S warning \
+            providers/get-provider-usage \
+            providers/get-copilot-usage \
+            providers/get-claude-usage \
+            providers/get-provider-wrapper
+
+      - name: shellcheck — provider stubs
+        run: |
+          find providers -name 'get-*' \
+            ! -name 'get-provider-usage' \
+            ! -name 'get-copilot-usage' \
+            ! -name 'get-claude-usage' \
+            ! -name 'get-provider-wrapper' \
+            -type f -print0 \
+            | xargs -0 shellcheck -S warning
+
+      - name: Confirm all stubs are executable
+        run: |
+          find providers -name 'get-*' -type f | while IFS= read -r f; do
+            test -x "$f" || { echo "Not executable: $f" >&2; exit 1; }
+          done
+
+  # ─── qml ─────────────────────────────────────────────────────────────────────
+  qml:
+    name: QML lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: QML lint (optional — skip if qmllint not available)
+        run: |
+          if command -v qmllint >/dev/null 2>&1; then
+            qmllint \
+              AiOverviewControlWidget.qml \
+              AiOverviewControlSettings.qml \
+              AiOverviewControlI18n.qml
+          else
+            echo "qmllint not installed — skipping (install qt6-declarative-dev to enable)"
+          fi
+
+  # ─── actionlint ──────────────────────────────────────────────────────────────
+  actionlint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint with checksum verification
+        run: |
+          TARBALL="/tmp/actionlint.tar.gz"
+          EXPECTED="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            -o "$TARBALL"
+          echo "${EXPECTED}  ${TARBALL}" | sha256sum --check --strict
+          tar -xzf "$TARBALL" -C /tmp actionlint
+
+      - name: Run actionlint
+        run: /tmp/actionlint -color
+
+  # ─── crowdin ─────────────────────────────────────────────────────────────────
+  crowdin:
+    name: Crowdin config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate Crowdin config structure
+        run: |
+          python3 - <<'PY'
           from pathlib import Path
           config = Path('.github/crowdin.yml').read_text()
           required = [
@@ -75,32 +171,28 @@ jobs:
               raise SystemExit('Crowdin source file i18n/en.json is missing')
           PY
 
+      - name: Validate with Crowdin CLI (requires secret)
+        env:
+          CROWDIN_API_TOKEN: ${{ secrets.CROWLIN_API_TOKEN }}
+        run: |
           if [ -z "${CROWDIN_API_TOKEN:-}" ]; then
-            echo "Crowdin token is not available; skipping remote Crowdin CLI validation."
+            echo "Crowdin token not available — skipping remote CLI validation."
             exit 0
           fi
 
-          curl -fsSL "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-cli.zip" -o /tmp/crowdin-cli.zip
+          curl -fsSL \
+            "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-cli.zip" \
+            -o /tmp/crowdin-cli.zip
           unzip -q /tmp/crowdin-cli.zip -d /tmp/crowdin-cli
-          python - <<'PY'
+
+          python3 - <<'PY'
           import os
           from pathlib import Path
-          Path('/tmp/crowdin-identity.yml').write_text('api_token: ' + os.environ['CROWDIN_API_TOKEN'] + '\n')
+          Path('/tmp/crowdin-identity.yml').write_text(
+              'api_token: ' + os.environ['CROWDIN_API_TOKEN'] + '\n'
+          )
           PY
-          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config lint --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
-          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config sources --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
-          java -jar "/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar" config translations --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
-
-      - name: Validate GitHub Actions workflows
-        run: |
-          curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o /tmp/actionlint.tar.gz
-          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
-          /tmp/actionlint -color
-
-      - name: QML lint (optional)
-        run: |
-          if command -v qmllint >/dev/null 2>&1; then
-            qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
-          else
-            echo "qmllint not installed, skipping"
-          fi
+          JAR="/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar"
+          java -jar "$JAR" config lint         --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
+          java -jar "$JAR" config sources      --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
+          java -jar "$JAR" config translations --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml

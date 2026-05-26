@@ -17,38 +17,73 @@ jobs:
     name: Package and release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Validate release tag
+      - name: Validate tag matches plugin.json version
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="$(jq -r '.version' plugin.json)"
-          test "$TAG" = "v$VERSION" || {
-            echo "Tag $TAG does not match plugin.json version v$VERSION" >&2
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag $TAG does not match plugin.json version v$VERSION" >&2
             exit 1
-          }
+          fi
+          {
+            echo "TAG=$TAG"
+            echo "VERSION=$VERSION"
+            echo "DIST_NAME=AiOverviewControl-${TAG}"
+          } >> "$GITHUB_ENV"
 
-      - name: Create release artifacts
+      - name: Validate i18n completeness before release
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          NAME="AiOverviewControl-${TAG}"
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          base = set(json.loads(Path('i18n/en.json').read_text()).keys())
+          errors = []
+          for locale in ('pt_BR', 'zh_CN'):
+              keys = set(json.loads(Path(f'i18n/{locale}.json').read_text()).keys())
+              missing = sorted(base - keys)
+              if missing:
+                  errors.append(f'{locale}: missing i18n keys: {missing}')
+          if errors:
+              sys.exit('\n'.join(errors))
+          PY
+
+      - name: Confirm provider scripts are executable
+        run: |
+          find providers -name 'get-*' -type f | while IFS= read -r f; do
+            test -x "$f" || { echo "::error::Not executable: $f"; exit 1; }
+          done
+
+      - name: Build release artifacts
+        run: |
           mkdir -p dist
-          git archive --format=zip --prefix="${NAME}/" -o "dist/${NAME}.zip" HEAD
-          git archive --format=tar --prefix="${NAME}/" HEAD | gzip -9 > "dist/${NAME}.tar.gz"
-          sha256sum "dist/${NAME}.zip" "dist/${NAME}.tar.gz" > "dist/${NAME}.sha256"
-          ls -lh dist/
+          git archive \
+            --format=zip \
+            --prefix="${DIST_NAME}/" \
+            -o "dist/${DIST_NAME}.zip" \
+            HEAD
+          git archive \
+            --format=tar \
+            --prefix="${DIST_NAME}/" \
+            HEAD | gzip -9 > "dist/${DIST_NAME}.tar.gz"
+          cd dist
+          sha256sum "${DIST_NAME}.zip" "${DIST_NAME}.tar.gz" > "${DIST_NAME}.sha256"
+          echo "--- artifact sizes ---"
+          ls -lh "${DIST_NAME}."*
+          echo "--- checksums ---"
+          cat "${DIST_NAME}.sha256"
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v3.0.0
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
-          name: ${{ github.ref_name }}
+          name: ${{ env.TAG }}
           generate_release_notes: true
           files: |
-            dist/AiOverviewControl-${{ github.ref_name }}.zip
-            dist/AiOverviewControl-${{ github.ref_name }}.tar.gz
-            dist/AiOverviewControl-${{ github.ref_name }}.sha256
+            dist/${{ env.DIST_NAME }}.zip
+            dist/${{ env.DIST_NAME }}.tar.gz
+            dist/${{ env.DIST_NAME }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
