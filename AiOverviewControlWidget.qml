@@ -16,6 +16,7 @@ PluginComponent {
     property bool hasError: false
     property string errorMessage: ""
     property string lastUpdated: ""
+    property real lastUpdatedMs: 0
     property string rawJsonBuffer: ""
     property string rawStderrBuffer: ""
     property bool binaryReady: false
@@ -288,6 +289,10 @@ PluginComponent {
         return `${Math.round(primaryPercent)}%`;
     }
 
+    readonly property bool isDataStale: {
+        staleTickMs;
+        return lastUpdatedMs > 0 && (Date.now() - lastUpdatedMs) > refreshIntervalMs * 2;
+    }
     readonly property string resolvedPath: binaryReady ? resolvedBinaryPath : ""
     readonly property string providerEngineLabel: {
         if (!binaryReady) return "offline";
@@ -814,7 +819,9 @@ PluginComponent {
                         root.hasError = false;
                         root.errorMessage = root.errorProviders.length > 0 ? `${root.errorProviders.length} provider(s) need attention.` : "";
                     }
+                    const nowMs = Date.now();
                     root.lastUpdated = Qt.formatDateTime(new Date(), "hh:mm:ss");
+                    root.lastUpdatedMs = nowMs;
                 } catch (error) {
                     root.hasError = true;
                     root.errorMessage = root.rawStderrBuffer.length > 0 ? root.rawStderrBuffer : "Failed to parse provider helper output.";
@@ -885,6 +892,15 @@ PluginComponent {
         running: root.binaryReady
         repeat: true
         onTriggered: root.refresh()
+    }
+
+    property int staleTickMs: 0
+    Timer {
+        id: staleClock
+        interval: 10000
+        running: root.binaryReady
+        repeat: true
+        onTriggered: root.staleTickMs = Date.now()
     }
 
     component SurfaceButton: StyledRect {
@@ -1392,6 +1408,10 @@ PluginComponent {
         property bool compact: width < 560
         property bool veryCompact: width < 430
         property bool hovered: cardMouse.containsMouse
+        readonly property bool isStale: {
+            root.staleTickMs;
+            return root.lastUpdatedMs > 0 && (Date.now() - root.lastUpdatedMs) > root.refreshIntervalMs * 2;
+        }
 
         width: parent ? parent.width : implicitWidth
         radius: Theme.cornerRadius + 4
@@ -1499,6 +1519,14 @@ PluginComponent {
                             label: root.providerStatusLabel(card.provider)
                             iconName: card.provider && card.provider.error ? "warning" : "check_circle"
                             accentColor: card.provider && card.provider.error ? Theme.warning : root.providerAccent(card.provider.provider)
+                        }
+
+                        BadgePill {
+                            visible: card.isStale
+                            label: root.t("status.stale", "Stale")
+                            iconName: "schedule"
+                            accentColor: Theme.warning
+                            emphasized: true
                         }
                     }
                 }
@@ -1659,11 +1687,12 @@ PluginComponent {
 
                         GridLayout {
                             width: parent.width
-                            columns: card.width < 520 ? 1 : 3
+                            columns: card.width < 520 ? 1 : (card.width < 760 ? 2 : 4)
                             columnSpacing: Theme.spacingM
                             rowSpacing: Theme.spacingM
 
-                            MetricTile { Layout.fillWidth: true; label: t("card.today", "Today"); value: `${root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0)} · ${root.formatCost(root.claudeTodayCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: t("card.today_tokens", "Today tokens"); value: root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0); accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; label: t("card.today_cost", "Today cost"); value: root.formatCost(root.claudeTodayCost); accentColor: Theme.warning }
                             MetricTile { Layout.fillWidth: true; label: t("card.week", "Week"); value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
                             MetricTile { Layout.fillWidth: true; label: t("card.month", "Month"); value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`; accentColor: Theme.warning }
                         }
@@ -1707,6 +1736,26 @@ PluginComponent {
                             elide: Text.ElideRight
                         }
                     }
+                }
+            }
+
+            Row {
+                visible: card.hasUsage && root.lastUpdated.length > 0
+                width: parent.width
+                spacing: Theme.spacingXS
+
+                DankIcon {
+                    name: card.isStale ? "schedule" : "check"
+                    size: 12
+                    color: card.isStale ? Theme.warning : Theme.withAlpha(Theme.surfaceVariantText, 0.6)
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                StyledText {
+                    text: root.t("card.updated_at", "Updated {time}", { time: root.lastUpdated })
+                    color: card.isStale ? Theme.withAlpha(Theme.warning, 0.8) : Theme.withAlpha(Theme.surfaceVariantText, 0.6)
+                    font.pixelSize: Theme.fontSizeSmall - 2
+                    anchors.verticalCenter: parent.verticalCenter
                 }
             }
         }
@@ -1803,7 +1852,7 @@ PluginComponent {
             id: popout
 
             headerText: t("app.title", "AI Usage Control")
-            detailsText: root.lastUpdated.length > 0 ? t("popout.details_updated", "Updated {time} · {source}", { time: root.lastUpdated, source: root.sourceMode }) : t("popout.provider_dashboard", "Provider dashboard")
+            detailsText: root.lastUpdated.length > 0 ? (root.isDataStale ? t("popout.details_stale", "Stale since {time} · {source}", { time: root.lastUpdated, source: root.sourceMode }) : t("popout.details_updated", "Updated {time} · {source}", { time: root.lastUpdated, source: root.sourceMode })) : t("popout.provider_dashboard", "Provider dashboard")
             showCloseButton: true
 
             headerActions: Component {
