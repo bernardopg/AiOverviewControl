@@ -15,10 +15,34 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CROWDIN_CLI_VERSION: "4.14.2"
   ACTIONLINT_VERSION: "1.7.12"
+  ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+  SHELLCHECK_VERSION: "v0.11.0"
+  SHELLCHECK_SHA256: "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6"
+  CROWDIN_CLI_VERSION: "4.14.2"
 
 jobs:
+  # ─── workflow lint (runs first — catches YAML errors in other jobs) ──────────
+  actionlint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint (verified checksum)
+        run: |
+          TARBALL="/tmp/actionlint.tar.gz"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            -o "$TARBALL"
+          echo "${ACTIONLINT_SHA256}  ${TARBALL}" | sha256sum --check --strict
+          tar -xzf "$TARBALL" -C /tmp actionlint
+
+      - name: Run actionlint
+        run: /tmp/actionlint -color
+
   # ─── metadata ────────────────────────────────────────────────────────────────
   metadata:
     name: Metadata
@@ -28,14 +52,27 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Validate plugin.json
-        run: jq --exit-status . plugin.json >/dev/null
+      - name: Validate plugin.json (syntax + semver)
+        run: |
+          jq --exit-status . plugin.json >/dev/null
+          VERSION="$(jq -r '.version' plugin.json)"
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+            echo "::error::plugin.json version '${VERSION}' is not semver (expected X.Y.Z)" >&2
+            exit 1
+          }
+          echo "version=${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Validate i18n files
+      - name: Validate i18n JSON syntax
         run: |
           for f in i18n/en.json i18n/pt_BR.json i18n/zh_CN.json; do
-            jq --exit-status . "$f" >/dev/null
+            jq --exit-status . "$f" >/dev/null || {
+              echo "::error::${f} is not valid JSON" >&2
+              exit 1
+            }
           done
+
+      - name: Validate i18n key parity (pt_BR, zh_CN must match en)
+        run: |
           python3 - <<'PY'
           import json, sys
           from pathlib import Path
@@ -46,18 +83,19 @@ jobs:
               missing = sorted(base - keys)
               extra   = sorted(keys - base)
               if missing:
-                  errors.append(f'{locale}: missing keys: {missing}')
+                  errors.append(f'::error::{locale}: missing {len(missing)} key(s): {missing}')
               if extra:
-                  errors.append(f'{locale}: extra keys (not in en.json): {extra}')
+                  errors.append(f'::error::{locale}: {len(extra)} extra key(s) not in en.json: {extra}')
           if errors:
               sys.exit('\n'.join(errors))
+          print(f'i18n OK — {len(base)} keys in en.json, all locales match.')
           PY
 
-      - name: Validate plugin.json version format
+      - name: Validate CHANGELOG has entry for plugin.json version
         run: |
           VERSION="$(jq -r '.version' plugin.json)"
-          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
-            echo "plugin.json version '$VERSION' is not semver" >&2
+          grep -qF "## ${VERSION}" CHANGELOG.md || grep -qF "## [${VERSION}]" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no entry for version ${VERSION}" >&2
             exit 1
           }
 
@@ -73,20 +111,44 @@ jobs:
       - name: Syntax check — all get-* scripts
         run: find providers -name 'get-*' -type f -print0 | xargs -0 bash -n
 
-      - name: Install shellcheck
+      - name: Confirm all provider scripts are executable
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends shellcheck
+          FAIL=0
+          while IFS= read -r -d '' f; do
+            if [ ! -x "$f" ]; then
+              echo "::error::Not executable: ${f}"
+              FAIL=1
+            fi
+          done < <(find providers -name 'get-*' -type f -print0)
+          exit "$FAIL"
 
-      - name: shellcheck — main backends
+      - name: Install shellcheck (verified checksum)
         run: |
-          shellcheck -S warning \
+          TARBALL="/tmp/shellcheck.tar.gz"
+          curl -fsSL \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.gz" \
+            -o "$TARBALL"
+          echo "${SHELLCHECK_SHA256}  ${TARBALL}" | sha256sum --check --strict
+          tar -xzf "$TARBALL" --strip-components=1 -C /tmp "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          /tmp/shellcheck --version
+
+      - name: shellcheck — main backends (error level)
+        run: |
+          /tmp/shellcheck -S error \
             providers/get-provider-usage \
             providers/get-copilot-usage \
             providers/get-claude-usage \
             providers/get-provider-wrapper
 
-      - name: shellcheck — provider stubs
+      - name: shellcheck — main backends (warning level)
+        run: |
+          /tmp/shellcheck -S warning \
+            providers/get-provider-usage \
+            providers/get-copilot-usage \
+            providers/get-claude-usage \
+            providers/get-provider-wrapper
+
+      - name: shellcheck — all provider stubs (warning level)
         run: |
           find providers -name 'get-*' \
             ! -name 'get-provider-usage' \
@@ -94,13 +156,115 @@ jobs:
             ! -name 'get-claude-usage' \
             ! -name 'get-provider-wrapper' \
             -type f -print0 \
-            | xargs -0 shellcheck -S warning
+            | xargs -0 /tmp/shellcheck -S warning
 
-      - name: Confirm all stubs are executable
+      - name: Provider dispatch coverage
         run: |
-          find providers -name 'get-*' -type f | while IFS= read -r f; do
-            test -x "$f" || { echo "Not executable: $f" >&2; exit 1; }
+          python3 - <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          # collect stub IDs: get-<id>-usage (strip known non-provider scripts)
+          skip = {'provider', 'provider-wrapper', 'copilot', 'claude'}
+          stubs = set()
+          for f in Path('providers').glob('get-*-usage'):
+              name = f.name.removeprefix('get-').removesuffix('-usage')
+              if name not in skip:
+                  stubs.add(name)
+
+          # collect dispatch cases (handles aliases like kimi|moonshot)
+          src = Path('providers/get-provider-usage').read_text()
+          dispatched = set()
+          in_func = False
+          for line in src.splitlines():
+              if re.match(r'^fetch_provider\(\)', line):
+                  in_func = True
+              if not in_func:
+                  continue
+              m = re.match(r'^\s+([\w|/-]+)\)', line)
+              if m:
+                  for alias in m.group(1).split('|'):
+                      dispatched.add(alias.strip())
+
+          missing_dispatch = sorted(stubs - dispatched)
+          missing_stub     = sorted(dispatched - stubs - {'*'})
+
+          if missing_dispatch:
+              print(f'::warning::Stubs with no dispatch case: {missing_dispatch}')
+          if missing_stub:
+              print(f'::warning::Dispatch cases with no stub script: {missing_stub}')
+
+          print(f'Coverage: {len(stubs)} stubs, {len(dispatched)} dispatch entries.')
+          # Not a hard failure — aliases make exact matching non-trivial
+          PY
+
+  # ─── integration tests ───────────────────────────────────────────────────────
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies (jq, curl)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends jq curl
+
+      - name: Smoke test — get-claude-usage (no credentials)
+        run: |
+          # get-claude-usage emits KEY=VALUE pairs (sourced by QML widget, not JSON)
+          OUT="$(HOME=/tmp providers/get-claude-usage 2>/dev/null || true)"
+          # Must contain at least SUBSCRIPTION_TYPE and WEEK_TOKENS keys
+          echo "$OUT" | grep -qE '^SUBSCRIPTION_TYPE=' || {
+            echo "::error::get-claude-usage did not emit SUBSCRIPTION_TYPE key"
+            echo "Output was: ${OUT}"
+            exit 1
+          }
+          echo "$OUT" | grep -qE '^WEEK_TOKENS=' || {
+            echo "::error::get-claude-usage did not emit WEEK_TOKENS key"
+            exit 1
+          }
+          # All lines must be KEY=VALUE (no bare text, no JSON, no stack traces)
+          INVALID="$(echo "$OUT" | grep -vE '^[A-Z_]+=.*$' || true)"
+          if [ -n "$INVALID" ]; then
+            echo "::error::get-claude-usage emitted unexpected non-KEY=VALUE lines:"
+            echo "$INVALID"
+            exit 1
+          fi
+          echo "get-claude-usage output (no creds): OK — $(echo "$OUT" | wc -l) KEY=VALUE lines"
+
+      - name: Smoke test — get-provider-usage single provider (error path)
+        run: |
+          OUT="$(providers/get-provider-usage "" "openrouter" "cli" "" 2>/dev/null || true)"
+          echo "$OUT" | jq --exit-status '. | type == "array" and length > 0' >/dev/null || {
+            echo "::error::get-provider-usage did not return a non-empty JSON array"
+            echo "Output was: ${OUT}"
+            exit 1
+          }
+          PROVIDER="$(echo "$OUT" | jq -r '.[0].provider')"
+          [ "$PROVIDER" = "openrouter" ] || {
+            echo "::error::Expected provider=openrouter, got: ${PROVIDER}"
+            exit 1
+          }
+          echo "get-provider-usage smoke: OK — provider=${PROVIDER}"
+
+      - name: Smoke test — all stubs delegate correctly (structure check)
+        run: |
+          FAIL=0
+          for stub in providers/get-*-usage; do
+            name="$(basename "$stub")"
+            case "$name" in
+              get-provider-usage|get-copilot-usage|get-claude-usage) continue ;;
+            esac
+            # Each stub must exec get-provider-wrapper — verify it contains the pattern
+            grep -q 'get-provider-wrapper' "$stub" || {
+              echo "::error::${name} does not delegate to get-provider-wrapper"
+              FAIL=1
+            }
           done
+          exit "$FAIL"
 
   # ─── qml ─────────────────────────────────────────────────────────────────────
   qml:
@@ -111,7 +275,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: QML lint (optional — skip if qmllint not available)
+      - name: QML lint (optional — skip if qmllint unavailable)
         run: |
           if command -v qmllint >/dev/null 2>&1; then
             qmllint \
@@ -121,28 +285,6 @@ jobs:
           else
             echo "qmllint not installed — skipping (install qt6-declarative-dev to enable)"
           fi
-
-  # ─── actionlint ──────────────────────────────────────────────────────────────
-  actionlint:
-    name: Workflow lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Install actionlint with checksum verification
-        run: |
-          TARBALL="/tmp/actionlint.tar.gz"
-          EXPECTED="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
-          curl -fsSL \
-            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
-            -o "$TARBALL"
-          echo "${EXPECTED}  ${TARBALL}" | sha256sum --check --strict
-          tar -xzf "$TARBALL" -C /tmp actionlint
-
-      - name: Run actionlint
-        run: /tmp/actionlint -color
 
   # ─── crowdin ─────────────────────────────────────────────────────────────────
   crowdin:
@@ -166,9 +308,9 @@ jobs:
           ]
           missing = [item for item in required if item not in config]
           if missing:
-              raise SystemExit(f'Crowdin config missing expected entries: {missing}')
+              raise SystemExit(f'::error::Crowdin config missing entries: {missing}')
           if not Path('i18n/en.json').is_file():
-              raise SystemExit('Crowdin source file i18n/en.json is missing')
+              raise SystemExit('::error::Crowdin source file i18n/en.json is missing')
           PY
 
       - name: Validate with Crowdin CLI (requires secret)

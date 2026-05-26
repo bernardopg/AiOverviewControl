@@ -25,17 +25,25 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="$(jq -r '.version' plugin.json)"
-          if [ "$TAG" != "v$VERSION" ]; then
-            echo "::error::Tag $TAG does not match plugin.json version v$VERSION" >&2
+          if [ "$TAG" != "v${VERSION}" ]; then
+            echo "::error::Tag ${TAG} does not match plugin.json version v${VERSION}" >&2
             exit 1
           fi
           {
-            echo "TAG=$TAG"
-            echo "VERSION=$VERSION"
+            echo "TAG=${TAG}"
+            echo "VERSION=${VERSION}"
             echo "DIST_NAME=AiOverviewControl-${TAG}"
           } >> "$GITHUB_ENV"
 
-      - name: Validate i18n completeness before release
+      - name: Validate CHANGELOG has entry for this version
+        run: |
+          VERSION="$(jq -r '.version' plugin.json)"
+          if ! grep -qF "## ${VERSION}" CHANGELOG.md && ! grep -qF "## [${VERSION}]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no entry for version ${VERSION} — add one before tagging" >&2
+            exit 1
+          fi
+
+      - name: Validate i18n completeness
         run: |
           python3 - <<'PY'
           import json, sys
@@ -46,16 +54,21 @@ jobs:
               keys = set(json.loads(Path(f'i18n/{locale}.json').read_text()).keys())
               missing = sorted(base - keys)
               if missing:
-                  errors.append(f'{locale}: missing i18n keys: {missing}')
+                  errors.append(f'::error::{locale}: missing i18n keys before release: {missing}')
           if errors:
               sys.exit('\n'.join(errors))
           PY
 
       - name: Confirm provider scripts are executable
         run: |
-          find providers -name 'get-*' -type f | while IFS= read -r f; do
-            test -x "$f" || { echo "::error::Not executable: $f"; exit 1; }
-          done
+          FAIL=0
+          while IFS= read -r -d '' f; do
+            if [ ! -x "$f" ]; then
+              echo "::error::Not executable: ${f}"
+              FAIL=1
+            fi
+          done < <(find providers -name 'get-*' -type f -print0)
+          exit "$FAIL"
 
       - name: Build release artifacts
         run: |
@@ -71,10 +84,22 @@ jobs:
             HEAD | gzip -9 > "dist/${DIST_NAME}.tar.gz"
           cd dist
           sha256sum "${DIST_NAME}.zip" "${DIST_NAME}.tar.gz" > "${DIST_NAME}.sha256"
-          echo "--- artifact sizes ---"
-          ls -lh "${DIST_NAME}."*
-          echo "--- checksums ---"
-          cat "${DIST_NAME}.sha256"
+
+          {
+            echo "## Release artifacts"
+            echo ""
+            echo "| File | Size |"
+            echo "| ---- | ---- |"
+            while IFS= read -r -d '' f; do
+              size="$(du -sh "$f" | cut -f1)"
+              echo "| $(basename "$f") | ${size} |"
+            done < <(find . -maxdepth 1 -name "${DIST_NAME}.*" -type f -print0 | sort -z)
+            echo ""
+            echo "### SHA-256 checksums"
+            echo '```'
+            cat "${DIST_NAME}.sha256"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0

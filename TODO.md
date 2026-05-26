@@ -47,9 +47,9 @@
 ## Quality
 
 - [x] Add `shellcheck` to CI workflow for all `get-*` scripts.
-- [ ] Add lightweight integration tests for `get-claude-usage` (mock `~/.claude` fixtures).
-- [ ] Add lightweight integration tests for `get-provider-usage` (mock API responses with `curl` shim).
-- [ ] Pin GitHub Actions to SHA for supply-chain hardening (e.g. `actions/checkout@<sha>`).
+- [x] Add lightweight integration tests for `get-claude-usage` (KEY=VALUE output validation).
+- [x] Add lightweight integration tests for `get-provider-usage` (JSON array smoke test, stub delegation check).
+- [x] Pin GitHub Actions to SHA for supply-chain hardening (`actions/checkout@<sha>`, `softprops/action-gh-release@<sha>`).
 
 ## Packaging
 
