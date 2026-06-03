@@ -88,12 +88,12 @@ Artifacts: `AiOverviewControl-vX.Y.Z.zip` and `.tar.gz` built from `git ls-files
 |----|------|--------|-------------------|--------------|
 | `codex` | Codex | codexbar → 9router fallback | — | codexbar CLI |
 | `claude` | Claude | OAuth local + JSONL | `~/.claude/.credentials.json` | `api.anthropic.com/api/oauth/usage` |
-| `copilot` | Copilot | GitHub API | `gh auth login` or `COPILOT_GITHUB_TOKEN` | `api.github.com/copilot_internal/user` |
+| `copilot` | Copilot | GitHub API | `gh auth login` or `COPILOT_GITHUB_TOKEN` | `api.github.com/copilot_internal/user` (AI Credits model since 2026-06-01: `entitlement`/`remaining`/`token_based_billing`) |
 | `gemini` | Gemini | OAuth local or API key | `GEMINI_API_KEY` or `~/.gemini/oauth_creds.json` | Validates key only |
 | `openrouter` | OpenRouter | REST API | `OPENROUTER_API_KEY` | `openrouter.ai/api/v1/auth/key` |
 | `9router` | 9Router | SQLite local | — | `~/.9router/db/data.sqlite` |
 | `deepseek` | DeepSeek | REST API | `DEEPSEEK_API_KEY` | `api.deepseek.com/user/balance` |
-| `kimi` | Kimi | REST API | `MOONSHOT_API_KEY` or `KIMI_API_KEY` | `api.moonshot.cn/v1/users/me/balance` |
+| `kimi` | Kimi | REST API | `MOONSHOT_API_KEY` or `KIMI_API_KEY` (opt. `MOONSHOT_API_BASE`) | `api.moonshot.ai` (global/USD) → `api.moonshot.cn` (China/CNY) fallback, `/v1/users/me/balance` |
 | `mistral` | Mistral | API key validation only | `MISTRAL_API_KEY` | `api.mistral.ai/v1/models` (no quota endpoint) |
 | `glm` | GLM/Zhipu | REST API | `GLM_API_KEY` or `ZHIPU_API_KEY` | `bigmodel.cn/api/monitor/usage/quota/limit` |
 | `minimax` | MiniMax | REST API | `MINIMAX_API_KEY` | `minimax.io/v1/token_plan/remains` |

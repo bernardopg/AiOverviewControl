@@ -49,9 +49,9 @@ status="$(
   curl -sS -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: token $token" \
     -H "Accept: application/json" \
-    -H "Editor-Version: vscode/1.96.2" \
-    -H "User-Agent: GitHubCopilotChat/0.26.7" \
-    -H "X-Github-Api-Version: 2025-04-01" \
+    -H "Editor-Version: vscode/1.105.0" \
+    -H "User-Agent: GitHubCopilotChat/0.32.0" \
+    -H "X-Github-Api-Version: 2026-04-01" \
     "$api_url" 2>/dev/null || true
 )"
 
@@ -76,19 +76,40 @@ def used_from_remaining($snapshot):
 def nonzero_or_null:
   if . == null or . == 0 or . == "0" then null else . end;
 
+# Prefer the integer `remaining` field over the float `quota_remaining`
+# so the UI shows clean whole credits (e.g. 190, not 190.7).
 def remaining_value($snapshot):
-  (($snapshot.quota_remaining // $snapshot.remaining // null) | if . == null then null elif . < 0 then 0 else . end);
+  (($snapshot.remaining // $snapshot.quota_remaining // null) | if . == null then null elif . < 0 then 0 else . end);
+
+# jq `//` treats both `null` AND `false` as empty, so `false // null`
+# collapses to null. Use `has(...)` to preserve a literal `false`.
+def field_or_null($snapshot; $name):
+  if ($snapshot | has($name)) then $snapshot[$name] else null end;
 
 def window($label; $minutes; $snapshot; $reset):
-  if $snapshot == null then null else {
-    usedPercent: used_from_remaining($snapshot),
-    windowMinutes: $minutes,
-    resetsAt: (($snapshot.quota_reset_at | nonzero_or_null) // $reset // null),
-    resetDescription: $label,
-    remaining: remaining_value($snapshot),
-    unlimited: ($snapshot.unlimited // false),
-    hasQuota: ($snapshot.has_quota // null)
-  } end;
+  if $snapshot == null then null else
+    (remaining_value($snapshot)) as $rem
+    | (field_or_null($snapshot; "entitlement") | nonzero_or_null) as $ent
+    | {
+        usedPercent: used_from_remaining($snapshot),
+        windowMinutes: $minutes,
+        resetsAt: (($snapshot.quota_reset_at | nonzero_or_null) // $reset // null),
+        resetDescription: $label,
+        remaining: $rem,
+        entitlement: $ent,
+        unlimited: ($snapshot.unlimited // false),
+        hasQuota: field_or_null($snapshot; "has_quota"),
+        tokenBased: ($snapshot.token_based_billing // false),
+        # Surface "used/total" credits in the card when the snapshot is a
+        # bounded quota (e.g. premium_interactions). Unlimited windows fall
+        # back to the percentage display in the widget.
+        displayValue: (
+          if ($snapshot.unlimited // false) then null
+          elif $rem != null and $ent != null then "\($ent - $rem)/\($ent)"
+          else null
+          end
+        )
+      } end;
 
 . as $data
 | ($data.quota_snapshots // {}) as $snapshots
@@ -111,9 +132,16 @@ def window($label; $minutes; $snapshot; $reset):
     },
     credits: {
       remaining: (
-        if ($snapshots.premium_interactions.unlimited // false) then "unlimited"
-        else ((remaining_value($snapshots.premium_interactions) // "—") | tostring)
-        end
+        ($snapshots.premium_interactions) as $p
+        | if ($p.unlimited // false) then "unlimited"
+          else
+            (remaining_value($p)) as $rem
+            | (field_or_null($p; "entitlement") | nonzero_or_null) as $ent
+            | if $rem == null then "—"
+              elif $ent != null then "\($rem)/\($ent)"
+              else ($rem | tostring)
+              end
+          end
       )
     }
   }

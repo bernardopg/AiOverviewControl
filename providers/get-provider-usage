@@ -535,11 +535,21 @@ fetch_kimi_native() {
     json_error kimi kimi-api 2 provider "MOONSHOT_API_KEY or KIMI_API_KEY is not set."
     return 0
   fi
-  local tmp_body http_status
+  local tmp_body http_status host base currency symbol
   tmp_body="$(mktemp)"
-  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
-    "https://api.moonshot.cn/v1/users/me/balance" 2>/dev/null || true)"
+  # Moonshot split into a global platform (api.moonshot.ai, USD) and a
+  # China platform (api.moonshot.cn, CNY). Honour an explicit override,
+  # otherwise try the global host first and fall back to .cn.
+  http_status=""
+  for host in "${MOONSHOT_API_BASE:-https://api.moonshot.ai}" "https://api.moonshot.cn"; do
+    base="$host"
+    http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+      -H "Authorization: Bearer ${key}" \
+      "${host}/v1/users/me/balance" 2>/dev/null || true)"
+    [ "$http_status" = "200" ] && break
+    # Stop probing further hosts on an auth error — the key is simply invalid.
+    case "$http_status" in 401|403) break ;; esac
+  done
   if [ "$http_status" != "200" ]; then
     local message
     message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
@@ -548,7 +558,11 @@ fetch_kimi_native() {
     json_error kimi kimi-api "${http_status:-1}" provider "$message"
     return 0
   fi
-  jq -c '
+  case "$base" in
+    *moonshot.cn*) currency="CNY"; symbol="¥" ;;
+    *)             currency="USD"; symbol="\$" ;;
+  esac
+  jq -c --arg currency "$currency" --arg symbol "$symbol" '
     def num($v): ($v // 0 | tonumber? // 0);
     .data as $d
     | num($d.available_balance) as $avail
@@ -566,21 +580,21 @@ fetch_kimi_native() {
             usedPercent: $used_pct,
             windowMinutes: null,
             resetsAt: null,
-            resetDescription: "Available balance (CNY)",
-            displayValue: ("¥" + ($d.available_balance | tostring))
+            resetDescription: ("Available balance (" + $currency + ")"),
+            displayValue: ($symbol + ($d.available_balance | tostring))
           },
           secondary: {
             usedPercent: 0,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Voucher / Cash",
-            displayValue: ("¥" + ($voucher | tostring) + " / ¥" + ($cash | tostring))
+            displayValue: ($symbol + ($voucher | tostring) + " / " + $symbol + ($cash | tostring))
           },
           tertiary: null,
           updatedAt: (now | todateiso8601)
         },
         credits: {
-          remaining: ("¥" + ($d.available_balance | tostring))
+          remaining: ($symbol + ($d.available_balance | tostring))
         }
       }
   ' "$tmp_body"
