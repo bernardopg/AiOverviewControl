@@ -125,5 +125,10 @@
   "window.monthly": "每月",
   "window.session": "会话",
   "window.tertiary": "第三级",
-  "window.weekly": "每周"
+  "window.weekly": "每周",
+  "error.fetch_failed": "无法从提供商获取使用情况。",
+  "error.providers_need_attention": "{count} 个提供商需要注意。",
+  "error.parse_failed": "无法解析提供商助手的输出。",
+  "error.claude_unavailable": "Claude Code 使用详情不可用。请检查 claude、jq 和 curl。",
+  "error.claude_timeout": "Claude Code 使用情况获取超时。"
 }

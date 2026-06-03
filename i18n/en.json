@@ -125,5 +125,10 @@
   "window.monthly": "Monthly",
   "window.session": "Session",
   "window.tertiary": "Tertiary",
-  "window.weekly": "Weekly"
+  "window.weekly": "Weekly",
+  "error.fetch_failed": "Failed to fetch usage from providers.",
+  "error.providers_need_attention": "{count} provider(s) need attention.",
+  "error.parse_failed": "Failed to parse provider helper output.",
+  "error.claude_unavailable": "Claude Code usage details are unavailable. Check claude, jq, and curl.",
+  "error.claude_timeout": "Claude Code usage fetch timed out."
 }

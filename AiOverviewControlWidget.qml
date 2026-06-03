@@ -32,6 +32,7 @@ PluginComponent {
     property string focusedProviderId: ""
     property string pendingProviderId: availableProviderOptions[0] || "codex"
     property string claudeRawBuffer: ""
+    property bool claudeStatsError: false
     property string claudeSubscriptionType: ""
     property string claudeRateLimitTier: ""
     property real claudeFiveHourUtil: 0
@@ -788,9 +789,16 @@ PluginComponent {
         }
     }
 
+    // Snapshot of the argv for the in-flight fetch. Set imperatively in
+    // refresh() instead of a reactive binding so a change to selectedProviders
+    // / sourceMode / resolvedPath mid-execution cannot mutate the running
+    // process's command (Qt behaviour on command change while running is
+    // undefined and would scramble the fetch).
+    property var usageCommand: ["bash", root.providerUsageScript, root.resolvedPath, root.selectedProviders.join(","), root.sourceMode, root.copilotUsageScript]
+
     Process {
         id: procUsage
-        command: ["bash", root.providerUsageScript, root.resolvedPath, root.selectedProviders.join(","), root.sourceMode, root.copilotUsageScript]
+        command: root.usageCommand
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => root.rawJsonBuffer += data
@@ -838,19 +846,29 @@ PluginComponent {
 
                     if (root.successfulProviders.length === 0 && root.errorProviders.length > 0) {
                         root.hasError = true;
-                        root.errorMessage = root.errorProviders[0].error.message || "Failed to fetch usage from providers.";
+                        const firstErr = root.errorProviders[0].error;
+                        const firstErrMsg = (firstErr && typeof firstErr === "object") ? firstErr.message : (typeof firstErr === "string" ? firstErr : "");
+                        root.errorMessage = firstErrMsg || t("error.fetch_failed", "Failed to fetch usage from providers.");
                     } else {
                         root.hasError = false;
-                        root.errorMessage = root.errorProviders.length > 0 ? `${root.errorProviders.length} provider(s) need attention.` : "";
+                        root.errorMessage = root.errorProviders.length > 0 ? t("error.providers_need_attention", "{count} provider(s) need attention.", { count: root.errorProviders.length }) : "";
                     }
                     const nowMs = Date.now();
                     root.lastUpdated = Qt.formatDateTime(new Date(), "hh:mm:ss");
                     root.lastUpdatedMs = nowMs;
                 } catch (error) {
                     root.hasError = true;
-                    root.errorMessage = root.rawStderrBuffer.length > 0 ? root.rawStderrBuffer : "Failed to parse provider helper output.";
+                    root.errorMessage = root.rawStderrBuffer.length > 0 ? root.rawStderrBuffer : t("error.parse_failed", "Failed to parse provider helper output.");
                 }
-            } else if (code !== 0) {
+            } else if (code === 0) {
+                // Exited cleanly but produced no JSON — surface an explicit
+                // empty state instead of silently keeping stale providers.
+                root.providers = [];
+                root.hasError = false;
+                root.errorMessage = root.rawStderrBuffer.length > 0 ? root.rawStderrBuffer : "";
+                root.lastUpdated = Qt.formatDateTime(new Date(), "hh:mm:ss");
+                root.lastUpdatedMs = Date.now();
+            } else {
                 root.hasError = true;
                 root.errorMessage = root.formatUsageError(code);
             }
@@ -872,8 +890,27 @@ PluginComponent {
             }
         }
         onExited: code => {
+            claudeTimeout.stop();
+            // Track the claude detail-fetch state independently of focus so a
+            // failure is not silently swallowed when claude isn't focused.
+            root.claudeStatsError = (code !== 0);
             if (code !== 0 && root.focusedProviderId === "claude") {
-                root.errorMessage = "Claude Code usage details are unavailable. Check claude, jq, and curl.";
+                root.errorMessage = t("error.claude_unavailable", "Claude Code usage details are unavailable. Check claude, jq, and curl.");
+            }
+        }
+    }
+
+    Timer {
+        id: claudeTimeout
+        interval: root.fetchTimeoutMs
+        repeat: false
+        onTriggered: {
+            if (claudeStatsProcess.running) {
+                claudeStatsProcess.running = false;
+                root.claudeStatsError = true;
+                if (root.focusedProviderId === "claude") {
+                    root.errorMessage = t("error.claude_timeout", "Claude Code usage fetch timed out.");
+                }
             }
         }
     }
@@ -888,10 +925,15 @@ PluginComponent {
         rawStderrBuffer = "";
         usageRequestId += 1;
         timedOutRequestId = -1;
+        // Snapshot argv now so an in-flight selection change cannot mutate the
+        // running process command (see usageCommand declaration).
+        usageCommand = ["bash", providerUsageScript, resolvedPath, selectedProviders.join(","), sourceMode, copilotUsageScript];
         procUsage.running = true;
         usageTimeout.restart();
         if (root.selectedProviders.indexOf("claude") >= 0 && !claudeStatsProcess.running) {
+            claudeStatsError = false;
             claudeStatsProcess.running = true;
+            claudeTimeout.restart();
         }
     }
 

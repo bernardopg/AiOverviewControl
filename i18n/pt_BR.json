@@ -125,5 +125,10 @@
   "window.monthly": "Mensal",
   "window.session": "Sessão",
   "window.tertiary": "Terciária",
-  "window.weekly": "Semanal"
+  "window.weekly": "Semanal",
+  "error.fetch_failed": "Falha ao buscar uso dos provedores.",
+  "error.providers_need_attention": "{count} provedor(es) precisam de atenção.",
+  "error.parse_failed": "Falha ao interpretar a saída do helper de provedor.",
+  "error.claude_unavailable": "Detalhes de uso do Claude Code indisponíveis. Verifique claude, jq e curl.",
+  "error.claude_timeout": "A busca de uso do Claude Code expirou."
 }
