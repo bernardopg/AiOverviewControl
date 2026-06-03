@@ -286,10 +286,13 @@ fetch_openrouter_native() {
 
   local tmp_body http_status
   tmp_body="$(mktemp)"
+  # /api/v1/key returns the full credit picture (limit_remaining, usage_daily,
+  # usage_weekly, usage_monthly); /api/v1/auth/key is a minimal subset and was
+  # missing every field this bridge reads.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
-    "https://openrouter.ai/api/v1/auth/key" 2>/dev/null || true)"
+    "https://openrouter.ai/api/v1/key" 2>/dev/null || true)"
 
   if [ "$http_status" != "200" ]; then
     local message
@@ -301,14 +304,18 @@ fetch_openrouter_native() {
   fi
 
   jq -c '
+    def num($v): ($v // 0 | tonumber? // 0);
     def pct($used; $limit):
-      if (($limit // 0) | tonumber) > 0 then
-        ((($used // 0) | tonumber) / (($limit // 0) | tonumber) * 100)
+      if num($limit) > 0 then
+        ((num($used) / num($limit)) * 100)
         | if . < 0 then 0 elif . > 100 then 100 else . end
       else 0 end;
     .data as $d
     | ($d.label // $d.name // "OpenRouter API key") as $label
     | ($d.limit // null) as $limit
+    | (if $d.limit_remaining != null then num($d.limit_remaining)
+       elif $limit != null then (num($limit) - num($d.usage))
+       else null end) as $remaining
     | {
       provider:"openrouter",
       source:"openrouter-api",
@@ -323,26 +330,33 @@ fetch_openrouter_native() {
         primary:{
           usedPercent:pct($d.usage; $limit),
           windowMinutes:null,
-          resetsAt:null,
-          resetDescription:"Key limit"
+          resetsAt:($d.limit_reset // null),
+          resetDescription:"Key limit",
+          displayValue:(
+            if $limit == null then ("$" + (num($d.usage) | tostring) + " used")
+            else ("$" + (num($d.usage) | tostring) + " / $" + (num($limit) | tostring))
+            end
+          )
         },
         secondary:{
-          usedPercent:pct($d.usage_daily; $limit),
+          usedPercent:0,
           windowMinutes:1440,
           resetsAt:null,
-          resetDescription:"Daily"
+          resetDescription:"Spent today",
+          displayValue:("$" + (num($d.usage_daily) | tostring))
         },
         tertiary:{
-          usedPercent:pct($d.usage_monthly; $limit),
+          usedPercent:0,
           windowMinutes:43200,
           resetsAt:null,
-          resetDescription:"Monthly"
+          resetDescription:"Spent this month",
+          displayValue:("$" + (num($d.usage_monthly) | tostring))
         },
         updatedAt:(now|todateiso8601)
       },
       credits:{
         remaining:(
-          if ($d.limit_remaining != null) then ($d.limit_remaining | tostring)
+          if $remaining != null then ("$" + ($remaining | tostring))
           elif $limit == null then "unlimited"
           else "unknown"
           end
@@ -488,15 +502,15 @@ fetch_deepseek_native() {
   fi
   jq -c '
     def num($v): ($v // 0 | tonumber? // 0);
-    def pct($used; $total):
-      if num($total) > 0 then ((num($used) / num($total)) * 100) | if . < 0 then 0 elif . > 100 then 100 else . end
-      else 0 end;
     (.balance_infos // []) as $infos
     | ($infos[0] // {}) as $b
     | num($b.total_balance) as $total
     | num($b.topped_up_balance) as $topped
     | num($b.granted_balance) as $granted
-    | (num($b.total_balance) - num($b.topped_up_balance)) as $used
+    # The balance API reports remaining funds, not consumption — there is no
+    # original total to derive a usage percent from. Mirror the Kimi pattern:
+    # full bar only when the balance is depleted.
+    | (if $total <= 0 then 100 else 0 end) as $used_pct
     | {
         provider: "deepseek",
         source: "deepseek-api",
@@ -505,7 +519,7 @@ fetch_deepseek_native() {
           accountEmail: "DeepSeek account",
           loginMethod: "api-key",
           primary: {
-            usedPercent: pct($used; $total),
+            usedPercent: $used_pct,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Balance",
