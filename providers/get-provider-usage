@@ -409,11 +409,6 @@ fetch_9router_native() {
         elif $n >= 1000 then (((($n / 100) | round) / 10) | tostring) + "K"
         else (($n | round) | tostring)
         end;
-    def pct($value; $max):
-      if (num($max) > 0) then
-        ((num($value) / num($max)) * 100)
-        | if . < 0 then 0 elif . > 100 then 100 else . end
-      else 0 end;
     def request_text($v): (num($v) | floor | tostring) + " req";
     def provider_data($day; $provider):
       if $provider == "9router" then $day
@@ -430,8 +425,6 @@ fetch_9router_native() {
             | .completionTokens += num($entry.data.completionTokens)
             | .cost += num($entry.data.cost)
           )) as $total
-        | ([$matches[].data.requests] | map(num(.)) | max // 0) as $maxRequests
-        | ($matches | length) as $dayCount
         | (if $output == "9router" then "9router · all routed models" else ($output + " via 9router") end) as $account
         | {
             provider:$output,
@@ -441,14 +434,17 @@ fetch_9router_native() {
               accountEmail:$account,
               loginMethod:"local-db",
               primary:{
-                usedPercent:pct($latest.data.requests; $maxRequests),
+                # 9router is a local proxy with no quota of its own, so a
+                # usage percentage would be meaningless. Keep the bar empty
+                # and let displayValue carry the cost/request figures.
+                usedPercent:0,
                 windowMinutes:null,
                 resetsAt:null,
                 resetDescription:("Latest day " + $latest.date),
                 displayValue:(money($latest.data.cost) + " · " + request_text($latest.data.requests))
               },
               secondary:{
-                usedPercent:pct($total.requests; ($maxRequests * $dayCount)),
+                usedPercent:0,
                 windowMinutes:null,
                 resetsAt:null,
                 resetDescription:"Tracked total",
