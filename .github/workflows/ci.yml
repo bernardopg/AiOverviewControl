@@ -165,7 +165,7 @@ jobs:
           from pathlib import Path
 
           # collect stub IDs: get-<id>-usage (strip known non-provider scripts)
-          skip = {'provider', 'provider-wrapper', 'copilot', 'claude'}
+          skip = {'provider', 'provider-wrapper', 'copilot', 'claude', 'codex', 'provider-health'}
           stubs = set()
           for f in Path('providers').glob('get-*-usage'):
               name = f.name.removeprefix('get-').removesuffix('-usage')
@@ -237,7 +237,7 @@ jobs:
 
       - name: Smoke test — get-provider-usage single provider (error path)
         run: |
-          OUT="$(providers/get-provider-usage "" "openrouter" "cli" "" 2>/dev/null || true)"
+          OUT="$(providers/get-provider-usage "openrouter" "" 2>/dev/null || true)"
           echo "$OUT" | jq --exit-status '. | type == "array" and length > 0' >/dev/null || {
             echo "::error::get-provider-usage did not return a non-empty JSON array"
             echo "Output was: ${OUT}"
@@ -256,7 +256,7 @@ jobs:
           for stub in providers/get-*-usage; do
             name="$(basename "$stub")"
             case "$name" in
-              get-provider-usage|get-copilot-usage|get-claude-usage) continue ;;
+              get-provider-usage|get-provider-health|get-copilot-usage|get-claude-usage|get-codex-usage) continue ;;
             esac
             # Each stub must exec get-provider-wrapper — verify it contains the pattern
             grep -q 'get-provider-wrapper' "$stub" || {
@@ -265,6 +265,22 @@ jobs:
             }
           done
           exit "$FAIL"
+
+      - name: Smoke test — prerequisite health schema
+        run: |
+          OUT="$(providers/get-provider-health "codex,perplexity")"
+          echo "$OUT" | jq --exit-status '
+            type == "array" and length == 2 and
+            all(.[]; has("provider") and has("status") and has("detail"))
+          ' >/dev/null
+
+      - name: Reject removed aggregation dependency
+        run: |
+          removed_name="codex""bar"
+          if grep -Rin --exclude-dir=.git --exclude='screenshot*.png' "$removed_name" .; then
+            echo "::error::Removed aggregation dependency is still referenced"
+            exit 1
+          fi
 
   # ─── qml ─────────────────────────────────────────────────────────────────────
   qml:

@@ -1,5 +1,76 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/get-provider-wrapper" codex
+fail_json() {
+  local code="$1"
+  local message="$2"
+  jq -cn --arg message "$message" --argjson code "$code" '
+    {provider:"codex",source:"codex-app-server",error:{code:$code,kind:"runtime",message:$message}}
+  '
+}
+
+if ! command -v codex >/dev/null 2>&1; then
+  fail_json 127 "Codex CLI is not installed or is not available in PATH."
+  exit 0
+fi
+
+tmp_out="$(mktemp)"
+trap 'rm -f "$tmp_out"' EXIT
+
+{
+  printf '%s\n' \
+    '{"method":"initialize","id":0,"params":{"clientInfo":{"name":"ai_overview_control","title":"AiOverviewControl","version":"1.3.0"}}}' \
+    '{"method":"account/read","id":1,"params":{"refreshToken":false}}' \
+    '{"method":"account/rateLimits/read","id":2,"params":{}}'
+  sleep 4
+} | timeout --kill-after=2s 8s codex app-server >"$tmp_out" 2>/dev/null || true
+
+account="$(jq -cs '[.[] | select(.id == 1)][0].result.account // null' "$tmp_out" 2>/dev/null || printf 'null')"
+limits="$(jq -cs '[.[] | select(.id == 2)][0].result // null' "$tmp_out" 2>/dev/null || printf 'null')"
+
+if [ "$limits" = "null" ] || ! printf '%s' "$limits" | jq -e '.rateLimits' >/dev/null 2>&1; then
+  if [ "$account" = "null" ]; then
+    fail_json 2 "Codex CLI is not authenticated. Run: codex login"
+  else
+    fail_json 3 "Codex app-server did not return account rate limits. Update Codex CLI and try again."
+  fi
+  exit 0
+fi
+
+jq -cn --argjson account "$account" --argjson response "$limits" '
+  def iso($seconds):
+    if $seconds == null then null else ($seconds | todateiso8601) end;
+  def window($value; $label):
+    if $value == null then null else {
+      usedPercent: ($value.usedPercent // 0),
+      windowMinutes: ($value.windowDurationMins // null),
+      resetsAt: iso($value.resetsAt),
+      resetDescription: $label
+    } end;
+  ($response.rateLimitsByLimitId.codex // $response.rateLimits) as $limits
+  | {
+      provider:"codex",
+      source:"codex-app-server",
+      usage:{
+        identity:{
+          providerID:"codex",
+          accountEmail:($account.email // "Codex account"),
+          loginMethod:($account.planType // $limits.planType // $account.type // "unknown")
+        },
+        accountEmail:($account.email // "Codex account"),
+        loginMethod:($account.planType // $limits.planType // $account.type // "unknown"),
+        primary:window($limits.primary; "Session"),
+        secondary:window($limits.secondary; "Weekly"),
+        tertiary:null,
+        updatedAt:(now | todateiso8601)
+      },
+      credits:{
+        remaining:(
+          if ($limits.credits.unlimited // false) then "unlimited"
+          elif ($limits.credits.balance // null) != null then ($limits.credits.balance | tostring)
+          else "not available"
+          end
+        )
+      }
+    }
+'

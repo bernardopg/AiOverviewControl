@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+has_any_env() {
+  local name
+  for name in "$@"; do
+    [ -n "${!name:-}" ] && return 0
+  done
+  return 1
+}
+
+status_for() {
+  local provider="$1"
+  local status="ready"
+  local detail="Configured"
+
+  case "$provider" in
+    codex) command -v codex >/dev/null 2>&1 || { status="missing"; detail="codex CLI"; } ;;
+    claude) command -v claude >/dev/null 2>&1 || [ -d "$HOME/.claude" ] || { status="missing"; detail="claude CLI or ~/.claude"; } ;;
+    copilot) command -v gh >/dev/null 2>&1 || has_any_env COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN || { status="missing"; detail="gh CLI or GitHub token"; } ;;
+    gemini) command -v gemini >/dev/null 2>&1 || has_any_env GEMINI_API_KEY GOOGLE_API_KEY GOOGLE_GENERATIVE_AI_API_KEY || { status="missing"; detail="gemini CLI or API key"; } ;;
+    9router) [ -f "$HOME/.9router/db/data.sqlite" ] || [ -f "$HOME/.9router/usage.json" ] || { status="missing"; detail="9Router usage database"; } ;;
+    openrouter) has_any_env OPENROUTER_API_KEY || [ -f "$HOME/.9router/db/data.sqlite" ] || { status="missing"; detail="OPENROUTER_API_KEY or 9Router data"; } ;;
+    deepseek) has_any_env DEEPSEEK_API_KEY || { status="missing"; detail="DEEPSEEK_API_KEY"; } ;;
+    kimi) has_any_env MOONSHOT_API_KEY KIMI_API_KEY || { status="missing"; detail="MOONSHOT_API_KEY or KIMI_API_KEY"; } ;;
+    minimax) has_any_env MINIMAX_API_KEY || { status="missing"; detail="MINIMAX_API_KEY"; } ;;
+    glm) has_any_env GLM_API_KEY ZHIPU_API_KEY || { status="missing"; detail="GLM_API_KEY or ZHIPU_API_KEY"; } ;;
+    mistral) has_any_env MISTRAL_API_KEY || { status="missing"; detail="MISTRAL_API_KEY"; } ;;
+    ollama) command -v ollama >/dev/null 2>&1 || { status="missing"; detail="ollama CLI"; } ;;
+    nvidia) has_any_env NVIDIA_API_KEY || { status="missing"; detail="NVIDIA_API_KEY"; } ;;
+    cloudflare) has_any_env CLOUDFLARE_AI_TOKEN CLOUDFLARE_API_TOKEN || { status="missing"; detail="Cloudflare API token"; } ;;
+    vertexai) command -v gcloud >/dev/null 2>&1 || { status="missing"; detail="gcloud CLI"; } ;;
+    byteplus) has_any_env BYTEPLUS_API_KEY ARK_API_KEY || { status="missing"; detail="BYTEPLUS_API_KEY or ARK_API_KEY"; } ;;
+    qwen) has_any_env DASHSCOPE_API_KEY QWEN_API_KEY || { status="missing"; detail="DASHSCOPE_API_KEY or QWEN_API_KEY"; } ;;
+    together) has_any_env TOGETHER_API_KEY || { status="missing"; detail="TOGETHER_API_KEY"; } ;;
+    groq) has_any_env GROQ_API_KEY || { status="missing"; detail="GROQ_API_KEY"; } ;;
+    cohere) has_any_env COHERE_API_KEY || { status="missing"; detail="COHERE_API_KEY"; } ;;
+    replicate) has_any_env REPLICATE_API_TOKEN || { status="missing"; detail="REPLICATE_API_TOKEN"; } ;;
+    fireworks) has_any_env FIREWORKS_API_KEY || { status="missing"; detail="FIREWORKS_API_KEY"; } ;;
+    ai21) has_any_env AI21_API_KEY || { status="missing"; detail="AI21_API_KEY"; } ;;
+    perplexity|cursor|cline|opencode|kilo|kiro|warp|amp)
+      status="info"
+      detail="No public read-only quota API"
+      ;;
+    *) status="unknown"; detail="Unknown provider" ;;
+  esac
+
+  jq -cn --arg provider "$provider" --arg status "$status" --arg detail "$detail" \
+    '{provider:$provider,status:$status,detail:$detail}'
+}
+
+providers="${1:-codex,claude,copilot}"
+IFS=',' read -r -a list <<< "$providers"
+printf '['
+first=1
+for provider in "${list[@]}"; do
+  provider="$(printf '%s' "$provider" | xargs | tr '[:upper:]' '[:lower:]')"
+  [ -n "$provider" ] || continue
+  [ "$first" -eq 1 ] || printf ','
+  first=0
+  status_for "$provider"
+done
+printf ']'

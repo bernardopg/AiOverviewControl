@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## 1.3.0 - 2026-06-10
+
+### Architecture
+- Removed the external aggregation executable and its settings, detection, dispatcher arguments, documentation, and diagnostics.
+- Added a native Codex adapter using the official `codex app-server` protocol and `account/rateLimits/read`.
+- Preserved Copilot quota collection through the authenticated GitHub session without an external aggregator.
+- Added provider prerequisite health checks and a truthful coverage model: quota, local analytics, authentication, or informational.
+
+### Providers
+- Replaced undocumented Cloudflare, Cohere, Fireworks, MiniMax, GLM, and AI21 quota claims with documented authentication checks or explicit informational states.
+- Added Ollama `/api/ps` running-model status alongside `/api/tags`.
+- Added upstream verification policy and source links in `docs/provider-verification.md`.
+
+### UI and settings
+- Added compact and comfortable dashboard density modes.
+- Added provider filtering when more than eight cards are visible.
+- Rebuilt settings around provider health, telemetry coverage, informational coverage, and plugin-managed diagnostics.
+- Removed obsolete source mode and external-binary path controls.
+
+### Quality
+- Updated CI for the new dispatcher contract, health schema, and a regression check preventing the removed dependency from returning.
+- Rebuilt English, Brazilian Portuguese, and Simplified Chinese locale bundles with key parity.
+
 ## 1.2.4 - 2026-05-26
 
 ### Dashboard — UX
@@ -35,7 +58,7 @@
 - Pill settings: added pill display options (single/multi accent, label visibility) to the Settings panel.
 
 ### Providers — New
-- **Warp** (`warp`): codexbar fallback + note-card.
+- **Warp** (`warp`): provider note-card.
 - **Qwen / DashScope** (`qwen`): key validation via DashScope compatible-mode models endpoint; note-card (no public balance API).
 - **Vertex AI** (`vertexai`): `gcloud auth print-access-token` check; note-card (no programmatic quota endpoint).
 - Added all 3 providers to `availableProviderOptions`, `providerName()`, `iconForProvider()`, `providerAccent()`, and `allProviders` in Settings.
@@ -86,7 +109,7 @@
 - Polished provider cards, metric tiles, overview styling, hover states, and displayed provider counts.
 - Fixed Claude daily totals to use the current weekday instead of a hard-coded weekday index.
 - Fixed the plugin author metadata.
-- Added `codexbar` timeout handling and safer shell interpolation in usage helpers.
+- Added external-helper timeout handling and safer shell interpolation in usage helpers.
 - CI: restored `actions/checkout@v6.0.2` and `softprops/action-gh-release@v3.0.0` (versões corretas, não existentes antes de 2026).
 - Release: corrigido `zip -r "$ZIP" -@` → `zip "$ZIP" -@` (flags `-r` e `-@` são mutuamente exclusivos).
 - Release: substituídas duas etapas separadas `shogo82148/actions-upload-release-asset` pelo parâmetro `files:` nativo do `softprops/action-gh-release@v3.0.0`.
@@ -97,18 +120,18 @@
 ## 1.2.0 - 2026-04-30
 
 - Added a local `get-provider-usage` backend so AiOverviewControl no longer depends on another DMS plugin for provider aggregation.
-- Made `codexbar` an optional executable fallback instead of a hard plugin requirement.
+- Made the provider aggregator optional instead of a hard plugin requirement.
 - Added native/fallback provider handling for Claude, Copilot, Gemini, and OpenRouter with structured per-provider errors.
 - Improved dashboard responsiveness with adaptive cards, grids, provider controls, and long-text handling.
 - Made **Show Provider Errors** actually filter provider cards when disabled.
 - Updated settings copy to describe local helpers, fallback source mode, and optional fallback binary behavior.
 - Reworked the user documentation in Portuguese with a shorter README and focused guides under `docs/`.
 - Added practical installation, configuration, provider, troubleshooting, and architecture references.
-- Clarified that the plugin is self-contained in `AiOverviewControl` and uses the `codexbar` executable only as a provider fallback, not as another DMS plugin.
+- Clarified that the plugin is self-contained in `AiOverviewControl`.
 
 ## 1.1.3 - 2026-04-29
 
-- Fixed Copilot on Linux by bypassing the unsupported CodexBar `copilot --source cli` path.
+- Fixed Copilot on Linux by using the authenticated GitHub session directly.
 - Added `get-copilot-usage`, which uses the authenticated GitHub session to read real Copilot subscription quota data.
 - Mapped Copilot Premium, Chat, and Completions windows into the same provider-card data model used by the other providers.
 - Updated provider-card labels so named quota windows such as Premium and Chat are shown consistently.
@@ -117,7 +140,7 @@
 
 - Normalized provider display logic so cards use the same current window, weekly window, account, login, credits, source, and error helpers.
 - Fixed inconsistent current-vs-weekly percentage rendering in collapsed provider cards.
-- Simplified CodexBar error output so unsupported providers show the real provider error instead of raw JSON.
+- Simplified aggregator error output so unsupported providers show the real provider error instead of raw JSON.
 - Added a dashboard provider manager with an **Add provider** button.
 - Added per-card remove controls and a custom provider list field in settings.
 
@@ -140,7 +163,7 @@
 
 ## 1.0.0 - 2026-04-29
 
-- Created AiOverviewControl as a renamed and expanded successor to the DMS CodexBar widget.
+- Created AiOverviewControl as a renamed and expanded AI usage widget.
 - Added configurable provider sets and source modes.
 - Added Linux-friendly `cli` default.
 - Added partial provider failure handling.

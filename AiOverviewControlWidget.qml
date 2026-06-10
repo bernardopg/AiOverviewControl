@@ -20,7 +20,6 @@ PluginComponent {
     property string rawJsonBuffer: ""
     property string rawStderrBuffer: ""
     property bool binaryReady: false
-    property string resolvedBinaryPath: ""
     property int fetchTimeoutMs: 45000
     property bool usageDidTimeout: false
     property int usageRequestId: 0
@@ -29,6 +28,8 @@ PluginComponent {
     property bool showErrorProviders: String(pluginData.showErrorProviders || "true") === "true"
     property string pillMode: (pluginData.pillMode || "auto")
     property string pillProviders: (pluginData.pillProviders || providerSelection).trim()
+    property string densityMode: pluginData.densityMode || "comfortable"
+    property string providerFilter: ""
     property string focusedProviderId: ""
     property string pendingProviderId: availableProviderOptions[0] || "codex"
     property string claudeRawBuffer: ""
@@ -65,8 +66,6 @@ PluginComponent {
         const parsed = val ? parseInt(val) : 120000;
         return Number.isFinite(parsed) ? parsed : 120000;
     }
-    property string codexbarPath: (pluginData.codexbarPath || "").trim()
-    property string sourceMode: pluginData.sourceMode || "cli"
     // Resolved imperatively in Component.onCompleted — Qt.resolvedUrl is only reliable
     // when called from the file's own execution context, not from a declarative binding
     // that may be evaluated before the component URL context is established.
@@ -156,6 +155,18 @@ PluginComponent {
             if (provider && !provider.error) {
                 result.push(provider);
             }
+        }
+        return result;
+    }
+
+    readonly property var filteredDisplayProviders: {
+        const query = providerFilter.trim().toLowerCase();
+        if (query.length === 0) return displayProviders;
+        const result = [];
+        for (let i = 0; i < displayProviders.length; i++) {
+            const provider = displayProviders[i];
+            const haystack = `${providerName(provider.provider)} ${provider.provider} ${providerSourceLabel(provider)}`.toLowerCase();
+            if (haystack.indexOf(query) >= 0) result.push(provider);
         }
         return result;
     }
@@ -300,11 +311,9 @@ PluginComponent {
         staleTickMs;
         return lastUpdatedMs > 0 && (Date.now() - lastUpdatedMs) > refreshIntervalMs * 2;
     }
-    readonly property string resolvedPath: binaryReady ? resolvedBinaryPath : ""
     readonly property string providerEngineLabel: {
         if (!binaryReady) return "offline";
-        if (resolvedBinaryPath.length > 0) return `local + ${resolvedBinaryPath.split("/").pop()}`;
-        return t("status.local_helpers", "local helpers");
+        return t("status.local_helpers", "local adapters");
     }
 
     function getUsageColor(percent) {
@@ -373,12 +382,7 @@ PluginComponent {
     }
 
     function formatUsageError(exitCode) {
-        if (rawStderrBuffer.length > 0) {
-            return rawStderrBuffer.trim();
-        }
-        if (sourceMode === "api") return t("error.api_mode", "API mode needs provider API tokens or native provider keys.");
-        if (sourceMode === "oauth") return t("error.oauth_mode", "OAuth mode requires provider authentication supported by the selected provider.");
-        if (sourceMode === "web") return t("error.web_mode", "Web mode depends on the optional fallback provider implementation.");
+        if (rawStderrBuffer.length > 0) return rawStderrBuffer.trim();
         return t("error.helper_exit", "provider helper exited with code {code}", { code: exitCode });
     }
 
@@ -508,8 +512,8 @@ PluginComponent {
     }
 
     function providerSourceLabel(provider) {
-        const source = provider && provider.source ? String(provider.source) : String(root.sourceMode || "cli");
-        return source.length > 0 ? source : "cli";
+        const source = provider && provider.source ? String(provider.source) : "local";
+        return source.length > 0 ? source : "local";
     }
 
     function providerErrorText(provider) {
@@ -554,6 +558,18 @@ PluginComponent {
     function providerCredits(provider) {
         if (!provider || !provider.credits) return "—";
         return String(provider.credits.remaining ?? "—");
+    }
+
+    function providerUpdatedMs(provider) {
+        const value = provider && provider.usage ? provider.usage.updatedAt : "";
+        if (!value) return lastUpdatedMs;
+        const parsed = new Date(value).getTime();
+        return Number.isFinite(parsed) ? parsed : lastUpdatedMs;
+    }
+
+    function providerUpdatedLabel(provider) {
+        const value = providerUpdatedMs(provider);
+        return value > 0 ? Qt.formatDateTime(new Date(value), "hh:mm:ss") : lastUpdated;
     }
 
     function compactPath(value) {
@@ -656,7 +672,7 @@ PluginComponent {
     function providerSubtitle(provider) {
         if (!provider) return t("status.provider_missing", "No provider data");
         if (provider.error) return root.providerErrorText(provider);
-        const source = provider.source || root.sourceMode;
+        const source = provider.source || "local";
         const windowData = primaryUsageWindow(provider);
         if (windowData && windowData.displayValue && String(windowData.displayValue).length > 0) {
             const label = windowData.resetDescription || t("status.usage", "usage");
@@ -740,7 +756,6 @@ PluginComponent {
         if (procDetect.running) {
             return;
         }
-        resolvedBinaryPath = "";
         binaryReady = false;
         hasError = false;
         errorMessage = "";
@@ -768,15 +783,7 @@ PluginComponent {
 
     Process {
         id: procDetect
-        command: ["sh", "-c", "usage_script=\"$1\"; candidate=\"$2\"; [ -x \"$usage_script\" ] || exit 1; if [ -n \"$candidate\" ] && [ -f \"$candidate\" ] && [ -x \"$candidate\" ]; then printf '%s\\n' \"$candidate\"; exit 0; fi; command -v codexbar 2>/dev/null || (test -x \"$HOME/.local/bin/codexbar\" && echo \"$HOME/.local/bin/codexbar\") || (test -x /usr/local/bin/codexbar && echo /usr/local/bin/codexbar) || true", "sh", root.providerUsageScript, root.codexbarPath]
-        stdout: SplitParser {
-            onRead: line => {
-                const trimmed = line.trim();
-                if (trimmed.length > 0) {
-                    root.resolvedBinaryPath = trimmed;
-                }
-            }
-        }
+        command: ["sh", "-c", "[ -x \"$1\" ] && command -v bash >/dev/null && command -v jq >/dev/null && command -v curl >/dev/null", "sh", root.providerUsageScript]
         onExited: code => {
             root.binaryReady = code === 0;
             if (root.binaryReady) {
@@ -791,10 +798,10 @@ PluginComponent {
 
     // Snapshot of the argv for the in-flight fetch. Set imperatively in
     // refresh() instead of a reactive binding so a change to selectedProviders
-    // / sourceMode / resolvedPath mid-execution cannot mutate the running
+    // while a request is in flight cannot mutate the running
     // process's command (Qt behaviour on command change while running is
     // undefined and would scramble the fetch).
-    property var usageCommand: ["bash", root.providerUsageScript, root.resolvedPath, root.selectedProviders.join(","), root.sourceMode, root.copilotUsageScript]
+    property var usageCommand: ["bash", root.providerUsageScript, root.selectedProviders.join(","), root.copilotUsageScript]
 
     Process {
         id: procUsage
@@ -927,7 +934,7 @@ PluginComponent {
         timedOutRequestId = -1;
         // Snapshot argv now so an in-flight selection change cannot mutate the
         // running process command (see usageCommand declaration).
-        usageCommand = ["bash", providerUsageScript, resolvedPath, selectedProviders.join(","), sourceMode, copilotUsageScript];
+        usageCommand = ["bash", providerUsageScript, selectedProviders.join(","), copilotUsageScript];
         procUsage.running = true;
         usageTimeout.restart();
         if (root.selectedProviders.indexOf("claude") >= 0 && !claudeStatsProcess.running) {
@@ -1473,10 +1480,12 @@ PluginComponent {
         property var windows: root.windowsForProvider(provider)
         property bool compact: width < 560
         property bool veryCompact: width < 430
+        property bool dense: root.densityMode === "compact"
         property bool hovered: cardMouse.containsMouse
         readonly property bool isStale: {
             root.staleTickMs;
-            return root.lastUpdatedMs > 0 && (Date.now() - root.lastUpdatedMs) > root.refreshIntervalMs * 2;
+            const updated = root.providerUpdatedMs(provider);
+            return updated > 0 && (Date.now() - updated) > root.refreshIntervalMs * 2;
         }
 
         width: parent ? parent.width : implicitWidth
@@ -1484,7 +1493,7 @@ PluginComponent {
         color: expanded ? Theme.surfaceContainerHigh : (hovered ? Theme.surfaceContainerHigh : Theme.surfaceContainer)
         border.width: 1
         border.color: provider && provider.error ? Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16) : Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.12))
-        implicitHeight: cardColumn.implicitHeight + (card.compact ? Theme.spacingM : Theme.spacingL) * 2
+        implicitHeight: cardColumn.implicitHeight + (card.dense ? Theme.spacingS : (card.compact ? Theme.spacingM : Theme.spacingL)) * 2
         clip: true
         scale: hovered ? 1.006 : 1.0
 
@@ -1515,8 +1524,8 @@ PluginComponent {
             id: cardColumn
             z: 2
             anchors.fill: parent
-            anchors.margins: card.compact ? Theme.spacingS : Theme.spacingM
-            spacing: expanded ? Theme.spacingM : Theme.spacingS
+            anchors.margins: card.dense ? Theme.spacingS : (card.compact ? Theme.spacingS : Theme.spacingM)
+            spacing: expanded ? (card.dense ? Theme.spacingS : Theme.spacingM) : Theme.spacingS
 
             RowLayout {
                 width: parent.width
@@ -1525,7 +1534,7 @@ PluginComponent {
                 Rectangle {
                     Layout.alignment: Qt.AlignTop
                     visible: !card.veryCompact
-                    width: card.compact ? 34 : 40
+                    width: card.dense ? 30 : (card.compact ? 34 : 40)
                     height: width
                     radius: width / 2
                     color: Theme.withAlpha(card.accentColor, 0.16)
@@ -1542,7 +1551,7 @@ PluginComponent {
                     DankIcon {
                         anchors.centerIn: parent
                         name: root.iconForProvider(card.provider.provider)
-                        size: card.compact ? 18 : 21
+                        size: card.dense ? 16 : (card.compact ? 18 : 21)
                         color: card.accentColor
                     }
                 }
@@ -1550,13 +1559,13 @@ PluginComponent {
                 Column {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 6
+                    spacing: card.dense ? 3 : 6
 
                     StyledText {
                         width: parent.width
                         text: root.providerName(card.provider.provider)
                         color: Theme.surfaceText
-                        font.pixelSize: card.compact ? Theme.fontSizeSmall + 1 : Theme.fontSizeMedium
+                        font.pixelSize: card.dense ? Theme.fontSizeSmall : (card.compact ? Theme.fontSizeSmall + 1 : Theme.fontSizeMedium)
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
@@ -1644,7 +1653,7 @@ PluginComponent {
             }
 
             UsageBar {
-                visible: card.hasUsage && !card.expanded
+                visible: card.hasUsage && !card.expanded && !card.dense
                 width: parent.width
                 label: card.windows.length > 0 ? card.windows[0].label : t("status.usage", "Usage")
                 percent: root.providerPercent(card.provider)
@@ -1818,7 +1827,7 @@ PluginComponent {
                 }
 
                 StyledText {
-                    text: root.t("card.updated_at", "Updated {time}", { time: root.lastUpdated })
+                    text: root.t("card.updated_at", "Updated {time}", { time: root.providerUpdatedLabel(card.provider) })
                     color: card.isStale ? Theme.withAlpha(Theme.warning, 0.8) : Theme.withAlpha(Theme.surfaceVariantText, 0.6)
                     font.pixelSize: Theme.fontSizeSmall - 2
                     anchors.verticalCenter: parent.verticalCenter
@@ -1831,7 +1840,7 @@ PluginComponent {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: card.compact ? 76 : 82
+            height: card.dense ? 64 : (card.compact ? 76 : 82)
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.focusedProviderId = card.expanded ? "" : card.provider.provider
@@ -1910,7 +1919,7 @@ PluginComponent {
         }
     }
 
-    popoutWidth: 860
+    popoutWidth: densityMode === "compact" ? 800 : 860
     popoutHeight: 820
 
     popoutContent: Component {
@@ -1918,20 +1927,12 @@ PluginComponent {
             id: popout
 
             headerText: t("app.title", "AI Usage Control")
-            detailsText: root.lastUpdated.length > 0 ? (root.isDataStale ? t("popout.details_stale", "Stale since {time} · {source}", { time: root.lastUpdated, source: root.sourceMode }) : t("popout.details_updated", "Updated {time} · {source}", { time: root.lastUpdated, source: root.sourceMode })) : t("popout.provider_dashboard", "Provider dashboard")
+            detailsText: root.lastUpdated.length > 0 ? (root.isDataStale ? t("popout.details_stale", "Stale since {time} · local adapters", { time: root.lastUpdated }) : t("popout.details_updated", "Updated {time} · local adapters", { time: root.lastUpdated })) : t("popout.provider_dashboard", "Provider dashboard")
             showCloseButton: true
 
             headerActions: Component {
                 Row {
                     spacing: Theme.spacingS
-
-                    SurfaceButton {
-                        iconName: "terminal"
-                        label: t("card.detect", "Detect")
-                        compact: true
-                        actionEnabled: !procDetect.running
-                        onTriggered: root.detectBinary()
-                    }
 
                     SurfaceButton {
                         iconName: "refresh"
@@ -2086,7 +2087,7 @@ PluginComponent {
                                                 spacing: Theme.spacingXS
 
                                                 BadgePill {
-                                                    label: root.providerData ? root.providerSourceLabel(root.providerData) : root.sourceMode
+                                                    label: root.providerData ? root.providerSourceLabel(root.providerData) : t("status.local_helpers", "local adapters")
                                                     iconName: "sync_alt"
                                                     accentColor: Theme.primary
                                                 }
@@ -2114,7 +2115,7 @@ PluginComponent {
                                     MetricTile { Layout.fillWidth: true; label: t("card.active", "Active"); value: String(root.successfulProviders.length); accentColor: Theme.success }
                                     MetricTile { Layout.fillWidth: true; label: t("card.attention", "Attention"); value: String(root.errorProviders.length); accentColor: root.errorProviders.length > 0 ? Theme.warning : Theme.success }
                                     MetricTile { Layout.fillWidth: true; label: t("card.engine", "Engine"); value: root.providerEngineLabel; accentColor: Theme.primary }
-                                    MetricTile { Layout.fillWidth: true; label: t("card.fallback", "Fallback"); value: root.compactPath(root.resolvedBinaryPath); accentColor: Theme.primary; multilineValue: true }
+                                    MetricTile { Layout.fillWidth: true; label: t("card.backend", "Backend"); value: t("status.self_managed", "Plugin-managed"); accentColor: Theme.primary; multilineValue: true }
                                 }
                             }
                         }
@@ -2144,7 +2145,7 @@ PluginComponent {
                                 StyledText {
                                     id: providerCountLabel
                                     anchors.centerIn: parent
-                                    text: root.displayProviders.length === 1 ? t("status.displayed", "{count} displayed", { count: root.displayProviders.length }) : t("status.displayed_plural", "{count} displayed", { count: root.displayProviders.length })
+                                    text: root.filteredDisplayProviders.length === 1 ? t("status.displayed", "{count} displayed", { count: root.filteredDisplayProviders.length }) : t("status.displayed_plural", "{count} displayed", { count: root.filteredDisplayProviders.length })
                                     color: root.heroAccent
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.DemiBold
@@ -2202,7 +2203,7 @@ PluginComponent {
 
                                         StyledText {
                                             width: parent.width
-                                            text: t("status.no_provider_data", "No provider data available. Check credentials, local CLIs, or the optional fallback path.")
+                                            text: t("status.no_provider_data", "No provider data available. Check credentials and local provider CLIs.")
                                             color: Theme.surfaceText
                                             font.pixelSize: Theme.fontSizeMedium
                                             font.weight: Font.DemiBold
@@ -2232,13 +2233,6 @@ PluginComponent {
                                     }
 
                                     BadgePill {
-                                        label: t("card.detect", "Detect")
-                                        iconName: "terminal"
-                                        accentColor: Theme.secondary
-                                        onTapped: root.detectBinary()
-                                    }
-
-                                    BadgePill {
                                         label: root.t("settings.configured_count", "{count} configured", { count: root.selectedProviders.length })
                                         iconName: "playlist_add_check"
                                         accentColor: Theme.surfaceVariantText
@@ -2251,8 +2245,16 @@ PluginComponent {
                             width: parent.width
                         }
 
+                        DankTextField {
+                            visible: root.displayProviders.length > 8
+                            width: parent.width
+                            placeholderText: t("card.filter_providers", "Filter providers by name or source")
+                            text: root.providerFilter
+                            onTextChanged: root.providerFilter = text
+                        }
+
                         Repeater {
-                            model: root.displayProviders
+                            model: root.filteredDisplayProviders
 
                             ProviderDashboardCard {
                                 required property var modelData

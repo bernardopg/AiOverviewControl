@@ -1,161 +1,84 @@
-<div align="center">
+# AiOverviewControl
 
-![header](https://capsule-render.vercel.app/api?type=waving&height=300&fontAlignY=40&color=0:0F172A,45:2563EB,100:22C55E&text=AiOverviewControl&fontColor=FFFFFF&textBg=false&animation=fadeIn&fontFamily=Montserrat&desc=A%20self-contained%20Dank%20Material%20Shell%20widget%20for%20monitoring%20AI%20assistant%20usage&descAlign=50&descSize=0&fontSize=72&reversal=true&descAlignY=60")
+Self-contained DankMaterialShell widget for AI quota, billing, authentication, and local usage telemetry.
 
-[![CI](https://img.shields.io/github/actions/workflow/status/bernardopg/AiOverviewControl/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/tag/bernardopg/AiOverviewControl?label=Release&style=flat-square)](https://github.com/bernardopg/AiOverviewControl/releases)
-[![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl?style=flat-square)](LICENSE)
-[![Crowdin](https://badges.crowdin.net/aioverviewcontrol/localized.svg)](https://crowdin.com/project/aioverviewcontrol)
+![AiOverviewControl](./screenshot.png)
 
-[English](README.md) · [Português do Brasil](docs/README.pt-BR.md) · [Documentation](#-documentation) · [Report an issue](https://github.com/bernardopg/AiOverviewControl/issues/new/choose)
+## What changed in 1.3
 
-</div>
+- The plugin owns provider collection end to end. No external aggregation executable is used.
+- Codex limits come from the official `codex app-server` protocol.
+- Copilot reuses the authenticated GitHub session to read the account's Copilot quota snapshot.
+- Provider cards distinguish measured quota, authenticated status, local analytics, and informational-only coverage.
+- Settings include prerequisite health, compact/comfortable density, provider selection, and diagnostics.
+- The dashboard adds provider filtering when more than eight cards are configured.
 
----
+## Requirements
 
-## ✨ What It Does
+- DankMaterialShell on Quickshell.
+- Core commands: `bash`, `jq`, and `curl`.
+- Provider-specific CLIs or environment variables only for providers you enable.
 
-AiOverviewControl adds a compact telemetry panel to Dank Material Shell (DMS). It watches multiple AI providers, highlights the one closest to its quota limit in the DankBar, and opens a detailed dashboard with per-provider usage cards.
-
-The plugin is designed to stay useful even when one provider fails: each provider is collected independently, so a broken Gemini, OpenRouter, Copilot, or Claude check does not hide working providers.
-
-![AiOverviewControl screenshot](./screenshot.png)
-
-## 🚀 Highlights
-
-- 📊 **DankBar quota indicator** showing the provider closest to its limit.
-- 🧩 **Floating dashboard** with usage cards, progress bars, reset windows, and isolated error states.
-- 🛠️ **Self-contained local helpers** for Copilot, Claude Code, Codex fallbacks, and compatible providers.
-- ⚙️ **Visual provider controls** so users can add or remove providers without editing JSON by hand.
-- 🌍 **Crowdin-powered translations** using JSON locale files under `i18n/`.
-- 🔒 **Repository hygiene** with CI, code scanning, Dependabot, issue templates, discussions, and a security policy.
-
-## 📦 Requirements
-
-- Dank Material Shell running on Quickshell.
-- Linux shell tools: `bash`, `node`, `jq`, and `curl`.
-- Recommended fallback: `codexbar` available in `PATH`, `~/.local/bin`, `/usr/local/bin`, or configured in the plugin settings.
-- Optional for Copilot: `gh auth login`, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`.
-- Optional for Claude details: `claude`, `~/.claude/.credentials.json`, and local logs in `~/.claude/projects`.
-
-## ⚡ Quick Start
-
-Copy the plugin into your DMS plugins directory, make helper scripts executable, then restart DMS:
+Recommended local setup:
 
 ```bash
-cd /path/to/downloaded/AiOverviewControl
+command -v bash jq curl
+command -v codex claude gh
+codex login
+gh auth login
+```
+
+## Install
+
+```bash
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
-cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml \
-  plugin.json qmldir providers README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
-  ~/.config/DankMaterialShell/plugins/AiOverviewControl/
+cp -a . ~/.config/DankMaterialShell/plugins/AiOverviewControl/
 chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
 dms restart
 ```
 
-Then open DMS settings, enable **AiOverviewControl**, and add the widget to a DankBar section.
+Enable **AiOverviewControl** in DMS and add it to a DankBar section.
 
-Full guide: [docs/installation.md](./docs/installation.md)
+## Provider model
 
-## ⚙️ Recommended Setup
+Every provider is classified honestly:
 
-| Setting              | Recommended value      | Why                                                 |
-| -------------------- | ---------------------- | --------------------------------------------------- |
-| Provider Set         | `codex,claude,copilot` | Good default coverage for local AI assistant usage. |
-| Source Mode          | `cli`                  | Uses local CLIs and native helpers first.           |
-| Show Provider Errors | `true`                 | Makes setup and provider debugging visible.         |
-| Refresh Interval     | `120000` or `300000`   | Keeps telemetry current without excessive polling.  |
+| Coverage | Meaning |
+| --- | --- |
+| Quota | A provider or CLI surface returns limits, balance, or billing usage. |
+| Local analytics | The plugin reads local provider-owned logs or databases. |
+| Authentication | A documented endpoint verifies credentials, but no public quota endpoint exists. |
+| Informational | No public read-only quota API exists; the card points to the official usage surface. |
 
-Configuration reference: [docs/configuration.md](./docs/configuration.md)
+The complete matrix and source links are in [docs/providers.md](./docs/providers.md) and [docs/provider-verification.md](./docs/provider-verification.md).
 
-## 🤖 Provider Coverage
-
-AiOverviewControl recognizes these provider IDs:
-
-```text
-codex, claude, copilot, gemini, openrouter, 9router, deepseek, kimi, minimax, glm, mistral,
-ollama, nvidia, cloudflare, vertexai, byteplus, qwen, together, groq, cohere, replicate,
-fireworks, ai21, perplexity, cursor, kilo, kiro, warp, amp, cline, opencode
-```
-
-Support depends on local credentials, provider APIs, bundled helper scripts, and optional `codexbar` fallback support.
-
-| Provider | Collection path | Notes |
-| -------- | --------------- | ----- |
-| `codex` | `codexbar` fallback | Reads usage from compatible local CodexBar providers. |
-| `claude` | `providers/get-claude-usage` | Adds Claude Code analytics, windows, tokens, sessions, and estimated costs. |
-| `copilot` | `providers/get-copilot-usage` | Uses GitHub auth from `gh` or token environment variables. |
-| `deepseek`, `kimi`, `minimax`, `glm` | Native helpers | Balance APIs with CNY or token-quota fields. |
-| `openrouter`, `9router`, `cloudflare` | Native helpers | Credits or neurons quota. |
-| `together`, `cohere`, `fireworks`, `ai21` | Native helpers | Credit or trial-credits balance. |
-| `groq`, `replicate` | Native helpers | Key validation + note-card (no public quota API). |
-| `mistral`, `nvidia`, `byteplus`, `qwen`, `vertexai` | Native helpers | Key/auth validation + note-card (no quota endpoint). |
-| `ollama` | Native helper | Local model list via `/api/tags`. |
-| `gemini`, `perplexity`, `cursor`, `kilo`, `kiro`, `warp`, `amp`, `cline`, `opencode` | Native helpers or codexbar fallback | Coverage varies by provider API and local credentials. |
-
-Provider matrix: [docs/providers.md](./docs/providers.md)
-
-## 🧪 Validate Locally
-
-From the repository root, use these commands to separate environment, authentication, and UI issues:
+## Validate
 
 ```bash
 jq . plugin.json
 bash -n providers/get-*
-codexbar usage --format json --provider codex --source cli
-codexbar usage --format json --provider claude --source cli
-./providers/get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ./providers/get-copilot-usage
-./providers/get-copilot-usage
-./providers/get-claude-usage
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
+./providers/get-codex-usage | jq .
+./providers/get-provider-health "codex,claude,copilot" | jq .
+./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage | jq .
 ```
 
-If a provider works in the terminal but not in the panel, start with [docs/troubleshooting.md](./docs/troubleshooting.md).
+## Documentation
 
-## 🗂️ Project Layout
+- [Installation](./docs/installation.md)
+- [Configuration](./docs/configuration.md)
+- [Providers](./docs/providers.md)
+- [Provider verification](./docs/provider-verification.md)
+- [Architecture](./docs/architecture.md)
+- [Troubleshooting](./docs/troubleshooting.md)
+- [Português do Brasil](./docs/README.pt-BR.md)
+- [Crowdin and i18n](./docs/i18n-crowdin.md)
 
-| Path                                                       | Purpose                                                                                 |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `AiOverviewControlWidget.qml`                              | DankBar indicator, popout dashboard, collection orchestration, and rendering.           |
-| `AiOverviewControlSettings.qml`                            | DMS settings UI.                                                                        |
-| `AiOverviewControlI18n.qml`                                | Translation loader and lookup helpers.                                                  |
-| `providers/get-provider-usage`                             | Unified provider backend and fallback dispatcher.                                       |
-| `providers/get-provider-wrapper` / `providers/get-*-usage` | Per-provider entrypoints that delegate to the shared backend.                           |
-| `providers/get-copilot-usage`                              | GitHub Copilot usage bridge.                                                            |
-| `providers/get-claude-usage`                               | Claude Code local analytics and usage bridge.                                           |
-| `i18n/`                                                    | Locale JSON files managed with Crowdin.                                                 |
-| `.github/`                                                 | CI, code scanning defaults, Dependabot, funding, templates, and community health files. |
+## Design guarantees
 
-Technical overview: [docs/architecture.md](./docs/architecture.md)
+- One provider failure never hides healthy providers.
+- Settings are stored by DMS and are not overwritten by plugin updates.
+- The UI uses DMS theme tokens and adapts to narrow popouts.
+- Unsupported quota claims are represented as informational states, not fabricated percentages.
 
-## 📚 Documentation
-
-- 🇺🇸 Main README: [README.md](./README.md)
-- 🇧🇷 Portuguese README: [docs/README.pt-BR.md](./docs/README.pt-BR.md)
-- 🧭 Installation: [docs/installation.md](./docs/installation.md)
-- ⚙️ Configuration: [docs/configuration.md](./docs/configuration.md)
-- 🤖 Providers: [docs/providers.md](./docs/providers.md)
-- 🌍 Crowdin and i18n: [docs/i18n-crowdin.md](./docs/i18n-crowdin.md)
-- 🧱 Architecture: [docs/architecture.md](./docs/architecture.md)
-- 🩺 Troubleshooting: [docs/troubleshooting.md](./docs/troubleshooting.md)
-
-## 🤝 Contributing
-
-Issues, provider reports, translations, and pull requests are welcome.
-
-- Use [issue templates](https://github.com/bernardopg/AiOverviewControl/issues/new/choose) for bugs, features, and provider requests.
-- Use [discussions](https://github.com/bernardopg/AiOverviewControl/discussions) for support and general questions.
-- Report vulnerabilities through the repository security flow and follow [.github/SECURITY.md](./.github/SECURITY.md).
-- For translations, see [docs/i18n-crowdin.md](./docs/i18n-crowdin.md).
-<div align="center">
-
-## 💜 Support
-
-If AiOverviewControl helps your DMS setup, you can support ongoing maintenance through GitHub Sponsors:
-
-[![Sponsor](https://img.shields.io/badge/Sponsor-bernardopg-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/bernardopg)
-
-## 📄 License
-
-Released under the terms in [LICENSE](./LICENSE).
-
-![footer](https://capsule-render.vercel.app/api?type=waving&height=150&fontAlignY=40&color=0:0F172A,45:2563EB,100:22C55E&section=footer)
+Released under [LICENSE](./LICENSE).

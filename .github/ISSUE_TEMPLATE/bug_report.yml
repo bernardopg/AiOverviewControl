@@ -39,7 +39,7 @@ body:
         Quickshell:
         Compositor:
         Distro:
-        bash/node/jq/curl:
+        bash/jq/curl:
     validations:
       required: true
   - type: textarea
@@ -75,4 +75,4 @@ body:
       placeholder: |
         jq . plugin.json
         bash -n providers/get-provider-usage providers/get-copilot-usage providers/get-claude-usage
-        ./providers/get-provider-usage "$(command -v codexbar)" "codex,claude,copilot" "cli" ./providers/get-copilot-usage
+        ./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage

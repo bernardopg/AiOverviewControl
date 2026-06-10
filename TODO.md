@@ -2,17 +2,17 @@
 
 ## Providers — Data & Auth
 
-- [ ] Add per-provider source override (individual `source` per provider, not one global mode).
-- [ ] MiniMax: verify `coding_plan` balance field — current endpoint returns `token_plan` but schema may vary by account tier.
-- [ ] GLM: add `GLM_API_BASE` override support for international endpoint (`open.bigmodel.cn` vs `bigmodel.cn`).
-- [ ] Cloudflare: expand analytics beyond `neurons_used/neurons_limit` using GraphQL Analytics Engine when `CLOUDFLARE_ANALYTICS_TOKEN` is available.
-- [ ] Ollama: poll `/api/ps` for running-model status (available since Ollama 0.1.33); supplement `/api/tags` model list.
+- [x] Remove the global source mode; every provider now owns one explicit adapter path.
+- [x] MiniMax: remove the undocumented quota call and report configured status until a public read-only endpoint exists.
+- [x] GLM: remove the undocumented quota call and retain regional console/base metadata only.
+- [ ] Cloudflare: add documented GraphQL Workers AI analytics when a stable dataset/query contract is available.
+- [x] Ollama: poll `/api/ps` for running-model status and supplement `/api/tags`.
 - [ ] NVIDIA: surface specific quota window info if NVIDIA adds a balance endpoint (monitor NIM changelog).
 - [ ] Mistral: surface `is_default_key` flag and rate-limit headers when Mistral adds a quota endpoint.
 - [ ] BytePlus/Ark: surface `remaining_tokens` per model when the API exposes per-model quotas.
-- [ ] Qwen/DashScope: add `DASHSCOPE_WORKSPACE_ID` scoping so enterprise accounts can isolate workspace usage.
-- [ ] Vertex AI: add `GOOGLE_CLOUD_PROJECT` env-based project scoping alongside `gcloud` authentication check.
-- [ ] Copilot: add token-status hint in the card when neither `gh auth token` nor any `*_TOKEN` env var is set.
+- [x] Qwen/DashScope: add optional `DASHSCOPE_WORKSPACE_ID` request scoping.
+- [x] Vertex AI: add `GOOGLE_CLOUD_PROJECT` env-based project labeling alongside `gcloud` authentication check.
+- [x] Copilot: add prerequisite health and preserve the authenticated quota adapter used by the GitHub session.
 - [ ] OpenRouter: surface `usage.by_model` breakdown in the secondary/tertiary windows when available.
 
 ## Providers — New / Unimplemented
@@ -26,23 +26,23 @@
 
 ## Dashboard — UX
 
-- [ ] Add compact/expanded density modes (toggle in settings or per-card).
+- [x] Add compact/expanded density modes.
 - [x] Add stale-data indicator per card when provider has not refreshed within 2× the refresh interval.
-- [ ] Add provider filter row (search/filter chip bar) when more than 8 providers are selected.
+- [x] Add provider filter row when more than 8 providers are selected.
 - [ ] Add screenshot assets for documentation and marketplace listing.
 - [x] Surface `updatedAt` timestamp in card footer for providers that return it.
 
 ## Claude Analytics
 
 - [x] Show today's token count separately from today's estimated cost in the summary row.
-- [ ] Add cache-status and API-fallback messaging when `get-claude-usage` falls back to local JSONL only.
-- [ ] Add optional EUR display when Frankfurter exchange-rate lookup succeeds.
-- [ ] Expose per-project breakdown toggle (top 5 projects by cost today).
+- [x] Add cache-status and local-only messaging for Claude subscription data.
+- [x] Add optional EUR display when the Frankfurter exchange-rate lookup succeeds.
+- [x] Expose a per-project breakdown toggle for the top 5 projects by estimated monthly cost.
 
 ## Settings
 
-- [ ] Add manual custom provider list text field in settings when DMS dropdowns support editable values.
-- [ ] Add per-provider env-var hint row in settings (shows which env var is missing for API-key providers).
+- [x] Add manual custom provider list text field in settings.
+- [x] Add per-provider prerequisite health rows in settings.
 
 ## Quality
 

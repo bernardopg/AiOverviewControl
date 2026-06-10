@@ -26,6 +26,9 @@ FIVE_HOUR_RESET=""
 SEVEN_DAY_UTIL=0
 SEVEN_DAY_RESET=""
 EXTRA_USAGE_ENABLED="false"
+API_RESPONSE='{}'
+USAGE_ERROR_KIND=""
+USAGE_ERROR_MESSAGE=""
 
 WEEK_TOKENS=0
 WEEK_MESSAGES=0
@@ -108,7 +111,7 @@ if [ -n "$PRICING_JSON" ]; then
     USD_EUR_RATE=$(echo "$PRICING_JSON" | jq -r '.usd_eur_rate // 0' 2>/dev/null || echo "0")
 fi
 
-# --- Subscription & API Usage (with cache to avoid rate limits) ---
+# --- Subscription & API Usage (with a short cache to avoid rate limits) ---
 if [ -f "$CREDENTIALS" ]; then
     SUBSCRIPTION_TYPE=$(jq -r '.claudeAiOauth.subscriptionType // "unknown"' "$CREDENTIALS")
     RATE_LIMIT_TIER=$(jq -r '.claudeAiOauth.rateLimitTier // "unknown"' "$CREDENTIALS")
@@ -119,7 +122,8 @@ if [ -f "$CREDENTIALS" ]; then
         cache_ts=$(jq -r '.cached_at // 0' "$USAGE_CACHE" 2>/dev/null || echo 0)
         now_ts=$(date +%s)
         age=$(( now_ts - cache_ts ))
-        if [ "$age" -lt "$USAGE_CACHE_TTL" ]; then
+        if [ "$age" -ge 0 ] && [ "$age" -lt "$USAGE_CACHE_TTL" ] \
+            && jq -e '.data.five_hour | type == "object"' "$USAGE_CACHE" >/dev/null 2>&1; then
             USE_CACHE=true
         fi
     fi
@@ -129,21 +133,32 @@ if [ -f "$CREDENTIALS" ]; then
     else
         TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
         if [ -n "$TOKEN" ]; then
-            API_RESPONSE=$(curl -s --max-time 5 \
+            usage_body=$(mktemp)
+            usage_status=$(curl -sS --max-time 8 -o "$usage_body" -w '%{http_code}' \
                 -H "Authorization: Bearer ${TOKEN}" \
                 -H "Accept: application/json" \
                 -H "Content-Type: application/json" \
                 -H "User-Agent: claude-code/${CLAUDE_VERSION}" \
                 -H "anthropic-beta: oauth-2025-04-20" \
-                "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || echo '{}')
+                "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
 
-            # Cache successful responses (no error field)
-            if echo "$API_RESPONSE" | jq -e '.five_hour' >/dev/null 2>&1; then
+            if [ "$usage_status" = "200" ] \
+                && jq -e '.five_hour | type == "object"' "$usage_body" >/dev/null 2>&1; then
+                API_RESPONSE=$(cat "$usage_body")
                 jq -n --argjson data "$API_RESPONSE" '{cached_at: (now | floor), data: $data}' > "$USAGE_CACHE" 2>/dev/null
-            elif [ -f "$USAGE_CACHE" ]; then
-                # On rate limit or error, use stale cache if available
-                API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
+            else
+                USAGE_ERROR_KIND="authentication"
+                if [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; then
+                    USAGE_ERROR_MESSAGE="Claude OAuth credentials are invalid or expired. Run: claude auth login --claudeai"
+                else
+                    USAGE_ERROR_KIND="network"
+                    USAGE_ERROR_MESSAGE="Claude usage request failed with HTTP ${usage_status:-unknown}."
+                fi
             fi
+            rm -f "$usage_body"
+        else
+            USAGE_ERROR_KIND="authentication"
+            USAGE_ERROR_MESSAGE="Claude OAuth access token is missing. Run: claude auth login --claudeai"
         fi
     fi
 
@@ -152,6 +167,9 @@ if [ -f "$CREDENTIALS" ]; then
     SEVEN_DAY_UTIL=$(echo "$API_RESPONSE" | jq -r '.seven_day.utilization // 0')
     SEVEN_DAY_RESET=$(echo "$API_RESPONSE" | jq -r '.seven_day.resets_at // ""')
     EXTRA_USAGE_ENABLED=$(echo "$API_RESPONSE" | jq -r '.extra_usage.is_enabled // false')
+else
+    USAGE_ERROR_KIND="authentication"
+    USAGE_ERROR_MESSAGE="Claude credentials were not found. Run: claude auth login --claudeai"
 fi
 
 # --- Token consumption from JSONL session files ---
@@ -259,6 +277,7 @@ if [ -d "$PROJECTS_DIR" ]; then
             printf "WEEK_COST=%.2f\n", week_cost + 0
             printf "MONTH_COST=%.2f\n", month_cost + 0
         }')
+
 fi
 
 # --- All-time from stats cache (supplementary) ---
@@ -277,6 +296,8 @@ echo "FIVE_HOUR_RESET=${FIVE_HOUR_RESET}"
 echo "SEVEN_DAY_UTIL=${SEVEN_DAY_UTIL}"
 echo "SEVEN_DAY_RESET=${SEVEN_DAY_RESET}"
 echo "EXTRA_USAGE_ENABLED=${EXTRA_USAGE_ENABLED}"
+echo "USAGE_ERROR_KIND=${USAGE_ERROR_KIND}"
+echo "USAGE_ERROR_MESSAGE=${USAGE_ERROR_MESSAGE}"
 echo "WEEK_MESSAGES=${WEEK_MESSAGES}"
 echo "WEEK_SESSIONS=${WEEK_SESSIONS}"
 echo "WEEK_TOKENS=${WEEK_TOKENS}"

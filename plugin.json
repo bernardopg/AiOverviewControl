@@ -1,14 +1,14 @@
 {
   "id": "aiOverviewControl",
   "name": "AiOverviewControl",
-  "description": "Monitor AI assistant subscription and API usage across Codex, Claude, Copilot, Gemini, OpenRouter, and compatible local providers",
-  "version": "1.2.4",
+  "description": "Plugin-managed AI quota, billing, authentication, and local usage telemetry for DankMaterialShell",
+  "version": "1.3.0",
   "author": "bernardopg",
   "icon": "monitoring",
   "type": "widget",
   "capabilities": ["dankbar-widget", "process"],
   "component": "./AiOverviewControlWidget.qml",
   "settings": "./AiOverviewControlSettings.qml",
-  "requires": ["bash", "node", "jq", "curl"],
+  "requires": ["bash", "jq", "curl"],
   "permissions": ["process", "settings_read", "settings_write"]
 }

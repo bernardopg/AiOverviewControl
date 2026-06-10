@@ -1,148 +1,155 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-api_url="https://api.github.com/copilot_internal/user"
-
 fail_json() {
   local code="$1"
   local message="$2"
-  PROVIDER="copilot" CODE="$code" MESSAGE="$message" node -e '
-const code = Number(process.env.CODE) || 1;
-process.stdout.write(JSON.stringify({
-  provider: process.env.PROVIDER,
-  source: "github-copilot-api",
-  error: {
-    code,
-    kind: "runtime",
-    message: process.env.MESSAGE || "GitHub Copilot usage fetch failed"
-  }
-}));
-'
+  case "$code" in
+    ""|*[!0-9]*) code=1 ;;
+  esac
+  code="$((10#$code))"
+  [ "$code" -gt 0 ] 2>/dev/null || code=1
+  jq -cn --arg message "$message" --argjson code "$code" '
+    {provider:"copilot",source:"github-copilot-api",error:{code:$code,kind:"runtime",message:$message}}
+  '
 }
 
 token=""
 if command -v gh >/dev/null 2>&1; then
   token="$(gh auth token 2>/dev/null || true)"
 fi
-
-if [ -z "$token" ] && [ -n "${COPILOT_GITHUB_TOKEN:-}" ]; then
-  token="$COPILOT_GITHUB_TOKEN"
-fi
-
-if [ -z "$token" ] && [ -n "${GH_TOKEN:-}" ]; then
-  token="$GH_TOKEN"
-fi
-
-if [ -z "$token" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
-  token="$GITHUB_TOKEN"
-fi
+[ -n "$token" ] || token="${COPILOT_GITHUB_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
 
 if [ -z "$token" ]; then
-  fail_json 2 "GitHub token not found. Run gh auth login or copilot login, then refresh AiOverviewControl."
+  fail_json 2 "GitHub token not found. Run: gh auth login"
   exit 0
 fi
 
+api_url="https://api.github.com/copilot_internal/user"
 tmp_body="$(mktemp)"
-trap 'rm -f "$tmp_body"' EXIT
+tmp_error="$(mktemp)"
+cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
+cache_file="${cache_dir}/copilot-usage.json"
+cache_ttl=3600
+source_name="github-copilot-api"
+updated_at="$(date +%s)"
+trap 'rm -f "$tmp_body" "$tmp_error"' EXIT
 
-status="$(
-  curl -sS -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: token $token" \
+request_copilot() {
+  local resolve_ip="${1:-}"
+  local -a resolve_args=()
+  [ -z "$resolve_ip" ] || resolve_args=(--resolve "api.github.com:443:${resolve_ip}")
+  curl -4 -sS --connect-timeout 5 --max-time 12 \
+    "${resolve_args[@]}" \
+    -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: token ${token}" \
     -H "Accept: application/json" \
     -H "Editor-Version: vscode/1.105.0" \
     -H "User-Agent: GitHubCopilotChat/0.32.0" \
     -H "X-Github-Api-Version: 2026-04-01" \
-    "$api_url" 2>/dev/null || true
-)"
+    "$api_url" 2>"$tmp_error" || true
+}
 
-if [ "$status" != "200" ]; then
-  message="$(jq -r '.message // empty' "$tmp_body" 2>/dev/null || true)"
-  [ -z "$message" ] && message="GitHub Copilot API returned HTTP $status"
-  fail_json "${status:-1}" "$message"
+http_status="$(request_copilot)"
+
+# Some regional api.github.com routes occasionally fail before HTTP. Resolve
+# an alternate GitHub edge through DNS-over-HTTPS, while keeping TLS hostname
+# verification enabled through curl --resolve.
+if [ "$http_status" = "000" ] || [ -z "$http_status" ]; then
+  alternate_ip="$(curl -sS --connect-timeout 4 --max-time 8 \
+    'https://dns.google/resolve?name=api.github.com&type=A&edns_client_subnet=1.1.1.0/24' 2>/dev/null \
+    | jq -r '[.Answer[]? | select(.type == 1) | .data] | first // empty' 2>/dev/null || true)"
+  if [[ "$alternate_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    : > "$tmp_error"
+    http_status="$(request_copilot "$alternate_ip")"
+  fi
+fi
+
+if [ "$http_status" = "200" ] && jq -e . "$tmp_body" >/dev/null 2>&1; then
+  mkdir -p "$cache_dir"
+  jq -n --argjson data "$(cat "$tmp_body")" '{cached_at:(now | floor),data:$data}' > "$cache_file"
+elif [ -f "$cache_file" ] && jq -e '.cached_at and (.data | type == "object")' "$cache_file" >/dev/null 2>&1; then
+  cached_at="$(jq -r '.cached_at' "$cache_file")"
+  cache_age=$(( $(date +%s) - cached_at ))
+  if [ "$cache_age" -ge 0 ] && [ "$cache_age" -le "$cache_ttl" ]; then
+    jq -c '.data' "$cache_file" > "$tmp_body"
+    http_status="200"
+    source_name="github-copilot-cache"
+    updated_at="$cached_at"
+  fi
+fi
+
+if [ "$http_status" != "200" ]; then
+  message="$(jq -r '.message // .error_details.message // empty' "$tmp_body" 2>/dev/null || true)"
+  transport_error="$(tr '\n' ' ' < "$tmp_error" | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')"
+  [ -n "$message" ] || message="GitHub Copilot usage request failed with HTTP ${http_status:-unknown}${transport_error:+: ${transport_error}}."
+  fail_json "${http_status:-1}" "$message"
   exit 0
 fi
 
-jq -c '
-def clamp:
-  if . == null then 0
-  elif . < 0 then 0
-  elif . > 100 then 100
-  else .
-  end;
+if ! jq -e . "$tmp_body" >/dev/null 2>&1; then
+  fail_json 3 "GitHub Copilot returned invalid JSON."
+  exit 0
+fi
 
-def used_from_remaining($snapshot):
-  (100 - (($snapshot.percent_remaining // 0) | tonumber)) | clamp;
-
-def nonzero_or_null:
-  if . == null or . == 0 or . == "0" then null else . end;
-
-# Prefer the integer `remaining` field over the float `quota_remaining`
-# so the UI shows clean whole credits (e.g. 190, not 190.7).
-def remaining_value($snapshot):
-  (($snapshot.remaining // $snapshot.quota_remaining // null) | if . == null then null elif . < 0 then 0 else . end);
-
-# jq `//` treats both `null` AND `false` as empty, so `false // null`
-# collapses to null. Use `has(...)` to preserve a literal `false`.
-def field_or_null($snapshot; $name):
-  if ($snapshot | has($name)) then $snapshot[$name] else null end;
-
-def window($label; $minutes; $snapshot; $reset):
-  if $snapshot == null then null else
-    (remaining_value($snapshot)) as $rem
-    | (field_or_null($snapshot; "entitlement") | nonzero_or_null) as $ent
-    | {
-        usedPercent: used_from_remaining($snapshot),
-        windowMinutes: $minutes,
-        resetsAt: (($snapshot.quota_reset_at | nonzero_or_null) // $reset // null),
-        resetDescription: $label,
-        remaining: $rem,
-        entitlement: $ent,
-        unlimited: ($snapshot.unlimited // false),
-        hasQuota: field_or_null($snapshot; "has_quota"),
-        tokenBased: ($snapshot.token_based_billing // false),
-        # Surface "used/total" credits in the card when the snapshot is a
-        # bounded quota (e.g. premium_interactions). Unlimited windows fall
-        # back to the percentage display in the widget.
-        displayValue: (
-          if ($snapshot.unlimited // false) then null
-          elif $rem != null and $ent != null then "\($ent - $rem)/\($ent)"
-          else null
-          end
-        )
-      } end;
-
-. as $data
-| ($data.quota_snapshots // {}) as $snapshots
-| ($data.quota_reset_date_utc // $data.quota_reset_date // null) as $reset
-| {
-    provider: "copilot",
-    source: "github-copilot-api",
-    usage: {
-      identity: {
-        providerID: "copilot",
-        accountEmail: ($data.login // "GitHub"),
-        loginMethod: (($data.copilot_plan // "subscription") | tostring)
+jq -c --arg source "$source_name" --argjson updated_at "$updated_at" '
+  def num($v): ($v // 0 | tonumber? // 0);
+  def nonnegative($v): (num($v) | if . < 0 then 0 else . end);
+  def quota($name): .quota_snapshots[$name] // {};
+  def used_percent($q):
+    if ($q.percent_remaining? != null) then (100 - num($q.percent_remaining))
+    elif ($q.entitlement? != null and num($q.entitlement) > 0) then
+      ((num($q.entitlement) - num($q.remaining)) / num($q.entitlement) * 100)
+    else 0 end;
+  def display($q):
+    if ($q.remaining? != null and $q.entitlement? != null) then
+      ((nonnegative($q.remaining) | tostring) + " / " + (num($q.entitlement) | tostring) + " remaining")
+    elif ($q.percent_remaining? != null) then
+      ((num($q.percent_remaining) | tostring) + "% remaining")
+    else "Usage available" end;
+  (quota("premium_interactions")) as $premium
+  | (quota("chat")) as $chat
+  | (quota("completions")) as $completions
+  | {
+      provider:"copilot",
+      source:$source,
+      usage:{
+        identity:{
+          providerID:"copilot",
+          accountEmail:(.login // .copilot_plan // "GitHub Copilot"),
+          loginMethod:"github-token"
+        },
+        accountEmail:(.login // .copilot_plan // "GitHub Copilot"),
+        loginMethod:"github-token",
+        primary:{
+          usedPercent:used_percent($premium),
+          windowMinutes:43200,
+          resetsAt:($premium.reset_date // null),
+          resetDescription:"Premium requests",
+          displayValue:display($premium)
+        },
+        secondary:{
+          usedPercent:used_percent($chat),
+          windowMinutes:43200,
+          resetsAt:($chat.reset_date // null),
+          resetDescription:"Chat",
+          displayValue:display($chat)
+        },
+        tertiary:{
+          usedPercent:used_percent($completions),
+          windowMinutes:43200,
+          resetsAt:($completions.reset_date // null),
+          resetDescription:"Completions",
+          displayValue:display($completions)
+        },
+        updatedAt:($updated_at | todateiso8601)
       },
-      primary: window("Premium"; 43200; $snapshots.premium_interactions; $reset),
-      secondary: window("Chat"; 43200; $snapshots.chat; $reset),
-      tertiary: window("Completions"; 43200; $snapshots.completions; $reset),
-      accountEmail: ($data.login // "GitHub"),
-      loginMethod: (($data.copilot_plan // "subscription") | tostring),
-      updatedAt: (now | todateiso8601)
-    },
-    credits: {
-      remaining: (
-        ($snapshots.premium_interactions) as $p
-        | if ($p.unlimited // false) then "unlimited"
-          else
-            (remaining_value($p)) as $rem
-            | (field_or_null($p; "entitlement") | nonzero_or_null) as $ent
-            | if $rem == null then "—"
-              elif $ent != null then "\($rem)/\($ent)"
-              else ($rem | tostring)
-              end
-          end
-      )
+      credits:{
+        remaining:(
+          if ($premium.remaining? != null) then (nonnegative($premium.remaining) | tostring)
+          elif ($premium.percent_remaining? != null) then ((num($premium.percent_remaining) | tostring) + "%")
+          else "Active" end
+        )
+      }
     }
-  }
 ' "$tmp_body"
