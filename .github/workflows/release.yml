@@ -50,7 +50,7 @@ jobs:
           from pathlib import Path
           base = set(json.loads(Path('i18n/en.json').read_text()).keys())
           errors = []
-          for locale in ('pt_BR', 'zh_CN'):
+          for locale in ('pt_BR', 'zh_CN', 'es_ES', 'de_DE'):
               keys = set(json.loads(Path(f'i18n/{locale}.json').read_text()).keys())
               missing = sorted(base - keys)
               if missing:

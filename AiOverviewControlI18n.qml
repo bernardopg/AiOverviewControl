@@ -27,12 +27,16 @@ QtObject {
         const lower = raw.toLowerCase();
         if (lower.indexOf("pt") === 0) return "pt_BR";
         if (lower.indexOf("zh") === 0) return "zh_CN";
+        if (lower.indexOf("es") === 0) return "es_ES";
+        if (lower.indexOf("de") === 0) return "de_DE";
         return "en_US";
     }
 
     function bundleFile(locale) {
         if (locale === "pt_BR") return "i18n/pt_BR.json";
         if (locale === "zh_CN") return "i18n/zh_CN.json";
+        if (locale === "es_ES") return "i18n/es_ES.json";
+        if (locale === "de_DE") return "i18n/de_DE.json";
         return "i18n/en.json";
     }
 

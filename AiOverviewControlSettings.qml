@@ -12,6 +12,28 @@ PluginSettings {
 
     readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
     property var selectedIds: normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"))
+    property var pinnedIds: normalizeCsvList(loadValue("pinnedProviders", ""))
+
+    function normalizeCsvList(value) {
+        const parts = String(value || "").split(",");
+        const result = [];
+        for (let i = 0; i < parts.length; i++) {
+            const id = parts[i].trim().toLowerCase();
+            if (id.length > 0 && result.indexOf(id) < 0) result.push(id);
+        }
+        return result;
+    }
+
+    function isPinned(id) { return pinnedIds.indexOf(id) >= 0; }
+
+    function togglePinned(id) {
+        const result = pinnedIds.slice();
+        const index = result.indexOf(id);
+        if (index >= 0) result.splice(index, 1);
+        else result.push(id);
+        pinnedIds = result;
+        saveValue("pinnedProviders", result.join(","));
+    }
     property var providerHealth: ({})
     property string healthBuffer: ""
     property string healthScript: ""
@@ -215,7 +237,7 @@ PluginSettings {
                             StyledText {
                                 id: versionLabel
                                 anchors.centerIn: parent
-                                text: "v1.3.0"
+                                text: "v1.4.0"
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
@@ -281,8 +303,8 @@ PluginSettings {
         text: t("settings.language.label", "Language")
         description: t("settings.language.description", "UI language for this plugin. Auto follows system locale.")
         currentValue: loadValue("languageOverride", "auto")
-        options: ["auto", "en_US", "pt_BR", "zh_CN"]
-        optionIcons: ["language", "translate", "translate", "translate"]
+        options: ["auto", "en_US", "pt_BR", "zh_CN", "es_ES", "de_DE"]
+        optionIcons: ["language", "translate", "translate", "translate", "translate", "translate"]
         dropdownWidth: 220
         onValueChanged: function(value) { saveValue("languageOverride", value); }
     }
@@ -364,6 +386,46 @@ PluginSettings {
         optionIcons: ["notifications", "notifications_active", "notification_important"]
         dropdownWidth: 160
         onValueChanged: function(value) { saveValue("notifyThreshold", value); }
+    }
+
+    Column {
+        visible: notifyToggle.checked
+        width: parent.width
+        spacing: Theme.spacingXS
+
+        StyledText {
+            width: parent.width
+            text: t("settings.notify.overrides", "Per-provider threshold overrides")
+            color: Theme.surfaceText
+            font.pixelSize: Theme.fontSizeSmall
+            font.weight: Font.Medium
+        }
+
+        StyledText {
+            width: parent.width
+            text: t("settings.notify.overrides_desc", "Comma-separated provider:percent pairs that beat the global threshold.")
+            wrapMode: Text.WordWrap
+            color: Theme.surfaceVariantText
+            font.pixelSize: Theme.fontSizeSmall - 1
+        }
+
+        DankTextField {
+            width: parent.width
+            placeholderText: "claude:90,codex:75"
+            text: loadValue("notifyThresholds", "")
+            onEditingFinished: saveValue("notifyThresholds", text.trim())
+        }
+    }
+
+    DankDropdown {
+        width: parent.width
+        text: t("settings.history_retention", "Usage history retention")
+        description: t("settings.history_retention_desc", "Snapshots kept per trim of the local usage history (sparklines and trends).")
+        currentValue: loadValue("historyRetention", "2000")
+        options: ["500", "2000", "10000"]
+        optionIcons: ["history", "history", "history"]
+        dropdownWidth: 160
+        onValueChanged: function(value) { saveValue("historyRetention", value); }
     }
 
     ProviderSection {
@@ -678,6 +740,16 @@ PluginSettings {
 
                         StyledText { Layout.preferredWidth:100; text:modelData.name; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeSmall; font.weight:Font.Medium; elide:Text.ElideRight }
                         StyledText { Layout.fillWidth:true; text:modelData.note; wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall - 1 }
+
+                        DankActionButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            buttonSize: 26
+                            iconName: root.isPinned(providerDetailRow.modelData.id) ? "star" : "star_border"
+                            iconColor: root.isPinned(providerDetailRow.modelData.id) ? Theme.primary : Theme.surfaceVariantText
+                            backgroundColor: "transparent"
+                            tooltipText: t("settings.pin_provider", "Pin to top of dashboard")
+                            onClicked: root.togglePinned(providerDetailRow.modelData.id)
+                        }
 
                         Rectangle {
                             Layout.alignment: Qt.AlignVCenter

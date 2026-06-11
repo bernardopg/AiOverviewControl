@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Emits {"<provider>": [pct, ...], ...} with up to the last 30 usage snapshots
-# per provider, oldest first. Snapshots are appended by get-provider-usage.
+# Emits {"<provider>": [{t: epochSeconds, p: pct}, ...], ...} with up to the
+# last 30 usage snapshots per provider, oldest first. Snapshots are appended
+# by get-provider-usage.
 HISTORY_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/usage-history.jsonl"
 
 if [ ! -f "$HISTORY_FILE" ]; then
@@ -12,6 +13,6 @@ fi
 
 jq -cs '
   group_by(.provider)
-  | map({key: .[0].provider, value: (sort_by(.ts) | map(.pct) | .[-30:])})
+  | map({key: .[0].provider, value: (sort_by(.ts) | map({t: .ts, p: .pct}) | .[-30:])})
   | from_entries
 ' "$HISTORY_FILE" 2>/dev/null || printf '{}'

@@ -35,6 +35,7 @@ WEEK_MESSAGES=0
 WEEK_SESSIONS=0
 MONTH_TOKENS=0
 WEEK_MODELS=""
+WEEK_MODEL_COSTS=""
 WEEK_PROJECTS=""
 DAILY="0,0,0,0,0,0,0"
 
@@ -189,6 +190,7 @@ if [ -d "$PROJECTS_DIR" ]; then
             MONTH_TOKENS) MONTH_TOKENS="$value" ;;
             DAILY) DAILY="$value" ;;
             WEEK_MODELS) WEEK_MODELS="$value" ;;
+            WEEK_MODEL_COSTS) WEEK_MODEL_COSTS="$value" ;;
             TODAY_COST) TODAY_COST="$value" ;;
             WEEK_COST) WEEK_COST="$value" ;;
             MONTH_COST) MONTH_COST="$value" ;;
@@ -244,7 +246,10 @@ if [ -d "$PROJECTS_DIR" ]; then
             if (has_pricing && (family in price_in)) {
                 cost = inp * price_in[family] + out * price_out[family] + cr * price_cr[family] + cw * price_cw[family]
                 day_cost[date] += cost
-                if (date >= week_start) week_cost += cost
+                if (date >= week_start) {
+                    week_cost += cost
+                    week_model_cost[family] += cost
+                }
                 if (date >= month_start) month_cost += cost
             }
         }
@@ -271,6 +276,16 @@ if [ -d "$PROJECTS_DIR" ]; then
                 }
             }
             printf "WEEK_MODELS=%s\n", models
+
+            model_costs = ""
+            first = 1
+            for (m in week_model_cost) {
+                if (week_model_cost[m] > 0) {
+                    model_costs = model_costs (first ? "" : ",") m ":" sprintf("%.2f", week_model_cost[m])
+                    first = 0
+                }
+            }
+            printf "WEEK_MODEL_COSTS=%s\n", model_costs
 
             # Cost outputs
             daily_costs = ""
@@ -331,6 +346,7 @@ echo "WEEK_MESSAGES=${WEEK_MESSAGES}"
 echo "WEEK_SESSIONS=${WEEK_SESSIONS}"
 echo "WEEK_TOKENS=${WEEK_TOKENS}"
 echo "WEEK_MODELS=${WEEK_MODELS}"
+echo "WEEK_MODEL_COSTS=${WEEK_MODEL_COSTS}"
 echo "WEEK_PROJECTS=${WEEK_PROJECTS}"
 echo "ALLTIME_SESSIONS=${ALLTIME_SESSIONS}"
 echo "ALLTIME_MESSAGES=${ALLTIME_MESSAGES}"

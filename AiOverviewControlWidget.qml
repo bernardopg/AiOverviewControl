@@ -44,6 +44,28 @@ PluginComponent {
         return Number.isFinite(parsed) && parsed > 0 && parsed <= 100 ? parsed : 85;
     }
     property bool showClaudeProjects: String(pluginData.showClaudeProjects ?? "true") === "true"
+    // Per-provider overrides: "claude:90,codex:75" beats the global threshold.
+    readonly property var notifyThresholdOverrides: {
+        const raw = String(pluginData.notifyThresholds || "").trim();
+        const map = {};
+        if (raw.length === 0) return map;
+        const pairs = raw.split(",");
+        for (let i = 0; i < pairs.length; i++) {
+            const kv = pairs[i].split(":");
+            if (kv.length !== 2) continue;
+            const id = kv[0].trim().toLowerCase();
+            const value = parseInt(kv[1].trim());
+            if (id.length > 0 && Number.isFinite(value) && value > 0 && value <= 100) {
+                map[id] = value;
+            }
+        }
+        return map;
+    }
+
+    function thresholdFor(providerId) {
+        const override = notifyThresholdOverrides[normalizeProviderId(providerId)];
+        return override !== undefined ? override : notifyThreshold;
+    }
     property string pinnedProvidersCsv: (pluginData.pinnedProviders || "").trim()
     readonly property var pinnedProviders: {
         const parts = pinnedProvidersCsv.split(",");
@@ -803,7 +825,24 @@ PluginComponent {
                 for (let i = 0; i < pairs.length; i++) {
                     const kv = pairs[i].split(":");
                     if (kv.length === 2) {
-                        claudeModelList.append({ modelName: capitalizeFirst(kv[0]), modelTokens: Number(kv[1] || 0) });
+                        claudeModelList.append({ modelName: capitalizeFirst(kv[0]), modelTokens: Number(kv[1] || 0), modelCost: 0 });
+                    }
+                }
+            }
+        }
+        else if (key === "WEEK_MODEL_COSTS") {
+            // Arrives after WEEK_MODELS: enrich the already-built model rows.
+            if (val.length > 0) {
+                const pairs = val.split(",");
+                for (let i = 0; i < pairs.length; i++) {
+                    const kv = pairs[i].split(":");
+                    if (kv.length !== 2) continue;
+                    const name = capitalizeFirst(kv[0]);
+                    for (let j = 0; j < claudeModelList.count; j++) {
+                        if (claudeModelList.get(j).modelName === name) {
+                            claudeModelList.setProperty(j, "modelCost", Number(kv[1] || 0));
+                            break;
+                        }
                     }
                 }
             }
@@ -832,22 +871,32 @@ PluginComponent {
         return `${Math.floor(hours / 24)}d ${hours % 24}h`;
     }
 
-    // Burn-rate forecast for the Claude 5h window: utilization so far divided
-    // by elapsed window time, extrapolated to 100%.
-    readonly property var claudeBurnForecast: {
-        if (!claudeFiveHourReset || claudeFiveHourUtil <= 0) return null;
-        const resetMs = new Date(claudeFiveHourReset).getTime();
+    // Burn-rate forecast for a rolling window: utilization so far divided by
+    // elapsed window time, extrapolated to 100%.
+    function windowBurnForecast(util, resetIso, windowMinutes) {
+        if (!resetIso || util <= 0) return null;
+        const resetMs = new Date(resetIso).getTime();
         if (!Number.isFinite(resetMs)) return null;
         const remainMin = Math.max(0, (resetMs - Date.now()) / 60000);
-        if (remainMin <= 0 || remainMin >= 300) return null;
-        const elapsedMin = Math.max(1, 300 - remainMin);
-        const rate = claudeFiveHourUtil / elapsedMin;
+        if (remainMin <= 0 || remainMin >= windowMinutes) return null;
+        const elapsedMin = Math.max(1, windowMinutes - remainMin);
+        const rate = util / elapsedMin;
         if (rate <= 0) return null;
-        const minTo100 = (100 - claudeFiveHourUtil) / rate;
+        const minTo100 = (100 - util) / rate;
         if (minTo100 <= remainMin) {
             return { exceed: true, text: t("claude.burn_pace_exceed", "At this pace: 100% in {time}", { time: formatMinutes(minTo100) }) };
         }
         return { exceed: false, text: t("claude.burn_pace_ok", "Usage on pace for this window") };
+    }
+
+    readonly property var claudeBurnForecast: {
+        staleTickMs;
+        return windowBurnForecast(claudeFiveHourUtil, claudeFiveHourReset, 300);
+    }
+
+    readonly property var claudeWeekBurnForecast: {
+        staleTickMs;
+        return windowBurnForecast(claudeSevenDayUtil, claudeSevenDayReset, 10080);
     }
 
     readonly property real claudeMonthProjection: {
@@ -921,10 +970,14 @@ PluginComponent {
     }
 
     // Trend over the last two recorded snapshots: "up" | "down" | "flat" | "".
+    function historyPercent(entry) {
+        return Number(entry && entry.p !== undefined ? entry.p : entry) || 0;
+    }
+
     function providerTrend(providerId) {
         const history = usageHistory[normalizeProviderId(providerId)];
         if (!history || history.length < 2) return "";
-        const delta = Number(history[history.length - 1]) - Number(history[history.length - 2]);
+        const delta = historyPercent(history[history.length - 1]) - historyPercent(history[history.length - 2]);
         if (delta >= 1) return "up";
         if (delta <= -1) return "down";
         return "flat";
@@ -946,9 +999,10 @@ PluginComponent {
             const windowData = primaryUsageWindow(provider);
             if (!windowData) continue;
             const percent = Number(windowData.usedPercent || 0);
+            const threshold = thresholdFor(provider.provider);
             // Key includes the reset timestamp so a new window re-arms the alert.
-            const dedupeKey = `${provider.provider}:${windowData.resetsAt || "static"}:${notifyThreshold}`;
-            if (percent >= notifyThreshold && !seen[dedupeKey]) {
+            const dedupeKey = `${provider.provider}:${windowData.resetsAt || "static"}:${threshold}`;
+            if (percent >= threshold && !seen[dedupeKey]) {
                 seen[dedupeKey] = true;
                 const reset = formatTimeUntil(windowData.resetsAt);
                 const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
@@ -1024,9 +1078,15 @@ PluginComponent {
     // undefined and would scramble the fetch).
     property var usageCommand: ["bash", root.providerUsageScript, root.selectedProviders.join(","), root.copilotUsageScript]
 
+    property string historyRetention: {
+        const parsed = parseInt(pluginData.historyRetention || "2000");
+        return String(Number.isFinite(parsed) && parsed >= 50 ? parsed : 2000);
+    }
+
     Process {
         id: procUsage
         command: root.usageCommand
+        environment: { "AIOC_HISTORY_MAX": root.historyRetention }
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => root.rawJsonBuffer += data
@@ -1597,52 +1657,109 @@ PluginComponent {
         }
     }
 
-    component Sparkline: Canvas {
+    component Sparkline: Item {
         id: spark
 
+        // Points are {t: epochSeconds, p: percent} objects, oldest first.
         property var points: []
         property color lineColor: Theme.primary
+        property int hoverIndex: -1
 
-        onPointsChanged: requestPaint()
-        onLineColorChanged: requestPaint()
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
+        readonly property real pad: 3
+        readonly property real stepX: points && points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.reset();
-            const pts = points || [];
-            if (pts.length < 2 || width <= 4 || height <= 4) return;
-            const pad = 3;
-            const w = width - pad * 2;
-            const h = height - pad * 2;
-            let max = 10;
-            for (let i = 0; i < pts.length; i++) max = Math.max(max, Number(pts[i]) || 0);
-            const stepX = w / (pts.length - 1);
-            const yFor = v => pad + h - (Math.max(0, Math.min(max, Number(v) || 0)) / max) * h;
+        function pointPercent(index) {
+            const entry = (points || [])[index];
+            return Number(entry && entry.p !== undefined ? entry.p : entry) || 0;
+        }
 
-            ctx.beginPath();
-            ctx.moveTo(pad, yFor(pts[0]));
-            for (let i = 1; i < pts.length; i++) ctx.lineTo(pad + i * stepX, yFor(pts[i]));
-            const line = String(spark.lineColor);
-            ctx.strokeStyle = line;
-            ctx.lineWidth = 2;
-            ctx.lineJoin = "round";
-            ctx.lineCap = "round";
-            ctx.stroke();
+        function pointTime(index) {
+            const entry = (points || [])[index];
+            return entry && entry.t ? Number(entry.t) * 1000 : 0;
+        }
 
-            // Soft area fill under the line
-            ctx.lineTo(pad + w, pad + h);
-            ctx.lineTo(pad, pad + h);
-            ctx.closePath();
-            ctx.fillStyle = Qt.rgba(spark.lineColor.r, spark.lineColor.g, spark.lineColor.b, 0.12);
-            ctx.fill();
+        onPointsChanged: sparkCanvas.requestPaint()
+        onLineColorChanged: sparkCanvas.requestPaint()
+        onHoverIndexChanged: sparkCanvas.requestPaint()
+        onWidthChanged: sparkCanvas.requestPaint()
+        onHeightChanged: sparkCanvas.requestPaint()
 
-            // Last-point dot
-            ctx.beginPath();
-            ctx.arc(pad + (pts.length - 1) * stepX, yFor(pts[pts.length - 1]), 2.6, 0, Math.PI * 2);
-            ctx.fillStyle = line;
-            ctx.fill();
+        Canvas {
+            id: sparkCanvas
+            anchors.fill: parent
+
+            onPaint: {
+                const ctx = getContext("2d");
+                ctx.reset();
+                const pts = spark.points || [];
+                if (pts.length < 2 || width <= 4 || height <= 4) return;
+                const pad = spark.pad;
+                const w = width - pad * 2;
+                const h = height - pad * 2;
+                let max = 10;
+                for (let i = 0; i < pts.length; i++) max = Math.max(max, spark.pointPercent(i));
+                const stepX = w / (pts.length - 1);
+                const yFor = v => pad + h - (Math.max(0, Math.min(max, v)) / max) * h;
+
+                ctx.beginPath();
+                ctx.moveTo(pad, yFor(spark.pointPercent(0)));
+                for (let i = 1; i < pts.length; i++) ctx.lineTo(pad + i * stepX, yFor(spark.pointPercent(i)));
+                const line = String(spark.lineColor);
+                ctx.strokeStyle = line;
+                ctx.lineWidth = 2;
+                ctx.lineJoin = "round";
+                ctx.lineCap = "round";
+                ctx.stroke();
+
+                // Soft area fill under the line
+                ctx.lineTo(pad + w, pad + h);
+                ctx.lineTo(pad, pad + h);
+                ctx.closePath();
+                ctx.fillStyle = Qt.rgba(spark.lineColor.r, spark.lineColor.g, spark.lineColor.b, 0.12);
+                ctx.fill();
+
+                // Highlighted (hovered) or last point dot
+                const dotIndex = spark.hoverIndex >= 0 && spark.hoverIndex < pts.length ? spark.hoverIndex : pts.length - 1;
+                ctx.beginPath();
+                ctx.arc(pad + dotIndex * stepX, yFor(spark.pointPercent(dotIndex)), spark.hoverIndex >= 0 ? 3.4 : 2.6, 0, Math.PI * 2);
+                ctx.fillStyle = line;
+                ctx.fill();
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.NoButton
+            onPositionChanged: mouse => {
+                if (spark.stepX <= 0) return;
+                const index = Math.round((mouse.x - spark.pad) / spark.stepX);
+                spark.hoverIndex = Math.max(0, Math.min((spark.points || []).length - 1, index));
+            }
+            onExited: spark.hoverIndex = -1
+        }
+
+        Rectangle {
+            visible: spark.hoverIndex >= 0
+            x: Math.max(0, Math.min(parent.width - width, spark.pad + spark.hoverIndex * spark.stepX - width / 2))
+            y: -height - 2
+            implicitWidth: hoverLabel.implicitWidth + Theme.spacingS * 2
+            implicitHeight: 20
+            radius: 10
+            color: Theme.surfaceContainerHighest
+            border.width: 1
+            border.color: Theme.withAlpha(spark.lineColor, 0.4)
+
+            StyledText {
+                id: hoverLabel
+                anchors.centerIn: parent
+                text: spark.hoverIndex >= 0
+                    ? `${Math.round(spark.pointPercent(spark.hoverIndex))}%${spark.pointTime(spark.hoverIndex) > 0 ? " · " + Qt.formatDateTime(new Date(spark.pointTime(spark.hoverIndex)), "hh:mm") : ""}`
+                    : ""
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeSmall - 1
+                font.weight: Font.DemiBold
+            }
         }
     }
 
@@ -1974,11 +2091,42 @@ PluginComponent {
             return updated > 0 && (Date.now() - updated) > root.refreshIntervalMs * 2;
         }
 
+        function toggleExpanded() {
+            if (root.allExpanded) {
+                root.allExpanded = false;
+                root.focusedProviderId = card.provider.provider;
+                return;
+            }
+            root.focusedProviderId = card.expanded ? "" : card.provider.provider;
+        }
+
         width: parent ? parent.width : implicitWidth
         radius: Theme.cornerRadius + 4
         color: expanded ? Theme.surfaceContainerHigh : (hovered ? Theme.surfaceContainerHigh : Theme.surfaceContainer)
         border.width: 1
-        border.color: provider && provider.error ? Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16) : Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.12))
+        border.color: {
+            if (card.activeFocus) return Theme.primary;
+            if (provider && provider.error) return Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16);
+            return Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.12));
+        }
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: root.providerName(provider ? provider.provider : "")
+        Accessible.description: root.providerSubtitle(provider)
+        Keys.onReturnPressed: toggleExpanded()
+        Keys.onSpacePressed: toggleExpanded()
+        Keys.onDeletePressed: {
+            if (root.selectedProviders.length > 1) root.removeProvider(card.provider.provider);
+        }
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_P) {
+                root.togglePin(card.provider.provider);
+                event.accepted = true;
+            } else if (event.key === Qt.Key_R && card.provider.error) {
+                root.retryProvider(card.provider.provider);
+                event.accepted = true;
+            }
+        }
         implicitHeight: cardColumn.implicitHeight + (card.dense ? Theme.spacingS : (card.compact ? Theme.spacingM : Theme.spacingL)) * 2
         clip: true
         scale: hovered ? 1.006 : 1.0
@@ -2341,6 +2489,26 @@ PluginComponent {
                             accentColor: root.getUsageColor(root.claudeSevenDayUtil)
                         }
 
+                        Row {
+                            visible: !!root.claudeWeekBurnForecast && root.claudeWeekBurnForecast.exceed
+                            spacing: Theme.spacingXS
+
+                            DankIcon {
+                                name: "local_fire_department"
+                                size: 14
+                                color: Theme.error
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            StyledText {
+                                text: root.claudeWeekBurnForecast ? root.claudeWeekBurnForecast.text : ""
+                                color: Theme.error
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.DemiBold
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
                         UsageBar {
                             width: parent.width
                             label: "5h"
@@ -2407,10 +2575,11 @@ PluginComponent {
                                 UsageBar {
                                     required property string modelName
                                     required property real modelTokens
+                                    required property real modelCost
                                     width: parent.width
                                     label: modelName
                                     percent: root.claudeWeekTokens > 0 ? (modelTokens / root.claudeWeekTokens) * 100 : 0
-                                    aside: root.formatTokens(modelTokens)
+                                    aside: modelCost > 0 ? `${root.formatTokens(modelTokens)} · ${root.formatCost(modelCost)}` : root.formatTokens(modelTokens)
                                     accentColor: Theme.warning
                                 }
                             }
@@ -2527,12 +2696,8 @@ PluginComponent {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
-                if (root.allExpanded) {
-                    root.allExpanded = false;
-                    root.focusedProviderId = card.provider.provider;
-                    return;
-                }
-                root.focusedProviderId = card.expanded ? "" : card.provider.provider;
+                card.forceActiveFocus();
+                card.toggleExpanded();
             }
         }
     }

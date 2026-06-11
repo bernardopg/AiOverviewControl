@@ -231,14 +231,35 @@ fetch_openrouter_native() {
     return 0
   fi
 
-  jq -c '
+  # Optional documented per-model rollup; failures leave an empty list and the
+  # tertiary window falls back to the monthly spend figure.
+  local tmp_activity
+  tmp_activity="$(mktemp)"
+  curl -sS --max-time 8 \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://openrouter.ai/api/v1/activity" 2>/dev/null \
+    | jq -c '{data: (.data // [])}' >"$tmp_activity" 2>/dev/null \
+    || printf '{"data":[]}' >"$tmp_activity"
+
+  jq -c --slurpfile activity "$tmp_activity" '
     def num($v): ($v // 0 | tonumber? // 0);
     def pct($used; $limit):
       if num($limit) > 0 then
         ((num($used) / num($limit)) * 100)
         | if . < 0 then 0 elif . > 100 then 100 else . end
       else 0 end;
-    .data as $d
+    def money($v): "$" + (((num($v) * 100 | round) / 100) | tostring);
+    def short_model($m):
+      ($m // "" | split("/") | last // "") | .[0:24];
+    (
+      [($activity[0].data // [])[]]
+      | group_by(.model)
+      | map({model: .[0].model, usage: (map(num(.usage)) | add)})
+      | sort_by(-.usage)
+      | .[0:2]
+    ) as $top_models
+    | .data as $d
     | ($d.label // $d.name // "OpenRouter API key") as $label
     | ($d.limit // null) as $limit
     | (if $d.limit_remaining != null then num($d.limit_remaining)
@@ -273,13 +294,21 @@ fetch_openrouter_native() {
           resetDescription:"Spent today",
           displayValue:("$" + (num($d.usage_daily) | tostring))
         },
-        tertiary:{
-          usedPercent:0,
-          windowMinutes:43200,
-          resetsAt:null,
-          resetDescription:"Spent this month",
-          displayValue:("$" + (num($d.usage_monthly) | tostring))
-        },
+        tertiary:(
+          if ($top_models | length) > 0 then {
+            usedPercent:0,
+            windowMinutes:43200,
+            resetsAt:null,
+            resetDescription:"Top models (30d)",
+            displayValue:($top_models | map(short_model(.model) + " " + money(.usage)) | join(" · "))
+          } else {
+            usedPercent:0,
+            windowMinutes:43200,
+            resetsAt:null,
+            resetDescription:"Spent this month",
+            displayValue:("$" + (num($d.usage_monthly) | tostring))
+          } end
+        ),
         updatedAt:(now|todateiso8601)
       },
       credits:{
@@ -292,7 +321,7 @@ fetch_openrouter_native() {
       }
     }
   ' "$tmp_body"
-  rm -f "$tmp_body"
+  rm -f "$tmp_body" "$tmp_activity"
 }
 
 fetch_9router_native() {
@@ -676,6 +705,66 @@ fetch_cloudflare_native() {
     return 0
   fi
   rm -f "$tmp_body"
+
+  # With an account id we can read documented Workers AI analytics via the
+  # GraphQL aiInferenceAdaptiveGroups dataset. Schema drift or missing
+  # permissions degrade gracefully to the token-verified note card.
+  if [ -n "$account" ]; then
+    local tmp_graph graph_status start_date end_date
+    tmp_graph="$(mktemp)"
+    end_date="$(date +%Y-%m-%d)"
+    start_date="$(date -d '6 days ago' +%Y-%m-%d)"
+    graph_status="$(jq -cn --arg tag "$account" --arg start "$start_date" --arg end "$end_date" '
+      {
+        query: "query($tag: string!, $start: Date!, $end: Date!) { viewer { accounts(filter: {accountTag: $tag}) { aiInferenceAdaptiveGroups(limit: 1000, filter: {date_geq: $start, date_leq: $end}) { sum { requests neurons } dimensions { date } } } } }",
+        variables: {tag: $tag, start: $start, end: $end}
+      }' | curl -sS --max-time 8 -o "$tmp_graph" -w '%{http_code}' \
+        -H "Authorization: Bearer ${token}" \
+        -H "Content-Type: application/json" \
+        --data @- \
+        "https://api.cloudflare.com/client/v4/graphql" 2>/dev/null || true)"
+
+    if [ "$graph_status" = "200" ] \
+      && jq -e '(.errors // []) == [] and (.data.viewer.accounts[0].aiInferenceAdaptiveGroups | type == "array")' "$tmp_graph" >/dev/null 2>&1; then
+      jq -c --arg account "$account" '
+        def num($v): ($v // 0 | tonumber? // 0);
+        (.data.viewer.accounts[0].aiInferenceAdaptiveGroups) as $groups
+        | (reduce $groups[] as $g ({requests: 0, neurons: 0};
+            .requests += num($g.sum.requests) | .neurons += num($g.sum.neurons))) as $total
+        | ($groups | sort_by(.dimensions.date) | last) as $latest
+        | {
+            provider: "cloudflare",
+            source: "cloudflare-graphql",
+            usage: {
+              identity: {providerID: "cloudflare", accountEmail: ("Account " + $account), loginMethod: "api-token"},
+              accountEmail: ("Account " + $account),
+              loginMethod: "api-token",
+              primary: {
+                usedPercent: 0,
+                windowMinutes: 10080,
+                resetsAt: null,
+                resetDescription: "Workers AI · 7 days",
+                displayValue: (($total.requests | tostring) + " req · " + ($total.neurons | tostring) + " neurons")
+              },
+              secondary: (if $latest != null then {
+                usedPercent: 0,
+                windowMinutes: 1440,
+                resetsAt: null,
+                resetDescription: ("Latest day " + ($latest.dimensions.date // "")),
+                displayValue: ((num($latest.sum.requests) | tostring) + " req · " + (num($latest.sum.neurons) | tostring) + " neurons")
+              } else null end),
+              tertiary: null,
+              updatedAt: (now | todateiso8601)
+            },
+            credits: {remaining: "dash.cloudflare.com"}
+          }
+      ' "$tmp_graph"
+      rm -f "$tmp_graph"
+      return 0
+    fi
+    rm -f "$tmp_graph"
+  fi
+
   [ -n "$account" ] || account="unknown"
   json_note_usage cloudflare cloudflare-api "Cloudflare account ${account}" "api-token" "Token verified; Workers AI usage is available in dashboard analytics" "dash.cloudflare.com"
 }
@@ -1044,6 +1133,12 @@ record_history() {
   local history_dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
   local history_file="$history_dir/usage-history.jsonl"
   mkdir -p "$history_dir" 2>/dev/null || return 0
+  # Retention: AIOC_HISTORY_MAX snapshots kept after trim (default 2000); the
+  # trim itself only kicks in past 2x that to avoid rewriting on every run.
+  local max_lines="${AIOC_HISTORY_MAX:-2000}"
+  case "$max_lines" in ''|*[!0-9]*) max_lines=2000 ;; esac
+  [ "$max_lines" -ge 50 ] || max_lines=50
+
   local now idx file line
   now="$(date +%s)"
   for idx in "${!normalized_providers[@]}"; do
@@ -1054,8 +1149,8 @@ record_history() {
       "$file" 2>/dev/null || true)"
     [ -n "$line" ] && printf '%s\n' "$line" >> "$history_file"
   done
-  if [ -f "$history_file" ] && [ "$(wc -l < "$history_file")" -gt 4000 ]; then
-    tail -n 2000 "$history_file" > "$history_file.tmp" && mv -f "$history_file.tmp" "$history_file"
+  if [ -f "$history_file" ] && [ "$(wc -l < "$history_file")" -gt "$((max_lines * 2))" ]; then
+    tail -n "$max_lines" "$history_file" > "$history_file.tmp" && mv -f "$history_file.tmp" "$history_file"
   fi
   return 0
 }

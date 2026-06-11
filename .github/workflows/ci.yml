@@ -71,14 +71,14 @@ jobs:
             }
           done
 
-      - name: Validate i18n key parity (pt_BR, zh_CN must match en)
+      - name: Validate i18n key parity (all locales must match en)
         run: |
           python3 - <<'PY'
           import json, sys
           from pathlib import Path
           base = set(json.loads(Path('i18n/en.json').read_text()).keys())
           errors = []
-          for locale in ('pt_BR', 'zh_CN'):
+          for locale in ('pt_BR', 'zh_CN', 'es_ES', 'de_DE'):
               keys = set(json.loads(Path(f'i18n/{locale}.json').read_text()).keys())
               missing = sorted(base - keys)
               extra   = sorted(keys - base)
@@ -273,6 +273,44 @@ jobs:
             type == "array" and length == 2 and
             all(.[]; has("provider") and has("status") and has("detail"))
           ' >/dev/null
+
+      - name: Integration test — usage history round-trip
+        run: |
+          XDG_CACHE_HOME="$(mktemp -d)"
+          export XDG_CACHE_HOME
+          HIST_DIR="$XDG_CACHE_HOME/AiOverviewControl"
+          mkdir -p "$HIST_DIR"
+
+          # Empty cache → exactly "{}"
+          [ "$(providers/get-usage-history)" = "{}" ] || {
+            echo "::error::get-usage-history must emit {} when no history exists"
+            exit 1
+          }
+
+          # Seed unordered snapshots; aggregation must sort by ts and group by provider
+          printf '%s\n' \
+            '{"ts":200,"provider":"codex","pct":20}' \
+            '{"ts":100,"provider":"codex","pct":10}' \
+            '{"ts":150,"provider":"claude","pct":5.5}' \
+            > "$HIST_DIR/usage-history.jsonl"
+          OUT="$(providers/get-usage-history)"
+          echo "$OUT" | jq --exit-status '
+            (.codex | length == 2) and
+            .codex[0] == {t:100, p:10} and
+            .codex[1] == {t:200, p:20} and
+            .claude[0] == {t:150, p:5.5}
+          ' >/dev/null || {
+            echo "::error::get-usage-history aggregation mismatch. Output: ${OUT}"
+            exit 1
+          }
+
+          # Dispatcher must append a snapshot for a provider that returns usage
+          providers/get-provider-usage "perplexity" "" >/dev/null
+          grep -q '"provider":"perplexity"' "$HIST_DIR/usage-history.jsonl" || {
+            echo "::error::get-provider-usage did not record a usage snapshot"
+            exit 1
+          }
+          echo "usage history round-trip: OK"
 
       - name: Reject removed aggregation dependency
         run: |

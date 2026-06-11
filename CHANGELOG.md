@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## 1.4.0 - 2026-06-11
+
+### Features
+- Sparkline history points now carry timestamps; hovering shows percent and time per snapshot.
+- Burn-rate forecast extended to the Claude 7-day window (warns only when on track to exhaust before reset).
+- Per-model cost split: weekly model bars show tokens and estimated cost per family (`WEEK_MODEL_COSTS`).
+- Keyboard navigation on provider cards: Tab focus with ring, Enter/Space expand, Delete remove, P pin, R retry; accessible names/descriptions.
+
+### Quality
+- CI integration test for the usage-history pipeline: empty-cache contract, sort/group aggregation, and dispatcher snapshot append.
+
+### Providers
+- Cloudflare: documented Workers AI GraphQL analytics (`aiInferenceAdaptiveGroups`) showing 7-day and latest-day requests/neurons when `CLOUDFLARE_ACCOUNT_ID` is set, with graceful fallback to the token-verified note card.
+- OpenRouter: top-models breakdown (30 days, `/api/v1/activity`) in the tertiary window, falling back to monthly spend when unavailable.
+
+### Settings & i18n
+- Configurable usage-history retention (500/2000/10000 snapshots) passed to the dispatcher via `AIOC_HISTORY_MAX`.
+- Per-provider notification threshold overrides (`claude:90,codex:75`).
+- Pin/unpin providers directly from the settings provider rows.
+- New Spanish (es_ES) and German (de_DE) locales with full key parity; CI and release workflows now validate all four non-English locales.
+- Release checklist added at `docs/release-checklist.md`.
+
 ## 1.3.0 - 2026-06-11
 
 ### Architecture
