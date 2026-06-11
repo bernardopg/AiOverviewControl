@@ -1984,7 +1984,7 @@ PluginComponent {
 
                 StyledText {
                     required property var modelData
-                    text: `${root.providerName(modelData.provider)} ${Math.round(root.providerPercent(modelData))}%`
+                    text: `${Math.round(root.providerPercent(modelData))}%`
                     color: root.getUsageColor(root.providerPercent(modelData))
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.DemiBold
