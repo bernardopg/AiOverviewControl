@@ -1952,7 +1952,7 @@ PluginComponent {
                             width: 7
                             height: 7
                             radius: 3.5
-                            color: pillEntry.usageColor
+                            color: root.providerAccent(pillEntry.modelData.provider)
                             anchors.verticalCenter: parent.verticalCenter
 
                             Behavior on color { ColorAnimation { duration: 200 } }
