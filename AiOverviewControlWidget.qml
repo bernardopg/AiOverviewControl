@@ -25,12 +25,35 @@ PluginComponent {
     property int usageRequestId: 0
     property int timedOutRequestId: -1
     property string providerSelection: (pluginData.providerSelection || "codex,claude,copilot").trim()
-    property bool showErrorProviders: String(pluginData.showErrorProviders || "true") === "true"
+    property bool showErrorProviders: String(pluginData.showErrorProviders ?? "true") === "true"
     property string pillMode: (pluginData.pillMode || "auto")
     property string pillProviders: (pluginData.pillProviders || providerSelection).trim()
     property string densityMode: pluginData.densityMode || "comfortable"
     property string providerFilter: ""
+    property string providerStatusFilter: "all"
     property string focusedProviderId: ""
+    property bool allExpanded: false
+    property var usageHistory: ({})
+    property string historyBuffer: ""
+    property string retryBuffer: ""
+    property string retryingProviderId: ""
+    property var notifiedMap: ({})
+    property bool notifyEnabled: String(pluginData.quotaNotifications ?? "true") === "true"
+    property int notifyThreshold: {
+        const parsed = parseInt(pluginData.notifyThreshold || "85");
+        return Number.isFinite(parsed) && parsed > 0 && parsed <= 100 ? parsed : 85;
+    }
+    property bool showClaudeProjects: String(pluginData.showClaudeProjects ?? "true") === "true"
+    property string pinnedProvidersCsv: (pluginData.pinnedProviders || "").trim()
+    readonly property var pinnedProviders: {
+        const parts = pinnedProvidersCsv.split(",");
+        const result = [];
+        for (let i = 0; i < parts.length; i++) {
+            const id = parts[i].trim().toLowerCase();
+            if (id.length > 0 && result.indexOf(id) < 0) result.push(id);
+        }
+        return result;
+    }
     property string pendingProviderId: availableProviderOptions[0] || "codex"
     property string claudeRawBuffer: ""
     property bool claudeStatsError: false
@@ -40,6 +63,7 @@ PluginComponent {
     property string claudeFiveHourReset: ""
     property real claudeSevenDayUtil: 0
     property string claudeSevenDayReset: ""
+    property bool claudeExtraUsageEnabled: false
     property int claudeWeekMessages: 0
     property int claudeWeekSessions: 0
     property real claudeWeekTokens: 0
@@ -73,6 +97,7 @@ PluginComponent {
     property string providerUsageScript: _pluginDir + "/providers/get-provider-usage"
     property string claudeUsageScript: _pluginDir + "/providers/get-claude-usage"
     property string copilotUsageScript: _pluginDir + "/providers/get-copilot-usage"
+    property string usageHistoryScript: _pluginDir + "/providers/get-usage-history"
     readonly property var availableProviderOptions: [
         "codex",
         "claude",
@@ -109,6 +134,10 @@ PluginComponent {
 
     ListModel {
         id: claudeModelList
+    }
+
+    ListModel {
+        id: claudeProjectList
     }
 
     readonly property var selectedProviders: {
@@ -161,17 +190,45 @@ PluginComponent {
 
     readonly property var filteredDisplayProviders: {
         const query = providerFilter.trim().toLowerCase();
-        if (query.length === 0) return displayProviders;
         const result = [];
         for (let i = 0; i < displayProviders.length; i++) {
             const provider = displayProviders[i];
-            const haystack = `${providerName(provider.provider)} ${provider.provider} ${providerSourceLabel(provider)}`.toLowerCase();
-            if (haystack.indexOf(query) >= 0) result.push(provider);
+            if (providerStatusFilter === "live" && (provider.error || !provider.usage)) continue;
+            if (providerStatusFilter === "issues" && !provider.error) continue;
+            if (query.length > 0) {
+                const haystack = `${providerName(provider.provider)} ${provider.provider} ${providerSourceLabel(provider)}`.toLowerCase();
+                if (haystack.indexOf(query) < 0) continue;
+            }
+            result.push(provider);
         }
+        // Pinned first, then most-used so attention lands where quota is
+        // burning; failed providers sink to the end without hiding.
+        result.sort(function(a, b) {
+            const aPin = pinnedProviders.indexOf(a.provider) >= 0 ? 0 : 1;
+            const bPin = pinnedProviders.indexOf(b.provider) >= 0 ? 0 : 1;
+            if (aPin !== bPin) return aPin - bPin;
+            const aErr = a.error ? 1 : 0;
+            const bErr = b.error ? 1 : 0;
+            if (aErr !== bErr) return aErr - bErr;
+            return providerPercent(b) - providerPercent(a);
+        });
         return result;
     }
 
     readonly property var pillDisplayProviders: {
+        if (pillMode === "top") {
+            // Single most-critical provider: highest primary usage wins.
+            let best = null;
+            let bestPercent = -1;
+            for (let i = 0; i < successfulProviders.length; i++) {
+                const percent = providerPercent(successfulProviders[i]);
+                if (percent > bestPercent) {
+                    bestPercent = percent;
+                    best = successfulProviders[i];
+                }
+            }
+            return best ? [best] : [];
+        }
         if (pillMode === "custom") {
             const ids = pillProviders.split(",");
             const result = [];
@@ -726,6 +783,7 @@ PluginComponent {
         else if (key === "FIVE_HOUR_RESET") claudeFiveHourReset = val;
         else if (key === "SEVEN_DAY_UTIL") claudeSevenDayUtil = Number(val || 0);
         else if (key === "SEVEN_DAY_RESET") claudeSevenDayReset = val;
+        else if (key === "EXTRA_USAGE_ENABLED") claudeExtraUsageEnabled = (val === "true");
         else if (key === "WEEK_MESSAGES") claudeWeekMessages = parseInt(val) || 0;
         else if (key === "WEEK_SESSIONS") claudeWeekSessions = parseInt(val) || 0;
         else if (key === "WEEK_TOKENS") claudeWeekTokens = Number(val || 0);
@@ -750,6 +808,169 @@ PluginComponent {
                 }
             }
         }
+        else if (key === "WEEK_PROJECTS") {
+            claudeProjectList.clear();
+            if (val.length > 0) {
+                const pairs = val.split(",");
+                for (let i = 0; i < pairs.length; i++) {
+                    const cut = pairs[i].lastIndexOf(":");
+                    if (cut <= 0) continue;
+                    claudeProjectList.append({
+                        projectPath: pairs[i].substring(0, cut),
+                        projectTokens: Number(pairs[i].substring(cut + 1) || 0)
+                    });
+                }
+            }
+        }
+    }
+
+    function formatMinutes(mins) {
+        const value = Math.max(0, Math.round(Number(mins) || 0));
+        if (value < 60) return `${value}m`;
+        const hours = Math.floor(value / 60);
+        if (hours < 24) return `${hours}h ${value % 60}m`;
+        return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+    }
+
+    // Burn-rate forecast for the Claude 5h window: utilization so far divided
+    // by elapsed window time, extrapolated to 100%.
+    readonly property var claudeBurnForecast: {
+        if (!claudeFiveHourReset || claudeFiveHourUtil <= 0) return null;
+        const resetMs = new Date(claudeFiveHourReset).getTime();
+        if (!Number.isFinite(resetMs)) return null;
+        const remainMin = Math.max(0, (resetMs - Date.now()) / 60000);
+        if (remainMin <= 0 || remainMin >= 300) return null;
+        const elapsedMin = Math.max(1, 300 - remainMin);
+        const rate = claudeFiveHourUtil / elapsedMin;
+        if (rate <= 0) return null;
+        const minTo100 = (100 - claudeFiveHourUtil) / rate;
+        if (minTo100 <= remainMin) {
+            return { exceed: true, text: t("claude.burn_pace_exceed", "At this pace: 100% in {time}", { time: formatMinutes(minTo100) }) };
+        }
+        return { exceed: false, text: t("claude.burn_pace_ok", "Usage on pace for this window") };
+    }
+
+    readonly property real claudeMonthProjection: {
+        const today = new Date();
+        const dayOfMonth = today.getDate();
+        if (dayOfMonth <= 0 || claudeMonthCost <= 0) return 0;
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        return (claudeMonthCost / dayOfMonth) * daysInMonth;
+    }
+
+    function providerConsoleUrl(providerId) {
+        const urls = {
+            claude: "https://claude.ai/settings/usage",
+            codex: "https://chatgpt.com/codex/settings/usage",
+            copilot: "https://github.com/settings/copilot/features",
+            gemini: "https://aistudio.google.com/usage",
+            openrouter: "https://openrouter.ai/activity",
+            deepseek: "https://platform.deepseek.com/usage",
+            kimi: "https://platform.moonshot.ai/console",
+            moonshot: "https://platform.moonshot.ai/console",
+            mistral: "https://console.mistral.ai/usage",
+            glm: "https://open.bigmodel.cn/usercenter/financial",
+            zhipu: "https://open.bigmodel.cn/usercenter/financial",
+            minimax: "https://platform.minimax.io/user-center/basic-information",
+            qwen: "https://dashscope.console.aliyun.com",
+            dashscope: "https://dashscope.console.aliyun.com",
+            alibaba: "https://dashscope.console.aliyun.com",
+            nvidia: "https://build.nvidia.com",
+            nim: "https://build.nvidia.com",
+            cloudflare: "https://dash.cloudflare.com",
+            vertexai: "https://console.cloud.google.com/vertex-ai",
+            vertex: "https://console.cloud.google.com/vertex-ai",
+            byteplus: "https://console.volcengine.com",
+            ark: "https://console.volcengine.com",
+            modelark: "https://console.volcengine.com",
+            together: "https://api.together.ai/settings/billing",
+            groq: "https://console.groq.com/usage",
+            cohere: "https://dashboard.cohere.com/billing",
+            replicate: "https://replicate.com/account/billing",
+            fireworks: "https://app.fireworks.ai",
+            ai21: "https://studio.ai21.com",
+            perplexity: "https://www.perplexity.ai/settings/billing",
+            cursor: "https://cursor.com/settings",
+            cline: "https://app.cline.bot",
+            opencode: "https://opencode.ai",
+            kilo: "https://kilo.ai",
+            kiro: "https://kiro.dev",
+            warp: "https://app.warp.dev",
+            amp: "https://ampcode.com"
+        };
+        return urls[providerId] || "";
+    }
+
+    function openProviderConsole(providerId) {
+        const url = providerConsoleUrl(providerId);
+        if (url.length > 0) Quickshell.execDetached(["xdg-open", url]);
+    }
+
+    function isPinned(providerId) {
+        return pinnedProviders.indexOf(normalizeProviderId(providerId)) >= 0;
+    }
+
+    function togglePin(providerId) {
+        const id = normalizeProviderId(providerId);
+        const next = pinnedProviders.slice();
+        const index = next.indexOf(id);
+        if (index >= 0) next.splice(index, 1);
+        else next.push(id);
+        pinnedProvidersCsv = next.join(",");
+        PluginService.savePluginData("aiOverviewControl", "pinnedProviders", pinnedProvidersCsv);
+    }
+
+    // Trend over the last two recorded snapshots: "up" | "down" | "flat" | "".
+    function providerTrend(providerId) {
+        const history = usageHistory[normalizeProviderId(providerId)];
+        if (!history || history.length < 2) return "";
+        const delta = Number(history[history.length - 1]) - Number(history[history.length - 2]);
+        if (delta >= 1) return "up";
+        if (delta <= -1) return "down";
+        return "flat";
+    }
+
+    function retryProvider(providerId) {
+        if (procRetry.running) return;
+        retryingProviderId = normalizeProviderId(providerId);
+        retryBuffer = "";
+        procRetry.command = ["bash", providerUsageScript, retryingProviderId, copilotUsageScript];
+        procRetry.running = true;
+    }
+
+    function checkNotifications() {
+        if (!notifyEnabled) return;
+        const seen = notifiedMap;
+        for (let i = 0; i < successfulProviders.length; i++) {
+            const provider = successfulProviders[i];
+            const windowData = primaryUsageWindow(provider);
+            if (!windowData) continue;
+            const percent = Number(windowData.usedPercent || 0);
+            // Key includes the reset timestamp so a new window re-arms the alert.
+            const dedupeKey = `${provider.provider}:${windowData.resetsAt || "static"}:${notifyThreshold}`;
+            if (percent >= notifyThreshold && !seen[dedupeKey]) {
+                seen[dedupeKey] = true;
+                const reset = formatTimeUntil(windowData.resetsAt);
+                const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
+                Quickshell.execDetached([
+                    "notify-send",
+                    "-a", "AiOverviewControl",
+                    "-i", "dialog-warning",
+                    t("notify.title", "{provider} at {percent}%", { provider: providerName(provider.provider), percent: Math.round(percent) }),
+                    reset.length > 0
+                        ? t("notify.body", "{window} window · resets in {time}", { window: windowLabel, time: reset })
+                        : windowLabel
+                ]);
+            }
+        }
+        notifiedMap = seen;
+    }
+
+    function projectDisplayName(path) {
+        const text = String(path || "");
+        const parts = text.split("/");
+        const tail = parts[parts.length - 1];
+        return tail.length > 0 ? tail : text;
     }
 
     function detectBinary() {
@@ -863,6 +1084,11 @@ PluginComponent {
                     const nowMs = Date.now();
                     root.lastUpdated = Qt.formatDateTime(new Date(), "hh:mm:ss");
                     root.lastUpdatedMs = nowMs;
+                    root.checkNotifications();
+                    if (!procHistory.running) {
+                        root.historyBuffer = "";
+                        procHistory.running = true;
+                    }
                 } catch (error) {
                     root.hasError = true;
                     root.errorMessage = root.rawStderrBuffer.length > 0 ? root.rawStderrBuffer : t("error.parse_failed", "Failed to parse provider helper output.");
@@ -882,6 +1108,61 @@ PluginComponent {
 
             root.rawJsonBuffer = "";
             root.rawStderrBuffer = "";
+        }
+    }
+
+    Process {
+        id: procHistory
+        command: ["bash", root.usageHistoryScript]
+        stdout: SplitParser {
+            splitMarker: ""
+            onRead: data => root.historyBuffer += data
+        }
+        onExited: code => {
+            if (code !== 0 || root.historyBuffer.length === 0) {
+                root.historyBuffer = "";
+                return;
+            }
+            try {
+                root.usageHistory = JSON.parse(root.historyBuffer);
+            } catch (error) {
+                // Corrupt history cache: ignore, sparklines simply stay hidden.
+            }
+            root.historyBuffer = "";
+        }
+    }
+
+    Process {
+        id: procRetry
+        stdout: SplitParser {
+            splitMarker: ""
+            onRead: data => root.retryBuffer += data
+        }
+        onExited: code => {
+            const targetId = root.retryingProviderId;
+            root.retryingProviderId = "";
+            if (code !== 0 || root.retryBuffer.length === 0) {
+                root.retryBuffer = "";
+                return;
+            }
+            try {
+                const payload = JSON.parse(root.retryBuffer);
+                const list = Array.isArray(payload) ? payload : [payload];
+                if (list.length > 0 && list[0] && list[0].provider === targetId) {
+                    const next = root.providers.slice();
+                    for (let i = 0; i < next.length; i++) {
+                        if (next[i] && next[i].provider === targetId) {
+                            next[i] = list[0];
+                            break;
+                        }
+                    }
+                    root.providers = next;
+                    root.checkNotifications();
+                }
+            } catch (error) {
+                // Keep the previous card state on parse failure.
+            }
+            root.retryBuffer = "";
         }
     }
 
@@ -1266,6 +1547,151 @@ PluginComponent {
         }
     }
 
+    component ProgressRing: Item {
+        id: ring
+
+        property real percent: 0
+        property real thickness: 6
+        property color accentColor: Theme.primary
+        property color trackColor: Theme.withAlpha(Theme.surfaceText, 0.08)
+        // Indirection so the arc sweeps smoothly instead of snapping when new
+        // data lands.
+        property real animatedPercent: percent
+
+        Behavior on animatedPercent {
+            NumberAnimation { duration: 420; easing.type: Easing.OutCubic }
+        }
+
+        onAnimatedPercentChanged: ringCanvas.requestPaint()
+        onAccentColorChanged: ringCanvas.requestPaint()
+        onTrackColorChanged: ringCanvas.requestPaint()
+        onWidthChanged: ringCanvas.requestPaint()
+        onHeightChanged: ringCanvas.requestPaint()
+
+        Canvas {
+            id: ringCanvas
+            anchors.fill: parent
+            antialiasing: true
+            onPaint: {
+                const ctx = getContext("2d");
+                ctx.reset();
+                const cx = width / 2;
+                const cy = height / 2;
+                const radius = Math.min(width, height) / 2 - ring.thickness / 2;
+                if (radius <= 0) return;
+                const start = -Math.PI / 2;
+                const sweep = Math.max(0, Math.min(1, ring.animatedPercent / 100)) * Math.PI * 2;
+                ctx.lineWidth = ring.thickness;
+                ctx.lineCap = "round";
+                ctx.strokeStyle = String(ring.trackColor);
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                if (sweep > 0.001) {
+                    ctx.strokeStyle = String(ring.accentColor);
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius, start, start + sweep);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    component Sparkline: Canvas {
+        id: spark
+
+        property var points: []
+        property color lineColor: Theme.primary
+
+        onPointsChanged: requestPaint()
+        onLineColorChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            const pts = points || [];
+            if (pts.length < 2 || width <= 4 || height <= 4) return;
+            const pad = 3;
+            const w = width - pad * 2;
+            const h = height - pad * 2;
+            let max = 10;
+            for (let i = 0; i < pts.length; i++) max = Math.max(max, Number(pts[i]) || 0);
+            const stepX = w / (pts.length - 1);
+            const yFor = v => pad + h - (Math.max(0, Math.min(max, Number(v) || 0)) / max) * h;
+
+            ctx.beginPath();
+            ctx.moveTo(pad, yFor(pts[0]));
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pad + i * stepX, yFor(pts[i]));
+            const line = String(spark.lineColor);
+            ctx.strokeStyle = line;
+            ctx.lineWidth = 2;
+            ctx.lineJoin = "round";
+            ctx.lineCap = "round";
+            ctx.stroke();
+
+            // Soft area fill under the line
+            ctx.lineTo(pad + w, pad + h);
+            ctx.lineTo(pad, pad + h);
+            ctx.closePath();
+            ctx.fillStyle = Qt.rgba(spark.lineColor.r, spark.lineColor.g, spark.lineColor.b, 0.12);
+            ctx.fill();
+
+            // Last-point dot
+            ctx.beginPath();
+            ctx.arc(pad + (pts.length - 1) * stepX, yFor(pts[pts.length - 1]), 2.6, 0, Math.PI * 2);
+            ctx.fillStyle = line;
+            ctx.fill();
+        }
+    }
+
+    component HeroStat: Row {
+        id: heroStat
+
+        required property string statIcon
+        required property string statLabel
+        required property string statValue
+        property color statAccent: Theme.primary
+
+        spacing: Theme.spacingS
+
+        Rectangle {
+            width: 34
+            height: 34
+            radius: 11
+            color: Theme.withAlpha(heroStat.statAccent, 0.12)
+            border.width: 1
+            border.color: Theme.withAlpha(heroStat.statAccent, 0.2)
+            anchors.verticalCenter: parent.verticalCenter
+
+            DankIcon {
+                anchors.centerIn: parent
+                name: heroStat.statIcon
+                size: 16
+                color: heroStat.statAccent
+            }
+        }
+
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+
+            StyledText {
+                text: heroStat.statValue
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.Bold
+            }
+
+            StyledText {
+                text: heroStat.statLabel
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall - 1
+            }
+        }
+    }
+
     horizontalBarPill: Component {
         Row {
             spacing: Theme.spacingS
@@ -1296,24 +1722,44 @@ PluginComponent {
                     model: root.pillDisplayProviders.length > 0 ? root.pillDisplayProviders : (root.hasProviderData ? [root.providerData] : [])
 
                     Row {
+                        id: pillEntry
                         required property var modelData
                         required property int index
-                        spacing: 0
+                        readonly property color usageColor: root.getUsageColor(root.providerPercent(modelData))
+                        spacing: 4
 
                         StyledText {
-                            visible: index > 0
-                            text: " | "
-                            color: Theme.withAlpha(Theme.surfaceText, 0.38)
+                            visible: pillEntry.index > 0
+                            text: " · "
+                            color: Theme.withAlpha(Theme.surfaceText, 0.3)
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Rectangle {
+                            width: 7
+                            height: 7
+                            radius: 3.5
+                            color: pillEntry.usageColor
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                        }
+
+                        StyledText {
+                            text: root.providerName(pillEntry.modelData.provider)
+                            color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         StyledText {
-                            text: `${root.providerName(modelData.provider)} ${Math.round(root.providerPercent(modelData))}%`
-                            color: Theme.surfaceText
+                            text: `${Math.round(root.providerPercent(pillEntry.modelData))}%`
+                            color: pillEntry.usageColor
                             font.pixelSize: Theme.fontSizeSmall
-                            font.weight: Font.DemiBold
+                            font.weight: Font.Bold
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -1358,7 +1804,7 @@ PluginComponent {
                 StyledText {
                     required property var modelData
                     text: `${root.providerName(modelData.provider)} ${Math.round(root.providerPercent(modelData))}%`
-                    color: root.heroAccent
+                    color: root.getUsageColor(root.providerPercent(modelData))
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.DemiBold
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -1441,6 +1887,7 @@ PluginComponent {
             model: 7
 
             Column {
+                id: dayColumn
                 width: (dailyBars.width - Theme.spacingS * 6) / 7
                 spacing: 7
 
@@ -1449,13 +1896,52 @@ PluginComponent {
                     height: 66
                     radius: Theme.cornerRadius - 2
                     color: Theme.surfaceContainer
+                    border.width: dayHover.containsMouse ? 1 : 0
+                    border.color: Theme.withAlpha(index === root.currentWeekdayIndex ? Theme.warning : Theme.primary, 0.5)
                     clip: true
 
                     Rectangle {
                         anchors.bottom: parent.bottom
                         width: parent.width
                         height: Math.max(3, (Number(root.claudeDailyTokens[index] || 0) / dailyBars.maxDaily) * parent.height)
-                        color: index === root.currentWeekdayIndex ? Theme.warning : Theme.withAlpha(Theme.primary, 0.55)
+                        color: index === root.currentWeekdayIndex ? Theme.warning : Theme.withAlpha(Theme.primary, dayHover.containsMouse ? 0.75 : 0.55)
+
+                        Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    Rectangle {
+                        visible: dayHover.containsMouse
+                        anchors.fill: parent
+                        radius: parent.radius
+                        color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
+
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 1
+
+                            StyledText {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: root.formatTokens(root.claudeDailyTokens[index] || 0)
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                            }
+
+                            StyledText {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: root.formatCost(root.claudeDailyCosts[index] || 0)
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: dayHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
                     }
                 }
 
@@ -1463,7 +1949,7 @@ PluginComponent {
                     width: parent.width
                     text: root.dayLabels[index]
                     horizontalAlignment: Text.AlignHCenter
-                    color: Theme.surfaceVariantText
+                    color: dayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.DemiBold
                 }
@@ -1474,7 +1960,7 @@ PluginComponent {
     component ProviderDashboardCard: StyledRect {
         id: card
         required property var provider
-        property bool expanded: !!provider && provider.provider === root.focusedProviderId
+        property bool expanded: root.allExpanded || (!!provider && provider.provider === root.focusedProviderId)
         property bool hasUsage: !!provider && !!provider.usage && !provider.error
         property color accentColor: provider && provider.error ? Theme.error : root.providerAccent(provider ? provider.provider : "")
         property var windows: root.windowsForProvider(provider)
@@ -1519,6 +2005,7 @@ PluginComponent {
         Behavior on color { ColorAnimation { duration: 180 } }
         Behavior on border.color { ColorAnimation { duration: 180 } }
         Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        Behavior on implicitHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
         Column {
             id: cardColumn
@@ -1531,28 +2018,35 @@ PluginComponent {
                 width: parent.width
                 spacing: card.compact ? Theme.spacingS : Theme.spacingL
 
-                Rectangle {
+                Item {
                     Layout.alignment: Qt.AlignTop
                     visible: !card.veryCompact
-                    width: card.dense ? 30 : (card.compact ? 34 : 40)
+                    width: card.dense ? 34 : (card.compact ? 38 : 46)
                     height: width
-                    radius: width / 2
-                    color: Theme.withAlpha(card.accentColor, 0.16)
-                    border.width: 1
-                    border.color: Theme.withAlpha(card.accentColor, 0.42)
+
+                    ProgressRing {
+                        anchors.fill: parent
+                        visible: card.hasUsage
+                        percent: root.providerPercent(card.provider)
+                        thickness: 2.5
+                        accentColor: root.getUsageColor(root.providerPercent(card.provider))
+                        trackColor: Theme.withAlpha(card.accentColor, 0.14)
+                    }
 
                     Rectangle {
                         anchors.fill: parent
-                        anchors.margins: 5
+                        anchors.margins: 4
                         radius: width / 2
-                        color: Theme.withAlpha(card.accentColor, 0.08)
-                    }
+                        color: Theme.withAlpha(card.accentColor, 0.14)
+                        border.width: card.hasUsage ? 0 : 1
+                        border.color: Theme.withAlpha(card.accentColor, 0.4)
 
-                    DankIcon {
-                        anchors.centerIn: parent
-                        name: root.iconForProvider(card.provider.provider)
-                        size: card.dense ? 16 : (card.compact ? 18 : 21)
-                        color: card.accentColor
+                        DankIcon {
+                            anchors.centerIn: parent
+                            name: root.iconForProvider(card.provider.provider)
+                            size: card.dense ? 15 : (card.compact ? 17 : 20)
+                            color: card.accentColor
+                        }
                     }
                 }
 
@@ -1603,15 +2097,67 @@ PluginComponent {
                             accentColor: Theme.warning
                             emphasized: true
                         }
+
+                        BadgePill {
+                            visible: !!card.provider.error
+                            label: root.retryingProviderId === card.provider.provider ? "…" : root.t("card.retry", "Retry")
+                            iconName: "refresh"
+                            accentColor: Theme.error
+                            emphasized: true
+                            onTapped: root.retryProvider(card.provider.provider)
+                        }
                     }
                 }
 
-                StyledText {
+                Row {
                     Layout.alignment: Qt.AlignVCenter
-                    text: card.provider.error ? t("status.error", "Error") : `${Math.round(root.providerPercent(card.provider))}%`
-                    color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
-                    font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
-                    font.weight: Font.Bold
+                    spacing: 3
+
+                    DankIcon {
+                        readonly property string trend: root.providerTrend(card.provider ? card.provider.provider : "")
+                        visible: !card.provider.error && trend.length > 0 && trend !== "flat"
+                        name: trend === "up" ? "trending_up" : "trending_down"
+                        size: card.compact ? 15 : 17
+                        color: trend === "up" ? Theme.warning : Theme.success
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    StyledText {
+                        text: card.provider.error ? t("status.error", "Error") : `${Math.round(root.providerPercent(card.provider))}%`
+                        color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
+                        font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
+                        font.weight: Font.Bold
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    z: 2
+                    width: card.compact ? 30 : 34
+                    height: width
+                    radius: width / 2
+                    color: pinArea.containsMouse ? Theme.withAlpha(Theme.primary, 0.14) : (root.isPinned(card.provider.provider) ? Theme.withAlpha(Theme.primary, 0.1) : "transparent")
+                    border.width: root.isPinned(card.provider.provider) ? 1 : 0
+                    border.color: Theme.withAlpha(Theme.primary, 0.3)
+
+                    DankIcon {
+                        anchors.centerIn: parent
+                        name: root.isPinned(card.provider.provider) ? "star" : "star_border"
+                        size: card.compact ? 15 : 17
+                        color: root.isPinned(card.provider.provider) ? Theme.primary : Theme.surfaceVariantText
+                    }
+
+                    MouseArea {
+                        id: pinArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: function(mouse) {
+                            mouse.accepted = true;
+                            root.togglePin(card.provider.provider);
+                        }
+                    }
                 }
 
                 Rectangle {
@@ -1646,9 +2192,13 @@ PluginComponent {
 
                 DankIcon {
                     Layout.alignment: Qt.AlignVCenter
-                    name: card.expanded ? "keyboard_arrow_up" : "keyboard_arrow_down"
+                    name: "keyboard_arrow_down"
                     size: card.compact ? 24 : 28
-                    color: Theme.surfaceVariantText
+                    color: card.expanded ? card.accentColor : Theme.surfaceVariantText
+                    rotation: card.expanded ? 180 : 0
+
+                    Behavior on rotation { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                    Behavior on color { ColorAnimation { duration: 160 } }
                 }
             }
 
@@ -1676,6 +2226,27 @@ PluginComponent {
                         percent: Number(modelData.data.usedPercent || 0)
                         aside: root.formatUsageLine(modelData.data)
                         accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                    }
+                }
+
+                Column {
+                    readonly property var historyPoints: root.usageHistory[card.provider.provider] || []
+                    visible: card.hasUsage && historyPoints.length >= 2
+                    width: parent.width
+                    spacing: Theme.spacingXS
+
+                    StyledText {
+                        text: t("card.history", "History")
+                        color: Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall - 1
+                        font.weight: Font.Medium
+                    }
+
+                    Sparkline {
+                        width: parent.width
+                        height: 38
+                        points: parent.historyPoints
+                        lineColor: root.getUsageColor(root.providerPercent(card.provider))
                     }
                 }
 
@@ -1709,6 +2280,14 @@ PluginComponent {
                     }
                 }
 
+                SurfaceButton {
+                    visible: root.providerConsoleUrl(card.provider.provider).length > 0
+                    iconName: "open_in_new"
+                    label: t("card.open_console", "Open console")
+                    compact: true
+                    onTriggered: root.openProviderConsole(card.provider.provider)
+                }
+
                 StyledRect {
                     visible: card.provider.provider === "claude"
                     width: parent.width
@@ -1736,6 +2315,13 @@ PluginComponent {
                                 font.weight: Font.Bold
                             }
 
+                            BadgePill {
+                                visible: root.claudeExtraUsageEnabled
+                                label: t("card.extra_usage_on", "Extra usage on")
+                                iconName: "add_circle"
+                                accentColor: Theme.warning
+                            }
+
                             StyledText {
                                 text: root.formatTier(root.claudeRateLimitTier)
                                 color: Theme.warning
@@ -1748,7 +2334,10 @@ PluginComponent {
                             width: parent.width
                             label: t("card.week", "Week")
                             percent: root.claudeSevenDayUtil
-                            aside: `${Math.round(root.claudeSevenDayUtil)}%`
+                            aside: {
+                                const reset = root.formatTimeUntil(root.claudeSevenDayReset);
+                                return reset.length > 0 ? `${Math.round(root.claudeSevenDayUtil)}% · ${reset}` : `${Math.round(root.claudeSevenDayUtil)}%`;
+                            }
                             accentColor: root.getUsageColor(root.claudeSevenDayUtil)
                         }
 
@@ -1756,8 +2345,31 @@ PluginComponent {
                             width: parent.width
                             label: "5h"
                             percent: root.claudeFiveHourUtil
-                            aside: `${Math.round(root.claudeFiveHourUtil)}%`
+                            aside: {
+                                const reset = root.formatTimeUntil(root.claudeFiveHourReset);
+                                return reset.length > 0 ? `${Math.round(root.claudeFiveHourUtil)}% · ${reset}` : `${Math.round(root.claudeFiveHourUtil)}%`;
+                            }
                             accentColor: root.getUsageColor(root.claudeFiveHourUtil)
+                        }
+
+                        Row {
+                            visible: !!root.claudeBurnForecast
+                            spacing: Theme.spacingXS
+
+                            DankIcon {
+                                name: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? "local_fire_department" : "check_circle"
+                                size: 14
+                                color: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? Theme.error : Theme.success
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            StyledText {
+                                text: root.claudeBurnForecast ? root.claudeBurnForecast.text : ""
+                                color: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? Theme.error : Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? Font.DemiBold : Font.Normal
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
 
                         GridLayout {
@@ -1770,6 +2382,7 @@ PluginComponent {
                             MetricTile { Layout.fillWidth: true; label: t("card.today_cost", "Today cost"); value: root.formatCost(root.claudeTodayCost); accentColor: Theme.warning }
                             MetricTile { Layout.fillWidth: true; label: t("card.week", "Week"); value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
                             MetricTile { Layout.fillWidth: true; label: t("card.month", "Month"); value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`; accentColor: Theme.warning }
+                            MetricTile { Layout.fillWidth: true; visible: root.claudeMonthProjection > 0; label: t("card.projected_month", "Projected month"); value: `≈ ${root.formatCost(root.claudeMonthProjection)}`; accentColor: root.claudeMonthProjection > root.claudeMonthCost * 1.5 ? Theme.error : Theme.warning }
                         }
 
                         ClaudeDailyBars {
@@ -1799,6 +2412,76 @@ PluginComponent {
                                     percent: root.claudeWeekTokens > 0 ? (modelTokens / root.claudeWeekTokens) * 100 : 0
                                     aside: root.formatTokens(modelTokens)
                                     accentColor: Theme.warning
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: root.showClaudeProjects && claudeProjectList.count > 0
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: t("card.top_projects", "Top projects this week")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: claudeProjectList
+
+                                Column {
+                                    required property string projectPath
+                                    required property real projectTokens
+                                    required property int index
+                                    width: parent.width
+                                    spacing: 3
+
+                                    RowLayout {
+                                        width: parent.width
+                                        spacing: Theme.spacingS
+
+                                        StyledText {
+                                            text: root.projectDisplayName(projectPath)
+                                            color: Theme.surfaceText
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.weight: Font.DemiBold
+                                        }
+
+                                        StyledText {
+                                            Layout.fillWidth: true
+                                            text: root.compactPath(projectPath)
+                                            color: Theme.withAlpha(Theme.surfaceVariantText, 0.7)
+                                            font.pixelSize: Theme.fontSizeSmall - 2
+                                            elide: Text.ElideLeft
+                                        }
+
+                                        StyledText {
+                                            text: root.formatTokens(projectTokens)
+                                            color: Theme.warning
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 5
+                                        radius: 2.5
+                                        color: Theme.withAlpha(Theme.surfaceText, 0.06)
+
+                                        Rectangle {
+                                            readonly property real topTokens: claudeProjectList.count > 0 ? Math.max(1, claudeProjectList.get(0).projectTokens) : 1
+                                            width: Math.max(3, (projectTokens / topTokens) * parent.width)
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.withAlpha(Theme.warning, index === 0 ? 0.85 : 0.45)
+
+                                            Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1843,7 +2526,14 @@ PluginComponent {
             height: card.dense ? 64 : (card.compact ? 76 : 82)
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.focusedProviderId = card.expanded ? "" : card.provider.provider
+            onClicked: {
+                if (root.allExpanded) {
+                    root.allExpanded = false;
+                    root.focusedProviderId = card.provider.provider;
+                    return;
+                }
+                root.focusedProviderId = card.expanded ? "" : card.provider.provider;
+            }
         }
     }
 
@@ -1869,25 +2559,48 @@ PluginComponent {
                 columnSpacing: Theme.spacingM
                 rowSpacing: Theme.spacingM
 
-                Column {
+                RowLayout {
                     Layout.fillWidth: true
-                    Layout.columnSpan: width < 560 ? 1 : 1
-                    spacing: 4
+                    spacing: Theme.spacingS
 
-                    StyledText {
-                        width: parent.width
-                        text: t("card.provider_control", "Provider control")
-                        color: Theme.surfaceText
-                        font.pixelSize: Theme.fontSizeLarge
-                        font.weight: Font.Bold
+                    Rectangle {
+                        Layout.alignment: Qt.AlignVCenter
+                        width: 34
+                        height: 34
+                        radius: 11
+                        color: Theme.withAlpha(Theme.primary, 0.12)
+                        border.width: 1
+                        border.color: Theme.withAlpha(Theme.primary, 0.2)
+
+                        DankIcon {
+                            anchors.centerIn: parent
+                            name: "playlist_add_check"
+                            size: 16
+                            color: Theme.primary
+                        }
                     }
 
-                    StyledText {
-                        width: parent.width
-                        text: root.selectedProviders.join(", ")
-                        color: Theme.surfaceVariantText
-                        font.pixelSize: Theme.fontSizeSmall
-                        elide: Text.ElideRight
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
+                        StyledText {
+                            width: parent.width
+                            text: t("card.provider_control", "Provider control")
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            font.weight: Font.Bold
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            width: parent.width
+                            text: root.selectedProviders.join(", ")
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall
+                            elide: Text.ElideRight
+                        }
                     }
                 }
 
@@ -1965,6 +2678,38 @@ PluginComponent {
                         width: contentFlick.width
                         spacing: Theme.spacingL
 
+                        Item {
+                            width: parent.width
+                            height: 3
+                            visible: root.isLoading
+                            clip: true
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 1.5
+                                color: Theme.withAlpha(Theme.primary, 0.12)
+                            }
+
+                            Rectangle {
+                                id: loadRunner
+                                width: Math.max(48, parent.width * 0.24)
+                                height: parent.height
+                                radius: 1.5
+                                color: Theme.primary
+
+                                SequentialAnimation on x {
+                                    running: root.isLoading
+                                    loops: Animation.Infinite
+                                    NumberAnimation {
+                                        from: -loadRunner.width
+                                        to: contentColumn.width
+                                        duration: 1200
+                                        easing.type: Easing.InOutCubic
+                                    }
+                                }
+                            }
+                        }
+
                         StyledRect {
                             width: parent.width
                             radius: Theme.cornerRadius + 8
@@ -2018,13 +2763,42 @@ PluginComponent {
 
                                     Column {
                                         Layout.fillWidth: true
-                                        spacing: 8
+                                        Layout.alignment: Qt.AlignVCenter
+                                        spacing: Theme.spacingS
+
+                                        Row {
+                                            spacing: Theme.spacingXS
+
+                                            Rectangle {
+                                                width: 8
+                                                height: 8
+                                                radius: 4
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                color: root.hasError ? Theme.warning : (root.hasProviderData ? Theme.success : Theme.surfaceVariantText)
+
+                                                SequentialAnimation on opacity {
+                                                    running: root.isLoading
+                                                    loops: Animation.Infinite
+                                                    NumberAnimation { from: 1; to: 0.3; duration: 620; easing.type: Easing.InOutQuad }
+                                                    NumberAnimation { from: 0.3; to: 1; duration: 620; easing.type: Easing.InOutQuad }
+                                                }
+                                            }
+
+                                            StyledText {
+                                                text: root.statusTitle.toUpperCase()
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall - 2
+                                                font.weight: Font.DemiBold
+                                                font.letterSpacing: 1.2
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+                                        }
 
                                         StyledText {
                                             width: parent.width
                                             text: t("app.title", "AI Usage Control")
                                             color: Theme.surfaceText
-                                            font.pixelSize: contentColumn.width < 560 ? Theme.fontSizeLarge : Theme.fontSizeLarge + 4
+                                            font.pixelSize: contentColumn.width < 560 ? Theme.fontSizeLarge + 2 : Theme.fontSizeLarge + 6
                                             font.weight: Font.Bold
                                             wrapMode: Text.WordWrap
                                         }
@@ -2038,34 +2812,57 @@ PluginComponent {
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
                                         }
-                                    }
 
-                                    StyledRect {
-                                        Layout.alignment: Qt.AlignVCenter
-                                        visible: contentColumn.width >= 520
-                                        Layout.preferredWidth: Math.min(220, contentColumn.width * 0.28)
-                                        implicitHeight: heroMiniCol.implicitHeight + Theme.spacingM * 2
-                                        radius: Theme.cornerRadius + 8
-                                        color: Theme.withAlpha(root.heroAccent, 0.08)
-                                        border.width: 1
-                                        border.color: Theme.withAlpha(root.heroAccent, 0.24)
-                                        clip: true
-
-                                        Column {
-                                            id: heroMiniCol
-                                            anchors.fill: parent
-                                            anchors.margins: Theme.spacingM
-                                            spacing: Theme.spacingS
+                                        Flow {
+                                            width: parent.width
+                                            spacing: Theme.spacingXS
 
                                             BadgePill {
-                                                label: root.providerData ? root.providerName(root.providerData.provider) : t("status.provider_missing", "No provider")
-                                                iconName: root.providerData ? root.iconForProvider(root.providerData.provider) : "monitoring"
-                                                accentColor: root.heroAccent
-                                                emphasized: true
+                                                label: root.providerData ? root.providerSourceLabel(root.providerData) : t("status.local_helpers", "local adapters")
+                                                iconName: "sync_alt"
+                                                accentColor: Theme.primary
                                             }
 
+                                            BadgePill {
+                                                label: root.hasError && !root.hasProviderData
+                                                    ? t("status.setup_required", "Setup required")
+                                                    : root.hasError
+                                                        ? t("status.needs_attention", "Needs attention")
+                                                        : root.providerStatusLabel(root.providerData)
+                                                iconName: root.hasError ? "warning" : "check_circle"
+                                                accentColor: root.hasError ? Theme.warning : root.getUsageColor(root.primaryPercent)
+                                            }
+
+                                            BadgePill {
+                                                visible: root.isDataStale
+                                                label: t("status.stale", "Stale")
+                                                iconName: "schedule"
+                                                accentColor: Theme.warning
+                                                emphasized: true
+                                            }
+                                        }
+                                    }
+
+                                    Item {
+                                        visible: contentColumn.width >= 520
+                                        Layout.alignment: Qt.AlignVCenter
+                                        Layout.preferredWidth: 136
+                                        Layout.preferredHeight: 136
+
+                                        ProgressRing {
+                                            anchors.fill: parent
+                                            percent: root.hasProviderData ? root.primaryPercent : 0
+                                            thickness: 9
+                                            accentColor: root.heroAccent
+                                            trackColor: Theme.withAlpha(root.heroAccent, 0.14)
+                                        }
+
+                                        Column {
+                                            anchors.centerIn: parent
+                                            spacing: 2
+
                                             StyledText {
-                                                width: parent.width
+                                                anchors.horizontalCenter: parent.horizontalCenter
                                                 text: root.barText
                                                 color: root.heroAccent
                                                 font.pixelSize: Theme.fontSizeLarge + 8
@@ -2073,83 +2870,116 @@ PluginComponent {
                                             }
 
                                             StyledText {
-                                                width: parent.width
-                                                text: root.providerData ? root.providerSubtitle(root.providerData) : (root.isLoading ? t("status.fetching", "Fetching…") : t("status.check_settings", "Check settings & credentials."))
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                text: root.providerData ? root.providerName(root.providerData.provider) : "—"
                                                 color: Theme.surfaceVariantText
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                wrapMode: Text.WordWrap
-                                                maximumLineCount: 2
-                                                elide: Text.ElideRight
-                                            }
-
-                                            Flow {
-                                                width: parent.width
-                                                spacing: Theme.spacingXS
-
-                                                BadgePill {
-                                                    label: root.providerData ? root.providerSourceLabel(root.providerData) : t("status.local_helpers", "local adapters")
-                                                    iconName: "sync_alt"
-                                                    accentColor: Theme.primary
-                                                }
-
-                                                BadgePill {
-                                                    label: root.hasError && !root.hasProviderData
-                                                        ? t("status.setup_required", "Setup required")
-                                                        : root.hasError
-                                                            ? t("status.needs_attention", "Needs attention")
-                                                            : root.providerStatusLabel(root.providerData)
-                                                    iconName: root.hasError ? "warning" : "check_circle"
-                                                    accentColor: root.hasError ? Theme.warning : root.getUsageColor(root.primaryPercent)
-                                                }
+                                                font.pixelSize: Theme.fontSizeSmall - 1
+                                                font.weight: Font.DemiBold
                                             }
                                         }
                                     }
                                 }
 
-                                GridLayout {
+                                Rectangle {
                                     width: parent.width
-                                    columns: contentColumn.width < 520 ? 1 : (contentColumn.width < 760 ? 2 : 4)
-                                    columnSpacing: Theme.spacingM
-                                    rowSpacing: Theme.spacingM
+                                    height: 1
+                                    color: Theme.withAlpha(Theme.surfaceText, 0.07)
+                                }
 
-                                    MetricTile { Layout.fillWidth: true; label: t("card.active", "Active"); value: String(root.successfulProviders.length); accentColor: Theme.success }
-                                    MetricTile { Layout.fillWidth: true; label: t("card.attention", "Attention"); value: String(root.errorProviders.length); accentColor: root.errorProviders.length > 0 ? Theme.warning : Theme.success }
-                                    MetricTile { Layout.fillWidth: true; label: t("card.engine", "Engine"); value: root.providerEngineLabel; accentColor: Theme.primary }
-                                    MetricTile { Layout.fillWidth: true; label: t("card.backend", "Backend"); value: t("status.self_managed", "Plugin-managed"); accentColor: Theme.primary; multilineValue: true }
+                                Flow {
+                                    width: parent.width
+                                    spacing: Theme.spacingXL
+
+                                    HeroStat {
+                                        statIcon: "check_circle"
+                                        statLabel: t("card.active", "Active")
+                                        statValue: String(root.successfulProviders.length)
+                                        statAccent: Theme.success
+                                    }
+
+                                    HeroStat {
+                                        statIcon: "warning"
+                                        statLabel: t("card.attention", "Attention")
+                                        statValue: String(root.errorProviders.length)
+                                        statAccent: root.errorProviders.length > 0 ? Theme.warning : Theme.success
+                                    }
+
+                                    HeroStat {
+                                        statIcon: "memory"
+                                        statLabel: t("card.engine", "Engine")
+                                        statValue: root.providerEngineLabel
+                                        statAccent: Theme.primary
+                                    }
+
+                                    HeroStat {
+                                        statIcon: "history"
+                                        statLabel: t("popout.last_sync", "Last sync")
+                                        statValue: root.lastUpdated.length > 0 ? root.lastUpdated : "—"
+                                        statAccent: root.isDataStale ? Theme.warning : Theme.primary
+                                    }
                                 }
                             }
                         }
 
-                        RowLayout {
+                        Column {
                             visible: root.providers.length > 0
                             width: parent.width
-                            spacing: Theme.spacingM
+                            spacing: Theme.spacingS
 
-                            StyledText {
-                                Layout.fillWidth: true
-                                text: t("card.providers", "Providers")
-                                color: Theme.surfaceText
-                                font.pixelSize: Theme.fontSizeLarge
-                                font.weight: Font.Bold
-                            }
-
-                            Rectangle {
-                                Layout.alignment: Qt.AlignVCenter
-                                implicitWidth: providerCountLabel.implicitWidth + Theme.spacingM * 2
-                                implicitHeight: 28
-                                radius: 14
-                                color: Theme.withAlpha(root.heroAccent, 0.12)
-                                border.width: 1
-                                border.color: Theme.withAlpha(root.heroAccent, 0.24)
+                            RowLayout {
+                                width: parent.width
+                                spacing: Theme.spacingM
 
                                 StyledText {
-                                    id: providerCountLabel
-                                    anchors.centerIn: parent
-                                    text: root.filteredDisplayProviders.length === 1 ? t("status.displayed", "{count} displayed", { count: root.filteredDisplayProviders.length }) : t("status.displayed_plural", "{count} displayed", { count: root.filteredDisplayProviders.length })
-                                    color: root.heroAccent
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.weight: Font.DemiBold
+                                    Layout.fillWidth: true
+                                    text: t("card.providers", "Providers")
+                                    color: Theme.surfaceText
+                                    font.pixelSize: Theme.fontSizeLarge
+                                    font.weight: Font.Bold
                                 }
+
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    implicitWidth: providerCountLabel.implicitWidth + Theme.spacingM * 2
+                                    implicitHeight: 28
+                                    radius: 14
+                                    color: Theme.withAlpha(root.heroAccent, 0.12)
+                                    border.width: 1
+                                    border.color: Theme.withAlpha(root.heroAccent, 0.24)
+
+                                    StyledText {
+                                        id: providerCountLabel
+                                        anchors.centerIn: parent
+                                        text: root.filteredDisplayProviders.length === 1 ? t("status.displayed", "{count} displayed", { count: root.filteredDisplayProviders.length }) : t("status.displayed_plural", "{count} displayed", { count: root.filteredDisplayProviders.length })
+                                        color: root.heroAccent
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+
+                                DankActionButton {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    iconName: root.allExpanded ? "unfold_less" : "unfold_more"
+                                    iconColor: root.allExpanded ? Theme.primary : Theme.surfaceVariantText
+                                    backgroundColor: Theme.withAlpha(Theme.primary, root.allExpanded ? 0.12 : 0.06)
+                                    buttonSize: 30
+                                    tooltipText: root.allExpanded ? t("card.collapse_all", "Collapse all") : t("card.expand_all", "Expand all")
+                                    onClicked: {
+                                        root.allExpanded = !root.allExpanded;
+                                        if (root.allExpanded) root.focusedProviderId = "";
+                                    }
+                                }
+                            }
+
+                            DankFilterChips {
+                                width: parent.width
+                                showCounts: true
+                                model: [
+                                    { label: t("filter.all", "All"), count: root.displayProviders.length },
+                                    { label: t("filter.live", "Live"), count: root.successfulProviders.length },
+                                    { label: t("filter.issues", "Issues"), count: root.errorProviders.length }
+                                ]
+                                onSelectionChanged: index => root.providerStatusFilter = index === 1 ? "live" : (index === 2 ? "issues" : "all")
                             }
                         }
 
@@ -2246,7 +3076,7 @@ PluginComponent {
                         }
 
                         DankTextField {
-                            visible: root.displayProviders.length > 8
+                            visible: root.displayProviders.length > 5
                             width: parent.width
                             placeholderText: t("card.filter_providers", "Filter providers by name or source")
                             text: root.providerFilter

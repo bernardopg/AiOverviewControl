@@ -174,8 +174,11 @@ fetch_gemini_native() {
   if [ -n "$key" ]; then
     local tmp_body http_status
     tmp_body="$(mktemp)"
+    # Key goes in a header, not the query string — URLs leak through process
+    # listings and proxy logs.
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-      "https://generativelanguage.googleapis.com/v1beta/models?key=${key}" 2>/dev/null || true)"
+      -H "x-goog-api-key: ${key}" \
+      "https://generativelanguage.googleapis.com/v1beta/models" 2>/dev/null || true)"
     if [ "$http_status" = "200" ]; then
       rm -f "$tmp_body"
       json_note_usage gemini gemini-api-key "Gemini API key" "api-key" "Quota visible in AI Studio" "AI Studio"
@@ -426,7 +429,6 @@ fetch_deepseek_native() {
     (.balance_infos // []) as $infos
     | ($infos[0] // {}) as $b
     | num($b.total_balance) as $total
-    | num($b.topped_up_balance) as $topped
     | num($b.granted_balance) as $granted
     # The balance API reports remaining funds, not consumption — there is no
     # original total to derive a usage percent from. Mirror the Kimi pattern:
@@ -444,20 +446,20 @@ fetch_deepseek_native() {
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Balance",
-            displayValue: (($b.currency // "CNY") + " " + ($b.total_balance // "0"))
+            displayValue: (($b.currency // "CNY") + " " + ($total | tostring))
           },
           secondary: {
             usedPercent: 0,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Granted credits",
-            displayValue: (($b.currency // "CNY") + " " + ($b.granted_balance // "0"))
+            displayValue: (($b.currency // "CNY") + " " + ($granted | tostring))
           },
           tertiary: null,
           updatedAt: (now | todateiso8601)
         },
         credits: {
-          remaining: (($b.currency // "CNY") + " " + ($b.total_balance // "0"))
+          remaining: (($b.currency // "CNY") + " " + ($total | tostring))
         }
       }
   ' "$tmp_body"
@@ -473,10 +475,16 @@ fetch_kimi_native() {
   local tmp_body http_status host base currency symbol
   tmp_body="$(mktemp)"
   # Moonshot split into a global platform (api.moonshot.ai, USD) and a
-  # China platform (api.moonshot.cn, CNY). Honour an explicit override,
-  # otherwise try the global host first and fall back to .cn.
+  # China platform (api.moonshot.cn, CNY). An explicit override is exclusive —
+  # no silent fallback to another host; otherwise try global first, then .cn.
+  local -a hosts
+  if [ -n "${MOONSHOT_API_BASE:-}" ]; then
+    hosts=("${MOONSHOT_API_BASE}")
+  else
+    hosts=("https://api.moonshot.ai" "https://api.moonshot.cn")
+  fi
   http_status=""
-  for host in "${MOONSHOT_API_BASE:-https://api.moonshot.ai}" "https://api.moonshot.cn"; do
+  for host in "${hosts[@]}"; do
     base="$host"
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
       -H "Authorization: Bearer ${key}" \
@@ -1029,6 +1037,29 @@ done
 for pid in "${pids[@]}"; do
   wait "$pid" || true
 done
+
+# Append one usage snapshot per healthy provider so the widget can render
+# trend arrows and history sparklines. Best-effort: never block the response.
+record_history() {
+  local history_dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+  local history_file="$history_dir/usage-history.jsonl"
+  mkdir -p "$history_dir" 2>/dev/null || return 0
+  local now idx file line
+  now="$(date +%s)"
+  for idx in "${!normalized_providers[@]}"; do
+    file="${result_files[$idx]}"
+    [ -s "$file" ] || continue
+    line="$(jq -c --argjson ts "$now" \
+      'select(.usage.primary.usedPercent != null) | {ts:$ts, provider:.provider, pct:(.usage.primary.usedPercent)}' \
+      "$file" 2>/dev/null || true)"
+    [ -n "$line" ] && printf '%s\n' "$line" >> "$history_file"
+  done
+  if [ -f "$history_file" ] && [ "$(wc -l < "$history_file")" -gt 4000 ]; then
+    tail -n 2000 "$history_file" > "$history_file.tmp" && mv -f "$history_file.tmp" "$history_file"
+  fi
+  return 0
+}
+record_history
 
 printf '['
 for index in "${!normalized_providers[@]}"; do

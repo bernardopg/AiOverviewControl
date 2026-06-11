@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## 1.3.0 - 2026-06-10
+## 1.3.0 - 2026-06-11
 
 ### Architecture
 - Removed the external aggregation executable and its settings, detection, dispatcher arguments, documentation, and diagnostics.
@@ -20,10 +20,44 @@
 - Added provider filtering when more than eight cards are visible.
 - Rebuilt settings around provider health, telemetry coverage, informational coverage, and plugin-managed diagnostics.
 - Removed obsolete source mode and external-binary path controls.
+- Redesigned the popout hero: animated circular progress gauge, status eyebrow with live pulse, badge row, and a stat band (active/attention/engine/last sync) replacing the metric tiles.
+- Added status filter chips (All/Live/Issues) with counts above the provider list; the name filter now appears from six providers.
+- Provider cards gained an animated expand/collapse, a usage ring around the provider icon, and a rotating chevron.
+- Added an indeterminate loading bar at the top of the popout while fetching.
+- Redesigned settings: gradient hero with icon tile, version pill, health summary chips, and a re-check health action; section headers with icons and dividers; provider chips animate on hover; selected providers show colored health status pills; diagnostics commands render in monospace.
+- Provider cards sort by usage (highest first) with failed providers at the end.
+- Claude daily bars show per-day tokens and cost on hover, with animated bar heights.
+- Added expand-all/collapse-all toggle next to the provider list header.
+- Bar pill entries gained a usage-colored status dot and percent, replacing flat text.
+- Diagnostics commands gained a one-click copy button (wl-copy) with confirmation feedback.
+
+### Features
+- Desktop notifications when a provider crosses a configurable usage threshold (75/85/95%), de-duplicated per reset window.
+- Claude 5h burn-rate forecast: warns "At this pace: 100% in Xm" when the window will be exhausted before reset.
+- Claude projected month cost tile based on average daily spend; turns red when projecting 1.5× current spend.
+- Usage history: the dispatcher records snapshots to `~/.cache/AiOverviewControl/usage-history.jsonl`; expanded cards render a sparkline via the new `get-usage-history` helper.
+- Trend arrows on cards (up/down vs the previous snapshot).
+- Pin providers (star) to keep them at the top of the list, persisted in settings.
+- "Open console" button on expanded cards deep-links to each provider's usage page.
+- Per-provider retry badge on failed cards re-fetches only that provider.
+- New "top" pill mode shows only the most critical provider in the bar.
+- Top Claude projects of the week (by real session `cwd`) with token bars, toggleable via the restored `showClaudeProjects` setting.
 
 ### Quality
 - Updated CI for the new dispatcher contract, health schema, and a regression check preventing the removed dependency from returning.
 - Rebuilt English, Brazilian Portuguese, and Simplified Chinese locale bundles with key parity.
+
+### Fixes
+- Claude analytics now bucket session timestamps by local day instead of UTC, fixing shifted daily bars and undercounted today cost/tokens in non-UTC timezones.
+- Claude pricing now matches single-number model versions (e.g. `claude-fable-5`), which previously priced whole families at $0; pricing cache is invalidated via a schema marker.
+- Claude quota falls back to the last good snapshot on transient API failures (429, 5xx, network) instead of erroring the card; auth failures still surface.
+- Claude card shows 5h/7d reset countdowns and an "Extra usage on" badge.
+- Provider health checks now recognize dispatcher aliases (`moonshot`, `zhipu`, `nim`, `vertex`, `ark`, `modelark`, `dashscope`, `alibaba`).
+- Gemini API key moved from the URL query string to the `x-goog-api-key` header so it no longer leaks via process listings.
+- DeepSeek balance fields are stringified defensively so numeric API responses cannot break JSON output.
+- `MOONSHOT_API_BASE` override is now exclusive: no silent fallback to the China host when an explicit base is set.
+- Messages without a timestamp are excluded from Claude weekly aggregation instead of being miscounted.
+- Removed the unused USD→EUR exchange-rate fetch and dead `costCurrency`/`showClaudeProjects` settings references.
 
 ## 1.2.4 - 2026-05-26
 

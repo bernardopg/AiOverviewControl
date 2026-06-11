@@ -35,6 +35,7 @@ WEEK_MESSAGES=0
 WEEK_SESSIONS=0
 MONTH_TOKENS=0
 WEEK_MODELS=""
+WEEK_PROJECTS=""
 DAILY="0,0,0,0,0,0,0"
 
 TODAY_COST="0.00"
@@ -52,13 +53,16 @@ refresh_pricing() {
     local raw
     raw=$(curl -s --max-time 10 "$LITELLM_URL" 2>/dev/null) || return 1
     # Dynamically extract pricing for all Claude model families
-    # Pattern: "claude-{family}-{major}-{minor}" (no date suffix, no provider prefix)
+    # Pattern: "claude-{family}-{major}[-{minor}]" (no date suffix, no provider
+    # prefix). Single-number versions (e.g. claude-fable-5) must match too,
+    # otherwise whole families silently price at $0.
     # Groups by family name, takes the latest version per family
     local result
     result=$(echo "$raw" | jq -c '{
+        schema: 2,
         updated: "'"$TODAY"'",
         models: ([to_entries[]
-            | select(.key | test("^claude-[a-z]+-[0-9]+-[0-9]+$"))
+            | select(.key | test("^claude-[a-z]+-[0-9]+(-[0-9]+)?$"))
             | select(.value.input_cost_per_token > 0)
             | {
                 family: (.key | split("-") | .[1]),
@@ -75,13 +79,6 @@ refresh_pricing() {
                 }})
           | from_entries)
     }' 2>/dev/null) || return 1
-    # Fetch USD→EUR exchange rate from ECB via Frankfurter
-    local eur_rate
-    eur_rate=$(curl -s --max-time 5 "https://api.frankfurter.app/latest?from=USD&to=EUR" 2>/dev/null \
-        | jq -r '.rates.EUR // empty' 2>/dev/null) || eur_rate=""
-    if [ -n "$eur_rate" ] && [[ "$eur_rate" =~ ^[0-9]+\.?[0-9]*$ ]]; then
-        result=$(echo "$result" | jq -c '. + {usd_eur_rate: '"$eur_rate"'}' 2>/dev/null)
-    fi
 
     # Validate that we got at least one model with pricing
     local check
@@ -92,7 +89,8 @@ refresh_pricing() {
 
 if [ -f "$PRICING_CACHE" ]; then
     cached_date=$(jq -r '.updated // ""' "$PRICING_CACHE" 2>/dev/null || echo "")
-    if [ "$cached_date" != "$TODAY" ]; then
+    cached_schema=$(jq -r '.schema // 0' "$PRICING_CACHE" 2>/dev/null || echo 0)
+    if [ "$cached_date" != "$TODAY" ] || [ "$cached_schema" != "2" ]; then
         refresh_pricing || true
     fi
     PRICING_JSON=$(cat "$PRICING_CACHE")
@@ -103,12 +101,10 @@ fi
 
 # Build awk-friendly pricing string: "opus:input:output:cache_read:cache_write,sonnet:...,haiku:..."
 PRICING_AWK=""
-USD_EUR_RATE="0"
 if [ -n "$PRICING_JSON" ]; then
     PRICING_AWK=$(echo "$PRICING_JSON" | jq -r '
         [.models | to_entries[] | "\(.key):\(.value.input):\(.value.output):\(.value.cache_read):\(.value.cache_write)"]
         | join(",")' 2>/dev/null || echo "")
-    USD_EUR_RATE=$(echo "$PRICING_JSON" | jq -r '.usd_eur_rate // 0' 2>/dev/null || echo "0")
 fi
 
 # --- Subscription & API Usage (with a short cache to avoid rate limits) ---
@@ -146,14 +142,17 @@ if [ -f "$CREDENTIALS" ]; then
                 && jq -e '.five_hour | type == "object"' "$usage_body" >/dev/null 2>&1; then
                 API_RESPONSE=$(cat "$usage_body")
                 jq -n --argjson data "$API_RESPONSE" '{cached_at: (now | floor), data: $data}' > "$USAGE_CACHE" 2>/dev/null
-            else
+            elif [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; then
+                # Credentials are genuinely invalid — stale data would mislead.
                 USAGE_ERROR_KIND="authentication"
-                if [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; then
-                    USAGE_ERROR_MESSAGE="Claude OAuth credentials are invalid or expired. Run: claude auth login --claudeai"
-                else
-                    USAGE_ERROR_KIND="network"
-                    USAGE_ERROR_MESSAGE="Claude usage request failed with HTTP ${usage_status:-unknown}."
-                fi
+                USAGE_ERROR_MESSAGE="Claude OAuth credentials are invalid or expired. Run: claude auth login --claudeai"
+            elif jq -e '.data.five_hour | type == "object"' "$USAGE_CACHE" >/dev/null 2>&1; then
+                # Transient failure (429, 5xx, network): fall back to the last
+                # good snapshot even past its TTL instead of erroring the card.
+                API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
+            else
+                USAGE_ERROR_KIND="network"
+                USAGE_ERROR_MESSAGE="Claude usage request failed with HTTP ${usage_status:-unknown}."
             fi
             rm -f "$usage_body"
         else
@@ -196,7 +195,14 @@ if [ -d "$PROJECTS_DIR" ]; then
             DAILY_COSTS) DAILY_COSTS="$value" ;;
         esac
     done < <(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -31 -exec cat {} + 2>/dev/null \
-        | jq -r -R 'fromjson? | select(.type == "assistant") | "\(.timestamp[:10]) \(.message.model // "unknown") \(.message.usage.input_tokens // 0) \(.message.usage.output_tokens // 0) \(.message.usage.cache_read_input_tokens // 0) \(.message.usage.cache_creation_input_tokens // 0) \(.sessionId // "unknown")"' \
+        | jq -r -R '
+            # Timestamps in session JSONL are UTC; WEEK_START/TODAY above are
+            # local dates. Convert to the local day so buckets line up — with
+            # the raw UTC prefix as fallback if parsing ever fails.
+            fromjson? | select(.type == "assistant" and (.timestamp | type == "string"))
+            | ((.timestamp | sub("\\.[0-9]+"; "") | fromdateiso8601?) // null) as $ts
+            | (if $ts != null then ($ts | strflocaltime("%Y-%m-%d")) else .timestamp[:10] end) as $date
+            | "\($date) \(.message.model // "unknown") \(.message.usage.input_tokens // 0) \(.message.usage.output_tokens // 0) \(.message.usage.cache_read_input_tokens // 0) \(.message.usage.cache_creation_input_tokens // 0) \(.sessionId // "unknown")"' \
         | awk -v week_start="$WEEK_START" -v month_start="$MONTH_START" -v today="$TODAY" -v day_dates="$DAY_DATES" -v pricing="$PRICING_AWK" '
         BEGIN {
             split(day_dates, dates, ",")
@@ -280,6 +286,29 @@ if [ -d "$PROJECTS_DIR" ]; then
 
 fi
 
+# --- Top projects this week. Separate 8-day pass: each session line carries
+# its real working directory in .cwd, which beats decoding the project dir
+# name. Commas/colons in paths would break the CSV contract, so strip them. ---
+if [ -d "$PROJECTS_DIR" ]; then
+    WEEK_PROJECTS=$(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -8 -exec cat {} + 2>/dev/null \
+        | jq -r -R '
+            fromjson?
+            | select(.type == "assistant" and (.timestamp | type == "string"))
+            | ((.timestamp | sub("\\.[0-9]+"; "") | fromdateiso8601?) // null) as $ts
+            | (if $ts != null then ($ts | strflocaltime("%Y-%m-%d")) else (.timestamp[:10]) end) as $date
+            | ((.cwd // "unknown") | gsub("[,:]"; "_")) as $proj
+            | "\($date)\t\($proj)\t\(((.message.usage.input_tokens // 0) + (.message.usage.output_tokens // 0) + (.message.usage.cache_read_input_tokens // 0) + (.message.usage.cache_creation_input_tokens // 0)))"
+        ' 2>/dev/null \
+        | awk -F'\t' -v ws="$WEEK_START" '
+            $1 >= ws { tok[$2] += $3 }
+            END {
+                for (p in tok) printf "%s\t%d\n", p, tok[p]
+            }' \
+        | sort -t"$(printf '\t')" -k2,2nr \
+        | head -5 \
+        | awk -F'\t' '{printf "%s%s:%d", (NR > 1 ? "," : ""), $1, $2}')
+fi
+
 # --- All-time from stats cache (supplementary) ---
 if [ -f "$STATS_CACHE" ]; then
     ALLTIME_SESSIONS=$(jq -r '.totalSessions // 0' "$STATS_CACHE" 2>/dev/null || echo 0)
@@ -302,6 +331,7 @@ echo "WEEK_MESSAGES=${WEEK_MESSAGES}"
 echo "WEEK_SESSIONS=${WEEK_SESSIONS}"
 echo "WEEK_TOKENS=${WEEK_TOKENS}"
 echo "WEEK_MODELS=${WEEK_MODELS}"
+echo "WEEK_PROJECTS=${WEEK_PROJECTS}"
 echo "ALLTIME_SESSIONS=${ALLTIME_SESSIONS}"
 echo "ALLTIME_MESSAGES=${ALLTIME_MESSAGES}"
 echo "FIRST_SESSION=${FIRST_SESSION}"
@@ -311,4 +341,3 @@ echo "TODAY_COST=${TODAY_COST}"
 echo "WEEK_COST=${WEEK_COST}"
 echo "MONTH_COST=${MONTH_COST}"
 echo "DAILY_COSTS=${DAILY_COSTS}"
-echo "USD_EUR_RATE=${USD_EUR_RATE}"

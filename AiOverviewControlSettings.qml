@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Io
 import qs.Common
 import qs.Widgets
@@ -14,6 +15,24 @@ PluginSettings {
     property var providerHealth: ({})
     property string healthBuffer: ""
     property string healthScript: ""
+
+    readonly property int readyCount: {
+        let n = 0;
+        for (let i = 0; i < selectedIds.length; i++) {
+            const health = providerHealth[selectedIds[i]];
+            if (health && health.status === "ready") n++;
+        }
+        return n;
+    }
+
+    readonly property int missingCount: {
+        let n = 0;
+        for (let i = 0; i < selectedIds.length; i++) {
+            const health = providerHealth[selectedIds[i]];
+            if (health && health.status === "missing") n++;
+        }
+        return n;
+    }
 
     readonly property var allProviders: [
         { id:"codex", name:"Codex", icon:"terminal", mode:"telemetry", requirement:"codex CLI", envVar:"", note:"Official app-server rate limits" },
@@ -114,43 +133,148 @@ PluginSettings {
 
     StyledRect {
         width: parent.width
-        radius: Theme.cornerRadius + 4
+        radius: Theme.cornerRadius + 6
         color: Theme.surfaceContainerHigh
         border.width: 1
-        border.color: Theme.withAlpha(Theme.primary, 0.22)
+        border.color: Theme.withAlpha(Theme.primary, 0.2)
         implicitHeight: hero.implicitHeight + Theme.spacingL * 2
+        clip: true
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.1) }
+                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.primary, 0.0) }
+            }
+        }
+
+        Rectangle {
+            width: 150
+            height: 150
+            radius: 75
+            anchors.right: parent.right
+            anchors.rightMargin: -52
+            anchors.top: parent.top
+            anchors.topMargin: -62
+            color: Theme.withAlpha(Theme.primary, 0.07)
+        }
 
         Column {
             id: hero
             anchors.fill: parent
             anchors.margins: Theme.spacingL
-            spacing: Theme.spacingS
+            spacing: Theme.spacingM
 
             RowLayout {
                 width: parent.width
-                DankIcon { name:"monitoring"; size:22; color:Theme.primary }
-                StyledText { Layout.fillWidth:true; text:"AiOverviewControl"; font.pixelSize:Theme.fontSizeLarge; font.weight:Font.Bold; color:Theme.surfaceText }
-                StyledText { text:"v1.3.0"; font.pixelSize:Theme.fontSizeSmall; color:Theme.primary }
+                spacing: Theme.spacingM
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    width: 44
+                    height: 44
+                    radius: 14
+                    color: Theme.withAlpha(Theme.primary, 0.14)
+                    border.width: 1
+                    border.color: Theme.withAlpha(Theme.primary, 0.28)
+
+                    DankIcon {
+                        anchors.centerIn: parent
+                        name: "monitoring"
+                        size: 22
+                        color: Theme.primary
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 2
+
+                    Row {
+                        spacing: Theme.spacingS
+
+                        StyledText {
+                            text: "AiOverviewControl"
+                            font.pixelSize: Theme.fontSizeLarge
+                            font.weight: Font.Bold
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Rectangle {
+                            implicitWidth: versionLabel.implicitWidth + Theme.spacingS * 2
+                            implicitHeight: 20
+                            radius: 10
+                            color: Theme.withAlpha(Theme.primary, 0.14)
+                            border.width: 1
+                            border.color: Theme.withAlpha(Theme.primary, 0.26)
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            StyledText {
+                                id: versionLabel
+                                anchors.centerIn: parent
+                                text: "v1.3.0"
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                                font.weight: Font.DemiBold
+                                color: Theme.primary
+                            }
+                        }
+                    }
+
+                    StyledText {
+                        width: parent.width
+                        text: t("settings.hero.self_managed", "Provider collection, health checks, refresh policy and rendering are managed by this plugin. No external aggregation tool is required.")
+                        wrapMode: Text.WordWrap
+                        color: Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+                }
+
+                DankActionButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    iconName: "refresh"
+                    iconColor: Theme.primary
+                    backgroundColor: Theme.withAlpha(Theme.primary, 0.1)
+                    buttonSize: 36
+                    tooltipText: t("settings.health.recheck", "Re-check health")
+                    onClicked: root.runHealth()
+                }
             }
 
-            StyledText {
+            Flow {
                 width: parent.width
-                text: t("settings.hero.self_managed", "Provider collection, health checks, refresh policy and rendering are managed by this plugin. No external aggregation tool is required.")
-                wrapMode: Text.WordWrap
-                color: Theme.surfaceVariantText
-                font.pixelSize: Theme.fontSizeSmall
-            }
+                spacing: Theme.spacingXS
 
-            StyledText {
-                text: t("settings.active_count", "{count} active", { count:selectedIds.length })
-                color: Theme.primary
-                font.pixelSize: Theme.fontSizeSmall
-                font.weight: Font.DemiBold
+                HealthChip {
+                    chipIcon: "playlist_add_check"
+                    chipLabel: t("settings.active_count", "{count} active", { count: root.selectedIds.length })
+                    chipAccent: Theme.primary
+                }
+
+                HealthChip {
+                    visible: root.readyCount > 0
+                    chipIcon: "check_circle"
+                    chipLabel: t("settings.health.ready_count", "{count} ready", { count: root.readyCount })
+                    chipAccent: Theme.success
+                }
+
+                HealthChip {
+                    visible: root.missingCount > 0
+                    chipIcon: "warning"
+                    chipLabel: t("settings.health.missing_count", "{count} missing", { count: root.missingCount })
+                    chipAccent: Theme.warning
+                }
             }
         }
     }
 
-    StyledText { width:parent.width; text:t("settings.section.interface", "Interface"); font.pixelSize:Theme.fontSizeSmall; font.weight:Font.DemiBold; color:Theme.surfaceVariantText }
+    SectionHeader {
+        width: parent.width
+        headerTitle: t("settings.section.interface", "Interface")
+        headerIcon: "tune"
+    }
 
     DankDropdown {
         width: parent.width
@@ -180,8 +304,8 @@ PluginSettings {
         text: t("settings.pill_mode.label", "Pill mode")
         description: t("settings.pill_mode.description", "Auto shows providers with measurable usage. Custom uses the list below.")
         currentValue: loadValue("pillMode", "auto")
-        options: ["auto", "custom"]
-        optionIcons: ["auto_awesome", "tune"]
+        options: ["auto", "custom", "top"]
+        optionIcons: ["auto_awesome", "tune", "trending_up"]
         dropdownWidth: 180
         onValueChanged: function(value) { saveValue("pillMode", value); }
     }
@@ -213,11 +337,41 @@ PluginSettings {
         onToggled: function(checked) { saveValue("showErrorProviders", checked ? "true" : "false"); }
     }
 
+    DankToggle {
+        width: parent.width
+        text: t("settings.show_projects", "Show Claude projects")
+        description: t("settings.show_projects_desc", "List the week's top projects inside the Claude card.")
+        checked: loadValue("showClaudeProjects", "true") === "true"
+        onToggled: function(checked) { saveValue("showClaudeProjects", checked ? "true" : "false"); }
+    }
+
+    DankToggle {
+        id: notifyToggle
+        width: parent.width
+        text: t("settings.notify.label", "Quota notifications")
+        description: t("settings.notify.description", "Send a desktop notification when a provider crosses the threshold.")
+        checked: loadValue("quotaNotifications", "true") === "true"
+        onToggled: function(checked) { saveValue("quotaNotifications", checked ? "true" : "false"); }
+    }
+
+    DankDropdown {
+        visible: notifyToggle.checked
+        width: parent.width
+        text: t("settings.notify.threshold", "Notification threshold")
+        description: t("settings.notify.threshold_desc", "Usage percent that triggers a notification.")
+        currentValue: loadValue("notifyThreshold", "85")
+        options: ["75", "85", "95"]
+        optionIcons: ["notifications", "notifications_active", "notification_important"]
+        dropdownWidth: 160
+        onValueChanged: function(value) { saveValue("notifyThreshold", value); }
+    }
+
     ProviderSection {
         width: parent.width
         title: t("settings.telemetry_providers", "Telemetry providers")
         description: t("settings.telemetry_providers_desc", "Adapters backed by official CLIs, documented APIs, or local usage stores.")
         providers: root.telemetryProviders
+        sectionIcon: "monitoring"
     }
 
     ProviderSection {
@@ -225,6 +379,7 @@ PluginSettings {
         title: t("settings.informational_providers", "Informational providers")
         description: t("settings.informational_providers_desc", "These providers expose no public read-only quota API. Their cards link the user to the official usage surface.")
         providers: root.informationalProviders
+        sectionIcon: "info"
     }
 
     StyledRect {
@@ -273,19 +428,133 @@ PluginSettings {
                     { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint ~/.config/DankMaterialShell/plugins/AiOverviewControl/AiOverviewControlWidget.qml ~/.config/DankMaterialShell/plugins/AiOverviewControl/AiOverviewControlSettings.qml" }
                 ]
                 delegate: Column {
+                    id: diagRow
                     required property var modelData
+                    property bool copied: false
                     width: parent.width
                     spacing: Theme.spacingXS
+
+                    Timer {
+                        id: copiedReset
+                        interval: 1600
+                        onTriggered: diagRow.copied = false
+                    }
+
                     StyledText { width:parent.width; text:modelData.label; wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall; font.weight:Font.Medium }
+
                     StyledRect {
                         width: parent.width
                         radius: Theme.cornerRadius
                         color: Theme.surfaceContainerHigh
-                        implicitHeight: commandText.implicitHeight + Theme.spacingS * 2
-                        StyledText { id:commandText; anchors.fill:parent; anchors.margins:Theme.spacingS; text:modelData.cmd; wrapMode:Text.WrapAnywhere; color:Theme.primary; font.pixelSize:Theme.fontSizeSmall - 1 }
+                        implicitHeight: Math.max(commandText.implicitHeight, copyButton.height) + Theme.spacingS * 2
+
+                        StyledText {
+                            id: commandText
+                            anchors.left: parent.left
+                            anchors.right: copyButton.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingXS
+                            text: diagRow.modelData.cmd
+                            wrapMode: Text.WrapAnywhere
+                            color: Theme.primary
+                            font.pixelSize: Theme.fontSizeSmall - 1
+                            font.family: "monospace"
+                        }
+
+                        DankActionButton {
+                            id: copyButton
+                            anchors.right: parent.right
+                            anchors.rightMargin: Theme.spacingXS
+                            anchors.verticalCenter: parent.verticalCenter
+                            buttonSize: 28
+                            iconName: diagRow.copied ? "check" : "content_copy"
+                            iconColor: diagRow.copied ? Theme.success : Theme.surfaceVariantText
+                            backgroundColor: "transparent"
+                            tooltipText: t("settings.copy_command", "Copy command")
+                            onClicked: {
+                                Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "_", diagRow.modelData.cmd]);
+                                diagRow.copied = true;
+                                copiedReset.restart();
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    component HealthChip: Rectangle {
+        id: healthChip
+
+        required property string chipLabel
+        property string chipIcon: ""
+        property color chipAccent: Theme.primary
+
+        implicitWidth: chipContent.implicitWidth + Theme.spacingM * 2
+        implicitHeight: 26
+        radius: 13
+        color: Theme.withAlpha(chipAccent, 0.12)
+        border.width: 1
+        border.color: Theme.withAlpha(chipAccent, 0.24)
+
+        Row {
+            id: chipContent
+            anchors.centerIn: parent
+            spacing: Theme.spacingXS
+
+            DankIcon {
+                visible: healthChip.chipIcon.length > 0
+                name: healthChip.chipIcon
+                size: 13
+                color: healthChip.chipAccent
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            StyledText {
+                text: healthChip.chipLabel
+                color: healthChip.chipAccent
+                font.pixelSize: Theme.fontSizeSmall - 1
+                font.weight: Font.DemiBold
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    component SectionHeader: Column {
+        id: sectionHeader
+
+        required property string headerTitle
+        property string headerIcon: ""
+
+        width: parent ? parent.width : 0
+        spacing: Theme.spacingXS
+
+        Row {
+            spacing: Theme.spacingS
+
+            DankIcon {
+                visible: sectionHeader.headerIcon.length > 0
+                name: sectionHeader.headerIcon
+                size: 15
+                color: Theme.primary
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            StyledText {
+                text: sectionHeader.headerTitle.toUpperCase()
+                font.pixelSize: Theme.fontSizeSmall - 1
+                font.weight: Font.DemiBold
+                font.letterSpacing: 1.0
+                color: Theme.surfaceVariantText
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.withAlpha(Theme.surfaceText, 0.07)
         }
     }
 
@@ -294,10 +563,36 @@ PluginSettings {
         required property string title
         required property string description
         required property var providers
+        property string sectionIcon: ""
         spacing: Theme.spacingS
 
-        StyledText { width:parent.width; text:providerSection.title; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeMedium; font.weight:Font.DemiBold }
+        Row {
+            spacing: Theme.spacingS
+
+            DankIcon {
+                visible: providerSection.sectionIcon.length > 0
+                name: providerSection.sectionIcon
+                size: 16
+                color: Theme.primary
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            StyledText {
+                text: providerSection.title
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+
         StyledText { width:parent.width; text:providerSection.description; wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall }
+
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.withAlpha(Theme.surfaceText, 0.06)
+        }
 
         Flow {
             width: parent.width
@@ -312,10 +607,14 @@ PluginSettings {
                     width: chipRow.implicitWidth + Theme.spacingM * 2
                     height: 38
                     radius: 19
-                    color: active ? Theme.withAlpha(Theme.primary, 0.17) : Theme.withAlpha(Theme.surfaceVariantText, 0.07)
+                    color: active ? Theme.withAlpha(Theme.primary, 0.17) : (chipMouse.containsMouse ? Theme.withAlpha(Theme.surfaceVariantText, 0.13) : Theme.withAlpha(Theme.surfaceVariantText, 0.07))
                     border.width: active ? 1 : 0
                     border.color: Theme.withAlpha(Theme.primary, activeFocus ? 0.9 : 0.45)
+                    scale: chipMouse.containsMouse ? 1.04 : 1.0
                     activeFocusOnTab: true
+
+                    Behavior on color { ColorAnimation { duration: 140 } }
+                    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                     Accessible.role: Accessible.CheckBox
                     Accessible.name: modelData.name
                     Accessible.checked: active
@@ -334,7 +633,7 @@ PluginSettings {
                             color: providerChip.health.status === "ready" ? Theme.success : (providerChip.health.status === "missing" ? Theme.warning : Theme.surfaceVariantText)
                         }
                     }
-                    MouseArea { anchors.fill:parent; cursorShape:Qt.PointingHandCursor; onClicked:root.toggleProvider(modelData.id) }
+                    MouseArea { id:chipMouse; anchors.fill:parent; hoverEnabled:true; cursorShape:Qt.PointingHandCursor; onClicked:root.toggleProvider(modelData.id) }
                 }
             }
         }
@@ -345,24 +644,58 @@ PluginSettings {
             Repeater {
                 model: providerSection.providers.filter(function(p) { return root.isSelected(p.id); })
                 delegate: StyledRect {
+                    id: providerDetailRow
                     required property var modelData
                     readonly property var health: root.healthFor(modelData.id)
+                    readonly property color healthColor: health.status === "ready" ? Theme.success : (health.status === "missing" ? Theme.warning : Theme.surfaceVariantText)
                     width: parent.width
                     radius: Theme.cornerRadius
                     color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
+                    border.width: 1
+                    border.color: Theme.withAlpha(providerDetailRow.healthColor, 0.14)
                     implicitHeight: providerRow.implicitHeight + Theme.spacingS * 2
+
                     RowLayout {
                         id: providerRow
                         anchors.fill: parent
                         anchors.margins: Theme.spacingS
                         spacing: Theme.spacingS
-                        StyledText { Layout.preferredWidth:110; text:modelData.name; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeSmall; font.weight:Font.Medium }
+
+                        Rectangle {
+                            Layout.alignment: Qt.AlignVCenter
+                            width: 28
+                            height: 28
+                            radius: 9
+                            color: Theme.withAlpha(Theme.primary, 0.1)
+
+                            DankIcon {
+                                anchors.centerIn: parent
+                                name: providerDetailRow.modelData.icon
+                                size: 14
+                                color: Theme.primary
+                            }
+                        }
+
+                        StyledText { Layout.preferredWidth:100; text:modelData.name; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeSmall; font.weight:Font.Medium; elide:Text.ElideRight }
                         StyledText { Layout.fillWidth:true; text:modelData.note; wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall - 1 }
-                        StyledText {
-                            text: health.status === "ready" ? t("settings.health.ready", "Ready") : health.detail
-                            color: health.status === "ready" ? Theme.success : (health.status === "missing" ? Theme.warning : Theme.surfaceVariantText)
-                            font.pixelSize: Theme.fontSizeSmall - 1
-                            font.weight: Font.DemiBold
+
+                        Rectangle {
+                            Layout.alignment: Qt.AlignVCenter
+                            implicitWidth: healthLabel.implicitWidth + Theme.spacingS * 2
+                            implicitHeight: 22
+                            radius: 11
+                            color: Theme.withAlpha(providerDetailRow.healthColor, 0.13)
+                            border.width: 1
+                            border.color: Theme.withAlpha(providerDetailRow.healthColor, 0.26)
+
+                            StyledText {
+                                id: healthLabel
+                                anchors.centerIn: parent
+                                text: providerDetailRow.health.status === "ready" ? t("settings.health.ready", "Ready") : providerDetailRow.health.detail
+                                color: providerDetailRow.healthColor
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                                font.weight: Font.DemiBold
+                            }
                         }
                     }
                 }

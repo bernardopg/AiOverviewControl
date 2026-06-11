@@ -24,7 +24,7 @@ Runtime: QML/Quickshell plus Bash helpers. Core dependencies: `bash`, `jq`, and 
 
 ## Settings
 
-`refreshInterval`, `providerSelection`, `showErrorProviders`, `pillMode`, `pillProviders`, `densityMode`, `costCurrency`, `showClaudeProjects`, `languageOverride`.
+`refreshInterval`, `providerSelection`, `showErrorProviders`, `pillMode`, `pillProviders`, `densityMode`, `languageOverride`, `quotaNotifications`, `notifyThreshold`, `showClaudeProjects`, `pinnedProviders`.
 
 ## Validation
 
