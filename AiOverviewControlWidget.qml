@@ -1982,13 +1982,26 @@ PluginComponent {
             Repeater {
                 model: root.pillDisplayProviders.length > 0 ? root.pillDisplayProviders : (root.hasProviderData ? [root.providerData] : [])
 
-                StyledText {
+                Row {
                     required property var modelData
-                    text: `${Math.round(root.providerPercent(modelData))}%`
-                    color: root.getUsageColor(root.providerPercent(modelData))
-                    font.pixelSize: Theme.fontSizeSmall
-                    font.weight: Font.DemiBold
+                    spacing: 4
                     anchors.horizontalCenter: parent.horizontalCenter
+
+                    Rectangle {
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: root.providerAccent(modelData.provider)
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    StyledText {
+                        text: `${Math.round(root.providerPercent(modelData))}%`
+                        color: root.getUsageColor(root.providerPercent(modelData))
+                        font.pixelSize: Theme.fontSizeSmall
+                        font.weight: Font.DemiBold
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
 
