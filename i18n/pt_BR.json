@@ -119,5 +119,15 @@
   "window.monthly": "Mensal",
   "window.session": "Sessão",
   "window.tertiary": "Terciária",
-  "window.weekly": "Semanal"
+  "window.weekly": "Semanal",
+  "notify.title_exhausted": "{provider} — quota esgotada",
+  "notify.resets_in": "reseta em {time}",
+  "settings.notify.cooldown": "Intervalo de repetição do alerta",
+  "settings.notify.cooldown_desc": "0 alerta uma vez por janela de quota; outros valores repetem o alerta após esses minutos enquanto o uso seguir acima do limiar.",
+  "card.nine_details": "Telemetria do 9Router",
+  "card.nine_month_total": "{cost} neste mês",
+  "card.nine_today": "Hoje",
+  "card.nine_week_tokens": "Tokens da semana",
+  "card.nine_models_week": "Top modelos (7 dias)",
+  "card.nine_providers_week": "Providers roteados (7 dias)"
 }

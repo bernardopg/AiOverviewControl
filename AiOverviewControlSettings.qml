@@ -237,7 +237,7 @@ PluginSettings {
                             StyledText {
                                 id: versionLabel
                                 anchors.centerIn: parent
-                                text: "v1.4.0"
+                                text: "v1.4.1"
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
@@ -386,6 +386,18 @@ PluginSettings {
         optionIcons: ["notifications", "notifications_active", "notification_important"]
         dropdownWidth: 160
         onValueChanged: function(value) { saveValue("notifyThreshold", value); }
+    }
+
+    DankDropdown {
+        visible: notifyToggle.checked
+        width: parent.width
+        text: t("settings.notify.cooldown", "Re-alert interval")
+        description: t("settings.notify.cooldown_desc", "0 alerts once per quota window; other values repeat the alert after that many minutes while usage stays above the threshold.")
+        currentValue: loadValue("notifyCooldownMinutes", "0")
+        options: ["0", "60", "360", "1440"]
+        optionIcons: ["notifications_off", "schedule", "schedule", "schedule"]
+        dropdownWidth: 160
+        onValueChanged: function(value) { saveValue("notifyCooldownMinutes", value); }
     }
 
     Column {

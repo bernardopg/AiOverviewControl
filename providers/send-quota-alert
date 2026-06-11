@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Cross-instance deduplicated quota notification.
+#
+# Usage: send-quota-alert <key> <cooldown_seconds> <urgency> <icon> <title> <body>
+#
+# State lives in one JSON file shared by every widget instance (multi-monitor
+# bars, plugin reloads, shell restarts), guarded by flock so two instances
+# firing in the same refresh tick cannot both emit. Re-sends reuse the daemon
+# notification id (notify-send -r), so a repeat replaces the bubble instead of
+# stacking a new entry.
+
+state_dir_for_clear="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
+# --clear <key>: drop the stored entry so the alert re-arms (used when usage
+# falls back below the threshold, e.g. a quota window reset with a null
+# resetsAt that produces a "static" dedupe key).
+if [ "${1:-}" = "--clear" ]; then
+  clear_key="${2:?missing dedupe key}"
+  state_file="${state_dir_for_clear}/notify-state.json"
+  lock_file="${state_dir_for_clear}/notify-state.lock"
+  [ -s "$state_file" ] || exit 0
+  mkdir -p "$state_dir_for_clear"
+  exec 9>"$lock_file"
+  flock -w 10 9 || exit 0
+  jq -e --arg k "$clear_key" 'has($k)' "$state_file" >/dev/null 2>&1 || exit 0
+  tmp="$(mktemp "${state_dir_for_clear}/.notify-state.XXXXXX")"
+  jq --arg k "$clear_key" 'del(.[$k])' "$state_file" >"$tmp" 2>/dev/null || { rm -f "$tmp"; exit 0; }
+  mv "$tmp" "$state_file"
+  exit 0
+fi
+
+key="${1:?missing dedupe key}"
+cooldown="${2:-21600}"
+urgency="${3:-normal}"
+icon="${4:-dialog-warning}"
+title="${5:?missing title}"
+body="${6:-}"
+
+case "$cooldown" in
+  ''|*[!0-9]*) cooldown=21600 ;;
+esac
+case "$urgency" in
+  low|normal|critical) ;;
+  *) urgency=normal ;;
+esac
+
+state_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
+state_file="${state_dir}/notify-state.json"
+lock_file="${state_dir}/notify-state.lock"
+mkdir -p "$state_dir"
+
+exec 9>"$lock_file"
+flock -w 10 9 || exit 0
+
+now="$(date +%s)"
+last=0
+prev_id=0
+if [ -s "$state_file" ]; then
+  last="$(jq -r --arg k "$key" '.[$k].last // 0' "$state_file" 2>/dev/null || echo 0)"
+  prev_id="$(jq -r --arg k "$key" '.[$k].id // 0' "$state_file" 2>/dev/null || echo 0)"
+fi
+case "$last" in ''|*[!0-9]*) last=0 ;; esac
+case "$prev_id" in ''|*[!0-9]*) prev_id=0 ;; esac
+
+if [ "$last" -gt 0 ] && [ $((now - last)) -lt "$cooldown" ]; then
+  exit 0
+fi
+
+notify_id="$(notify-send -p -r "$prev_id" \
+  -a "AiOverviewControl" \
+  -u "$urgency" \
+  -i "$icon" \
+  -h "string:x-canonical-private-synchronous:aioverviewcontrol-${key}" \
+  "$title" "$body" 2>/dev/null || echo 0)"
+case "$notify_id" in ''|*[!0-9]*) notify_id=0 ;; esac
+
+tmp="$(mktemp "${state_dir}/.notify-state.XXXXXX")"
+existing="{}"
+if [ -s "$state_file" ] && jq -e 'type == "object"' "$state_file" >/dev/null 2>&1; then
+  existing="$(cat "$state_file")"
+fi
+# Prune entries silent for >60 days so the state file cannot grow unbounded.
+jq -n \
+  --argjson state "$existing" \
+  --arg k "$key" \
+  --argjson now "$now" \
+  --argjson id "$notify_id" '
+  ($state | with_entries(select(($now - (.value.last // 0)) < 5184000)))
+  + {($k): {last: $now, id: $id}}
+' >"$tmp"
+mv "$tmp" "$state_file"

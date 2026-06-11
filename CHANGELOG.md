@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 1.4.1 - 2026-06-11
+
+### Fixes
+- Quota alerts no longer fire repeatedly: notification state is persisted on disk (flock-guarded), so duplicate widget instances (multi-monitor bars), plugin reloads, and shell restarts cannot re-send the same alert inside its quota window (`providers/send-quota-alert`).
+- Fixed `ReferenceError: cardMouse is not defined` — the provider card hover state referenced a MouseArea that had lost its id.
+
+### Features
+- Richer quota notifications: provider-aware title ("quota exhausted" at 100%), body with window label, remaining quota (`displayValue`) and reset countdown, `critical` urgency at 100%, and daemon-side replacement (`notify-send -r` + synchronous hint) so repeats update the existing bubble instead of stacking.
+- New "Re-alert interval" setting (`notifyCooldownMinutes`): 0 alerts once per quota window (default); 60/360/1440 re-alert after that many minutes while usage stays above the threshold.
+- 9Router telemetry section on the dashboard card: calendar-aligned 7-day cost chart with per-day hover (cost + requests), today/week/month totals, week token in/out, top models by 7-day cost, and routed-provider breakdown (`providers/get-9router-analytics`, reads `~/.9router/db/data.sqlite` with `usage.json` fallback).
+
+### Localization
+- Crowdin project synced with the repository: Spanish (`es-ES`) and German (`de`) added as target languages (previously only `pt-BR` and `zh-CN`), source `en.json` re-uploaded, and all four local translation bundles pushed.
+
 ## 1.4.0 - 2026-06-11
 
 ### Features

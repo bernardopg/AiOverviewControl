@@ -119,5 +119,15 @@
   "window.monthly": "Monatlich",
   "window.session": "Sitzung",
   "window.tertiary": "Tertiär",
-  "window.weekly": "Wöchentlich"
+  "window.weekly": "Wöchentlich",
+  "notify.title_exhausted": "{provider} — Kontingent aufgebraucht",
+  "notify.resets_in": "zurückgesetzt in {time}",
+  "settings.notify.cooldown": "Wiederholungsintervall",
+  "settings.notify.cooldown_desc": "0 meldet einmal pro Kontingentfenster; andere Werte wiederholen die Meldung nach so vielen Minuten, solange die Nutzung über dem Schwellwert bleibt.",
+  "card.nine_details": "9Router-Telemetrie",
+  "card.nine_month_total": "{cost} diesen Monat",
+  "card.nine_today": "Heute",
+  "card.nine_week_tokens": "Tokens der Woche",
+  "card.nine_models_week": "Top-Modelle (7 Tage)",
+  "card.nine_providers_week": "Geroutete Provider (7 Tage)"
 }

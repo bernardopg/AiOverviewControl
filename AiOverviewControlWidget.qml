@@ -66,6 +66,12 @@ PluginComponent {
         const override = notifyThresholdOverrides[normalizeProviderId(providerId)];
         return override !== undefined ? override : notifyThreshold;
     }
+    // Minutes between repeats of the same alert; 0 = once per quota window.
+    readonly property int notifyCooldownSecs: {
+        const parsed = parseInt(pluginData.notifyCooldownMinutes || "0");
+        if (!Number.isFinite(parsed) || parsed <= 0) return 999999999;
+        return parsed * 60;
+    }
     property string pinnedProvidersCsv: (pluginData.pinnedProviders || "").trim()
     readonly property var pinnedProviders: {
         const parts = pinnedProvidersCsv.split(",");
@@ -120,6 +126,10 @@ PluginComponent {
     property string claudeUsageScript: _pluginDir + "/providers/get-claude-usage"
     property string copilotUsageScript: _pluginDir + "/providers/get-copilot-usage"
     property string usageHistoryScript: _pluginDir + "/providers/get-usage-history"
+    property string notifyAlertScript: _pluginDir + "/providers/send-quota-alert"
+    property string nineRouterAnalyticsScript: _pluginDir + "/providers/get-9router-analytics"
+    property var nineStats: null
+    property string nineStatsBuffer: ""
     readonly property var availableProviderOptions: [
         "codex",
         "claude",
@@ -1002,20 +1012,48 @@ PluginComponent {
             const threshold = thresholdFor(provider.provider);
             // Key includes the reset timestamp so a new window re-arms the alert.
             const dedupeKey = `${provider.provider}:${windowData.resetsAt || "static"}:${threshold}`;
-            if (percent >= threshold && !seen[dedupeKey]) {
-                seen[dedupeKey] = true;
-                const reset = formatTimeUntil(windowData.resetsAt);
-                const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
-                Quickshell.execDetached([
-                    "notify-send",
-                    "-a", "AiOverviewControl",
-                    "-i", "dialog-warning",
-                    t("notify.title", "{provider} at {percent}%", { provider: providerName(provider.provider), percent: Math.round(percent) }),
-                    reset.length > 0
-                        ? t("notify.body", "{window} window · resets in {time}", { window: windowLabel, time: reset })
-                        : windowLabel
-                ]);
+            if (percent < threshold - 5) {
+                // Usage dropped well below the threshold (window reset): clear
+                // the persisted entry so the next crossing alerts again. The
+                // 5pp hysteresis band avoids notify/clear flapping right at
+                // the threshold. Matters mostly for "static" keys (null
+                // resetsAt) that would otherwise never re-arm. Unconditional
+                // because the on-disk entry may have been written by another
+                // instance or before a reload; the helper exits early when
+                // the key is absent.
+                delete seen[dedupeKey];
+                Quickshell.execDetached(["bash", notifyAlertScript, "--clear", dedupeKey]);
+                continue;
             }
+            if (percent < threshold || seen[dedupeKey]) continue;
+            seen[dedupeKey] = true;
+
+            const pct = Math.round(percent);
+            const exhausted = pct >= 100;
+            const reset = formatTimeUntil(windowData.resetsAt);
+            const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
+            const display = String(windowData.displayValue || "").trim();
+
+            const title = exhausted
+                ? t("notify.title_exhausted", "{provider} — quota exhausted", { provider: providerName(provider.provider) })
+                : t("notify.title", "{provider} at {percent}%", { provider: providerName(provider.provider), percent: pct });
+            const bodyParts = [windowLabel];
+            if (display.length > 0 && display !== windowLabel) bodyParts.push(display);
+            if (reset.length > 0) bodyParts.push(t("notify.resets_in", "resets in {time}", { time: reset }));
+
+            // The helper persists state on disk (flock-guarded), so duplicate
+            // widget instances, plugin reloads and shell restarts cannot
+            // re-fire inside the cooldown window. `seen` stays as a cheap
+            // in-process fast path only.
+            Quickshell.execDetached([
+                "bash", notifyAlertScript,
+                dedupeKey,
+                String(notifyCooldownSecs),
+                exhausted ? "critical" : "normal",
+                exhausted ? "dialog-error" : "dialog-warning",
+                title,
+                bodyParts.join(" · ")
+            ]);
         }
         notifiedMap = seen;
     }
@@ -1282,6 +1320,32 @@ PluginComponent {
             claudeStatsError = false;
             claudeStatsProcess.running = true;
             claudeTimeout.restart();
+        }
+        if (root.selectedProviders.indexOf("9router") >= 0 && !nineStatsProcess.running) {
+            nineStatsBuffer = "";
+            nineStatsProcess.running = true;
+        }
+    }
+
+    Process {
+        id: nineStatsProcess
+        command: ["bash", root.nineRouterAnalyticsScript]
+        stdout: SplitParser {
+            splitMarker: ""
+            onRead: data => root.nineStatsBuffer += data
+        }
+        onExited: code => {
+            if (code !== 0 || root.nineStatsBuffer.length === 0) {
+                root.nineStatsBuffer = "";
+                return;
+            }
+            try {
+                const parsed = JSON.parse(root.nineStatsBuffer);
+                root.nineStats = (parsed && !parsed.error) ? parsed : null;
+            } catch (error) {
+                // Keep the previous snapshot; the section simply stays as-is.
+            }
+            root.nineStatsBuffer = "";
         }
     }
 
@@ -2664,6 +2728,227 @@ PluginComponent {
                         }
                     }
                 }
+
+                StyledRect {
+                    visible: card.provider.provider === "9router" && root.nineStats !== null
+                    width: parent.width
+                    radius: Theme.cornerRadius + 2
+                    color: Theme.withAlpha(Theme.secondary, 0.08)
+                    border.width: 1
+                    border.color: Theme.withAlpha(Theme.secondary, 0.22)
+                    implicitHeight: nineCol.implicitHeight + Theme.spacingL * 2
+
+                    Column {
+                        id: nineCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingL
+                        spacing: Theme.spacingL
+
+                        readonly property var stats: root.nineStats || ({})
+                        readonly property var nineToday: stats.today || ({})
+                        readonly property var nineWeek: stats.week || ({})
+                        readonly property var nineMonth: stats.month || ({})
+                        readonly property var nineDays: stats.days || []
+                        readonly property var nineModels: stats.topModels || []
+                        readonly property var nineProviders: stats.byProvider || []
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: t("card.nine_details", "9Router telemetry")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeLarge
+                                font.weight: Font.Bold
+                            }
+
+                            StyledText {
+                                text: t("card.nine_month_total", "{cost} this month", { cost: root.formatCost(Number(nineCol.nineMonth.cost || 0)) })
+                                color: Theme.secondary
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+                        }
+
+                        GridLayout {
+                            width: parent.width
+                            columns: card.width < 520 ? 1 : (card.width < 760 ? 2 : 4)
+                            columnSpacing: Theme.spacingM
+                            rowSpacing: Theme.spacingM
+
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.nine_today", "Today")
+                                value: `${root.formatCost(Number(nineCol.nineToday.cost || 0))} · ${Number(nineCol.nineToday.requests || 0)} req`
+                                accentColor: Theme.secondary
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.week", "Week")
+                                value: `${root.formatCost(Number(nineCol.nineWeek.cost || 0))} · ${Number(nineCol.nineWeek.requests || 0)} req`
+                                accentColor: Theme.secondary
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.month", "Month")
+                                value: `${root.formatCost(Number(nineCol.nineMonth.cost || 0))} · ${Number(nineCol.nineMonth.requests || 0)} req`
+                                accentColor: Theme.secondary
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.nine_week_tokens", "Week tokens")
+                                value: `${root.formatTokens(Number(nineCol.nineWeek.promptTokens || 0))} in · ${root.formatTokens(Number(nineCol.nineWeek.completionTokens || 0))} out`
+                                accentColor: Theme.secondary
+                            }
+                        }
+
+                        // 7-day cost chart, calendar aligned (today is the last bar).
+                        Row {
+                            id: nineBars
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            readonly property real maxCost: {
+                                let top = 0;
+                                for (let i = 0; i < nineCol.nineDays.length; i++) {
+                                    top = Math.max(top, Number(nineCol.nineDays[i].cost || 0));
+                                }
+                                return top > 0 ? top : 1;
+                            }
+
+                            Repeater {
+                                model: nineCol.nineDays
+
+                                Column {
+                                    id: nineDayColumn
+                                    required property var modelData
+                                    required property int index
+                                    width: (nineBars.width - Theme.spacingS * 6) / 7
+                                    spacing: 7
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 66
+                                        radius: Theme.cornerRadius - 2
+                                        color: Theme.surfaceContainer
+                                        border.width: nineDayHover.containsMouse ? 1 : 0
+                                        border.color: Theme.withAlpha(index === 6 ? Theme.warning : Theme.secondary, 0.5)
+                                        clip: true
+
+                                        Rectangle {
+                                            anchors.bottom: parent.bottom
+                                            width: parent.width
+                                            height: Math.max(3, (Number(nineDayColumn.modelData.cost || 0) / nineBars.maxCost) * parent.height)
+                                            color: index === 6 ? Theme.warning : Theme.withAlpha(Theme.secondary, nineDayHover.containsMouse ? 0.75 : 0.55)
+
+                                            Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                            Behavior on color { ColorAnimation { duration: 120 } }
+                                        }
+
+                                        Rectangle {
+                                            visible: nineDayHover.containsMouse
+                                            anchors.fill: parent
+                                            radius: parent.radius
+                                            color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
+
+                                            Column {
+                                                anchors.centerIn: parent
+                                                spacing: 1
+
+                                                StyledText {
+                                                    anchors.horizontalCenter: parent.horizontalCenter
+                                                    text: root.formatCost(Number(nineDayColumn.modelData.cost || 0))
+                                                    color: Theme.surfaceText
+                                                    font.pixelSize: Theme.fontSizeSmall
+                                                    font.weight: Font.Bold
+                                                }
+
+                                                StyledText {
+                                                    anchors.horizontalCenter: parent.horizontalCenter
+                                                    text: `${Number(nineDayColumn.modelData.requests || 0)} req`
+                                                    color: Theme.surfaceVariantText
+                                                    font.pixelSize: Theme.fontSizeSmall - 1
+                                                }
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: nineDayHover
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.NoButton
+                                        }
+                                    }
+
+                                    StyledText {
+                                        width: parent.width
+                                        text: String(nineDayColumn.modelData.weekday || "")
+                                        horizontalAlignment: Text.AlignHCenter
+                                        color: nineDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: nineCol.nineModels.length > 0
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: t("card.nine_models_week", "Top models (7 days)")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: nineCol.nineModels
+
+                                UsageBar {
+                                    required property var modelData
+                                    width: parent.width
+                                    label: modelData.provider ? `${modelData.model} · ${modelData.provider}` : String(modelData.model || "")
+                                    percent: Number(nineCol.nineWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(nineCol.nineWeek.cost)) * 100 : 0
+                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} req`
+                                    accentColor: Theme.secondary
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: nineCol.nineProviders.length > 1
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: t("card.nine_providers_week", "Routed providers (7 days)")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: nineCol.nineProviders
+
+                                UsageBar {
+                                    required property var modelData
+                                    width: parent.width
+                                    label: root.providerName(String(modelData.provider || ""))
+                                    percent: Number(nineCol.nineWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(nineCol.nineWeek.cost)) * 100 : 0
+                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} req`
+                                    accentColor: Theme.secondary
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Row {
@@ -2688,6 +2973,7 @@ PluginComponent {
         }
 
         MouseArea {
+            id: cardMouse
             z: 0
             anchors.left: parent.left
             anchors.right: parent.right

@@ -30,9 +30,24 @@ labels authentication-only or informational providers when it does not.
 - English, Brazilian Portuguese, Simplified Chinese, Spanish, and German UI.
 - No dashboard scraping and no fabricated quota percentages.
 
+## Version 1.4.1
+
+The current release fixes notification spam and deepens local telemetry:
+
+- Quota alerts fire once per quota window: notification state is persisted on
+  disk and shared across widget instances, plugin reloads, and shell restarts,
+  with an optional re-alert interval (1h/6h/24h).
+- Notifications carry the window label, remaining quota, and reset countdown,
+  use `critical` urgency at 100%, and replace the previous bubble instead of
+  stacking duplicates.
+- The 9Router card gains a telemetry section: 7-day cost chart, today/week/
+  month totals, week token in/out, top models, and routed-provider breakdown.
+- Crowdin is back in sync with the repository: all four target languages
+  (`pt-BR`, `zh-CN`, `es-ES`, `de`) and the current source strings.
+
 ## Version 1.4.0
 
-The current release expands the dashboard and its telemetry pipeline:
+The 1.4.0 release expanded the dashboard and its telemetry pipeline:
 
 - Usage-history points now include timestamps for sparkline hover details.
 - Claude analytics show weekly cost by model and a 7-day burn-rate forecast.
