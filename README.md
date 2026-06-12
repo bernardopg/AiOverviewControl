@@ -1,67 +1,81 @@
+<div align="center">
+
+![AiOverviewControl banner](./docs/assets/banner.png)
+
 # AiOverviewControl
+
+**All your AI quotas. One dashboard. Zero guesswork.**
+
+A self-contained [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) widget for AI quota,
+billing, authentication, and local usage telemetry — right in your DankBar.
 
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](./LICENSE)
+[![Providers](https://img.shields.io/badge/providers-31-7C4DFF)](./docs/providers.md)
+[![Languages](https://img.shields.io/badge/UI%20languages-5-00BFA5)](./docs/i18n-crowdin.md)
 
-A self-contained [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell)
-widget for AI quota, billing, authentication, and local usage telemetry.
+[Install](#installation) · [Screenshots](#screenshots) · [Providers](./docs/providers.md) ·
+[Configuration](./docs/configuration.md) · [Changelog](./CHANGELOG.md) ·
+[Português do Brasil](./docs/README.pt-BR.md)
 
-AiOverviewControl collects each provider independently, normalizes the result,
-and renders an overview in DankBar without requiring an external aggregation
-service. It reports measured data when a supported source exists and clearly
-labels authentication-only or informational providers when it does not.
+</div>
 
-![AiOverviewControl dashboard](./screenshot.png)
+---
+
+## See it in action
+
+![AiOverviewControl demo](./docs/assets/demo.gif)
+
+> 🎬 Prefer higher quality? Watch the [MP4 demo](./docs/assets/demo.mp4).
+
+The pill lives in your DankBar and shows live usage at a glance:
+
+![DankBar pill](./docs/assets/bar-pill.png)
+
+## Why AiOverviewControl?
+
+You pay for Claude, Codex, Copilot, OpenRouter — and each one hides its quota
+in a different dashboard, CLI, or API. AiOverviewControl collects every
+provider **independently and locally**, normalizes the result, and renders one
+honest overview without any external aggregation service.
+
+**Honest** is the key word: it reports measured data when a supported source
+exists, and clearly labels authentication-only or informational providers when
+it does not. No dashboard scraping. No fabricated percentages. Ever.
 
 ## Highlights
 
-- Unified dashboard for 30+ AI providers and developer tools.
-- Official Codex rate-limit windows through `codex app-server`.
-- Claude Code quota plus local token, session, model, project, and cost analytics.
-- GitHub Copilot premium request, Chat, and Completions quota snapshots.
-- Provider cards with usage windows, reset times, account identity, credits,
-  data source, freshness state, sparklines, trends, and direct console links.
-- Independent provider execution: one timeout or invalid credential does not
-  hide healthy providers.
-- Compact and comfortable layouts, status/name filters, pinned providers,
-  expand-all controls, and `auto`, `custom`, or `top` DankBar pill modes.
-- Desktop quota notifications with global and per-provider thresholds.
-- English, Brazilian Portuguese, Simplified Chinese, Spanish, and German UI.
-- No dashboard scraping and no fabricated quota percentages.
+| | |
+| --- | --- |
+| 📊 **Unified dashboard** | 31 AI providers and developer tools in one place. |
+| ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
+| 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
+| 🐙 **Copilot quotas** | Premium request, Chat, and Completions snapshots. |
+| 🗂️ **Rich provider cards** | Usage windows, reset times, identity, credits, sparklines, trends, and console links. |
+| 🛡️ **Failure isolation** | One timeout or invalid credential never hides healthy providers. |
+| 🎛️ **Flexible layout** | Compact/comfortable density, status filters, pinned providers, and `auto`/`custom`/`top` pill modes. |
+| 🔔 **Quota notifications** | Desktop alerts with global and per-provider thresholds, fired once per quota window. |
+| 🌍 **5 UI languages** | English, Português (BR), 简体中文, Español, and Deutsch. |
+| 🔒 **Privacy first** | Local adapters, no paid endpoints just to test keys, secrets never displayed. |
 
-## Version 1.4.1
+## Screenshots
 
-The current release fixes notification spam and deepens local telemetry:
+| Dashboard overview | Expanded provider card |
+| --- | --- |
+| ![Dashboard](./docs/assets/dashboard.png) | ![Expanded card](./docs/assets/card-expanded.png) |
 
-- Quota alerts fire once per quota window: notification state is persisted on
-  disk and shared across widget instances, plugin reloads, and shell restarts,
-  with an optional re-alert interval (1h/6h/24h).
-- Notifications carry the window label, remaining quota, and reset countdown,
-  use `critical` urgency at 100%, and replace the previous bubble instead of
-  stacking duplicates.
-- The 9Router card gains a telemetry section: 7-day cost chart, today/week/
-  month totals, week token in/out, top models, and routed-provider breakdown.
-- Crowdin is back in sync with the repository: all four target languages
-  (`pt-BR`, `zh-CN`, `es-ES`, `de`) and the current source strings.
+<details>
+<summary><b>📈 Local telemetry deep-dive (9Router example)</b></summary>
+<br>
 
-## Version 1.4.0
+Per-provider telemetry sections include daily cost charts, today/week/month
+totals, token in/out counters, top models, and routed-provider breakdowns —
+all read from local, provider-owned data.
 
-The 1.4.0 release expanded the dashboard and its telemetry pipeline:
+![9Router telemetry](./docs/assets/telemetry.png)
 
-- Usage-history points now include timestamps for sparkline hover details.
-- Claude analytics show weekly cost by model and a 7-day burn-rate forecast.
-- OpenRouter can show the top two models from its 30-day activity endpoint.
-- Cloudflare Workers AI can show seven-day and latest-day request/neuron totals
-  when `CLOUDFLARE_ACCOUNT_ID` is configured.
-- History retention is configurable at 500, 2,000, or 10,000 snapshots.
-- Providers can be pinned from settings and assigned individual notification
-  thresholds such as `claude:90,codex:75`.
-- Provider cards support keyboard focus plus Enter/Space, Delete, P, and R
-  actions.
-- Spanish (`es_ES`) and German (`de_DE`) join the existing locale bundles.
-
-See the complete history in [CHANGELOG.md](./CHANGELOG.md).
+</details>
 
 ## Coverage Model
 
@@ -69,20 +83,20 @@ Provider cards use one of four honest coverage levels:
 
 | Coverage | Meaning |
 | --- | --- |
-| Quota or balance | Returns limits, usage, credits, or billing data. |
-| Local analytics | Reads provider-owned files or databases. |
-| Authentication | Verifies credentials without stable quota data. |
-| Informational | Links official usage when no read-only API exists. |
+| **Quota or balance** | Returns limits, usage, credits, or billing data. |
+| **Local analytics** | Reads provider-owned files or databases. |
+| **Authentication** | Verifies credentials without stable quota data. |
+| **Informational** | Links official usage when no read-only API exists. |
 
-Notable measured integrations include:
+Notable measured integrations:
 
 | Provider | Data source |
 | --- | --- |
 | Codex | Official `codex app-server` account and rate-limit methods. |
 | Claude Code | OAuth quota plus local `~/.claude/projects` analytics. |
 | GitHub Copilot | Authenticated GitHub/Copilot quota snapshot. |
-| 9Router | Local SQLite or JSON usage data. |
-| OpenRouter | Key limits, spend, balance, and model activity. |
+| 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
+| OpenRouter | Key limits, spend, balance, and 30-day model activity. |
 | DeepSeek, Kimi, Together | Provider balance or credit APIs. |
 | Ollama | Installed and running models from `/api/tags` and `/api/ps`. |
 | Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
@@ -152,7 +166,7 @@ Settings are stored by DMS and survive plugin upgrades.
 | Claude project breakdown | enabled or disabled | enabled |
 | Quota notifications | enabled or disabled | enabled |
 | Global notification threshold | 75%, 85%, or 95% | 85% |
-| Per-provider thresholds | comma-separated `provider:percent` pairs | empty |
+| Per-provider thresholds | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`) | empty |
 | History retention | 500, 2,000, or 10,000 snapshots | 2,000 |
 
 The default provider selection is:
@@ -170,6 +184,8 @@ variable matrix and health-check behavior.
 
 - Cards are sorted with pinned providers first, then by highest measurable
   usage, with failed providers last.
+- Cards support keyboard focus plus Enter/Space (expand), Delete (remove),
+  P (pin), and R (retry) actions.
 - Data becomes stale after twice the configured refresh interval.
 - Failed cards expose a provider-specific retry action.
 - Expanded cards show available windows, credits, source, identity, and update
@@ -194,7 +210,9 @@ variable matrix and health-check behavior.
 
 ## Validation
 
-Run the same core checks used by CI:
+<details>
+<summary>Run the same core checks used by CI</summary>
+<br>
 
 ```bash
 jq -e . plugin.json >/dev/null
@@ -216,6 +234,8 @@ GitHub Actions additionally validates workflow syntax, locale key parity,
 provider script permissions, integration contracts, Crowdin configuration,
 and release packaging.
 
+</details>
+
 ## Architecture
 
 ```text
@@ -235,17 +255,25 @@ provider contract.
 
 ## Documentation
 
-- [Installation and upgrades](./docs/installation.md)
-- [Configuration and credentials](./docs/configuration.md)
-- [Provider coverage matrix](./docs/providers.md)
-- [Provider verification policy](./docs/provider-verification.md)
-- [Architecture and adapter contract](./docs/architecture.md)
-- [Troubleshooting](./docs/troubleshooting.md)
-- [Português do Brasil](./docs/README.pt-BR.md)
-- [Internationalization and Crowdin](./docs/i18n-crowdin.md)
-- [Release checklist](./docs/release-checklist.md)
-- [Changelog](./CHANGELOG.md)
+| Topic | Link |
+| --- | --- |
+| Installation and upgrades | [docs/installation.md](./docs/installation.md) |
+| Configuration and credentials | [docs/configuration.md](./docs/configuration.md) |
+| Provider coverage matrix | [docs/providers.md](./docs/providers.md) |
+| Provider verification policy | [docs/provider-verification.md](./docs/provider-verification.md) |
+| Architecture and adapter contract | [docs/architecture.md](./docs/architecture.md) |
+| Troubleshooting | [docs/troubleshooting.md](./docs/troubleshooting.md) |
+| Português do Brasil | [docs/README.pt-BR.md](./docs/README.pt-BR.md) |
+| Internationalization and Crowdin | [docs/i18n-crowdin.md](./docs/i18n-crowdin.md) |
+| Release checklist | [docs/release-checklist.md](./docs/release-checklist.md) |
+| Changelog | [CHANGELOG.md](./CHANGELOG.md) |
 
-## License
+---
+
+<div align="center">
 
 Released under the [MIT License](./LICENSE).
+
+Made with ❤️ for the [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) community.
+
+</div>

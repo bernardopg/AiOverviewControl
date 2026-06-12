@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Documentation
+- README redesigned: project banner, animated demo (GIF + MP4), refreshed dashboard/expanded-card/telemetry screenshots, DankBar pill capture, feature grid, screenshot gallery, and collapsible validation section (`docs/assets/`).
+- `docs/README.pt-BR.md` rewritten as a full mirror of the English README (was stuck describing 1.3).
+- `screenshot.png` updated to the current 1.4.1 dashboard (previous capture showed a pre-1.4 layout).
+
 ## 1.4.1 - 2026-06-11
 
 ### Fixes

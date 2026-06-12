@@ -1,0 +1,151 @@
+<svg width="1536" height="512" viewBox="0 0 1536 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e0f14"/>
+      <stop offset="0.55" stop-color="#121318"/>
+      <stop offset="1" stop-color="#15121d"/>
+    </linearGradient>
+    <radialGradient id="glowTeal" cx="0.18" cy="0.2" r="0.55">
+      <stop offset="0" stop-color="#00BFA5" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#00BFA5" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowViolet" cx="0.85" cy="0.85" r="0.65">
+      <stop offset="0" stop-color="#7C4DFF" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#7C4DFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e9eaf2"/>
+      <stop offset="1" stop-color="#b9bdd1"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00BFA5"/>
+      <stop offset="0.5" stop-color="#4DB6F5"/>
+      <stop offset="1" stop-color="#7C4DFF"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1f2a"/>
+      <stop offset="1" stop-color="#181a23"/>
+    </linearGradient>
+    <linearGradient id="barTeal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00BFA5"/>
+      <stop offset="1" stop-color="#26d9be"/>
+    </linearGradient>
+    <linearGradient id="barAmber" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFB300"/>
+      <stop offset="1" stop-color="#FFD54F"/>
+    </linearGradient>
+    <linearGradient id="barViolet" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7C4DFF"/>
+      <stop offset="1" stop-color="#a685ff"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glowRing" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="1536" height="512" fill="url(#bg)"/>
+  <rect width="1536" height="512" fill="url(#glowTeal)"/>
+  <rect width="1536" height="512" fill="url(#glowViolet)"/>
+
+  <!-- subtle grid -->
+  <g stroke="#ffffff" stroke-opacity="0.025">
+    <path d="M0 128 H1536 M0 256 H1536 M0 384 H1536"/>
+    <path d="M256 0 V512 M512 0 V512 M768 0 V512 M1024 0 V512 M1280 0 V512"/>
+  </g>
+
+  <!-- connection lines from hex nodes to dashboard -->
+  <g fill="none" stroke-width="1.6">
+    <path d="M806 122 C 880 122, 900 150, 968 168" stroke="#00BFA5" stroke-opacity="0.35"/>
+    <path d="M796 256 C 870 256, 890 250, 962 246" stroke="#4DB6F5" stroke-opacity="0.30"/>
+    <path d="M806 392 C 880 392, 900 350, 968 322" stroke="#7C4DFF" stroke-opacity="0.35"/>
+    <circle cx="968" cy="168" r="3.5" fill="#00BFA5" fill-opacity="0.8" stroke="none"/>
+    <circle cx="962" cy="246" r="3.5" fill="#4DB6F5" fill-opacity="0.8" stroke="none"/>
+    <circle cx="968" cy="322" r="3.5" fill="#7C4DFF" fill-opacity="0.8" stroke="none"/>
+  </g>
+
+  <!-- hex provider nodes -->
+  <g filter="url(#soft)">
+    <g transform="translate(774,122)">
+      <path d="M0 -34 L29.4 -17 L29.4 17 L0 34 L-29.4 17 L-29.4 -17 Z" fill="#181a23" stroke="#00BFA5" stroke-opacity="0.55" stroke-width="1.5"/>
+      <text x="0" y="9" text-anchor="middle" font-family="JetBrains Mono" font-size="24" fill="#00BFA5">⌁</text>
+    </g>
+    <g transform="translate(764,256)">
+      <path d="M0 -34 L29.4 -17 L29.4 17 L0 34 L-29.4 17 L-29.4 -17 Z" fill="#181a23" stroke="#4DB6F5" stroke-opacity="0.55" stroke-width="1.5"/>
+      <text x="0" y="9" text-anchor="middle" font-family="JetBrains Mono" font-size="24" fill="#4DB6F5">∿</text>
+    </g>
+    <g transform="translate(774,392)">
+      <path d="M0 -34 L29.4 -17 L29.4 17 L0 34 L-29.4 17 L-29.4 -17 Z" fill="#181a23" stroke="#7C4DFF" stroke-opacity="0.55" stroke-width="1.5"/>
+      <text x="0" y="9" text-anchor="middle" font-family="JetBrains Mono" font-size="24" fill="#7C4DFF">◈</text>
+    </g>
+  </g>
+
+  <!-- LEFT: wordmark -->
+  <g>
+    <text x="96" y="208" font-family="SF Pro Display" font-weight="700" font-size="64" letter-spacing="0.5" fill="url(#titleGrad)">AiOverviewControl</text>
+    <rect x="98" y="232" width="380" height="5" rx="2.5" fill="url(#accentGrad)"/>
+    <text x="96" y="286" font-family="SF Pro Text" font-size="26" fill="#9aa0b5">AI quota, billing &amp; usage telemetry</text>
+    <text x="96" y="322" font-family="SF Pro Text" font-size="26" fill="#9aa0b5">for your desktop.</text>
+
+    <!-- chips -->
+    <g font-family="JetBrains Mono" font-size="16">
+      <rect x="96" y="362" rx="15" width="178" height="34" fill="#1b1d27" stroke="#00BFA5" stroke-opacity="0.4"/>
+      <text x="185" y="384" text-anchor="middle" fill="#26d9be">31 providers</text>
+      <rect x="288" y="362" rx="15" width="166" height="34" fill="#1b1d27" stroke="#4DB6F5" stroke-opacity="0.4"/>
+      <text x="371" y="384" text-anchor="middle" fill="#4DB6F5">local-first</text>
+      <rect x="468" y="362" rx="15" width="190" height="34" fill="#1b1d27" stroke="#7C4DFF" stroke-opacity="0.4"/>
+      <text x="563" y="384" text-anchor="middle" fill="#a685ff">no fake data</text>
+    </g>
+  </g>
+
+  <!-- RIGHT: dashboard mock -->
+  <g filter="url(#soft)">
+    <rect x="968" y="84" width="472" height="344" rx="22" fill="url(#cardGrad)" stroke="#ffffff" stroke-opacity="0.07"/>
+
+    <!-- header -->
+    <circle cx="1006" cy="122" r="5" fill="#00BFA5"/>
+    <text x="1022" y="128" font-family="SF Pro Text" font-weight="600" font-size="17" fill="#d6d9e6">AI Usage Control</text>
+    <text x="1404" y="128" text-anchor="end" font-family="JetBrains Mono" font-size="13" fill="#6f7489">live</text>
+
+    <!-- ring -->
+    <g transform="translate(1064,232)">
+      <circle r="58" fill="none" stroke="#262936" stroke-width="11"/>
+      <circle r="58" fill="none" stroke="url(#accentGrad)" stroke-width="11" stroke-linecap="round"
+              stroke-dasharray="255.5 364.4" transform="rotate(-90)" filter="url(#glowRing)"/>
+      <text x="0" y="-2" text-anchor="middle" font-family="SF Pro Display" font-weight="700" font-size="30" fill="#e9eaf2">70%</text>
+      <text x="0" y="22" text-anchor="middle" font-family="SF Pro Text" font-size="13" fill="#8a8fa5">used</text>
+    </g>
+
+    <!-- provider rows -->
+    <g font-family="SF Pro Text" font-size="15">
+      <text x="1168" y="178" fill="#c9cdde">Claude</text>
+      <rect x="1168" y="188" width="236" height="7" rx="3.5" fill="#262936"/>
+      <rect x="1168" y="188" width="156" height="7" rx="3.5" fill="url(#barTeal)"/>
+      <text x="1436" y="180" text-anchor="end" font-family="JetBrains Mono" font-size="14" fill="#26d9be">66%</text>
+
+      <text x="1168" y="232" fill="#c9cdde">Codex</text>
+      <rect x="1168" y="242" width="236" height="7" rx="3.5" fill="#262936"/>
+      <rect x="1168" y="242" width="200" height="7" rx="3.5" fill="url(#barAmber)"/>
+      <text x="1436" y="234" text-anchor="end" font-family="JetBrains Mono" font-size="14" fill="#FFD54F">85%</text>
+
+      <text x="1168" y="286" fill="#c9cdde">Copilot</text>
+      <rect x="1168" y="296" width="236" height="7" rx="3.5" fill="#262936"/>
+      <rect x="1168" y="296" width="99" height="7" rx="3.5" fill="url(#barViolet)"/>
+      <text x="1436" y="288" text-anchor="end" font-family="JetBrains Mono" font-size="14" fill="#a685ff">42%</text>
+    </g>
+
+    <!-- sparkline -->
+    <g transform="translate(1000,330)">
+      <rect x="0" y="0" width="404" height="68" rx="12" fill="#161821" stroke="#ffffff" stroke-opacity="0.05"/>
+      <polyline points="16,46 52,40 88,44 124,30 160,36 196,24 232,30 268,18 304,26 340,14 376,20"
+                fill="none" stroke="url(#accentGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="376" cy="20" r="4" fill="#7C4DFF" filter="url(#glowRing)"/>
+      <text x="16" y="58" font-family="JetBrains Mono" font-size="11" fill="#6f7489">usage · 7d</text>
+      <text x="388" y="58" text-anchor="end" font-family="JetBrains Mono" font-size="11" fill="#6f7489">reset 4h 50m</text>
+    </g>
+  </g>
+</svg>
