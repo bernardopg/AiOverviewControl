@@ -2,8 +2,11 @@
 
 ## [Unreleased]
 
+## 1.4.2 - 2026-06-12
+
 ### Fixes
 - Vertical bar pill no longer overflows: entries show only the percentage, colored by provider accent, while the usage-severity color moves to the new progress-ring pill icon (#4, thanks @arqueon).
+- `providers/get-codex-usage` now reports the real plugin version in the app-server `clientInfo` payload (was stuck at 1.4.0).
 
 ### UI
 - Bar pill icon replaced with a live progress ring reflecting the hero provider's usage; pinned providers now take priority as the hero provider (#4, thanks @arqueon).
