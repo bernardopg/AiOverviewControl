@@ -287,6 +287,13 @@ PluginComponent {
     }
 
     readonly property var providerData: {
+        for (let i = 0; i < pinnedProviders.length; i++) {
+            for (let j = 0; j < successfulProviders.length; j++) {
+                if (successfulProviders[j].provider === pinnedProviders[i]) {
+                    return successfulProviders[j];
+                }
+            }
+        }
         let bestProvider = null;
         let bestPercent = -1;
         for (let i = 0; i < successfulProviders.length; i++) {
@@ -1886,11 +1893,34 @@ PluginComponent {
                 border.color: Theme.withAlpha(root.heroAccent, 0.28)
                 anchors.verticalCenter: parent.verticalCenter
 
-                DankIcon {
+                Canvas {
                     anchors.centerIn: parent
-                    name: "monitoring"
-                    size: 14
-                    color: root.heroAccent
+                    width: 20
+                    height: 20
+                    renderStrategy: Canvas.Cooperative
+                    property real percent: root.primaryPercent
+                    property color accent: root.heroAccent
+                    onPercentChanged: requestPaint()
+                    onAccentChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        ctx.reset();
+                        var cx = width / 2, cy = height / 2, r = 7.5, lw = 2.5;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        ctx.lineWidth = lw;
+                        ctx.strokeStyle = Theme.withAlpha(root.heroAccent, 0.2);
+                        ctx.stroke();
+                        var pct = percent / 100;
+                        if (pct > 0) {
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(pct, 1));
+                            ctx.lineWidth = lw;
+                            ctx.strokeStyle = root.heroAccent;
+                            ctx.lineCap = "round";
+                            ctx.stroke();
+                        }
+                    }
                 }
             }
 
@@ -1922,7 +1952,7 @@ PluginComponent {
                             width: 7
                             height: 7
                             radius: 3.5
-                            color: pillEntry.usageColor
+                            color: root.providerAccent(pillEntry.modelData.provider)
                             anchors.verticalCenter: parent.verticalCenter
 
                             Behavior on color { ColorAnimation { duration: 200 } }
@@ -1971,11 +2001,34 @@ PluginComponent {
                 border.color: Theme.withAlpha(root.heroAccent, 0.28)
                 anchors.horizontalCenter: parent.horizontalCenter
 
-                DankIcon {
+                Canvas {
                     anchors.centerIn: parent
-                    name: "monitoring"
-                    size: 13
-                    color: root.heroAccent
+                    width: 20
+                    height: 20
+                    renderStrategy: Canvas.Cooperative
+                    property real percent: root.primaryPercent
+                    property color accent: root.heroAccent
+                    onPercentChanged: requestPaint()
+                    onAccentChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        ctx.reset();
+                        var cx = width / 2, cy = height / 2, r = 7.5, lw = 2.5;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        ctx.lineWidth = lw;
+                        ctx.strokeStyle = Theme.withAlpha(root.heroAccent, 0.2);
+                        ctx.stroke();
+                        var pct = percent / 100;
+                        if (pct > 0) {
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(pct, 1));
+                            ctx.lineWidth = lw;
+                            ctx.strokeStyle = root.heroAccent;
+                            ctx.lineCap = "round";
+                            ctx.stroke();
+                        }
+                    }
                 }
             }
 
@@ -1984,8 +2037,8 @@ PluginComponent {
 
                 StyledText {
                     required property var modelData
-                    text: `${root.providerName(modelData.provider)} ${Math.round(root.providerPercent(modelData))}%`
-                    color: root.getUsageColor(root.providerPercent(modelData))
+                    text: `${Math.round(root.providerPercent(modelData))}%`
+                    color: root.providerAccent(modelData.provider)
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.DemiBold
                     anchors.horizontalCenter: parent.horizontalCenter
