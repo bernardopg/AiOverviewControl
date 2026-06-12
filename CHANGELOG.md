@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixes
+- Vertical bar pill no longer overflows: entries show only the percentage, colored by provider accent, while the usage-severity color moves to the new progress-ring pill icon (#4, thanks @arqueon).
+
+### UI
+- Bar pill icon replaced with a live progress ring reflecting the hero provider's usage; pinned providers now take priority as the hero provider (#4, thanks @arqueon).
+- The duplicated pill ring canvas was extracted into a shared `PillProgressRing` component.
+
 ### Documentation
 - README redesigned: project banner, animated demo (GIF + MP4), refreshed dashboard/expanded-card/telemetry screenshots, DankBar pill capture, feature grid, screenshot gallery, and collapsible validation section (`docs/assets/`).
 - `docs/README.pt-BR.md` rewritten as a full mirror of the English README (was stuck describing 1.3).

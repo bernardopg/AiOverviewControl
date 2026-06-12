@@ -1880,6 +1880,41 @@ PluginComponent {
         }
     }
 
+    component PillProgressRing: Canvas {
+        id: ring
+
+        property real percent: 0
+        property color accent: Theme.primary
+
+        width: 20
+        height: 20
+        renderStrategy: Canvas.Cooperative
+        onPercentChanged: requestPaint()
+        onAccentChanged: requestPaint()
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            const cx = width / 2;
+            const cy = height / 2;
+            const r = 7.5;
+            const lw = 2.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+            ctx.lineWidth = lw;
+            ctx.strokeStyle = Theme.withAlpha(ring.accent, 0.2);
+            ctx.stroke();
+            const pct = percent / 100;
+            if (pct > 0) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(pct, 1));
+                ctx.lineWidth = lw;
+                ctx.strokeStyle = ring.accent;
+                ctx.lineCap = "round";
+                ctx.stroke();
+            }
+        }
+    }
+
     horizontalBarPill: Component {
         Row {
             spacing: Theme.spacingS
@@ -1893,34 +1928,10 @@ PluginComponent {
                 border.color: Theme.withAlpha(root.heroAccent, 0.28)
                 anchors.verticalCenter: parent.verticalCenter
 
-                Canvas {
+                PillProgressRing {
                     anchors.centerIn: parent
-                    width: 20
-                    height: 20
-                    renderStrategy: Canvas.Cooperative
-                    property real percent: root.primaryPercent
-                    property color accent: root.heroAccent
-                    onPercentChanged: requestPaint()
-                    onAccentChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d");
-                        ctx.reset();
-                        var cx = width / 2, cy = height / 2, r = 7.5, lw = 2.5;
-                        ctx.beginPath();
-                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
-                        ctx.lineWidth = lw;
-                        ctx.strokeStyle = Theme.withAlpha(root.heroAccent, 0.2);
-                        ctx.stroke();
-                        var pct = percent / 100;
-                        if (pct > 0) {
-                            ctx.beginPath();
-                            ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(pct, 1));
-                            ctx.lineWidth = lw;
-                            ctx.strokeStyle = root.heroAccent;
-                            ctx.lineCap = "round";
-                            ctx.stroke();
-                        }
-                    }
+                    percent: root.primaryPercent
+                    accent: root.heroAccent
                 }
             }
 
@@ -2001,34 +2012,10 @@ PluginComponent {
                 border.color: Theme.withAlpha(root.heroAccent, 0.28)
                 anchors.horizontalCenter: parent.horizontalCenter
 
-                Canvas {
+                PillProgressRing {
                     anchors.centerIn: parent
-                    width: 20
-                    height: 20
-                    renderStrategy: Canvas.Cooperative
-                    property real percent: root.primaryPercent
-                    property color accent: root.heroAccent
-                    onPercentChanged: requestPaint()
-                    onAccentChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d");
-                        ctx.reset();
-                        var cx = width / 2, cy = height / 2, r = 7.5, lw = 2.5;
-                        ctx.beginPath();
-                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
-                        ctx.lineWidth = lw;
-                        ctx.strokeStyle = Theme.withAlpha(root.heroAccent, 0.2);
-                        ctx.stroke();
-                        var pct = percent / 100;
-                        if (pct > 0) {
-                            ctx.beginPath();
-                            ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(pct, 1));
-                            ctx.lineWidth = lw;
-                            ctx.strokeStyle = root.heroAccent;
-                            ctx.lineCap = "round";
-                            ctx.stroke();
-                        }
-                    }
+                    percent: root.primaryPercent
+                    accent: root.heroAccent
                 }
             }
 
