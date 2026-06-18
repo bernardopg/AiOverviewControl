@@ -1,4 +1,0 @@
-[submodule "dms-plugin-registry"]
-	path = dms-plugin-registry
-	url = https://github.com/bernardopg/dms-plugin-registry.git
-	branch = add-bernardopg-aioverviewcontrol
