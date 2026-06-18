@@ -31,6 +31,7 @@ This document records the upstream surface used by each adapter. It was reviewed
 | Cohere | [Cohere API reference](https://docs.cohere.com/reference/about) | Models API validation. |
 | Replicate | [Account endpoint](https://replicate.com/docs/reference/http#account.get) | Token validation and account identity. |
 | Fireworks AI | [OpenAI compatibility](https://docs.fireworks.ai/tools-sdks/openai-compatibility) | Inference models API validation. |
+| Z.ai | [Z.ai API reference](https://docs.z.ai/api-reference/introduction.md) — OpenAI-compatible base `https://api.z.ai/api/paas/v4` | `GET /models` for key validation. No documented balance or quota API; subscription (GLM Coding Plan) and PAYG both directed to `z.ai/manage-apikey/billing`. Key: `ZAI_API_KEY`; fallbacks: `GLM_API_KEY`, `ZHIPU_API_KEY`. |
 
 ## No documented read-only quota endpoint
 

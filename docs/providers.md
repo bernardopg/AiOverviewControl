@@ -16,6 +16,7 @@
 | `kimi` | Balance | `MOONSHOT_API_KEY` or `KIMI_API_KEY` | Available, voucher, and cash balance. |
 | `minimax` | Configured status | `MINIMAX_API_KEY` | Informational status; no documented read-only quota endpoint. |
 | `glm` | Configured status | `GLM_API_KEY` or `ZHIPU_API_KEY` | Informational status; no documented read-only quota endpoint. |
+| `zai` | Authentication | `ZAI_API_KEY` (fallback: `GLM_API_KEY`, `ZHIPU_API_KEY`) | Key validated via OpenAI-compatible models endpoint; no documented quota or balance API. Subscription and PAYG billing at z.ai/manage-apikey/billing. |
 | `mistral` | Authentication | `MISTRAL_API_KEY` | Models API validation. |
 | `ollama` | Local runtime | `OLLAMA_HOST` | Installed models and currently running models. |
 | `nvidia` | Authentication | `NVIDIA_API_KEY` | NIM models API validation. |

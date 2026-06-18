@@ -25,6 +25,7 @@ status_for() {
     kimi|moonshot) has_any_env MOONSHOT_API_KEY KIMI_API_KEY || { status="missing"; detail="MOONSHOT_API_KEY or KIMI_API_KEY"; } ;;
     minimax) has_any_env MINIMAX_API_KEY || { status="missing"; detail="MINIMAX_API_KEY"; } ;;
     glm|zhipu) has_any_env GLM_API_KEY ZHIPU_API_KEY || { status="missing"; detail="GLM_API_KEY or ZHIPU_API_KEY"; } ;;
+    zai|z.ai) has_any_env ZAI_API_KEY GLM_API_KEY ZHIPU_API_KEY || { status="missing"; detail="ZAI_API_KEY"; } ;;
     mistral) has_any_env MISTRAL_API_KEY || { status="missing"; detail="MISTRAL_API_KEY"; } ;;
     ollama) command -v ollama >/dev/null 2>&1 || { status="missing"; detail="ollama CLI"; } ;;
     nvidia|nim) has_any_env NVIDIA_API_KEY || { status="missing"; detail="NVIDIA_API_KEY"; } ;;

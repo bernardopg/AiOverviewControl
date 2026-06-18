@@ -593,6 +593,46 @@ fetch_glm_native() {
   json_note_usage glm glm-config "GLM account" "api-key" "API key configured; no documented read-only quota endpoint" "$console"
 }
 
+fetch_zai_native() {
+  local key="${ZAI_API_KEY:-${GLM_API_KEY:-${ZHIPU_API_KEY:-}}}"
+  if [ -z "$key" ]; then
+    json_error zai zai-api 2 provider "ZAI_API_KEY is not set. Get your key at z.ai/manage-apikey/apikey-list"
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # GET /models is the standard OpenAI-compatible read-only endpoint — no
+  # inference call, no token consumption.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.z.ai/api/paas/v4/models" 2>/dev/null || true)"
+
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage zai zai-api "Z.ai account" "api-key" \
+      "Authenticated — billing at z.ai/manage-apikey/billing" \
+      "z.ai/manage-apikey/billing"
+    return 0
+  fi
+
+  if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Z.ai API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error zai zai-api "${http_status}" provider "$message"
+    return 0
+  fi
+
+  # 404 or unexpected: models endpoint may not be exposed; treat key as present
+  # but unverifiable rather than erroring.
+  rm -f "$tmp_body"
+  json_note_usage zai zai-api "Z.ai account" "api-key" \
+    "API key set; subscription and billing at z.ai/manage-apikey/billing" \
+    "z.ai/manage-apikey/billing"
+}
+
 fetch_mistral_native() {
   local key="${MISTRAL_API_KEY:-}"
   if [ -z "$key" ]; then
@@ -1032,6 +1072,9 @@ fetch_provider() {
       ;;
     glm|zhipu)
       fetch_glm_native
+      ;;
+    zai|z.ai)
+      fetch_zai_native
       ;;
     mistral)
       fetch_mistral_native
