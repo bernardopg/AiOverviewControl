@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 1.4.3 - 2026-06-18
+
+### Features
+- New **Z.ai** provider (`zai`): validates API key via the OpenAI-compatible `GET /models` endpoint (no token consumption). Supports both subscription (GLM Coding Plan) and pay-as-you-go billing modes. Set `ZAI_API_KEY` to enable; falls back to `GLM_API_KEY` / `ZHIPU_API_KEY`. Billing visible at z.ai/manage-apikey/billing.
+
 ## 1.4.2 - 2026-06-12
 
 ### Fixes
