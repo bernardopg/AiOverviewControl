@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 1.4.4 - 2026-06-18
+
 ### Features
 - New **xAI (Grok)** provider (`xai`): validates `XAI_API_KEY` via the documented `GET /v1/api-key` endpoint (zero token consumption), surfacing the key name and blocked/disabled state. xAI signals invalid keys as HTTP 400 (`invalid-argument`), which is now handled. Falls back to `/v1/models`. Aliases: `xai`, `grok`.
 - **Kilo** upgraded from informational to telemetry: validates `KILO_API_KEY` against the Kilo Gateway `GET /api/gateway/models` (best-effort — the endpoint is documented as no-auth, so only a `401` reliably rejects a key).
@@ -15,8 +17,9 @@
 - Stale dashboard URLs refreshed: `kimi`/`moonshot` → `platform.kimi.ai/console` (rebrand), `minimax` → balance page, `kilo` → `app.kilo.ai/credits`, `kiro` → `app.kiro.dev/settings/account`.
 
 ### Documentation
-- `docs/providers.md` rewritten: HTML coverage matrix with checkmarks (read-only key check, quota/balance API, subscription plan, PAYG, env var, dashboard, docs source) for all 32 providers, plus detailed per-provider reference sections for the 11 focus providers (Gemini, Cloudflare, Mistral, GLM/Z.ai, NVIDIA, MiniMax, Kimi, Qwen, xAI, Kilo, Kiro) covering base URL, auth, key-check endpoint, quota API, plans, billing/flagship pricing, dashboard, and 2025–2026 changelog highlights.
+- `docs/providers.md` rewritten: HTML coverage matrix with checkmarks (read-only key check, quota/balance API, subscription plan, PAYG, env var, dashboard, docs source) for all 33 providers, plus detailed per-provider reference sections for the 11 focus providers (Gemini, Cloudflare, Mistral, GLM/Z.ai, NVIDIA, MiniMax, Kimi, Qwen, xAI, Kilo, Kiro) covering base URL, auth, key-check endpoint, quota API, plans, billing/flagship pricing, dashboard, and 2025–2026 changelog highlights.
 - `docs/provider-verification.md` reviewed 2026-06-18: added xAI, MiniMax, Kilo, Cloudflare GraphQL analytics surfaces; split quota-vs-auth surfaces; refreshed Kimi/Z.ai/Zhipu entries.
+- `README.md` coverage model expanded and provider count badge bumped to 33.
 
 ## 1.4.3 - 2026-06-18
 

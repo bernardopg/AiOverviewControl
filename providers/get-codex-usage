@@ -19,7 +19,7 @@ trap 'rm -f "$tmp_out"' EXIT
 
 {
   printf '%s\n' \
-    '{"method":"initialize","id":0,"params":{"clientInfo":{"name":"ai_overview_control","title":"AiOverviewControl","version":"1.4.3"}}}' \
+    '{"method":"initialize","id":0,"params":{"clientInfo":{"name":"ai_overview_control","title":"AiOverviewControl","version":"1.4.4"}}}' \
     '{"method":"account/read","id":1,"params":{"refreshToken":false}}' \
     '{"method":"account/rateLimits/read","id":2,"params":{}}'
   sleep 4
