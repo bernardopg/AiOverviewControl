@@ -12,7 +12,7 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](./LICENSE)
-[![Providers](https://img.shields.io/badge/providers-31-7C4DFF)](./docs/providers.md)
+[![Providers](https://img.shields.io/badge/providers-33-7C4DFF)](./docs/providers.md)
 [![Languages](https://img.shields.io/badge/UI%20languages-5-00BFA5)](./docs/i18n-crowdin.md)
 
 [Install](#installation) · [Screenshots](#screenshots) · [Providers](./docs/providers.md) ·
@@ -48,7 +48,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 
 | | |
 | --- | --- |
-| 📊 **Unified dashboard** | 31 AI providers and developer tools in one place. |
+| 📊 **Unified dashboard** | 33 AI providers and developer tools in one place. |
 | ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
 | 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
 | 🐙 **Copilot quotas** | Premium request, Chat, and Completions snapshots. |
@@ -79,16 +79,17 @@ all read from local, provider-owned data.
 
 ## Coverage Model
 
-Provider cards use one of four honest coverage levels:
+Provider cards use one of these honest coverage levels:
 
 | Coverage | Meaning |
 | --- | --- |
-| **Quota or balance** | Returns limits, usage, credits, or billing data. |
-| **Local analytics** | Reads provider-owned files or databases. |
-| **Authentication** | Verifies credentials without stable quota data. |
-| **Informational** | Links official usage when no read-only API exists. |
+| **Quota** | Returns rate-limit windows and used percentage (Codex, Copilot, OpenRouter). |
+| **Balance** | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek, Together). |
+| **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, Ollama). |
+| **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, GLM, Z.ai, NVIDIA, MiniMax, Qwen, xAI, and more). |
+| **Informational** | Links official usage when no read-only API exists (Kiro, Cursor, Warp, and more). |
 
-Notable measured integrations:
+Notable integrations:
 
 | Provider | Data source |
 | --- | --- |
@@ -97,9 +98,11 @@ Notable measured integrations:
 | GitHub Copilot | Authenticated GitHub/Copilot quota snapshot. |
 | 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
 | OpenRouter | Key limits, spend, balance, and 30-day model activity. |
-| DeepSeek, Kimi, Together | Provider balance or credit APIs. |
-| Ollama | Installed and running models from `/api/tags` and `/api/ps`. |
+| Kimi (Moonshot) | `GET /v1/users/me/balance` — available, voucher, and cash balance (USD/CNY). |
+| DeepSeek, Together | Provider balance or credit APIs. |
 | Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
+| xAI, GLM, Z.ai, MiniMax, Qwen, NVIDIA, Mistral | Read-only `/models` (or `/api-key`) validation — zero token consumption. |
+| Ollama | Installed and running models from `/api/tags` and `/api/ps`. |
 
 The full matrix, credentials, and upstream references are documented in
 [Providers](./docs/providers.md) and

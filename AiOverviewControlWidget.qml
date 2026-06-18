@@ -141,6 +141,7 @@ PluginComponent {
         "kimi",
         "mistral",
         "glm",
+        "zai",
         "minimax",
         "qwen",
         "nvidia",
@@ -154,11 +155,12 @@ PluginComponent {
         "replicate",
         "fireworks",
         "ai21",
+        "xai",
+        "kilo",
         "perplexity",
         "cursor",
         "cline",
         "opencode",
-        "kilo",
         "kiro",
         "warp",
         "amp"
@@ -497,6 +499,7 @@ PluginComponent {
             mistral: "Mistral",
             glm: "GLM",
             zhipu: "GLM",
+            zai: "Z.ai",
             minimax: "MiniMax",
             qwen: "Qwen",
             dashscope: "Qwen",
@@ -516,6 +519,8 @@ PluginComponent {
             replicate: "Replicate",
             fireworks: "Fireworks AI",
             ai21: "AI21",
+            xai: "xAI",
+            grok: "xAI",
             perplexity: "Perplexity",
             cline: "Cline",
             opencode: "OpenCode",
@@ -686,7 +691,7 @@ PluginComponent {
         if (providerId === "deepseek") return "tsunami";
         if (providerId === "kimi" || providerId === "moonshot") return "dark_mode";
         if (providerId === "mistral") return "air";
-        if (providerId === "glm" || providerId === "zhipu") return "bubble_chart";
+        if (providerId === "glm" || providerId === "zhipu" || providerId === "zai") return "bubble_chart";
         if (providerId === "minimax") return "grid_view";
         if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return "cloud";
         if (providerId === "nvidia" || providerId === "nim") return "memory";
@@ -701,6 +706,7 @@ PluginComponent {
         if (providerId === "cohere") return "waves";
         if (providerId === "replicate") return "content_copy";
         if (providerId === "fireworks") return "local_fire_department";
+        if (providerId === "xai" || providerId === "grok") return "bolt";
         if (providerId === "ai21") return "looks_21";
         if (providerId === "cline") return "terminal";
         if (providerId === "opencode") return "code";
@@ -721,7 +727,7 @@ PluginComponent {
         if (providerId === "deepseek") return Theme.primary;
         if (providerId === "kimi" || providerId === "moonshot") return Theme.secondary;
         if (providerId === "mistral") return Theme.warning;
-        if (providerId === "glm" || providerId === "zhipu") return Theme.primary;
+        if (providerId === "glm" || providerId === "zhipu" || providerId === "zai") return Theme.primary;
         if (providerId === "minimax") return Theme.success;
         if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return Theme.warning;
         if (providerId === "nvidia" || providerId === "nim") return Theme.success;
@@ -733,6 +739,7 @@ PluginComponent {
         if (providerId === "cohere") return Theme.secondary;
         if (providerId === "replicate") return Theme.primary;
         if (providerId === "fireworks") return Theme.warning;
+        if (providerId === "xai" || providerId === "grok") return Theme.primary;
         if (providerId === "ai21") return Theme.secondary;
         return Theme.secondary;
     }
@@ -932,12 +939,13 @@ PluginComponent {
             gemini: "https://aistudio.google.com/usage",
             openrouter: "https://openrouter.ai/activity",
             deepseek: "https://platform.deepseek.com/usage",
-            kimi: "https://platform.moonshot.ai/console",
-            moonshot: "https://platform.moonshot.ai/console",
+            kimi: "https://platform.kimi.ai/console",
+            moonshot: "https://platform.kimi.ai/console",
             mistral: "https://console.mistral.ai/usage",
             glm: "https://open.bigmodel.cn/usercenter/financial",
             zhipu: "https://open.bigmodel.cn/usercenter/financial",
-            minimax: "https://platform.minimax.io/user-center/basic-information",
+            zai: "https://z.ai/manage-apikey/billing",
+            minimax: "https://platform.minimax.io/user-center/payment/balance",
             qwen: "https://dashscope.console.aliyun.com",
             dashscope: "https://dashscope.console.aliyun.com",
             alibaba: "https://dashscope.console.aliyun.com",
@@ -955,12 +963,14 @@ PluginComponent {
             replicate: "https://replicate.com/account/billing",
             fireworks: "https://app.fireworks.ai",
             ai21: "https://studio.ai21.com",
+            xai: "https://console.x.ai/billing",
+            grok: "https://console.x.ai/billing",
             perplexity: "https://www.perplexity.ai/settings/billing",
             cursor: "https://cursor.com/settings",
             cline: "https://app.cline.bot",
             opencode: "https://opencode.ai",
-            kilo: "https://kilo.ai",
-            kiro: "https://kiro.dev",
+            kilo: "https://app.kilo.ai/credits",
+            kiro: "https://app.kiro.dev/settings/account",
             warp: "https://app.warp.dev",
             amp: "https://ampcode.com"
         };

@@ -38,8 +38,10 @@ status_for() {
     cohere) has_any_env COHERE_API_KEY || { status="missing"; detail="COHERE_API_KEY"; } ;;
     replicate) has_any_env REPLICATE_API_TOKEN || { status="missing"; detail="REPLICATE_API_TOKEN"; } ;;
     fireworks) has_any_env FIREWORKS_API_KEY || { status="missing"; detail="FIREWORKS_API_KEY"; } ;;
+    xai|grok) has_any_env XAI_API_KEY || { status="missing"; detail="XAI_API_KEY"; } ;;
+    kilo) has_any_env KILO_API_KEY || { status="missing"; detail="KILO_API_KEY"; } ;;
     ai21) has_any_env AI21_API_KEY || { status="missing"; detail="AI21_API_KEY"; } ;;
-    perplexity|cursor|cline|opencode|kilo|kiro|warp|amp)
+    perplexity|cursor|cline|opencode|kiro|warp|amp)
       status="info"
       detail="No public read-only quota API"
       ;;

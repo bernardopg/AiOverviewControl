@@ -503,9 +503,10 @@ fetch_kimi_native() {
   fi
   local tmp_body http_status host base currency symbol
   tmp_body="$(mktemp)"
-  # Moonshot split into a global platform (api.moonshot.ai, USD) and a
-  # China platform (api.moonshot.cn, CNY). An explicit override is exclusive —
-  # no silent fallback to another host; otherwise try global first, then .cn.
+  # Moonshot platform rebranded to kimi.ai (global) / kimi.com (China); the API
+  # hosts are unchanged. Global platform (api.moonshot.ai, USD) and China
+  # platform (api.moonshot.cn, CNY). An explicit override is exclusive — no
+  # silent fallback to another host; otherwise try global first, then .cn.
   local -a hosts
   if [ -n "${MOONSHOT_API_BASE:-}" ]; then
     hosts=("${MOONSHOT_API_BASE}")
@@ -579,7 +580,20 @@ fetch_minimax_native() {
     json_error minimax minimax-api 2 provider "MINIMAX_API_KEY is not set."
     return 0
   fi
-  json_note_usage minimax minimax-config "MiniMax account" "api-key" "API key configured; no documented read-only quota endpoint" "platform.minimax.io"
+  # OpenAI-compatible models list — read-only, consumes no tokens. Mirrors the
+  # MiniMax M3/M2.x catalog and doubles as a key-validity check.
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.minimax.io/v1/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage minimax minimax-api "MiniMax account" "api-key" "Authenticated — balance at platform.minimax.io/user-center/payment/balance" "platform.minimax.io"
+    return 0
+  fi
+  json_error minimax minimax-api "${http_status:-1}" provider "MiniMax API key invalid (HTTP ${http_status:-0}). Balance visible at platform.minimax.io only."
 }
 
 fetch_glm_native() {
@@ -588,9 +602,22 @@ fetch_glm_native() {
     json_error glm glm-api 2 provider "GLM_API_KEY or ZHIPU_API_KEY is not set."
     return 0
   fi
+  # OpenAI-compatible models list on the China (Zhipu) host — read-only.
+  local base="${GLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4}"
   local console="open.bigmodel.cn"
-  case "${GLM_API_BASE:-}" in *bigmodel.cn*) console="bigmodel.cn" ;; esac
-  json_note_usage glm glm-config "GLM account" "api-key" "API key configured; no documented read-only quota endpoint" "$console"
+  case "$base" in *bigmodel.cn*) console="bigmodel.cn" ;; esac
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "${base}/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage glm glm-api "GLM account" "api-key" "Authenticated — billing at ${console}" "$console"
+    return 0
+  fi
+  json_error glm glm-api "${http_status:-1}" provider "GLM API key invalid (HTTP ${http_status:-0}). Billing visible at ${console} only."
 }
 
 fetch_zai_native() {
@@ -1035,6 +1062,76 @@ fetch_qwen_native() {
   json_error qwen dashscope-api "${http_status:-1}" provider "DashScope API key invalid (HTTP ${http_status:-0}). Quota visible at dashscope.console.aliyun.com only."
 }
 
+fetch_xai_native() {
+  local key="${XAI_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error xai xai-api 2 provider "XAI_API_KEY is not set. Get your key at console.x.ai/team/default/api-keys"
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # GET /v1/api-key is the documented zero-cost key introspection endpoint. It
+  # returns key metadata (name, acls, blocked/disabled flags) — no token spend,
+  # unlike a chat/responses call. Falls back to /v1/models if the management
+  # surface is unavailable for this key.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.x.ai/v1/api-key" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    local name blocked note
+    name="$(jq -r '.name // "xAI key"' "$tmp_body" 2>/dev/null || printf 'xAI key')"
+    blocked="$(jq -r '.api_key_blocked // .team_blocked // .api_key_disabled // false' "$tmp_body" 2>/dev/null || printf 'false')"
+    rm -f "$tmp_body"
+    if [ "$blocked" = "true" ]; then
+      json_error xai xai-api 3 provider "xAI API key \"${name}\" is blocked or disabled. Manage at console.x.ai/team/default/api-keys"
+      return 0
+    fi
+    note="Authenticated as \"${name}\" — billing at console.x.ai/billing"
+    json_note_usage xai xai-api "$name" "api-key" "$note" "console.x.ai/billing"
+    return 0
+  fi
+  # xAI signals an invalid key as HTTP 400 with code "invalid-argument"
+  # (not 401), plus 401/403 for auth/permission issues. All are key problems.
+  case "$http_status" in 400|401|403)
+    local message
+    message="$(jq -r '.error // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="xAI API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error xai xai-api "${http_status}" provider "$message"
+    return 0
+  esac
+  rm -f "$tmp_body"
+  json_note_usage xai xai-api "xAI account" "api-key" "API key set; billing at console.x.ai/billing" "console.x.ai/billing"
+}
+
+fetch_kilo_native() {
+  local key="${KILO_API_KEY:-}"
+  if [ -z "$key" ]; then
+    json_error kilo kilo-gateway 2 provider "KILO_API_KEY is not set."
+    return 0
+  fi
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # GET /api/gateway/models is OpenAI-compatible. The Kilo docs note it works
+  # without auth, so a 200 is inconclusive — but a 401 reliably rejects a bad
+  # key, which is the only zero-cost signal available without spending credits.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.kilo.ai/api/gateway/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+  if [ "$http_status" = "200" ]; then
+    json_note_usage kilo kilo-gateway "Kilo account" "api-key" "Key accepted — balance at app.kilo.ai/credits" "app.kilo.ai/credits"
+    return 0
+  fi
+  if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+    json_error kilo kilo-gateway "${http_status}" provider "Kilo API key invalid (HTTP ${http_status})."
+    return 0
+  fi
+  json_note_usage kilo kilo-gateway "Kilo account" "api-key" "Key set; usage at app.kilo.ai/credits" "app.kilo.ai/credits"
+}
+
 fetch_provider() {
   local provider="$1"
   case "$provider" in
@@ -1097,6 +1194,9 @@ fetch_provider() {
     qwen|dashscope|alibaba)
       fetch_qwen_native
       ;;
+    xai|grok)
+      fetch_xai_native
+      ;;
     perplexity)
       json_note_usage perplexity perplexity-web "Perplexity account" "subscription" "No public quota API; usage is available in Perplexity settings" "perplexity.ai/settings/billing"
       ;;
@@ -1104,7 +1204,7 @@ fetch_provider() {
       json_note_usage cursor cursor-local "Cursor account" "subscription" "No public quota API; usage is available in Cursor settings" "cursor.com/settings"
       ;;
     kilo)
-      json_note_usage kilo kilo-local "Kilo account" "subscription" "No public quota API; usage is available in Kilo settings" "kilo.ai"
+      fetch_kilo_native
       ;;
     kiro)
       json_note_usage kiro kiro-local "Kiro account" "subscription" "No public quota API; usage is available in Kiro settings" "kiro.dev"
