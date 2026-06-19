@@ -341,14 +341,14 @@ PluginComponent {
         if (primaryWindow) {
             windows.push({
                 key: "primary",
-                label: getWindowLabel(primaryWindow.windowMinutes),
+                label: primaryWindow.resetDescription || getWindowLabel(primaryWindow.windowMinutes),
                 data: primaryWindow
             });
         }
         if (secondaryWindow) {
             windows.push({
                 key: "secondary",
-                label: getWindowLabel(secondaryWindow.windowMinutes),
+                label: secondaryWindow.resetDescription || getWindowLabel(secondaryWindow.windowMinutes),
                 data: secondaryWindow
             });
         }
@@ -1555,6 +1555,58 @@ PluginComponent {
         }
     }
 
+    component InfoPill: StyledRect {
+        id: ipill
+
+        required property string label
+        required property string value
+        property color accentColor: Theme.primary
+        property string iconName: ""
+
+        implicitWidth: Math.min(ipillRow.implicitWidth + Theme.spacingM * 2, parent ? parent.width : 9999)
+        implicitHeight: 26
+        radius: 999
+        color: Theme.withAlpha(accentColor, 0.08)
+        border.width: 1
+        border.color: Theme.withAlpha(accentColor, 0.16)
+
+        Row {
+            id: ipillRow
+            anchors.left: parent.left
+            anchors.leftMargin: Theme.spacingM
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.spacingM
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Theme.spacingXS
+
+            DankIcon {
+                visible: ipill.iconName.length > 0
+                name: ipill.iconName
+                size: 12
+                color: ipill.accentColor
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            StyledText {
+                text: ipill.label
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall - 1
+                font.weight: Font.Medium
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            StyledText {
+                width: Math.min(implicitWidth, ipillRow.width - x)
+                text: ipill.value.length > 0 ? ipill.value : "—"
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeSmall - 1
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
     component SectionFrame: StyledRect {
         id: sectionRoot
 
@@ -2221,7 +2273,7 @@ PluginComponent {
         border.color: {
             if (card.activeFocus) return Theme.primary;
             if (provider && provider.error) return Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16);
-            return Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.12));
+            return Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.07));
         }
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
@@ -2248,7 +2300,7 @@ PluginComponent {
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
-            opacity: expanded || hovered ? 1 : 0.72
+            opacity: expanded || hovered ? 1 : 0.32
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Theme.withAlpha(card.accentColor, expanded ? 0.12 : 0.055) }
                 GradientStop { position: 0.52; color: Theme.withAlpha(card.accentColor, 0.025) }
@@ -2258,10 +2310,15 @@ PluginComponent {
 
         Rectangle {
             anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: expanded ? 5 : 3
-            color: Theme.withAlpha(card.accentColor, expanded ? 0.9 : 0.62)
+            anchors.leftMargin: Theme.spacingXS
+            anchors.verticalCenter: parent.verticalCenter
+            width: 3
+            height: expanded ? parent.height - Theme.spacingM * 2 : parent.height * 0.34
+            radius: width / 2
+            visible: expanded || card.hovered || card.activeFocus
+            color: Theme.withAlpha(card.accentColor, expanded ? 0.95 : 0.55)
+            Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: 160 } }
         }
 
         Behavior on color { ColorAnimation { duration: 180 } }
@@ -2512,30 +2569,28 @@ PluginComponent {
                     }
                 }
 
-                GridLayout {
+                Flow {
                     visible: card.hasUsage
                     width: parent.width
-                    columns: card.width < 520 ? 1 : (card.width < 760 ? 2 : 3)
-                    columnSpacing: Theme.spacingM
-                    rowSpacing: Theme.spacingM
+                    spacing: Theme.spacingXS
 
-                    MetricTile {
-                        Layout.fillWidth: true
+                    InfoPill {
+                        iconName: "person"
                         label: t("card.account", "Account")
                         value: root.providerAccount(card.provider)
                         accentColor: card.accentColor
-                        multilineValue: true
                     }
 
-                    MetricTile {
-                        Layout.fillWidth: true
+                    InfoPill {
+                        iconName: "vpn_key"
                         label: t("card.login", "Login")
                         value: root.providerLogin(card.provider)
                         accentColor: card.accentColor
                     }
 
-                    MetricTile {
-                        Layout.fillWidth: true
+                    InfoPill {
+                        visible: root.providerCredits(card.provider) !== "—"
+                        iconName: "toll"
                         label: t("card.credits", "Credits")
                         value: root.providerCredits(card.provider)
                         accentColor: card.accentColor
@@ -3172,11 +3227,18 @@ PluginComponent {
                     boundsBehavior: Flickable.StopAtBounds
                     contentWidth: width
                     contentHeight: contentColumn.implicitHeight
-                    ScrollBar.vertical: ScrollBar { anchors.right: parent.right; anchors.rightMargin: -Theme.spacingM }
+                    ScrollBar.vertical: ScrollBar {
+                        id: contentScrollBar
+                        policy: contentFlick.contentHeight > contentFlick.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.rightMargin: 0
+                    }
 
                     Column {
                         id: contentColumn
-                        width: contentFlick.width
+                        width: contentFlick.width - contentScrollBar.width - Theme.spacingXS
                         spacing: Theme.spacingL
 
                         Item {
@@ -3230,28 +3292,6 @@ PluginComponent {
                                 }
                             }
 
-                            Rectangle {
-                                width: 180
-                                height: 180
-                                radius: 90
-                                anchors.right: parent.right
-                                anchors.rightMargin: -56
-                                anchors.top: parent.top
-                                anchors.topMargin: -68
-                                color: Theme.withAlpha(root.heroAccent, 0.10)
-                            }
-
-                            Rectangle {
-                                width: 92
-                                height: 92
-                                radius: 46
-                                anchors.right: parent.right
-                                anchors.rightMargin: 82
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: -42
-                                color: Theme.withAlpha(Theme.primary, 0.07)
-                            }
-
                             Column {
                                 id: overviewCol
                                 anchors.fill: parent
@@ -3297,7 +3337,7 @@ PluginComponent {
 
                                         StyledText {
                                             width: parent.width
-                                            text: t("app.title", "AI Usage Control")
+                                            text: root.providerData ? root.providerName(root.providerData.provider) : t("app.title", "AI Usage Control")
                                             color: Theme.surfaceText
                                             font.pixelSize: contentColumn.width < 560 ? Theme.fontSizeLarge + 2 : Theme.fontSizeLarge + 6
                                             font.weight: Font.Bold
@@ -3344,38 +3384,22 @@ PluginComponent {
                                         }
                                     }
 
-                                    Item {
-                                        visible: contentColumn.width >= 520
+                                    Column {
+                                        visible: contentColumn.width >= 480 && root.hasProviderData && root.windowsForProvider(root.providerData).length > 0
                                         Layout.alignment: Qt.AlignVCenter
-                                        Layout.preferredWidth: 136
-                                        Layout.preferredHeight: 136
+                                        Layout.preferredWidth: Math.min(260, contentColumn.width * 0.44)
+                                        spacing: Theme.spacingM
 
-                                        ProgressRing {
-                                            anchors.fill: parent
-                                            percent: root.hasProviderData ? root.primaryPercent : 0
-                                            thickness: 9
-                                            accentColor: root.heroAccent
-                                            trackColor: Theme.withAlpha(root.heroAccent, 0.14)
-                                        }
+                                        Repeater {
+                                            model: root.windowsForProvider(root.providerData)
 
-                                        Column {
-                                            anchors.centerIn: parent
-                                            spacing: 2
-
-                                            StyledText {
-                                                anchors.horizontalCenter: parent.horizontalCenter
-                                                text: root.barText
-                                                color: root.heroAccent
-                                                font.pixelSize: Theme.fontSizeLarge + 8
-                                                font.weight: Font.Bold
-                                            }
-
-                                            StyledText {
-                                                anchors.horizontalCenter: parent.horizontalCenter
-                                                text: root.providerData ? root.providerName(root.providerData.provider) : "—"
-                                                color: Theme.surfaceVariantText
-                                                font.pixelSize: Theme.fontSizeSmall - 1
-                                                font.weight: Font.DemiBold
+                                            UsageBar {
+                                                required property var modelData
+                                                width: parent.width
+                                                label: modelData.label
+                                                percent: Number(modelData.data.usedPercent || 0)
+                                                aside: root.formatUsageLine(modelData.data)
+                                                accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
                                             }
                                         }
                                     }
@@ -3406,10 +3430,11 @@ PluginComponent {
                                     }
 
                                     HeroStat {
-                                        statIcon: "memory"
-                                        statLabel: t("card.engine", "Engine")
-                                        statValue: root.providerEngineLabel
-                                        statAccent: Theme.primary
+                                        visible: !!(root.primaryWindow && root.primaryWindow.resetsAt)
+                                        statIcon: "schedule"
+                                        statLabel: t("card.resets_in", "Resets in")
+                                        statValue: root.primaryWindow ? root.formatTimeUntil(root.primaryWindow.resetsAt) : "—"
+                                        statAccent: root.heroAccent
                                     }
 
                                     HeroStat {

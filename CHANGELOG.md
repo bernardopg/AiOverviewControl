@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## 1.4.5 - 2026-06-19
+
+### Fixes
+- Popout scrollbar no longer overlaps the content: the bar is now anchored full-height to the right edge with a reserved gutter, so cards never render underneath it (was a floating bar with a negative margin sitting on top of the content).
+
+### UI
+- Provider cards calmed: inactive cards now recede (lower accent overlay, border, and side indicator) so the hovered/focused/expanded card stands out — usage hierarchy reads by state instead of every card competing at once.
+- The left accent stripe was replaced with a contained, rounded active indicator that grows when the card is expanded — no more sharp corners bleeding past the card's rounded edges.
+- Account / Login / Credits moved from large metric boxes to compact inline pills (`InfoPill`), reclaiming vertical space and reducing visual clutter; Credits hides when unavailable.
+- Hero overview reworked: removed the decorative background blobs, the title now names the focused provider (no longer duplicating the popout header), and the single decorative usage ring was replaced with per-window usage bars (label · value · reset, colored by usage level) — surfacing windows like Premium requests / Chat / Completions at a glance. Window labels now prefer the provider's `resetDescription`.
+
 ## 1.4.4 - 2026-06-18
 
 ### Features
