@@ -1,89 +1,135 @@
 # TODO
 
-Roadmap and backlog for AiOverviewControl. Completed items stay listed for one
-release cycle, then move to `CHANGELOG.md` history.
+Roadmap and backlog for **AiOverviewControl**.
 
-## Providers — Data & Auth
+**Legend** — Effort: `S` (≤1h) · `M` (≤half-day) · `L` (multi-day).
+Impact: `★` nice-to-have · `★★` solid win · `★★★` high value.
+Open items are ordered quick-wins-first within each section. Completed items
+stay one release cycle, then move to `CHANGELOG.md`.
 
-- [ ] NVIDIA: surface specific quota window info if NVIDIA adds a balance endpoint (monitor NIM changelog).
-- [ ] Mistral: surface `is_default_key` flag and rate-limit headers when Mistral adds a quota endpoint.
-- [ ] BytePlus/Ark: surface `remaining_tokens` per model when the API exposes per-model quotas.
-- [ ] Codex: record credit balance history alongside rate-limit snapshots.
-- [x] Cloudflare: Workers AI analytics via the documented GraphQL `aiInferenceAdaptiveGroups` dataset (7-day requests/neurons + latest day) when `CLOUDFLARE_ACCOUNT_ID` is set; graceful fallback to the token-verified note.
-- [x] OpenRouter: top-models breakdown (30d, via `/api/v1/activity`) in the tertiary window, falling back to monthly spend.
-- [x] Remove the global source mode; every provider now owns one explicit adapter path.
-- [x] MiniMax/GLM: replace undocumented quota calls with configured-status reporting.
-- [x] Ollama: poll `/api/ps` for running-model status and supplement `/api/tags`.
-- [x] Qwen/DashScope: optional `DASHSCOPE_WORKSPACE_ID` request scoping.
-- [x] Vertex AI: `GOOGLE_CLOUD_PROJECT` labeling alongside the `gcloud` auth check.
-- [x] Copilot: prerequisite health plus the authenticated GitHub-session quota adapter.
-- [x] Gemini: API key sent via `x-goog-api-key` header instead of the query string.
-- [x] Kimi: `MOONSHOT_API_BASE` override is exclusive (no silent `.cn` fallback).
-- [x] Health checks recognize dispatcher aliases (`moonshot`, `zhipu`, `nim`, `vertex`, `ark`, `modelark`, `dashscope`, `alibaba`).
+---
 
-## Telemetry & History
+## ⚡ Quick wins / cleanup (do next)
 
-- [x] Configurable history retention (`historyRetention` setting → `AIOC_HISTORY_MAX` env on the dispatcher).
-- [x] Per-provider notification thresholds (`notifyThresholds` CSV overrides, e.g. `claude:90,codex:75`).
-- [x] Snapshot timestamps in the sparkline payload with hover values (percent · time).
-- [x] Burn-rate forecast for the Claude 7-day window (shown only when on track to exhaust).
-- [x] Usage history: dispatcher records snapshots to `~/.cache/AiOverviewControl/usage-history.jsonl`; `get-usage-history` aggregates per provider.
-- [x] Sparklines and trend arrows on provider cards.
-- [x] Desktop notifications when a provider crosses a configurable threshold (75/85/95%), de-duplicated per reset window.
+- [ ] **Remove dead code from the v1.4.5 hero rework** — `barText` (line ~395) and `providerEngineLabel` (line ~412) properties are now unreferenced after the ring → window-bars + Engine → Resets changes. `S · ★` — shrinks the file, removes confusion.
+- [ ] **Fix orphan/missing i18n keys** — `card.engine` is now unused but still present in all 5 bundles; `card.resets_in` is used in QML but missing from every bundle (renders the English fallback). Drop `card.engine`, add `card.resets_in` + `card.used` + the `window.*` labels across `en/pt_BR/zh_CN/es_ES/de_DE` (parity is CI-gated). `S · ★★` — correct localization, no orphan keys.
+- [ ] **Refresh screenshots** — `screenshot.png` and `docs/assets/*` predate the v1.4.5 UI (inline identity pills, per-window hero bars, contained active indicator). `S · ★★` — README/marketplace accuracy. (Folds in the two long-standing "add screenshot assets" items below.)
+- [ ] **Round the `MetricTile` left bar** — it still uses a sharp full-height rectangle (line ~1642) with the same rectangular-clip corner bleed the provider-card stripe had before v1.4.5; apply the contained rounded-indicator treatment. `S · ★`
+- [ ] **Silence dispatch-coverage CI noise** — `get-provider-usage` reports `zai` stub with no dispatch case + alias-only cases (`grok`, `moonshot`, `vertex`, …). Add the missing `zai` case (or document the alias mapping the coverage script understands). `S · ★`
 
 ## Dashboard — UX
 
-- [ ] Notification click action: open the popout on the offending provider.
-- [x] Keyboard navigation for provider cards: Tab focus, Enter/Space expand, Delete remove, P pin, R retry; focus ring and accessible name/description.
-- [ ] Add screenshot assets for documentation and marketplace listing.
-- [x] Compact/comfortable density modes.
-- [x] Stale-data indicator per card (2× refresh interval) and `updatedAt` footer.
-- [x] Status filter chips (All/Live/Issues) and name filter from six providers.
-- [x] Usage-sorted card list with pinned providers first and failures last.
-- [x] Pin providers (star), persisted in `pinnedProviders`.
-- [x] Per-provider retry badge on failed cards.
-- [x] "Open console" deep links on expanded cards.
-- [x] Expand-all/collapse-all toggle; animated expand/collapse with rotating chevron.
-- [x] Hero with animated progress ring, status eyebrow, and stat band.
-- [x] Indeterminate loading bar while fetching.
-- [x] "top" pill mode (most critical provider only) plus usage-colored pill dots.
+- [ ] **Notification click action** — open the popout focused on the offending provider. `M · ★★★`
+- [ ] **Make hero window bars interactive** — click a window bar to expand/scroll to that provider's card. `M · ★★`
+- [ ] **Real empty/error state for the hero** — when no providers resolve, the window-bar column is hidden but the hero is bare; show a guided empty state (mirror the existing providers-empty card). `S · ★★`
+- [ ] **Drag-to-reorder pinned providers** in the dashboard (beyond star pin). `L · ★`
+
+## Providers — Data & Auth
+
+- [ ] **NVIDIA** — surface quota-window info if NIM adds a balance endpoint (monitor changelog). `M · ★★`
+- [ ] **Mistral** — surface `is_default_key` flag and rate-limit headers when a quota endpoint exists. `M · ★★`
+- [ ] **BytePlus/Ark** — surface `remaining_tokens` per model when the API exposes per-model quotas. `M · ★★`
+- [ ] **Codex** — record credit-balance history alongside rate-limit snapshots. `M · ★★`
+
+## Telemetry & History
+
+- [ ] **Aggregate cross-provider view** — a combined "total spend / total quota" rollup window in the hero (today it shows a single focused provider). `M · ★★★`
+- [ ] **History export** — button to dump `usage-history.jsonl` (or CSV) from Settings. `S · ★`
 
 ## Claude Analytics
 
-- [ ] Cost currency display option (USD-only today; the old Frankfurter EUR lookup was removed as dead code — reintroduce only with a real `costCurrency` setting end to end).
-- [x] Per-model cost split (`WEEK_MODEL_COSTS`): model bars show tokens · cost.
-- [x] Today's tokens and today's cost as separate tiles.
-- [x] Local-day bucketing for daily bars and costs (UTC mismatch fixed).
-- [x] Pricing matches single-number model versions (e.g. `claude-fable-5`); cache invalidated via schema marker.
-- [x] Stale-cache fallback on transient OAuth API failures (429/5xx/network).
-- [x] 5h burn-rate forecast and projected month cost tile.
-- [x] 5h/7d reset countdowns and "Extra usage on" badge.
-- [x] Top 5 projects of the week by real session `cwd`, toggleable via `showClaudeProjects`.
-- [x] Per-day tokens/cost on daily-bar hover.
+- [ ] **Cost currency option** — USD-only today; reintroduce currency conversion only with a real `costCurrency` setting wired end to end (the old Frankfurter EUR lookup was removed as dead code). `M · ★`
 
 ## Settings
 
-- [x] Visual editor for pinned providers: star action on each selected-provider row.
-- [x] Per-provider notification threshold overrides field.
-- [x] Manual custom provider list text field.
-- [x] Per-provider prerequisite health rows with status pills.
-- [x] Quota notification toggle and threshold dropdown.
-- [x] `showClaudeProjects` toggle.
-- [x] Health summary chips (active/ready/missing) and re-check action in the hero.
-- [x] Copy button on diagnostics commands (wl-copy).
+- [ ] **Threshold validation/feedback** — validate the per-provider `notifyThresholds` CSV inline and show parse errors. `S · ★★`
+- [ ] **Reset-to-defaults** action for plugin settings. `S · ★`
 
-## Quality
+## Quality / CI
 
-- [x] Integration test for `get-usage-history` (empty case, sort/group aggregation, dispatcher snapshot append).
-- [x] i18n: Spanish (es_ES) and German (de_DE) bundles with full key parity, wired into locale detection, settings, and CI/release parity checks.
-- [x] `shellcheck` in CI for all `get-*` scripts.
-- [x] Smoke tests for `get-claude-usage` (KEY=VALUE) and `get-provider-usage` (JSON array, stub delegation).
-- [x] GitHub Actions pinned to SHAs.
-- [x] i18n key-parity check in the release workflow.
+- [ ] **Make QML lint a hard gate** — install `qt6-declarative-dev` in the `qml` CI job so `qmllint` actually runs (currently skipped on ubuntu-latest). Would catch syntax regressions; pair with a documented filter for the unavoidable `qs.*` import-resolution warnings. `M · ★★★`
+- [ ] **Guard the `modelData` gotcha** — a custom Repeater delegate without `required property var modelData` silently renders blank (cost us the v1.4.5 hero bars). Add a grep/lint check, or a short CONTRIBUTING note. `S · ★★`
+- [ ] **QML smoke test** — headless instantiate of the three QML files with stub data to catch binding-loop / undefined-property regressions. `L · ★★`
 
-## Packaging
+## Packaging / Marketplace
 
-- [x] Release checklist in `docs/release-checklist.md` (version bump points, validation, tag flow, post-release).
-- [ ] Add plugin marketplace metadata when DMS plugin registry format is finalized.
-- [ ] Add `assets/` directory with widget screenshots for README and marketplace.
-- [x] Release workflow validates tag/version/changelog/i18n and publishes zip/tar.gz/sha256 artifacts (v1.3.0 shipped).
+- [ ] **Plugin marketplace metadata** — add when the DMS plugin registry format is finalized. `M · ★★`
+- [ ] **Install/update docs for tagged releases** — point users at the release zip/sha256 flow. `S · ★`
+
+---
+
+## ✅ Recently shipped — v1.4.5 (2026-06-19)
+
+UI polish pass (see `CHANGELOG.md` for detail):
+- Popout scrollbar gutter (no content overlap).
+- Inactive provider cards recede; active/hover/expanded stands out.
+- Left accent stripe → contained rounded active indicator.
+- Account/Login/Credits boxes → inline `InfoPill`s.
+- Hero ring → per-window usage bars (label · value · reset); labels prefer `resetDescription`.
+
+## ✅ Done (earlier releases)
+
+<details><summary>Providers — Data &amp; Auth</summary>
+
+- [x] Cloudflare Workers AI analytics via GraphQL `aiInferenceAdaptiveGroups` (7-day, with token-verified fallback).
+- [x] OpenRouter top-models breakdown (30d via `/api/v1/activity`).
+- [x] Removed global source mode; every provider owns one explicit adapter path.
+- [x] MiniMax/GLM configured-status reporting (replaced undocumented quota calls).
+- [x] Ollama `/api/ps` running-model status + `/api/tags`.
+- [x] Qwen/DashScope optional `DASHSCOPE_WORKSPACE_ID` scoping.
+- [x] Vertex AI `GOOGLE_CLOUD_PROJECT` labeling + `gcloud` auth check.
+- [x] Copilot prerequisite health + authenticated GitHub-session quota adapter.
+- [x] Gemini key via `x-goog-api-key` header (not query string).
+- [x] Kimi exclusive `MOONSHOT_API_BASE` override (no silent `.cn` fallback).
+- [x] Health checks recognize dispatcher aliases.
+
+</details>
+
+<details><summary>Telemetry &amp; History</summary>
+
+- [x] Configurable history retention (`historyRetention` → `AIOC_HISTORY_MAX`).
+- [x] Per-provider notification thresholds (`notifyThresholds` CSV).
+- [x] Snapshot timestamps in sparkline payload with hover values.
+- [x] Burn-rate forecast for the Claude 7-day window.
+- [x] Usage history JSONL + `get-usage-history` aggregation.
+- [x] Sparklines and trend arrows on cards.
+- [x] Desktop notifications on threshold crossing, de-duplicated per reset window.
+
+</details>
+
+<details><summary>Dashboard — UX</summary>
+
+- [x] Keyboard navigation (Tab/Enter/Space/Delete/P/R) with focus ring + a11y names.
+- [x] Compact/comfortable density modes.
+- [x] Stale-data indicator per card + `updatedAt` footer.
+- [x] Status filter chips (All/Live/Issues) + name filter.
+- [x] Usage-sorted list (pinned first, failures last).
+- [x] Pin providers (persisted) + per-card retry badge.
+- [x] "Open console" deep links; expand-all/collapse-all; animated chevron.
+- [x] Hero status eyebrow + stat band; indeterminate loading bar.
+- [x] "top" pill mode + usage-colored pill dots.
+
+</details>
+
+<details><summary>Claude Analytics</summary>
+
+- [x] Per-model cost split (`WEEK_MODEL_COSTS`).
+- [x] Today's tokens/cost tiles; local-day bucketing.
+- [x] Pricing matches single-number model versions; cache schema marker.
+- [x] Stale-cache fallback on transient OAuth failures.
+- [x] 5h burn-rate forecast + projected-month tile; reset countdowns + extra-usage badge.
+- [x] Top 5 weekly projects by session `cwd` (`showClaudeProjects`).
+- [x] Per-day tokens/cost on daily-bar hover.
+
+</details>
+
+<details><summary>Settings / Quality / Packaging</summary>
+
+- [x] Visual pin editor; threshold-override field; custom provider list; prerequisite health rows.
+- [x] Quota notification toggle + threshold dropdown; `showClaudeProjects` toggle; health summary chips; copy-diagnostics button.
+- [x] Integration test for `get-usage-history`; smoke tests for claude/provider scripts.
+- [x] es_ES + de_DE bundles with parity, wired into CI/release checks.
+- [x] `shellcheck` in CI; Actions pinned to SHAs; i18n parity in release workflow.
+- [x] Release checklist (`docs/release-checklist.md`); release workflow publishes zip/tar.gz/sha256.
+
+</details>
