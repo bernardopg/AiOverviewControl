@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 1.4.6 - 2026-06-24
+
+### Providers
+- **Z.ai / GLM — real quota tracking**: both `zai` and `glm` adapters now call `GET /api/monitor/usage/quota/limit` instead of the auth-only `/models` endpoint. The response exposes `data.limits[]` — each limit carries `type` (`TIME_LIMIT` / `TOKENS_LIMIT`), `percentage` (0–100), `nextResetTime` (epoch ms), `remaining`, `unit`, and `number`. Limits are sorted by urgency (highest % among timed windows first) and mapped to primary / secondary / tertiary. `data.level` (e.g. `lite`) is surfaced as the credits field. Falls back to auth-only `/models` check when the quota endpoint is unavailable.
+- Coverage level for `zai` and `glm` promoted from **Auth** → **Quota** in the provider matrix.
+
+### Fixes
+- `providerSubtitle` in the QML widget showed "reinicia" (without a reset time) when a provider returned `resetsAt: null`. `formatTimeUntil(null)` returns `""`, not `"—"`, so the `!== "—"` guard passed; the reset label was then rendered with an empty time. Fixed by checking `reset && reset !== "—"` so providers with no reset window correctly show "sem janela de reset".
+
 ## 1.4.5 - 2026-06-19
 
 ### Fixes

@@ -21,10 +21,10 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from an official protocol/API. | `codex`, `copilot`, `openrouter` |
+| **Quota** | Real `usedPercent` + reset window from an official protocol/API. | `codex`, `copilot`, `openrouter`, `zai`, `glm` |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `together` |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local) |
-| **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `zai`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `fireworks`, `minimax`, `glm`, `xai`, `kilo` |
+| **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `fireworks`, `minimax`, `xai`, `kilo` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp`, `ai21` |
 
@@ -117,9 +117,9 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>glm</code> / <code>zai</code></td>
-<td>Auth</td>
-<td>✅ <code>GET /paas/v4/models</code></td>
-<td>❌ dashboard-only</td>
+<td>Quota</td>
+<td>✅ <code>GET /api/monitor/usage/quota/limit</code></td>
+<td>✅ per-window % + reset timestamp</td>
 <td>✅ GLM Coding Plan $18–$160/mo</td>
 <td>✅ per token</td>
 <td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code></td>
@@ -462,13 +462,13 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **API base** | Global `https://api.z.ai/api/paas/v4`; Coding-Plan `https://api.z.ai/api/coding/paas/v4`; China `https://open.bigmodel.cn/api/paas/v4`. Fully OpenAI-compatible. |
 | **Env var** | `ZAI_API_KEY` (fallbacks `GLM_API_KEY`, `ZHIPU_API_KEY`). |
 | **Auth** | `Authorization: Bearer <key>`. |
-| **Key check** | `GET /paas/v4/models` → `200`; `401` on bad key (coding endpoint `/api/coding/paas/v4/models` also `401`). Zero tokens. |
-| **Quota / balance** | ❌ None documented. `/paas/v4/billing` returns `401` (auth-gated, unsupported — do not rely on it). |
+| **Key check** | `GET /api/monitor/usage/quota/limit` → `200` with `success: true` and `data.limits[]`; `401`/`403` on bad key. Zero tokens. Falls back to `GET /paas/v4/models` when quota endpoint is unavailable. |
+| **Quota / balance** | ✅ `/api/monitor/usage/quota/limit` returns `data.limits[]` — each limit has `type` (`TIME_LIMIT` or `TOKENS_LIMIT`), `percentage` (0–100), `nextResetTime` (epoch ms), `remaining`, `unit`, and `number`. Also returns `data.level` (plan tier, e.g. `lite`). |
 | **Plans** | PAYG per token **or** **GLM Coding Plan** (Lite $18, **Pro $72**, Max $160/mo; quarterly/annual discounts). 5-hour + weekly prompt windows; supported in Claude Code, Cline, OpenCode, Roo, Kilo, Crush, Goose, OpenClaw. **GLM-5.2 & GLM-5-Turbo consume 3× quota at peak (14:00–18:00 UTC+8), 2× off-peak** (1× off-peak promo through end of September). |
 | **Billing** | Per 1M tokens: **`glm-5.2`** $1.40/$4.40 (cached $0.26) &middot; `glm-5`/`glm-5-turbo` $1.0–$1.2/$3.2–$4.0 &middot; `glm-4.7`/`4.6`/`4.5` $0.60/$2.20 &middot; `glm-4.7-flash` & `glm-4.5-flash` **Free** &middot; `glm-5v-turbo` (vision) $1.2/$4.0. Web Search $0.01/use. |
 | **Dashboard** | [z.ai/manage-apikey](https://z.ai/manage-apikey) (keys), [/subscription](https://z.ai/manage-apikey/subscription) (Coding Plan), [/billing](https://z.ai/manage-apikey/billing) (finance). China: [open.bigmodel.cn](https://open.bigmodel.cn). |
 | **Changelog** | **GLM-5.2** live (1M lossless context, 128K max output, MCP, structured output). Lineage: 4.5 → 4.6 → 4.7 → 5 → 5-Turbo → 5.1 → **5.2**. New GLM-5V-Turbo (vision coding), GLM-Image, CogVideoX-3, GLM-ASR-2512, GLM-OCR. Coding Plan restructured (legacy plans migrated by 2026-04-30). |
-| **Adapter** | `fetch_glm_native` (China console) and `fetch_zai_native` (z.ai `GET /models`). `glm` validates against `open.bigmodel.cn`; `zai` validates against `api.z.ai`. |
+| **Adapter** | `fetch_glm_native` (China console, `open.bigmodel.cn`) and `fetch_zai_native` (global, `api.z.ai`). Both call `GET /api/monitor/usage/quota/limit` for real quota data; fall back to `GET /models` auth-only check if the quota endpoint is unavailable. Sorts limits by urgency (highest % first among timed windows), then maps to primary / secondary / tertiary. |
 
 ### NVIDIA (NIM / build.nvidia.com)
 

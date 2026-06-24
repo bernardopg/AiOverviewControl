@@ -101,7 +101,8 @@ Notable integrations:
 | Kimi (Moonshot) | `GET /v1/users/me/balance` — available, voucher, and cash balance (USD/CNY). |
 | DeepSeek, Together | Provider balance or credit APIs. |
 | Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
-| xAI, GLM, Z.ai, MiniMax, Qwen, NVIDIA, Mistral | Read-only `/models` (or `/api-key`) validation — zero token consumption. |
+| Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check. |
+| xAI, MiniMax, Qwen, NVIDIA, Mistral | Read-only `/models` (or `/api-key`) validation — zero token consumption. |
 | Ollama | Installed and running models from `/api/tags` and `/api/ps`. |
 
 The full matrix, credentials, and upstream references are documented in

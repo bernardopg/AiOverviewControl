@@ -602,17 +602,89 @@ fetch_glm_native() {
     json_error glm glm-api 2 provider "GLM_API_KEY or ZHIPU_API_KEY is not set."
     return 0
   fi
-  # OpenAI-compatible models list on the China (Zhipu) host — read-only.
   local base="${GLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4}"
   local console="open.bigmodel.cn"
   case "$base" in *bigmodel.cn*) console="bigmodel.cn" ;; esac
+  # Derive quota host from the configured API base — supports custom endpoints.
+  local quota_host
+  quota_host="$(printf '%s' "$base" | sed 's|/api/paas.*||')"
+  [ -n "$quota_host" ] || quota_host="https://open.bigmodel.cn"
+
   local tmp_body http_status
+  tmp_body="$(mktemp)"
+  # /api/monitor/usage/quota/limit — zero token cost, returns per-window
+  # percentages and reset timestamps identical to the Z.ai endpoint.
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "${quota_host}/api/monitor/usage/quota/limit" 2>/dev/null || true)"
+
+  if [ "$http_status" = "200" ] && jq -e '.success == true and (.data.limits | type) == "array"' "$tmp_body" >/dev/null 2>&1; then
+    jq -c --arg console "$console" '
+      def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+      def ms_to_iso($ms): if $ms then (($ms / 1000) | todate) else null end;
+      def win_min($unit; $n):
+        if $unit == 6 then ($n * 1440)
+        elif $unit == 5 then ($n * 43200)
+        elif $unit == 4 then ($n * 10080)
+        else null end;
+      def win_label($type; $unit; $n):
+        ( if $type == "TIME_LIMIT" then
+            if $unit == 5 then "mensal" elif $unit == 6 then "diário" elif $unit == 4 then "semanal" else "janela" end
+          else
+            if $unit == 6 then "tokens/dia" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end
+          end
+        ) + (if $n > 1 then " ×\($n)" else "" end);
+      def make_window($lim):
+        { usedPercent: clamp(($lim.percentage // 0) | tonumber),
+          windowMinutes: win_min($lim.unit; $lim.number),
+          resetsAt: ms_to_iso($lim.nextResetTime),
+          resetDescription: win_label($lim.type; $lim.unit; $lim.number) };
+
+      .data as $d |
+      ($d.limits // []) as $limits |
+      ( ($limits | map(select(.nextResetTime != null))
+                 | sort_by([-((.percentage // 0) | tonumber), .nextResetTime]))
+        + ($limits | map(select(.nextResetTime == null)))
+      ) as $sorted |
+
+      {
+        provider: "glm",
+        source: "glm-api",
+        usage: {
+          identity: {providerID: "glm", accountEmail: "GLM account", loginMethod: "api-key"},
+          accountEmail: "GLM account",
+          loginMethod: "api-key",
+          primary:   (if $sorted[0] then make_window($sorted[0]) else null end),
+          secondary: (if $sorted[1] then make_window($sorted[1]) else null end),
+          tertiary:  (if $sorted[2] then make_window($sorted[2]) else null end),
+          updatedAt: (now | todate)
+        },
+        credits: {remaining: ($d.level // "unknown")}
+      }
+    ' "$tmp_body"
+    rm -f "$tmp_body"
+    return 0
+  fi
+
+  if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="GLM API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error glm glm-api "${http_status}" provider "$message"
+    return 0
+  fi
+
+  # Quota endpoint unavailable: fall back to auth-only /models check.
+  rm -f "$tmp_body"
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
     "${base}/models" 2>/dev/null || true)"
   rm -f "$tmp_body"
+
   if [ "$http_status" = "200" ]; then
     json_note_usage glm glm-api "GLM account" "api-key" "Authenticated — billing at ${console}" "$console"
     return 0
@@ -626,20 +698,62 @@ fetch_zai_native() {
     json_error zai zai-api 2 provider "ZAI_API_KEY is not set. Get your key at z.ai/manage-apikey/apikey-list"
     return 0
   fi
+
   local tmp_body http_status
   tmp_body="$(mktemp)"
-  # GET /models is the standard OpenAI-compatible read-only endpoint — no
-  # inference call, no token consumption.
+  # /api/monitor/usage/quota/limit returns real subscription quota with per-window
+  # percentages and reset timestamps — zero token cost, no inference call.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
-    "https://api.z.ai/api/paas/v4/models" 2>/dev/null || true)"
+    "https://api.z.ai/api/monitor/usage/quota/limit" 2>/dev/null || true)"
 
-  if [ "$http_status" = "200" ]; then
+  if [ "$http_status" = "200" ] && jq -e '.success == true and (.data.limits | type) == "array"' "$tmp_body" >/dev/null 2>&1; then
+    jq -c '
+      def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+      def ms_to_iso($ms): if $ms then (($ms / 1000) | todate) else null end;
+      def win_min($unit; $n):
+        if $unit == 6 then ($n * 1440)
+        elif $unit == 5 then ($n * 43200)
+        elif $unit == 4 then ($n * 10080)
+        else null end;
+      def win_label($type; $unit; $n):
+        ( if $type == "TIME_LIMIT" then
+            if $unit == 5 then "mensal" elif $unit == 6 then "diário" elif $unit == 4 then "semanal" else "janela" end
+          else
+            if $unit == 6 then "tokens/dia" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end
+          end
+        ) + (if $n > 1 then " ×\($n)" else "" end);
+      def make_window($lim):
+        { usedPercent: clamp(($lim.percentage // 0) | tonumber),
+          windowMinutes: win_min($lim.unit; $lim.number),
+          resetsAt: ms_to_iso($lim.nextResetTime),
+          resetDescription: win_label($lim.type; $lim.unit; $lim.number) };
+
+      .data as $d |
+      ($d.limits // []) as $limits |
+      # timed limits first (most critical by % desc, then soonest reset), then untimed
+      ( ($limits | map(select(.nextResetTime != null))
+                 | sort_by([-((.percentage // 0) | tonumber), .nextResetTime]))
+        + ($limits | map(select(.nextResetTime == null)))
+      ) as $sorted |
+
+      {
+        provider: "zai",
+        source: "zai-api",
+        usage: {
+          identity: {providerID: "zai", accountEmail: "Z.ai account", loginMethod: "api-key"},
+          accountEmail: "Z.ai account",
+          loginMethod: "api-key",
+          primary:   (if $sorted[0] then make_window($sorted[0]) else null end),
+          secondary: (if $sorted[1] then make_window($sorted[1]) else null end),
+          tertiary:  (if $sorted[2] then make_window($sorted[2]) else null end),
+          updatedAt: (now | todate)
+        },
+        credits: {remaining: ($d.level // "unknown")}
+      }
+    ' "$tmp_body"
     rm -f "$tmp_body"
-    json_note_usage zai zai-api "Z.ai account" "api-key" \
-      "Authenticated — billing at z.ai/manage-apikey/billing" \
-      "z.ai/manage-apikey/billing"
     return 0
   fi
 
@@ -652,11 +766,24 @@ fetch_zai_native() {
     return 0
   fi
 
-  # 404 or unexpected: models endpoint may not be exposed; treat key as present
-  # but unverifiable rather than erroring.
+  # Quota endpoint unavailable: fall back to auth-only /models check.
   rm -f "$tmp_body"
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.z.ai/api/paas/v4/models" 2>/dev/null || true)"
+  rm -f "$tmp_body"
+
+  if [ "$http_status" = "200" ]; then
+    json_note_usage zai zai-api "Z.ai account" "api-key" \
+      "Authenticated — billing at z.ai/manage-apikey/billing" \
+      "z.ai/manage-apikey/billing"
+    return 0
+  fi
+
   json_note_usage zai zai-api "Z.ai account" "api-key" \
-    "API key set; subscription and billing at z.ai/manage-apikey/billing" \
+    "API key set; quota endpoint unavailable" \
     "z.ai/manage-apikey/billing"
 }
 

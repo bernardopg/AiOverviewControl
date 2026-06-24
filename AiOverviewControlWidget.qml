@@ -782,7 +782,7 @@ PluginComponent {
             return `${source} · ${label} · ${windowData.displayValue}`;
         }
         const reset = providerReset(provider);
-        return reset !== "—" ? `${source} · ${t("status.reset", "reset")} ${reset}` : `${source} · ${t("status.no_reset", "no reset window")}`;
+        return (reset && reset !== "—") ? `${source} · ${t("status.reset", "reset")} ${reset}` : `${source} · ${t("status.no_reset", "no reset window")}`;
     }
 
     function formatTokens(n) {
