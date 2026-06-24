@@ -11,11 +11,7 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## ⚡ Quick wins / cleanup (do next)
 
-- [ ] **Remove dead code from the v1.4.5 hero rework** — `barText` (line ~395) and `providerEngineLabel` (line ~412) properties are now unreferenced after the ring → window-bars + Engine → Resets changes. `S · ★` — shrinks the file, removes confusion.
-- [ ] **Fix orphan/missing i18n keys** — `card.engine` is now unused but still present in all 5 bundles; `card.resets_in` is used in QML but missing from every bundle (renders the English fallback). Drop `card.engine`, add `card.resets_in` + `card.used` + the `window.*` labels across `en/pt_BR/zh_CN/es_ES/de_DE` (parity is CI-gated). `S · ★★` — correct localization, no orphan keys.
-- [ ] **Refresh screenshots** — `screenshot.png` and `docs/assets/*` predate the v1.4.5 UI (inline identity pills, per-window hero bars, contained active indicator). `S · ★★` — README/marketplace accuracy. (Folds in the two long-standing "add screenshot assets" items below.)
-- [ ] **Round the `MetricTile` left bar** — it still uses a sharp full-height rectangle (line ~1642) with the same rectangular-clip corner bleed the provider-card stripe had before v1.4.5; apply the contained rounded-indicator treatment. `S · ★`
-- [ ] **Silence dispatch-coverage CI noise** — `get-provider-usage` reports `zai` stub with no dispatch case + alias-only cases (`grok`, `moonshot`, `vertex`, …). Add the missing `zai` case (or document the alias mapping the coverage script understands). `S · ★`
+_(Cleared in v1.4.8 — see Recently shipped below.)_
 
 ## Dashboard — UX
 
@@ -57,6 +53,16 @@ stay one release cycle, then move to `CHANGELOG.md`.
 - [ ] **Install/update docs for tagged releases** — point users at the release zip/sha256 flow. `S · ★`
 
 ---
+
+## ✅ Recently shipped — v1.4.8 (2026-06-24)
+
+Quick-win cleanup pass:
+- Removed dead `barText` + `providerEngineLabel` properties (orphaned by the v1.4.5 hero rework).
+- Fixed i18n keys: dropped orphan `card.engine`, added missing `card.resets_in` across all 5 bundles (parity preserved).
+- Rounded the `MetricTile` left accent bar (contained indicator, no corner bleed).
+- Silenced dispatch-coverage CI noise: parser now handles dotted aliases (`z.ai`) and canonical-vs-alias distinction; reports 0 missing.
+
+Dropped: "Refresh screenshots" quick-win (descoped).
 
 ## ✅ Recently shipped — v1.4.5 (2026-06-19)
 

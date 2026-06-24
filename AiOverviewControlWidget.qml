@@ -392,26 +392,9 @@ PluginComponent {
         return t("status.primary_resets", "Primary window resets in {time}.", { time: resetLabel });
     }
 
-    readonly property string barText: {
-        if (hasError && !hasProviderData) {
-            return "ERR";
-        }
-        if (isLoading && !hasProviderData) {
-            return "...";
-        }
-        if (!hasProviderData) {
-            return "N/A";
-        }
-        return `${Math.round(primaryPercent)}%`;
-    }
-
     readonly property bool isDataStale: {
         staleTickMs;
         return lastUpdatedMs > 0 && (Date.now() - lastUpdatedMs) > refreshIntervalMs * 2;
-    }
-    readonly property string providerEngineLabel: {
-        if (!binaryReady) return "offline";
-        return t("status.local_helpers", "local adapters");
     }
 
     function getUsageColor(percent) {
@@ -1693,10 +1676,11 @@ PluginComponent {
 
         Rectangle {
             anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
+            anchors.leftMargin: Theme.spacingXS
+            anchors.verticalCenter: parent.verticalCenter
             width: 3
-            radius: 2
+            height: parent.height - Theme.spacingS * 2
+            radius: width / 2
             color: Theme.withAlpha(accentColor, 0.78)
         }
 

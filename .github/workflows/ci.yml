@@ -172,29 +172,42 @@ jobs:
               if name not in skip:
                   stubs.add(name)
 
-          # collect dispatch cases (handles aliases like kimi|moonshot)
+          # collect dispatch cases. Each case is `canonical|alias1|alias2)`:
+          # the first token is the canonical provider (expected to own a stub),
+          # the rest are documented aliases (no stub of their own, by design).
+          # The char class includes '.' so dotted aliases like `z.ai` parse.
           src = Path('providers/get-provider-usage').read_text()
-          dispatched = set()
+          dispatched = set()   # every routable token (canonical + aliases)
+          canonical  = set()   # first token of each case only
           in_func = False
           for line in src.splitlines():
               if re.match(r'^fetch_provider\(\)', line):
                   in_func = True
               if not in_func:
                   continue
-              m = re.match(r'^\s+([\w|/-]+)\)', line)
+              m = re.match(r'^\s+([\w.|/-]+)\)', line)
               if m:
-                  for alias in m.group(1).split('|'):
-                      dispatched.add(alias.strip())
+                  tokens = [a.strip() for a in m.group(1).split('|')]
+                  if tokens == ['*']:
+                      continue
+                  canonical.add(tokens[0])
+                  dispatched.update(tokens)
 
+          # a provider is covered if ANY of its tokens routes; aliases are fine.
           missing_dispatch = sorted(stubs - dispatched)
-          missing_stub     = sorted(dispatched - stubs - {'*'})
+          # only canonical names are expected to back a script; ignore the
+          # dedicated non-stub providers (claude/copilot/codex live in `skip`).
+          existing = {f.name.removeprefix('get-').removesuffix('-usage')
+                      for f in Path('providers').glob('get-*-usage')}
+          missing_stub = sorted(canonical - existing - skip)
 
           if missing_dispatch:
               print(f'::warning::Stubs with no dispatch case: {missing_dispatch}')
           if missing_stub:
-              print(f'::warning::Dispatch cases with no stub script: {missing_stub}')
+              print(f'::warning::Canonical dispatch cases with no script: {missing_stub}')
 
-          print(f'Coverage: {len(stubs)} stubs, {len(dispatched)} dispatch entries.')
+          print(f'Coverage: {len(stubs)} stubs, {len(dispatched)} dispatch entries '
+                f'({len(canonical)} canonical).')
           # Not a hard failure — aliases make exact matching non-trivial
           PY
 

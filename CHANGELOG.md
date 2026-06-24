@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## 1.4.8 - 2026-06-24
+
+### UI
+- `MetricTile` left accent bar is now a contained, fully-rounded indicator (vertically centered, inset from the edges) instead of a sharp full-height stripe — matching the v1.4.5 provider-card treatment and eliminating the rounded-clip corner bleed.
+
+### i18n
+- Dropped the orphan `card.engine` key from all five bundles (unused since the v1.4.5 hero rework replaced the Engine label).
+- Added the missing `card.resets_in` key (referenced by the widget but absent from every bundle, so it had been falling back to the English string) across `en`, `pt_BR`, `es_ES`, `de_DE`, `zh_CN`. Key parity preserved (131 keys each).
+
+### Internal
+- Removed dead `barText` and `providerEngineLabel` properties from the widget — both were left unreferenced after the v1.4.5 hero rework (ring → per-window bars, Engine → Resets).
+- Provider dispatch-coverage CI check no longer emits spurious warnings: the case parser now accepts dotted aliases (e.g. `z.ai`, which previously broke the regex and made `zai` look unrouted), distinguishes canonical providers from documented aliases, and ignores the dedicated non-stub adapters (claude/copilot/codex). Coverage now reports clean: 0 missing dispatch, 0 missing stub.
+
 ## 1.4.7 - 2026-06-24
 
 ### Providers
