@@ -50,6 +50,7 @@ inventados. Nunca.
 | | |
 | --- | --- |
 | 📊 **Dashboard unificado** | 31 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
+| 🛰️ **Visão geral da frota** | Rollup cross-provider no hero — carga média, provedor mais quente, quantos estão perto do limite e o próximo reset. |
 | ⏱️ **Janelas oficiais do Codex** | Janelas de rate-limit direto do `codex app-server`. |
 | 🤖 **Analytics profundo do Claude** | Cota mais analytics local de tokens, sessões, modelos, projetos e custo. |
 | 🐙 **Cotas do Copilot** | Snapshots de Premium requests, Chat e Completions. |

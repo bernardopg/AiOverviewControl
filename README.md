@@ -49,6 +49,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 | | |
 | --- | --- |
 | 📊 **Unified dashboard** | 33 AI providers and developer tools in one place. |
+| 🛰️ **Fleet overview** | Cross-provider rollup in the hero — average load, hottest provider, how many are near their cap, and the soonest reset. |
 | ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
 | 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
 | 🐙 **Copilot quotas** | Premium request, Chat, and Completions snapshots. |
@@ -186,6 +187,11 @@ variable matrix and health-check behavior.
 
 ## Dashboard Behavior
 
+- The hero shows a **fleet overview** when two or more providers resolve: the
+  average primary-window load, the hottest provider, how many sit at or above
+  80%, and the soonest reset across the fleet. Load is the only unit comparable
+  across heterogeneous providers, so the rollup summarizes pressure rather than
+  faking a cross-provider monetary total.
 - Cards are sorted with pinned providers first, then by highest measurable
   usage, with failed providers last.
 - Cards support keyboard focus plus Enter/Space (expand), Delete (remove),

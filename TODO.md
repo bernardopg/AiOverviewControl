@@ -29,7 +29,6 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 
 ## Telemetry & History
 
-- [ ] **Aggregate cross-provider view** — a combined "total spend / total quota" rollup window in the hero (today it shows a single focused provider). `M · ★★★`
 - [ ] **History export** — button to dump `usage-history.jsonl` (or CSV) from Settings. `S · ★`
 
 ## Claude Analytics
@@ -53,6 +52,10 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 - [ ] **Install/update docs for tagged releases** — point users at the release zip/sha256 flow. `S · ★`
 
 ---
+
+## ✅ Recently shipped — v1.4.9 (2026-06-24)
+
+- **Aggregate cross-provider view** — hero fleet overview (avg load ring, peak provider, at-risk count ≥80%, soonest reset) shown when ≥2 providers resolve. Summarizes quota pressure in comparable % units instead of faking a cross-provider monetary total.
 
 ## ✅ Recently shipped — v1.4.8 (2026-06-24)
 

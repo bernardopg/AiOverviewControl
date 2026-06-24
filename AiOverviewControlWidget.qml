@@ -316,6 +316,50 @@ PluginComponent {
     readonly property real primaryPercent: primaryWindow ? Number(primaryWindow.usedPercent || 0) : 0
     readonly property color heroAccent: getUsageColor(primaryPercent)
 
+    // Cross-provider rollup: the fleet's quota pressure at a glance. Aggregates
+    // the primary window of every live provider — average load, the hottest
+    // provider, how many are near their cap, and the soonest reset. Percent is
+    // the only unit comparable across heterogeneous providers, so we summarise
+    // load rather than faking a cross-provider monetary total. staleTickMs is
+    // touched so nextResetLabel re-evaluates on the same cadence as the hero.
+    readonly property var fleetRollup: {
+        const live = successfulProviders;
+        const out = { count: live.length, avg: 0, peak: 0, peakName: "", atRisk: 0, nextResetMs: 0 };
+        if (live.length === 0) {
+            return out;
+        }
+        let sum = 0;
+        let nextMs = Infinity;
+        for (let i = 0; i < live.length; i++) {
+            const percent = providerPercent(live[i]);
+            sum += percent;
+            if (percent > out.peak) {
+                out.peak = percent;
+                out.peakName = providerName(live[i].provider);
+            }
+            if (percent >= 80) {
+                out.atRisk++;
+            }
+            const win = primaryUsageWindow(live[i]);
+            if (win && win.resetsAt) {
+                const ms = new Date(win.resetsAt).getTime();
+                if (!isNaN(ms) && ms > Date.now() && ms < nextMs) {
+                    nextMs = ms;
+                }
+            }
+        }
+        out.avg = sum / live.length;
+        if (nextMs !== Infinity) {
+            out.nextResetMs = nextMs;
+        }
+        return out;
+    }
+
+    readonly property string fleetNextResetLabel: {
+        staleTickMs;
+        return fleetRollup.nextResetMs > 0 ? formatTimeUntil(fleetRollup.nextResetMs) : "—";
+    }
+
     readonly property string accountEmail: {
         if (!usageData) {
             return "";
@@ -3384,6 +3428,123 @@ PluginComponent {
                                                 percent: Number(modelData.data.usedPercent || 0)
                                                 aside: root.formatUsageLine(modelData.data)
                                                 accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                                            }
+                                        }
+                                    }
+                                }
+
+                                StyledRect {
+                                    width: parent.width
+                                    visible: root.fleetRollup.count >= 2
+                                    radius: Theme.cornerRadius
+                                    color: Theme.withAlpha(Theme.surfaceText, 0.04)
+                                    border.width: 1
+                                    border.color: Theme.withAlpha(Theme.surfaceText, 0.08)
+                                    implicitHeight: fleetCol.implicitHeight + Theme.spacingM * 2
+
+                                    Column {
+                                        id: fleetCol
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.spacingM
+                                        spacing: Theme.spacingM
+
+                                        RowLayout {
+                                            width: parent.width
+                                            spacing: Theme.spacingS
+
+                                            DankIcon {
+                                                Layout.alignment: Qt.AlignVCenter
+                                                name: "dashboard"
+                                                size: 15
+                                                color: Theme.surfaceVariantText
+                                            }
+
+                                            StyledText {
+                                                Layout.alignment: Qt.AlignVCenter
+                                                text: t("rollup.title", "Fleet overview").toUpperCase()
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall - 2
+                                                font.weight: Font.DemiBold
+                                                font.letterSpacing: 1.0
+                                            }
+
+                                            Item { Layout.fillWidth: true }
+
+                                            BadgePill {
+                                                Layout.alignment: Qt.AlignVCenter
+                                                label: t("rollup.providers", "{count} live", { count: root.fleetRollup.count })
+                                                iconName: "lan"
+                                                accentColor: Theme.primary
+                                            }
+                                        }
+
+                                        Flow {
+                                            width: parent.width
+                                            spacing: Theme.spacingXL
+
+                                            Row {
+                                                spacing: Theme.spacingS
+
+                                                Item {
+                                                    width: 40
+                                                    height: 40
+                                                    anchors.verticalCenter: parent.verticalCenter
+
+                                                    ProgressRing {
+                                                        anchors.fill: parent
+                                                        percent: root.fleetRollup.avg
+                                                        thickness: 5
+                                                        accentColor: root.getUsageColor(root.fleetRollup.avg)
+                                                    }
+
+                                                    StyledText {
+                                                        anchors.centerIn: parent
+                                                        text: `${Math.round(root.fleetRollup.avg)}%`
+                                                        color: Theme.surfaceText
+                                                        font.pixelSize: Theme.fontSizeSmall - 1
+                                                        font.weight: Font.Bold
+                                                    }
+                                                }
+
+                                                Column {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    spacing: 1
+
+                                                    StyledText {
+                                                        text: t("rollup.avg_load", "Avg load")
+                                                        color: Theme.surfaceText
+                                                        font.pixelSize: Theme.fontSizeMedium
+                                                        font.weight: Font.Bold
+                                                    }
+
+                                                    StyledText {
+                                                        text: t("rollup.across", "across {count}", { count: root.fleetRollup.count })
+                                                        color: Theme.surfaceVariantText
+                                                        font.pixelSize: Theme.fontSizeSmall - 1
+                                                    }
+                                                }
+                                            }
+
+                                            HeroStat {
+                                                statIcon: "local_fire_department"
+                                                statLabel: root.fleetRollup.peakName.length > 0 ? root.fleetRollup.peakName : t("rollup.peak", "Peak")
+                                                statValue: `${Math.round(root.fleetRollup.peak)}%`
+                                                statAccent: root.getUsageColor(root.fleetRollup.peak)
+                                            }
+
+                                            HeroStat {
+                                                statIcon: "warning"
+                                                statLabel: t("rollup.at_risk", "At risk")
+                                                statValue: String(root.fleetRollup.atRisk)
+                                                statAccent: root.fleetRollup.atRisk > 0 ? Theme.error : Theme.success
+                                            }
+
+                                            HeroStat {
+                                                visible: root.fleetRollup.nextResetMs > 0
+                                                statIcon: "schedule"
+                                                statLabel: t("rollup.next_reset", "Next reset")
+                                                statValue: root.fleetNextResetLabel
+                                                statAccent: root.heroAccent
                                             }
                                         }
                                     }
