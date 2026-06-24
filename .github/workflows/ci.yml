@@ -342,16 +342,42 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: QML lint (optional — skip if qmllint unavailable)
+      # Qt5's qmllint is a syntax verifier: it validates QML/JS structure
+      # (braces, bindings, property declarations) and exits non-zero on a
+      # malformed file, without trying to resolve the DankMaterialShell `qs.*`
+      # modules — so there is no import-resolution noise to filter. Qt6's
+      # qmllint resolves imports and would drown the run in unavoidable
+      # `qs.*`/unqualified warnings, so we deliberately pin the Qt5 tool to keep
+      # this a clean HARD gate rather than an advisory one.
+      - name: Install Qt5 qmllint
         run: |
-          if command -v qmllint >/dev/null 2>&1; then
-            qmllint \
-              AiOverviewControlWidget.qml \
-              AiOverviewControlSettings.qml \
-              AiOverviewControlI18n.qml
-          else
-            echo "qmllint not installed — skipping (install qt6-declarative-dev to enable)"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qtdeclarative5-dev-tools
+
+      - name: Locate qmllint
+        id: qmllint
+        run: |
+          bin="$(command -v qmllint || true)"
+          if [ -z "$bin" ]; then
+            for cand in \
+              /usr/lib/qt5/bin/qmllint \
+              /usr/lib/x86_64-linux-gnu/qt5/bin/qmllint; do
+              if [ -x "$cand" ]; then bin="$cand"; break; fi
+            done
           fi
+          if [ -z "$bin" ]; then
+            echo "::error::qmllint not found after installing qtdeclarative5-dev-tools"
+            exit 1
+          fi
+          echo "bin=$bin" >> "$GITHUB_OUTPUT"
+          "$bin" --version
+
+      - name: QML lint (hard gate)
+        run: |
+          "${{ steps.qmllint.outputs.bin }}" \
+            AiOverviewControlWidget.qml \
+            AiOverviewControlSettings.qml \
+            AiOverviewControlI18n.qml
 
   # ─── crowdin ─────────────────────────────────────────────────────────────────
   crowdin:

@@ -224,6 +224,9 @@ variable matrix and health-check behavior.
 <summary>Run the same core checks used by CI</summary>
 <br>
 
+QML lint is a **hard gate** in CI (Qt5 `qmllint`, syntax verification — no
+`qs.*` import-resolution noise to filter). A malformed QML file fails the build.
+
 ```bash
 jq -e . plugin.json >/dev/null
 for file in i18n/*.json; do jq -e . "$file" >/dev/null; done

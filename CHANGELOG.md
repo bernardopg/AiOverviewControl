@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 1.4.10 - 2026-06-24
+
+### Quality / CI
+- **QML lint is now a hard gate.** The CI `qml` job installs Qt5 `qmllint` and runs it as a required step against all three QML files, failing the build on any malformed file. Qt5's `qmllint` is a pure syntax verifier — it does not try to resolve the DankMaterialShell `qs.*` modules, so there is no import-resolution noise to filter and the gate stays clean and deterministic (Qt6's `qmllint` would drown the run in unavoidable `qs.*`/unqualified warnings). Previously the job skipped silently when `qmllint` was absent.
+- **New `CONTRIBUTING.md`** documenting the dev loop and the gotchas that have cost real debugging time: the `modelData` requirement for custom `Repeater` delegates (which broke the v1.4.5 hero bars), the `pragma Singleton` i18n freeze across hot-reloads, the contained-rounded-indicator pattern, the local `qmllint` import-noise filter, and the full CI gate checklist.
+
+### UI
+- **Guided empty/error state in the hero.** When no provider resolves, the hero's window-bar slot used to go blank. It now shows a contextual hint that adapts to the situation: a syncing message while loading, an "all providers need attention" prompt (with a credentials/CLI hint) when every provider errored, and a "no usage data yet" prompt otherwise — so the hero never reads as a broken panel. New `hero.*` i18n keys across all five bundles.
+
 ## 1.4.9 - 2026-06-24
 
 ### Features

@@ -3463,6 +3463,72 @@ PluginComponent {
                                             }
                                         }
                                     }
+
+                                    // Guided hint that fills the window-bar slot when there is no
+                                    // focused provider — covers loading, all-providers-errored, and
+                                    // no-data-yet so the hero never reads as a blank panel.
+                                    Row {
+                                        visible: contentColumn.width >= 480 && !root.hasProviderData
+                                        Layout.alignment: Qt.AlignVCenter
+                                        Layout.preferredWidth: Math.min(260, contentColumn.width * 0.44)
+                                        spacing: Theme.spacingS
+
+                                        readonly property color hintAccent: root.isLoading
+                                            ? Theme.primary
+                                            : (root.errorProviders.length > 0 ? Theme.warning : root.heroAccent)
+
+                                        Rectangle {
+                                            width: 34
+                                            height: 34
+                                            radius: 11
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            color: Theme.withAlpha(parent.hintAccent, 0.14)
+                                            border.width: 1
+                                            border.color: Theme.withAlpha(parent.hintAccent, 0.28)
+
+                                            DankIcon {
+                                                anchors.centerIn: parent
+                                                name: root.isLoading
+                                                    ? "hourglass_top"
+                                                    : (root.errorProviders.length > 0 ? "warning" : "monitoring")
+                                                size: 17
+                                                color: parent.parent.hintAccent
+                                            }
+                                        }
+
+                                        Column {
+                                            width: parent.width - 34 - Theme.spacingS
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+
+                                            StyledText {
+                                                width: parent.width
+                                                text: root.isLoading
+                                                    ? t("status.syncing", "Syncing usage")
+                                                    : (root.errorProviders.length > 0
+                                                        ? t("hero.error_title", "All providers need attention")
+                                                        : t("hero.empty_title", "No usage data yet"))
+                                                color: Theme.surfaceText
+                                                font.pixelSize: Theme.fontSizeMedium
+                                                font.weight: Font.Bold
+                                                wrapMode: Text.WordWrap
+                                            }
+
+                                            StyledText {
+                                                width: parent.width
+                                                text: root.isLoading
+                                                    ? t("status.loading_usage", "Fetching provider usage data...")
+                                                    : (root.errorProviders.length > 0
+                                                        ? t("hero.error_body", "Check credentials and that the provider CLIs are installed.")
+                                                        : t("status.no_data_hint", "Run your configured AI CLIs and refresh to populate usage windows."))
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                                wrapMode: Text.WordWrap
+                                                maximumLineCount: 3
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                    }
                                 }
 
                                 StyledRect {

@@ -17,7 +17,6 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 
 - [ ] **Notification click action** — open the popout focused on the offending provider. `M · ★★★`
 - [ ] **Make hero window bars interactive** — click a window bar to expand/scroll to that provider's card. `M · ★★`
-- [ ] **Real empty/error state for the hero** — when no providers resolve, the window-bar column is hidden but the hero is bare; show a guided empty state (mirror the existing providers-empty card). `S · ★★`
 - [ ] **Drag-to-reorder pinned providers** in the dashboard (beyond star pin). `L · ★`
 
 ## Providers — Data & Auth
@@ -42,8 +41,6 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 
 ## Quality / CI
 
-- [ ] **Make QML lint a hard gate** — install `qt6-declarative-dev` in the `qml` CI job so `qmllint` actually runs (currently skipped on ubuntu-latest). Would catch syntax regressions; pair with a documented filter for the unavoidable `qs.*` import-resolution warnings. `M · ★★★`
-- [ ] **Guard the `modelData` gotcha** — a custom Repeater delegate without `required property var modelData` silently renders blank (cost us the v1.4.5 hero bars). Add a grep/lint check, or a short CONTRIBUTING note. `S · ★★`
 - [ ] **QML smoke test** — headless instantiate of the three QML files with stub data to catch binding-loop / undefined-property regressions. `L · ★★`
 
 ## Packaging / Marketplace
@@ -52,6 +49,11 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 - [ ] **Install/update docs for tagged releases** — point users at the release zip/sha256 flow. `S · ★`
 
 ---
+
+## ✅ Recently shipped — v1.4.10 (2026-06-24)
+
+- **QML lint hard gate** — CI installs Qt5 `qmllint` and runs it as a required step (syntax verification, no `qs.*` import noise). New `CONTRIBUTING.md` documents the `modelData`/singleton-freeze gotchas (folds in the "guard modelData gotcha" item via the contributor note).
+- **Guided hero empty/error state** — contextual hint (loading / all-errored / no-data) fills the hero's window-bar slot instead of leaving it blank.
 
 ## ✅ Recently shipped — v1.4.9 (2026-06-24)
 
