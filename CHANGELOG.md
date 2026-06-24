@@ -7,6 +7,12 @@
 ### Features
 - **Cross-provider fleet overview**: the hero now shows an aggregate rollup whenever two or more providers resolve, complementing the single focused-provider view. It surfaces the fleet's average primary-window load (with a progress ring), the hottest provider and its load, how many providers sit at or above 80%, and the soonest reset across all live providers. Percent load is the only unit comparable across heterogeneous providers, so the rollup summarizes quota pressure rather than fabricating a cross-provider monetary total. The `fleetNextResetLabel` countdown re-evaluates on the same stale-tick cadence as the rest of the hero. New i18n keys `rollup.*` added across all five bundles.
 
+### UI
+- **Refined popout scrollbar**: the vertical scrollbar is now a slim (6px), fully-rounded handle that brightens on hover/drag and fades out when idle, with a subtle hover track. The reserved gutter shrank from the default chunky bar to ~12px, so the provider cards no longer get pushed left into an asymmetric inset and their left accent indicators line up with the hero.
+
+### Fixes
+- **i18n hot-reload staleness**: the `AiOverviewControlI18n` singleton caches each locale bundle and survives plugin reloads, so keys added during a running shell session previously fell back to English until a full restart. Added `refresh()` (clears the bundle cache and re-reads the JSON) invoked from the widget's `Component.onCompleted`, guarded with a `typeof` check for sessions whose singleton predates the function. Fresh installs were never affected — the bundles are read at process start. Translations themselves (`card.resets_in`, `rollup.*`) were already correct in all five bundles.
+
 ## 1.4.8 - 2026-06-24
 
 ### UI

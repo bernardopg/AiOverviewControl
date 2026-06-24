@@ -17,9 +17,20 @@ QtObject {
     }
 
     readonly property string normalizedLocale: normalizeLocale(languageOverride === "auto" ? localeName : languageOverride)
-    readonly property var fallbackTranslations: loadBundle("en_US")
-    readonly property var activeTranslations: loadBundle(normalizedLocale)
+    // bundleEpoch is a binding dependency so refresh() can force the two
+    // translation properties to re-read the JSON files. This singleton survives
+    // plugin hot-reloads, so without an explicit bust the cache would keep
+    // serving the bundle that was on disk when the quickshell process started —
+    // new keys added during a dev session would silently fall back to English.
+    property int bundleEpoch: 0
+    readonly property var fallbackTranslations: { bundleEpoch; return loadBundle("en_US"); }
+    readonly property var activeTranslations: { bundleEpoch; return loadBundle(normalizedLocale); }
     property var bundleCache: ({})
+
+    function refresh() {
+        bundleCache = ({});
+        bundleEpoch += 1;
+    }
 
     function normalizeLocale(value) {
         const raw = (value || "en_US").toString().replace("-", "_").trim();

@@ -1120,6 +1120,14 @@ PluginComponent {
     }
 
     Component.onCompleted: {
+        // Re-read i18n bundles: the I18n singleton survives plugin hot-reloads,
+        // so its cache can hold a stale bundle from when the shell first started.
+        // Guarded because the singleton itself is frozen at process start — a
+        // session whose singleton predates refresh() simply skips this (a full
+        // shell restart already loads fresh bundles anyway).
+        if (typeof AiOverviewControlI18n.refresh === "function") {
+            AiOverviewControlI18n.refresh();
+        }
         // Resolve plugin dir imperatively — only reliable from within the component's own context
         // 1. Try PluginService (authoritative, case-correct)
         if (pluginService && pluginId) {
@@ -3262,11 +3270,35 @@ PluginComponent {
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
                         anchors.rightMargin: 0
+                        width: 10
+                        padding: 2
+                        // Thin, rounded handle that brightens on hover/drag and
+                        // fades out when idle so it never competes with the cards.
+                        contentItem: Rectangle {
+                            implicitWidth: 6
+                            radius: width / 2
+                            color: Theme.withAlpha(Theme.surfaceText,
+                                contentScrollBar.pressed ? 0.5 : (contentScrollBar.hovered ? 0.34 : 0.2))
+                            opacity: (contentScrollBar.active
+                                || contentScrollBar.policy === ScrollBar.AlwaysOn
+                                || contentScrollBar.hovered) ? 1 : 0
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                        }
+                        background: Rectangle {
+                            implicitWidth: 6
+                            radius: width / 2
+                            color: Theme.withAlpha(Theme.surfaceText, 0.05)
+                            opacity: contentScrollBar.hovered || contentScrollBar.pressed ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 220 } }
+                        }
                     }
 
                     Column {
                         id: contentColumn
-                        width: contentFlick.width - contentScrollBar.width - Theme.spacingXS
+                        // Reserve only the slim scrollbar plus a hair of gap, so the
+                        // cards keep a symmetric inset instead of a wide right gutter.
+                        width: contentFlick.width - contentScrollBar.width - 2
                         spacing: Theme.spacingL
 
                         Item {
