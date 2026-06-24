@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 1.4.11 - 2026-06-24
+
+### Features
+- **Navigable hero overview.** The hero is no longer read-only: clicking the fleet rollup's peak provider, or the focused provider's usage bars, now expands that provider's dashboard card and smoothly scrolls the popout to it. This turns the v1.4.9 cross-provider rollup into a jump table for a 33-provider dashboard — go from "which provider is hottest?" to its card in one click. `focusProvider(id)` sets the focus, clears any active list filter so the target is visible, and (after the card's expand animation settles) animates `contentY` to the card's position. The peak chip and the usage bars get a pointer cursor and a subtle hover fade to signal they are interactive. New `fleetRollup.peakId` carries the provider id.
+
 ## 1.4.10 - 2026-06-24
 
 ### Quality / CI

@@ -16,7 +16,6 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 ## Dashboard — UX
 
 - [ ] **Notification click action** — open the popout focused on the offending provider. `M · ★★★`
-- [ ] **Make hero window bars interactive** — click a window bar to expand/scroll to that provider's card. `M · ★★`
 - [ ] **Drag-to-reorder pinned providers** in the dashboard (beyond star pin). `L · ★`
 
 ## Providers — Data & Auth
@@ -49,6 +48,10 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 - [ ] **Install/update docs for tagged releases** — point users at the release zip/sha256 flow. `S · ★`
 
 ---
+
+## ✅ Recently shipped — v1.4.11 (2026-06-24)
+
+- **Navigable hero overview** — click the fleet rollup's peak provider or the hero usage bars to expand + scroll to that provider's card (`focusProvider(id)`). Folds in the "make hero window bars interactive" item.
 
 ## ✅ Recently shipped — v1.4.10 (2026-06-24)
 

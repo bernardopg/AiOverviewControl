@@ -192,6 +192,8 @@ variable matrix and health-check behavior.
   80%, and the soonest reset across the fleet. Load is the only unit comparable
   across heterogeneous providers, so the rollup summarizes pressure rather than
   faking a cross-provider monetary total.
+- The overview is **navigable**: click the fleet rollup's peak provider, or the
+  hero usage bars, to expand and scroll straight to that provider's card.
 - Cards are sorted with pinned providers first, then by highest measurable
   usage, with failed providers last.
 - Cards support keyboard focus plus Enter/Space (expand), Delete (remove),

@@ -324,7 +324,7 @@ PluginComponent {
     // touched so nextResetLabel re-evaluates on the same cadence as the hero.
     readonly property var fleetRollup: {
         const live = successfulProviders;
-        const out = { count: live.length, avg: 0, peak: 0, peakName: "", atRisk: 0, nextResetMs: 0 };
+        const out = { count: live.length, avg: 0, peak: 0, peakName: "", peakId: "", atRisk: 0, nextResetMs: 0 };
         if (live.length === 0) {
             return out;
         }
@@ -336,6 +336,7 @@ PluginComponent {
             if (percent > out.peak) {
                 out.peak = percent;
                 out.peakName = providerName(live[i].provider);
+                out.peakId = live[i].provider;
             }
             if (percent >= 80) {
                 out.atRisk++;
@@ -1431,6 +1432,65 @@ PluginComponent {
         running: root.binaryReady
         repeat: true
         onTriggered: root.staleTickMs = Date.now()
+    }
+
+    // ── In-popout navigation ──────────────────────────────────────────────────
+    // focusProvider() expands a provider's dashboard card and scrolls the popout
+    // to it, so the hero / fleet-rollup elements can act as jump links. The
+    // scroll is deferred one tick (scrollFocusTimer) so the card's expand
+    // animation settles before we measure its position. The id lookups
+    // (contentFlick / providerCardsRepeater / contentColumn) resolve only when
+    // the popout is instantiated — guarded because the bar pill can call nothing
+    // here while the popout is closed.
+    property string pendingScrollProviderId: ""
+
+    function focusProvider(id) {
+        if (!id || id.length === 0) {
+            return;
+        }
+        root.focusedProviderId = id;
+        root.providerStatusFilter = "all";
+        root.providerFilter = "";
+        root.pendingScrollProviderId = id;
+        scrollFocusTimer.restart();
+    }
+
+    Timer {
+        // Wait out the card's implicitHeight expand/collapse animation (220ms)
+        // so positions are settled before we measure and scroll.
+        id: scrollFocusTimer
+        interval: 260
+        repeat: false
+        onTriggered: {
+            const id = root.pendingScrollProviderId;
+            if (!id || id.length === 0) {
+                return;
+            }
+            if (typeof contentFlick === "undefined" || !contentFlick
+                || typeof providerCardsRepeater === "undefined" || !providerCardsRepeater) {
+                return;
+            }
+            for (let i = 0; i < providerCardsRepeater.count; i++) {
+                const item = providerCardsRepeater.itemAt(i);
+                if (item && item.provider && item.provider.provider === id) {
+                    const y = item.mapToItem(contentColumn, 0, 0).y;
+                    const maxY = Math.max(0, contentFlick.contentHeight - contentFlick.height);
+                    const target = Math.min(Math.max(0, y - Theme.spacingM), maxY);
+                    scrollFocusAnim.target = contentFlick;
+                    scrollFocusAnim.from = contentFlick.contentY;
+                    scrollFocusAnim.to = target;
+                    scrollFocusAnim.restart();
+                    break;
+                }
+            }
+        }
+    }
+
+    NumberAnimation {
+        id: scrollFocusAnim
+        property: "contentY"
+        duration: 360
+        easing.type: Easing.OutCubic
     }
 
     component SurfaceButton: StyledRect {
@@ -3444,23 +3504,40 @@ PluginComponent {
                                         }
                                     }
 
-                                    Column {
+                                    // Window bars double as a jump link to the focused provider's card.
+                                    Item {
                                         visible: contentColumn.width >= 480 && root.hasProviderData && root.windowsForProvider(root.providerData).length > 0
                                         Layout.alignment: Qt.AlignVCenter
                                         Layout.preferredWidth: Math.min(260, contentColumn.width * 0.44)
-                                        spacing: Theme.spacingM
+                                        implicitHeight: heroBarsCol.implicitHeight
 
-                                        Repeater {
-                                            model: root.windowsForProvider(root.providerData)
+                                        Column {
+                                            id: heroBarsCol
+                                            width: parent.width
+                                            spacing: Theme.spacingM
+                                            opacity: heroBarsJump.containsMouse ? 0.82 : 1
+                                            Behavior on opacity { NumberAnimation { duration: 120 } }
 
-                                            UsageBar {
-                                                required property var modelData
-                                                width: parent.width
-                                                label: modelData.label
-                                                percent: Number(modelData.data.usedPercent || 0)
-                                                aside: root.formatUsageLine(modelData.data)
-                                                accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                                            Repeater {
+                                                model: root.windowsForProvider(root.providerData)
+
+                                                UsageBar {
+                                                    required property var modelData
+                                                    width: parent.width
+                                                    label: modelData.label
+                                                    percent: Number(modelData.data.usedPercent || 0)
+                                                    aside: root.formatUsageLine(modelData.data)
+                                                    accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                                                }
                                             }
+                                        }
+
+                                        MouseArea {
+                                            id: heroBarsJump
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.focusProvider(root.providerData ? root.providerData.provider : "")
                                         }
                                     }
 
@@ -3623,11 +3700,25 @@ PluginComponent {
                                                 }
                                             }
 
-                                            HeroStat {
-                                                statIcon: "local_fire_department"
-                                                statLabel: root.fleetRollup.peakName.length > 0 ? root.fleetRollup.peakName : t("rollup.peak", "Peak")
-                                                statValue: `${Math.round(root.fleetRollup.peak)}%`
-                                                statAccent: root.getUsageColor(root.fleetRollup.peak)
+                                            // Peak provider is a jump link: click to expand + scroll to its card.
+                                            MouseArea {
+                                                id: peakJump
+                                                implicitWidth: peakStat.implicitWidth
+                                                implicitHeight: peakStat.implicitHeight
+                                                enabled: root.fleetRollup.peakId.length > 0
+                                                hoverEnabled: enabled
+                                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                                onClicked: root.focusProvider(root.fleetRollup.peakId)
+
+                                                HeroStat {
+                                                    id: peakStat
+                                                    opacity: peakJump.containsMouse ? 0.78 : 1
+                                                    statIcon: "local_fire_department"
+                                                    statLabel: root.fleetRollup.peakName.length > 0 ? root.fleetRollup.peakName : t("rollup.peak", "Peak")
+                                                    statValue: `${Math.round(root.fleetRollup.peak)}%`
+                                                    statAccent: root.getUsageColor(root.fleetRollup.peak)
+                                                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                                                }
                                             }
 
                                             HeroStat {
@@ -3853,6 +3944,7 @@ PluginComponent {
                         }
 
                         Repeater {
+                            id: providerCardsRepeater
                             model: root.filteredDisplayProviders
 
                             ProviderDashboardCard {
