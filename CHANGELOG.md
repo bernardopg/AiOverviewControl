@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 1.4.7 - 2026-06-24
+
+### Providers
+- **GitHub Copilot — quota field fixes**: the API now returns `unlimited: true` with `remaining: 0, entitlement: 0` for Chat and Completions when there is no cap. The old display function was rendering "0 / 0 remaining" for those windows. Chat and Completions are now suppressed when `unlimited == true` and `entitlement == 0` — they carry no signal and only cluttered the UI.
+- **`resetsAt` now populated**: the adapter was reading `$q.reset_date` from per-snapshot fields, but that field does not exist. The actual reset date is `quota_reset_date_utc` at the top level of the response. All three windows now use it.
+- **Overage count surfaced**: `premium_interactions.overage_count > 0` is appended to the display value as `(+N overage)`.
+- **`has_quota: false` handling**: when the API signals the quota is exhausted via `has_quota: false`, `usedPercent` is forced to 100.
+- **`unlimited` guard on `used_percent`**: unlimited windows always return `usedPercent: 0` regardless of the `percent_remaining` value.
+
 ## 1.4.6 - 2026-06-24
 
 ### Providers

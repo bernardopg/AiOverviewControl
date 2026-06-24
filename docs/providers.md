@@ -74,7 +74,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>copilot</code></td>
 <td>Quota snapshot</td>
 <td><code>copilot_internal/user</code></td>
-<td>✅ premium/chat/completions</td>
+<td>✅ premium quota + overage; chat/completions shown only when not unlimited</td>
 <td>✅ Business / Enterprise</td>
 <td>—</td>
 <td><code>GH_TOKEN</code></td>

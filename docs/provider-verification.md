@@ -13,7 +13,7 @@ This document records the upstream surface used by each adapter. It was reviewed
 | Together AI | [Credits API](https://docs.together.ai/reference/credits) | Remaining credits. |
 | 9Router | Local provider-owned SQLite/JSON usage store | Requests, tokens, and tracked cost; no network request. |
 | Claude Code | Provider-owned local JSONL and credentials | Local analytics. Subscription windows are best-effort because Claude Code does not document a stable public quota protocol. |
-| GitHub Copilot | Authenticated `copilot_internal/user` response used by GitHub's Copilot clients | Premium, Chat, and Completions quota snapshots. This endpoint is not a documented public API and may change. |
+| GitHub Copilot | Authenticated `copilot_internal/user` response used by GitHub's Copilot clients | `quota_snapshots.premium_interactions` — `remaining`, `entitlement`, `percent_remaining`, `overage_count`, `unlimited`, `has_quota`. Reset date from top-level `quota_reset_date_utc`. Chat/completions suppressed when `unlimited: true` and `entitlement: 0` (no cap). This endpoint is not a documented public API and may change. |
 
 ## Verified analytics surfaces (consumption counters, not remaining quota)
 

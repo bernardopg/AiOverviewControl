@@ -96,20 +96,56 @@ jq -c --arg source "$source_name" --argjson updated_at "$updated_at" '
   def num($v): ($v // 0 | tonumber? // 0);
   def nonnegative($v): (num($v) | if . < 0 then 0 else . end);
   def quota($name): .quota_snapshots[$name] // {};
+
+  # When unlimited==true the API returns remaining:0 entitlement:0 — that is
+  # not exhausted, it means there is no cap. Treat separately.
+  def is_unlimited($q): ($q.unlimited? // false) == true;
+
   def used_percent($q):
-    if ($q.percent_remaining? != null) then (100 - num($q.percent_remaining))
+    if is_unlimited($q) then 0
+    elif ($q.has_quota? // true) == false then 100
+    elif ($q.percent_remaining? != null) then (100 - num($q.percent_remaining))
     elif ($q.entitlement? != null and num($q.entitlement) > 0) then
       ((num($q.entitlement) - num($q.remaining)) / num($q.entitlement) * 100)
     else 0 end;
+
   def display($q):
-    if ($q.remaining? != null and $q.entitlement? != null) then
-      ((nonnegative($q.remaining) | tostring) + " / " + (num($q.entitlement) | tostring) + " remaining")
+    if is_unlimited($q) then "Unlimited"
+    elif ($q.remaining? != null and $q.entitlement? != null and num($q.entitlement) > 0) then
+      ( (nonnegative($q.remaining) | tostring)
+        + " / " + (num($q.entitlement) | tostring) + " remaining"
+        + (if num($q.overage_count) > 0 then " (+" + (num($q.overage_count) | tostring) + " overage)" else "" end)
+      )
     elif ($q.percent_remaining? != null) then
       ((num($q.percent_remaining) | tostring) + "% remaining")
     else "Usage available" end;
+
+  # reset_date lives at the top level (quota_reset_date_utc), not per-snapshot.
+  (.quota_reset_date_utc // .quota_reset_date // null) as $reset_at |
+
   (quota("premium_interactions")) as $premium
   | (quota("chat")) as $chat
   | (quota("completions")) as $completions
+
+  # Only include chat/completions windows when they carry real quota info
+  # (not unlimited with no entitlement — those add no signal to the UI).
+  | (if (is_unlimited($chat) and num($chat.entitlement) == 0) then null
+     else {
+       usedPercent: used_percent($chat),
+       windowMinutes: 43200,
+       resetsAt: $reset_at,
+       resetDescription: "Chat",
+       displayValue: display($chat)
+     } end) as $chat_window
+  | (if (is_unlimited($completions) and num($completions.entitlement) == 0) then null
+     else {
+       usedPercent: used_percent($completions),
+       windowMinutes: 43200,
+       resetsAt: $reset_at,
+       resetDescription: "Completions",
+       displayValue: display($completions)
+     } end) as $completions_window
+
   | {
       provider:"copilot",
       source:$source,
@@ -122,31 +158,20 @@ jq -c --arg source "$source_name" --argjson updated_at "$updated_at" '
         accountEmail:(.login // .copilot_plan // "GitHub Copilot"),
         loginMethod:"github-token",
         primary:{
-          usedPercent:used_percent($premium),
+          usedPercent:(used_percent($premium) | if . < 0 then 0 elif . > 100 then 100 else . end),
           windowMinutes:43200,
-          resetsAt:($premium.reset_date // null),
+          resetsAt:$reset_at,
           resetDescription:"Premium requests",
           displayValue:display($premium)
         },
-        secondary:{
-          usedPercent:used_percent($chat),
-          windowMinutes:43200,
-          resetsAt:($chat.reset_date // null),
-          resetDescription:"Chat",
-          displayValue:display($chat)
-        },
-        tertiary:{
-          usedPercent:used_percent($completions),
-          windowMinutes:43200,
-          resetsAt:($completions.reset_date // null),
-          resetDescription:"Completions",
-          displayValue:display($completions)
-        },
+        secondary:$chat_window,
+        tertiary:$completions_window,
         updatedAt:($updated_at | todateiso8601)
       },
       credits:{
         remaining:(
-          if ($premium.remaining? != null) then (nonnegative($premium.remaining) | tostring)
+          if is_unlimited($premium) then "Unlimited"
+          elif ($premium.remaining? != null) then (nonnegative($premium.remaining) | tostring)
           elif ($premium.percent_remaining? != null) then ((num($premium.percent_remaining) | tostring) + "%")
           else "Active" end
         )
