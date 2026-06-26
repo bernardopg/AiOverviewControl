@@ -249,7 +249,10 @@ fetch_openrouter_native() {
         ((num($used) / num($limit)) * 100)
         | if . < 0 then 0 elif . > 100 then 100 else . end
       else 0 end;
-    def money($v): "$" + (((num($v) * 100 | round) / 100) | tostring);
+    def money($v):
+      (num($v) * 100 | round) as $cc
+      | "$" + (($cc / 100) | floor | tostring) + "."
+        + ((100 + ($cc % 100) | tostring) | .[1:]);
     def short_model($m):
       ($m // "" | split("/") | last // "") | .[0:24];
     (
@@ -282,8 +285,8 @@ fetch_openrouter_native() {
           resetsAt:($d.limit_reset // null),
           resetDescription:"Key limit",
           displayValue:(
-            if $limit == null then ("$" + (num($d.usage) | tostring) + " used")
-            else ("$" + (num($d.usage) | tostring) + " / $" + (num($limit) | tostring))
+            if $limit == null then (money($d.usage) + " used")
+            else (money($d.usage) + " / " + money($limit))
             end
           )
         },
@@ -292,7 +295,7 @@ fetch_openrouter_native() {
           windowMinutes:1440,
           resetsAt:null,
           resetDescription:"Spent today",
-          displayValue:("$" + (num($d.usage_daily) | tostring))
+          displayValue:(money($d.usage_daily))
         },
         tertiary:(
           if ($top_models | length) > 0 then {
@@ -306,14 +309,14 @@ fetch_openrouter_native() {
             windowMinutes:43200,
             resetsAt:null,
             resetDescription:"Spent this month",
-            displayValue:("$" + (num($d.usage_monthly) | tostring))
+            displayValue:(money($d.usage_monthly))
           } end
         ),
         updatedAt:(now|todateiso8601)
       },
       credits:{
         remaining:(
-          if $remaining != null then ("$" + ($remaining | tostring))
+          if $remaining != null then (money($remaining))
           elif $limit == null then "unlimited"
           else "unknown"
           end
@@ -357,8 +360,15 @@ fetch_9router_native() {
     --arg target "$target_provider" \
     --arg source "$source_label" '
     def num($v): ($v // 0 | tonumber? // 0);
+    # Always render two decimal places ("$0.00", "$0.50"). jq tostring on a float
+    # drops trailing zeros, giving inconsistent "$0"/"$0.5". This jq program is
+    # interpolated inside a double-quoted command substitution, so the formatter
+    # must avoid bash-significant tokens (no (( )), no < or > comparisons): pad
+    # the cents by formatting (100 + cents) and slicing off the leading "1".
     def money($v):
-      "$" + (((num($v) * 100 | round) / 100) | tostring);
+      (num($v) * 100 | round) as $cc
+      | "$" + (($cc / 100) | floor | tostring) + "."
+        + ((100 + ($cc % 100) | tostring) | .[1:]);
     def compact($v):
       (num($v)) as $n
       | if $n >= 1000000000 then (((($n / 100000000) | round) / 10) | tostring) + "B"
@@ -382,7 +392,8 @@ fetch_9router_native() {
             | .completionTokens += num($entry.data.completionTokens)
             | .cost += num($entry.data.cost)
           )) as $total
-        | (if $output == "9router" then "9router · all routed models" else ($output + " via 9router") end) as $account
+        | (if $output == "9router" then "9router · all routed models" else ($output + " via 9router (local)") end) as $account
+        | (if $output == "9router" then "" else " · local-routed, not " + $output + " quota" end) as $routed_note
         | {
             provider:$output,
             source:$source,
@@ -393,11 +404,14 @@ fetch_9router_native() {
               primary:{
                 # 9router is a local proxy with no quota of its own, so a
                 # usage percentage would be meaningless. Keep the bar empty
-                # and let displayValue carry the cost/request figures.
+                # and let displayValue carry the cost/request figures. When
+                # this stands in for another provider (no API key set), the
+                # label says so explicitly so the card is never mistaken for
+                # that provider real quota.
                 usedPercent:0,
                 windowMinutes:null,
                 resetsAt:null,
-                resetDescription:("Latest day " + $latest.date),
+                resetDescription:("Latest day " + $latest.date + $routed_note),
                 displayValue:(money($latest.data.cost) + " · " + request_text($latest.data.requests))
               },
               secondary:{
@@ -597,9 +611,11 @@ fetch_minimax_native() {
 }
 
 fetch_glm_native() {
-  local key="${GLM_API_KEY:-${ZHIPU_API_KEY:-}}"
+  # GLM and Z.ai share one credential family. Honor ZAI_API_KEY here too so a
+  # single key drives both cards (matches docs/providers.md credential matrix).
+  local key="${GLM_API_KEY:-${ZHIPU_API_KEY:-${ZAI_API_KEY:-}}}"
   if [ -z "$key" ]; then
-    json_error glm glm-api 2 provider "GLM_API_KEY or ZHIPU_API_KEY is not set."
+    json_error glm glm-api 2 provider "GLM_API_KEY, ZHIPU_API_KEY, or ZAI_API_KEY is not set."
     return 0
   fi
   local base="${GLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4}"
@@ -623,16 +639,24 @@ fetch_glm_native() {
     jq -c --arg console "$console" '
       def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
       def ms_to_iso($ms): if $ms then (($ms / 1000) | todate) else null end;
+      # Z.ai/Zhipu period units (confirmed against the live quota API cross-
+      # referenced with the official Usage page):
+      #   unit 4 -> 5-hour session window   (n * 300 min)
+      #   unit 6 -> weekly window           (n * 10080 min)   [reset matched 07-02]
+      #   unit 5 -> monthly window          (n * 43200 min)   [reset matched 07-18]
+      #   unit 3 -> total token allotment   (no reset window)
+      # The previous table had 5/6 swapped, which mislabeled the weekly 20%
+      # window as "diário" and the monthly window as 5h.
       def win_min($unit; $n):
-        if $unit == 6 then ($n * 1440)
+        if $unit == 4 then ($n * 300)
+        elif $unit == 6 then ($n * 10080)
         elif $unit == 5 then ($n * 43200)
-        elif $unit == 4 then ($n * 10080)
         else null end;
       def win_label($type; $unit; $n):
         ( if $type == "TIME_LIMIT" then
-            if $unit == 5 then "mensal" elif $unit == 6 then "diário" elif $unit == 4 then "semanal" else "janela" end
+            if $unit == 4 then "5 horas" elif $unit == 6 then "semanal" elif $unit == 5 then "mensal" else "janela" end
           else
-            if $unit == 6 then "tokens/dia" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end
+            if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/semana" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end
           end
         ) + (if $n > 1 then " ×\($n)" else "" end);
       def make_window($lim):
@@ -712,16 +736,24 @@ fetch_zai_native() {
     jq -c '
       def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
       def ms_to_iso($ms): if $ms then (($ms / 1000) | todate) else null end;
+      # Z.ai/Zhipu period units (confirmed against the live quota API cross-
+      # referenced with the official Usage page):
+      #   unit 4 -> 5-hour session window   (n * 300 min)
+      #   unit 6 -> weekly window           (n * 10080 min)   [reset matched 07-02]
+      #   unit 5 -> monthly window          (n * 43200 min)   [reset matched 07-18]
+      #   unit 3 -> total token allotment   (no reset window)
+      # The previous table had 5/6 swapped, which mislabeled the weekly 20%
+      # window as "diário" and the monthly window as 5h.
       def win_min($unit; $n):
-        if $unit == 6 then ($n * 1440)
+        if $unit == 4 then ($n * 300)
+        elif $unit == 6 then ($n * 10080)
         elif $unit == 5 then ($n * 43200)
-        elif $unit == 4 then ($n * 10080)
         else null end;
       def win_label($type; $unit; $n):
         ( if $type == "TIME_LIMIT" then
-            if $unit == 5 then "mensal" elif $unit == 6 then "diário" elif $unit == 4 then "semanal" else "janela" end
+            if $unit == 4 then "5 horas" elif $unit == 6 then "semanal" elif $unit == 5 then "mensal" else "janela" end
           else
-            if $unit == 6 then "tokens/dia" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end
+            if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/semana" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end
           end
         ) + (if $n > 1 then " ×\($n)" else "" end);
       def make_window($lim):
@@ -1414,8 +1446,14 @@ record_history() {
   for idx in "${!normalized_providers[@]}"; do
     file="${result_files[$idx]}"
     [ -s "$file" ] || continue
+    # Only snapshot providers that report a real, non-zero quota/spend
+    # percentage. Balance, analytics (e.g. Cloudflare neurons), and
+    # informational cards all carry usedPercent:0 — recording those produced
+    # flat-zero sparklines that polluted history and meant nothing. A genuine
+    # 0% quota reading adds no trend signal either, so the line simply starts
+    # at the first measurable datapoint.
     line="$(jq -c --argjson ts "$now" \
-      'select(.usage.primary.usedPercent != null) | {ts:$ts, provider:.provider, pct:(.usage.primary.usedPercent)}' \
+      'select((.usage.primary.usedPercent // 0) > 0) | {ts:$ts, provider:.provider, pct:(.usage.primary.usedPercent)}' \
       "$file" 2>/dev/null || true)"
     [ -n "$line" ] && printf '%s\n' "$line" >> "$history_file"
   done

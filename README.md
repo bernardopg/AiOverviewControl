@@ -49,7 +49,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 | | |
 | --- | --- |
 | 📊 **Unified dashboard** | 33 AI providers and developer tools in one place. |
-| 🛰️ **Fleet overview** | Cross-provider rollup in the hero — average load, hottest provider, how many are near their cap, and the soonest reset. |
+| 🛰️ **Fleet overview** | Cross-provider rollup in the hero — quota-only average load, hottest provider, how many are near their cap, and the soonest reset. |
 | ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
 | 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
 | 🐙 **Copilot quotas** | Premium request, Chat, and Completions snapshots. |
@@ -84,10 +84,10 @@ Provider cards use one of these honest coverage levels:
 
 | Coverage | Meaning |
 | --- | --- |
-| **Quota** | Returns rate-limit windows and used percentage (Codex, Copilot, OpenRouter). |
+| **Quota** | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, OpenRouter, Z.ai, GLM). |
 | **Balance** | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek, Together). |
 | **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, Ollama). |
-| **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, GLM, Z.ai, NVIDIA, MiniMax, Qwen, xAI, and more). |
+| **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, NVIDIA, MiniMax, Qwen, xAI, and more). |
 | **Informational** | Links official usage when no read-only API exists (Kiro, Cursor, Warp, and more). |
 
 Notable integrations:
@@ -188,10 +188,11 @@ variable matrix and health-check behavior.
 ## Dashboard Behavior
 
 - The hero shows a **fleet overview** when two or more providers resolve: the
-  average primary-window load, the hottest provider, how many sit at or above
-  80%, and the soonest reset across the fleet. Load is the only unit comparable
-  across heterogeneous providers, so the rollup summarizes pressure rather than
-  faking a cross-provider monetary total.
+  average load across measurable quota windows, the hottest provider, how many
+  sit at or above 80%, and the soonest reset across the fleet. Balance,
+  analytics, local-runtime, and informational cards are intentionally excluded
+  from the average denominator so their truthful `0%` placeholders do not dilute
+  real quota pressure. Peak, at-risk count, and reset still scan all live cards.
 - The overview is **navigable**: click the fleet rollup's peak provider, or the
   hero usage bars, to expand and scroll straight to that provider's card.
 - Cards are sorted with pinned providers first, then by highest measurable
@@ -204,7 +205,9 @@ variable matrix and health-check behavior.
   time without inventing unavailable fields.
 - Usage snapshots are stored locally in
   `~/.cache/AiOverviewControl/usage-history.jsonl` and trimmed according to the
-  configured retention.
+  configured retention. The history writer records only real non-zero quota/spend
+  pressure; informational, local-runtime, balance-only, and analytics-only `0%`
+  placeholders are skipped so sparklines remain meaningful.
 - Claude analytics run separately so local history or OAuth failures cannot
   block the main provider collection.
 
@@ -232,8 +235,8 @@ QML lint is a **hard gate** in CI (Qt5 `qmllint`, syntax verification — no
 ```bash
 jq -e . plugin.json >/dev/null
 for file in i18n/*.json; do jq -e . "$file" >/dev/null; done
-bash -n providers/get-*
-shellcheck providers/get-*
+find providers -name 'get-*' -type f -print0 | xargs -0 bash -n
+shellcheck -S warning providers/get-* providers/send-quota-alert
 qmllint \
   AiOverviewControlWidget.qml \
   AiOverviewControlSettings.qml \

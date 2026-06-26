@@ -49,6 +49,10 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 
 ---
 
+## ✅ Recently shipped — v1.4.12 (2026-06-26)
+
+- **Provider tracking audit** — fixed Z.ai/GLM weekly-vs-daily unit decoding, GLM `ZAI_API_KEY` fallback, OpenRouter→9Router local fallback labeling, Codex subscription-credit display, stable two-decimal currency formatting, quota-only history snapshots, and quota-only fleet average load.
+
 ## ✅ Recently shipped — v1.4.11 (2026-06-24)
 
 - **Navigable hero overview** — click the fleet rollup's peak provider or the hero usage bars to expand + scroll to that provider's card (`focusProvider(id)`). Folds in the "make hero window bars interactive" item.

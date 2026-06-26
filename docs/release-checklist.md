@@ -19,8 +19,8 @@ rest is manual. Work top to bottom — the tag push is the last action.
 
 ```bash
 jq . plugin.json
-bash -n providers/get-*
-shellcheck providers/get-*
+find providers -name 'get-*' -type f -print0 | xargs -0 bash -n
+shellcheck -S warning providers/get-* providers/send-quota-alert
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
 for f in i18n/*.json; do jq -e . "$f" >/dev/null; done
 ./providers/get-provider-health "codex,claude,copilot" | jq .

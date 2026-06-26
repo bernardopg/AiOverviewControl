@@ -2,7 +2,7 @@
   "id": "aiOverviewControl",
   "name": "AiOverviewControl",
   "description": "Plugin-managed AI quota, billing, authentication, and local usage telemetry for DankMaterialShell",
-  "version": "1.4.11",
+  "version": "1.4.12",
   "author": "bernardopg",
   "icon": "monitoring",
   "type": "widget",

@@ -329,10 +329,20 @@ PluginComponent {
             return out;
         }
         let sum = 0;
+        let loadCount = 0;
         let nextMs = Infinity;
         for (let i = 0; i < live.length; i++) {
             const percent = providerPercent(live[i]);
-            sum += percent;
+            const win = primaryUsageWindow(live[i]);
+            // Only timed quota windows contribute to the average load. Balance,
+            // analytics, and informational cards report 0% by design — folding
+            // them in would dilute the fleet average toward zero and misstate
+            // real quota pressure. Peak / at-risk / reset still scan everyone.
+            const isQuotaLoad = win && win.windowMinutes !== null && win.windowMinutes !== undefined;
+            if (isQuotaLoad) {
+                sum += percent;
+                loadCount++;
+            }
             if (percent > out.peak) {
                 out.peak = percent;
                 out.peakName = providerName(live[i].provider);
@@ -341,7 +351,6 @@ PluginComponent {
             if (percent >= 80) {
                 out.atRisk++;
             }
-            const win = primaryUsageWindow(live[i]);
             if (win && win.resetsAt) {
                 const ms = new Date(win.resetsAt).getTime();
                 if (!isNaN(ms) && ms > Date.now() && ms < nextMs) {
@@ -349,7 +358,7 @@ PluginComponent {
                 }
             }
         }
-        out.avg = sum / live.length;
+        out.avg = loadCount > 0 ? sum / loadCount : 0;
         if (nextMs !== Infinity) {
             out.nextResetMs = nextMs;
         }

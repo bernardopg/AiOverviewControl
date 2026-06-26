@@ -317,12 +317,18 @@ jobs:
             exit 1
           }
 
-          # Dispatcher must append a snapshot for a provider that returns usage
-          providers/get-provider-usage "perplexity" "" >/dev/null
-          grep -q '"provider":"perplexity"' "$HIST_DIR/usage-history.jsonl" || {
-            echo "::error::get-provider-usage did not record a usage snapshot"
+          # Dispatcher must not append snapshots for informational/local cards
+          # that intentionally report usedPercent:0. History is reserved for
+          # real non-zero quota/spend pressure so sparklines stay meaningful.
+          BEFORE="$(wc -l < "$HIST_DIR/usage-history.jsonl")"
+          providers/get-provider-usage "perplexity,ollama" "" >/dev/null
+          AFTER="$(wc -l < "$HIST_DIR/usage-history.jsonl")"
+          if [ "$AFTER" != "$BEFORE" ]; then
+            echo "::error::get-provider-usage recorded a 0% informational/local snapshot"
+            echo "Before lines: ${BEFORE}; after lines: ${AFTER}"
+            cat "$HIST_DIR/usage-history.jsonl"
             exit 1
-          }
+          fi
           echo "usage history round-trip: OK"
 
       - name: Reject removed aggregation dependency

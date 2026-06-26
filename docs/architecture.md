@@ -81,7 +81,8 @@ Legacy settings unknown to the current code are ignored.
 - Overall collection timeout: 45 seconds.
 - Provider failures are data, not dispatcher failures.
 - Temporary files live in one per-run directory and are removed on exit.
-- Informational providers return a valid `usage` object with zero percent.
+- Informational, local-runtime, balance-only, and analytics-only providers may return a valid `usage` object with a truthful `0%` placeholder; those placeholders are rendered but not written to history.
+- `usage-history.jsonl` records only non-zero quota/spend pressure, so sparklines and trends are not polluted by flat informational cards.
 - The dashboard marks data stale after two refresh intervals.
 - Process command arrays are snapshotted before execution to avoid reactive mutation.
 

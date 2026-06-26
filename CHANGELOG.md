@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## 1.4.12 - 2026-06-26
+
+### Providers
+- **Z.ai / GLM window mapping fixed.** The quota endpoint's period units are now decoded against the live Usage page: `unit=4` = 5-hour session window, `unit=6` = weekly quota, `unit=5` = monthly web/search/reader quota, and `unit=3` = total token allotment. This fixes the bug where a real 20% weekly Z.ai subscription window was labeled as daily. `ZAI_API_KEY` is also honored as a GLM fallback credential, matching the documented shared Z.ai/Zhipu key family.
+- **OpenRouter / 9Router labels are explicit.** When OpenRouter falls back to local 9Router telemetry, the card now says `openrouter via 9router (local)` and labels the metric as local-routed data rather than OpenRouter quota.
+- **Codex subscription credits are clearer.** A subscription account with zero add-on credit balance now shows `not available` instead of a misleading bare `0`, while real positive balances remain visible.
+
+### Telemetry
+- **History only records real quota/spend pressure.** `usage-history.jsonl` no longer stores flat `0%` snapshots for balance, analytics, local-runtime, and informational cards. This keeps sparklines meaningful and prevents non-quota providers from polluting trends.
+- **Fleet average load is quota-only.** The hero rollup's average now uses only measurable quota windows in the denominator, so balance/analytics/informational providers with intentional `0%` placeholders no longer dilute the fleet average toward zero. Peak, at-risk count, and next reset still scan all live cards.
+
+### UI / Data Quality
+- **Currency formatting is stable.** OpenRouter/9Router money values now render with two decimals everywhere (`$0.00`, `$0.50`, `$2293.31`) instead of dropping trailing zeros through `jq tostring`.
+
+### Documentation / CI
+- Updated provider verification docs, architecture notes, README behavior, release notes, and the usage-history integration contract to match the new quota-only history policy.
+
 ## 1.4.11 - 2026-06-24
 
 ### Features

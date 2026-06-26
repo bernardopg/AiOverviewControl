@@ -12,7 +12,7 @@ billing, autenticação e telemetria local de uso de IA — direto na sua DankBa
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![Licença](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](../LICENSE)
-[![Provedores](https://img.shields.io/badge/provedores-31-7C4DFF)](./providers.md)
+[![Provedores](https://img.shields.io/badge/provedores-33-7C4DFF)](./providers.md)
 [![Idiomas](https://img.shields.io/badge/idiomas%20de%20UI-5-00BFA5)](./i18n-crowdin.md)
 
 [Instalação](#instalação) · [Screenshots](#screenshots) · [Provedores](./providers.md) ·
@@ -49,8 +49,8 @@ inventados. Nunca.
 
 | | |
 | --- | --- |
-| 📊 **Dashboard unificado** | 31 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
-| 🛰️ **Visão geral da frota** | Rollup cross-provider no hero — carga média, provedor mais quente, quantos estão perto do limite e o próximo reset. |
+| 📊 **Dashboard unificado** | 33 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
+| 🛰️ **Visão geral da frota** | Rollup cross-provider no hero — carga média só de cotas mensuráveis, provedor mais quente, quantos estão perto do limite e o próximo reset. |
 | ⏱️ **Janelas oficiais do Codex** | Janelas de rate-limit direto do `codex app-server`. |
 | 🤖 **Analytics profundo do Claude** | Cota mais analytics local de tokens, sessões, modelos, projetos e custo. |
 | 🐙 **Cotas do Copilot** | Snapshots de Premium requests, Chat e Completions. |
@@ -102,6 +102,7 @@ Integrações medidas notáveis:
 | DeepSeek, Kimi, Together | APIs de saldo ou crédito do provedor. |
 | Ollama | Modelos instalados e em execução via `/api/tags` e `/api/ps`. |
 | Cloudflare | Verificação de token e analytics opcional do Workers AI via GraphQL. |
+| Z.ai, GLM | `/api/monitor/usage/quota/limit` — uso real por janela, resets e plano da assinatura. |
 
 A matriz completa, credenciais e referências upstream estão documentadas em
 [Provedores](./providers.md) e
