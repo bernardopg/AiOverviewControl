@@ -12,7 +12,7 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](./LICENSE)
-[![Providers](https://img.shields.io/badge/providers-33-7C4DFF)](./docs/providers.md)
+[![Providers](https://img.shields.io/badge/providers-34-7C4DFF)](./docs/providers.md)
 [![Languages](https://img.shields.io/badge/UI%20languages-5-00BFA5)](./docs/i18n-crowdin.md)
 
 [Install](#installation) · [Screenshots](#screenshots) · [Providers](./docs/providers.md) ·
@@ -48,7 +48,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 
 | | |
 | --- | --- |
-| 📊 **Unified dashboard** | 33 AI providers and developer tools in one place. |
+| 📊 **Unified dashboard** | 34 AI providers and developer tools in one place. |
 | 🛰️ **Fleet overview** | Cross-provider rollup in the hero — quota-only average load, hottest provider, how many are near their cap, and the soonest reset. |
 | ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
 | 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
@@ -84,7 +84,7 @@ Provider cards use one of these honest coverage levels:
 
 | Coverage | Meaning |
 | --- | --- |
-| **Quota** | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, OpenRouter, Z.ai, GLM). |
+| **Quota** | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM). |
 | **Balance** | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek, Together). |
 | **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, Ollama). |
 | **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, NVIDIA, MiniMax, Qwen, xAI, and more). |
@@ -97,6 +97,7 @@ Notable integrations:
 | Codex | Official `codex app-server` account and rate-limit methods. |
 | Claude Code | OAuth quota plus local `~/.claude/projects` analytics. |
 | GitHub Copilot | Authenticated GitHub/Copilot quota snapshot. |
+| Antigravity | Per-model quota and reset times from the local IDE session and internal read-only endpoint. |
 | 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
 | OpenRouter | Key limits, spend, balance, and 30-day model activity. |
 | Kimi (Moonshot) | `GET /v1/users/me/balance` — available, voucher, and cash balance (USD/CNY). |
@@ -114,7 +115,7 @@ The full matrix, credentials, and upstream references are documented in
 
 - DankMaterialShell running on Quickshell.
 - `bash`, `jq`, and `curl`.
-- Provider-specific CLIs or credentials only for providers you enable.
+- Provider-specific CLIs or credentials only for providers you enable; Antigravity additionally requires `sqlite3`.
 
 Recommended baseline for the default provider set:
 

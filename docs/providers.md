@@ -21,7 +21,7 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from an official protocol/API. | `codex`, `copilot`, `openrouter`, `zai`, `glm` |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm` |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `together` |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local) |
 | **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `fireworks`, `minimax`, `xai`, `kilo` |
@@ -82,6 +82,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><a href="https://docs.github.com/copilot">GitHub Copilot</a></td>
 </tr>
 <!-- Focus providers -->
+<tr>
+<td><code>antigravity</code></td>
+<td>Quota (internal API)</td>
+<td>✅ local Antigravity OAuth session</td>
+<td>⚠️ per-model remaining fraction + reset time</td>
+<td>✅ Antigravity plan</td>
+<td>—</td>
+<td><code>~/.config/Antigravity</code></td>
+<td>Antigravity IDE</td>
+<td>undocumented <code>v1internal:fetchAvailableModels</code></td>
+</tr>
 <tr>
 <td><code>gemini</code></td>
 <td>Auth</td>

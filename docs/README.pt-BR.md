@@ -12,7 +12,7 @@ billing, autenticação e telemetria local de uso de IA — direto na sua DankBa
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![Licença](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](../LICENSE)
-[![Provedores](https://img.shields.io/badge/provedores-33-7C4DFF)](./providers.md)
+[![Provedores](https://img.shields.io/badge/provedores-34-7C4DFF)](./providers.md)
 [![Idiomas](https://img.shields.io/badge/idiomas%20de%20UI-5-00BFA5)](./i18n-crowdin.md)
 
 [Instalação](#instalação) · [Screenshots](#screenshots) · [Provedores](./providers.md) ·
@@ -97,6 +97,7 @@ Integrações medidas notáveis:
 | Codex | Métodos oficiais de conta e rate-limit do `codex app-server`. |
 | Claude Code | Cota OAuth mais analytics local de `~/.claude/projects`. |
 | GitHub Copilot | Snapshot autenticado de cota GitHub/Copilot. |
+| Antigravity | Cotas por modelo e horários de reset da sessão local do IDE via endpoint interno somente leitura. |
 | 9Router | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado. |
 | OpenRouter | Limites de chave, gasto, saldo e atividade de modelos em 30 dias. |
 | DeepSeek, Kimi, Together | APIs de saldo ou crédito do provedor. |
@@ -112,7 +113,7 @@ A matriz completa, credenciais e referências upstream estão documentadas em
 
 - DankMaterialShell rodando sobre Quickshell.
 - `bash`, `jq` e `curl`.
-- CLIs ou credenciais específicas apenas para os provedores habilitados.
+- CLIs ou credenciais específicas apenas para os provedores habilitados; Antigravity também requer `sqlite3`.
 
 Linha de base recomendada para o conjunto padrão de provedores:
 

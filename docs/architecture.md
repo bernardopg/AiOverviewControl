@@ -11,6 +11,7 @@ providers/get-provider-health     Prerequisite checks for settings
 providers/get-codex-usage         Codex app-server protocol bridge
 providers/get-claude-usage        Claude local analytics and quota bridge
 providers/get-copilot-usage       Authenticated GitHub Copilot quota bridge
+providers/get-antigravity-usage   Local Antigravity session quota bridge
 providers/get-provider-wrapper    Single-provider wrapper
 providers/get-*-usage             Canonical provider entrypoints
 ```
@@ -61,6 +62,10 @@ Errors return:
 ## Codex protocol
 
 `get-codex-usage` starts `codex app-server`, sends `initialize`, `account/read`, and `account/rateLimits/read`, then maps the official response to the common schema. The bridge uses a bounded process lifetime and never reads browser state.
+
+## Antigravity protocol
+
+`get-antigravity-usage` reads the current Antigravity CLI OAuth profile from the desktop keyring, falling back to the IDE SQLite state used by older builds, and calls the read-only internal `v1internal:fetchAvailableModels` endpoint. It groups model quotas into Claude, Gemini 3 Pro, and Gemini 3 Flash windows, ordered by highest consumption. The bearer token is supplied to curl over stdin and is never printed or placed in process arguments. This is an internal Google endpoint and may change without notice.
 
 ## Settings keys
 
