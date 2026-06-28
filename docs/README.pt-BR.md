@@ -97,7 +97,7 @@ Integrações medidas notáveis:
 | Codex | Métodos oficiais de conta e rate-limit do `codex app-server`. |
 | Claude Code | Cota OAuth mais analytics local de `~/.claude/projects`. |
 | GitHub Copilot | Snapshot autenticado de cota GitHub/Copilot. |
-| Antigravity | Cotas por modelo e horários de reset da sessão local do IDE via endpoint interno somente leitura. |
+| Antigravity | Cotas por modelo e horários de reset via endpoint Cloud Code Assist, usado pela IDE Antigravity e pelo gemini-cli. |
 | 9Router | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado. |
 | OpenRouter | Limites de chave, gasto, saldo e atividade de modelos em 30 dias. |
 | DeepSeek, Kimi, Together | APIs de saldo ou crédito do provedor. |

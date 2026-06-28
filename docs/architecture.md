@@ -65,7 +65,7 @@ Errors return:
 
 ## Antigravity protocol
 
-`get-antigravity-usage` reads the current Antigravity CLI OAuth profile from the desktop keyring, falling back to the IDE SQLite state used by older builds, and calls the read-only internal `v1internal:fetchAvailableModels` endpoint. It groups model quotas into Claude, Gemini 3 Pro, and Gemini 3 Flash windows, ordered by highest consumption. The bearer token is supplied to curl over stdin and is never printed or placed in process arguments. This is an internal Google endpoint and may change without notice.
+`get-antigravity-usage` reads the current Antigravity CLI OAuth profile from the desktop keyring, falling back to the IDE SQLite state used by older builds, and calls the read-only `v1internal:fetchAvailableModels` endpoint on `cloudcode-pa.googleapis.com` — the same host used by Antigravity IDE and the official gemini-cli. It groups model quotas into current families (Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.5 Flash, Gemini 3.1 Pro, GPT-OSS 120B), ordered by highest consumption. The bearer token is supplied to curl over stdin and is never printed or placed in process arguments.
 
 ## Settings keys
 

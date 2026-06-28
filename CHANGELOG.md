@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 1.5.0 - 2026-06-28
+
+### Providers
+- **Antigravity provider added (Quota coverage).** Surfaces real per-model quota and reset windows from the Google Cloud Code Assist endpoint (`v1internal:fetchAvailableModels` on `cloudcode-pa.googleapis.com`) — the same protocol used by Antigravity IDE and the official `gemini-cli`. Quotas are grouped into current model families: Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.5 Flash, Gemini 3.1 Pro, and GPT-OSS 120B.
+- **Dual credential discovery.** Authentication prefers the signed-in `agy` CLI profile via Linux Secret Service (`secret-tool`), then falls back to the IDE's `globalStorage/state.vscdb` (`antigravityAuthStatus`) for desktop builds. The OAuth bearer token is supplied to `curl` via stdin and never appears in process arguments, stdout, or logs.
+- **Health probe.** `get-provider-health` now recognizes `antigravity` and reports ready/missing based on the keyring or SQLite state availability.
+
+### Fixed
+- **Antigravity Authorization header.** The bearer token was not interpolated into the `curl` config line (missing `%s`), so the live path always failed authentication while fixture tests passed. Token interpolation now works and the live path returns real quota data.
+
+### Notes
+- Provider count: 33 → 34.
+- Antigravity additionally requires `sqlite3` on the system for the IDE-state fallback path.
+
 ## 1.4.12 - 2026-06-26
 
 ### Providers

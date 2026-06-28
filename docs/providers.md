@@ -84,14 +84,14 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <!-- Focus providers -->
 <tr>
 <td><code>antigravity</code></td>
-<td>Quota (internal API)</td>
+<td>Quota (Cloud Code Assist)</td>
 <td>✅ local Antigravity OAuth session</td>
 <td>⚠️ per-model remaining fraction + reset time</td>
 <td>✅ Antigravity plan</td>
 <td>—</td>
 <td><code>~/.config/Antigravity</code></td>
 <td>Antigravity IDE</td>
-<td>undocumented <code>v1internal:fetchAvailableModels</code></td>
+<td><code>v1internal:fetchAvailableModels</code> on <code>cloudcode-pa.googleapis.com</code></td>
 </tr>
 <tr>
 <td><code>gemini</code></td>

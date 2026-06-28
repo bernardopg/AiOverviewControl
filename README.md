@@ -97,7 +97,7 @@ Notable integrations:
 | Codex | Official `codex app-server` account and rate-limit methods. |
 | Claude Code | OAuth quota plus local `~/.claude/projects` analytics. |
 | GitHub Copilot | Authenticated GitHub/Copilot quota snapshot. |
-| Antigravity | Per-model quota and reset times from the local IDE session and internal read-only endpoint. |
+| Antigravity | Per-model quota and reset times from the Cloud Code Assist endpoint used by Antigravity IDE and gemini-cli. |
 | 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
 | OpenRouter | Key limits, spend, balance, and 30-day model activity. |
 | Kimi (Moonshot) | `GET /v1/users/me/balance` — available, voucher, and cash balance (USD/CNY). |
