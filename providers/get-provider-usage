@@ -205,6 +205,216 @@ fetch_gemini_native() {
   json_error gemini gemini-local 2 provider "Gemini is not authenticated locally. Run gemini once, or set GEMINI_API_KEY/GOOGLE_API_KEY."
 }
 
+extract_antigravity_keyring_token() {
+  jq -r '
+    def token_string:
+      if type == "object" then
+        .access_token // .accessToken // .token // .Token // empty
+      elif type == "string" and test("^ya29\\.") then
+        .
+      else
+        empty
+      end;
+    if type == "object" then
+      (.token | token_string)
+      // token_string
+      // empty
+    else
+      token_string
+    end
+  ' 2>/dev/null || true
+}
+
+extract_antigravity_keyring_account() {
+  jq -r '
+    if type == "object" then
+      .email // .account_email // (.token.email // .token.account_email // empty) // "Antigravity CLI"
+    else
+      "Antigravity CLI"
+    end
+  ' 2>/dev/null || printf 'Antigravity CLI'
+}
+
+fetch_antigravity_native() {
+  local state_db="${ANTIGRAVITY_STATE_DB:-${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity/User/globalStorage/state.vscdb}"
+  local project_file="${ANTIGRAVITY_PROJECT_FILE:-$HOME/.gemini/antigravity-cli/cache/default_project_id.txt}"
+  # The production host used by both Antigravity IDE and the official gemini-cli.
+  # Keep an override for testing or future endpoint migrations.
+  local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://cloudcode-pa.googleapis.com}"
+  local response_file="${ANTIGRAVITY_RESPONSE_FILE:-}"
+  local account="Antigravity"
+  local login_method="local OAuth session"
+  local tmp_body http_status auth_json token project request_body message keyring_payload service
+
+  tmp_body="$(mktemp)"
+
+  # A response fixture keeps parsing tests deterministic and avoids requiring
+  # a live Google session in CI. It is never selected during normal runtime.
+  if [ -n "$response_file" ]; then
+    if [ ! -r "$response_file" ]; then
+      rm -f "$tmp_body"
+      json_error antigravity antigravity-internal 2 runtime "Antigravity response fixture is not readable."
+      return 0
+    fi
+    cp "$response_file" "$tmp_body"
+    http_status="${ANTIGRAVITY_HTTP_STATUS:-200}"
+    account="${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}"
+  else
+    token=""
+
+    # Antigravity CLI keeps its current OAuth profile in the desktop keyring.
+    # Lookup is deliberately limited to known service names; the secret is
+    # captured in memory and never emitted. Standard oauth2.Token JSON and a
+    # plain access-token value are both accepted for forward compatibility.
+    if command -v secret-tool >/dev/null 2>&1; then
+      keyring_payload="$(timeout 3 secret-tool lookup service gemini username antigravity 2>/dev/null || true)"
+      if [ -n "$keyring_payload" ]; then
+        token="$(printf '%s' "$keyring_payload" | extract_antigravity_keyring_token)"
+        account="$(printf '%s' "$keyring_payload" | extract_antigravity_keyring_account)"
+        if [ -z "$token" ] && [[ "$keyring_payload" == ya29.* ]]; then
+          token="$keyring_payload"
+          account="Antigravity CLI"
+        fi
+        [ -z "$token" ] || login_method="CLI keyring OAuth"
+      fi
+
+      for service in "${ANTIGRAVITY_KEYRING_SERVICE:-Antigravity CLI}" "antigravity-cli" "Antigravity"; do
+        [ -z "$token" ] || break
+        keyring_payload="$(timeout 3 secret-tool lookup service "$service" 2>/dev/null || true)"
+        [ -n "$keyring_payload" ] || continue
+        token="$(printf '%s' "$keyring_payload" | extract_antigravity_keyring_token)"
+        account="$(printf '%s' "$keyring_payload" | extract_antigravity_keyring_account)"
+        if [ -z "$token" ] && [[ "$keyring_payload" == ya29.* ]]; then
+          token="$keyring_payload"
+          account="Antigravity CLI"
+        fi
+        if [ -n "$token" ]; then
+          login_method="CLI keyring OAuth"
+          break
+        fi
+      done
+    fi
+
+    # Older IDE builds also leave an access token in state.vscdb. Keep it as a
+    # fallback, but prefer the keyring because the database copy can be stale.
+    if [ -z "$token" ] && command -v sqlite3 >/dev/null 2>&1 && [ -r "$state_db" ]; then
+      auth_json="$(sqlite3 "$state_db" "select value from ItemTable where key='antigravityAuthStatus' limit 1;" 2>/dev/null || true)"
+      token="$(printf '%s' "$auth_json" | jq -r '.apiKey // empty' 2>/dev/null || true)"
+      account="$(printf '%s' "$auth_json" | jq -r '.email // "Antigravity IDE"' 2>/dev/null || printf 'Antigravity IDE')"
+      login_method="IDE state OAuth"
+    fi
+
+    if [ -z "$token" ]; then
+      rm -f "$tmp_body"
+      json_error antigravity antigravity-local 2 provider "No usable Antigravity session was found in the CLI keyring or IDE state. Run agy or open Antigravity and sign in."
+      return 0
+    fi
+
+    project=""
+    [ ! -r "$project_file" ] || project="$(sed -n '1p' "$project_file")"
+    request_body="$(jq -cn --arg project "$project" 'if $project == "" then {} else {project:$project} end')"
+
+    # Feed the bearer header through a pipe-backed config descriptor and the
+    # request body through stdin. Neither token nor project appears in the
+    # process argument list, stdout, stderr, or a temporary file.
+    http_status="$(
+      curl -sS --max-time 10 \
+        --config <(printf 'header = "Authorization: Bearer %s"\n' "$token") \
+        -o "$tmp_body" -w '%{http_code}' \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -H "User-Agent: antigravity/linux/amd64" \
+        -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
+        --data-binary @- \
+        "$endpoint/v1internal:fetchAvailableModels" 2>/dev/null \
+        <<< "$request_body" \
+        || true
+    )"
+  fi
+
+  if [ "$http_status" != "200" ]; then
+    message="$(jq -r '.error.message // empty' "$tmp_body" 2>/dev/null || true)"
+    rm -f "$tmp_body"
+    case "$http_status" in
+      401|403)
+        json_error antigravity antigravity-internal "$http_status" provider "Antigravity session expired. Open Antigravity and sign in again."
+        ;;
+      429)
+        [ -n "$message" ] || message="Antigravity quota endpoint is rate-limited. Retry after its reset time."
+        json_error antigravity antigravity-internal 429 provider "$message"
+        ;;
+      *)
+        [ -n "$message" ] || message="Antigravity quota request returned HTTP ${http_status:-0}."
+        json_error antigravity antigravity-internal "${http_status:-1}" provider "$message"
+        ;;
+    esac
+    return 0
+  fi
+
+  if ! jq -e '.models | type == "object"' "$tmp_body" >/dev/null 2>&1; then
+    rm -f "$tmp_body"
+    json_error antigravity antigravity-internal 1 provider "Antigravity quota response schema changed: models object is missing."
+    return 0
+  fi
+
+  jq -c --arg account "$account" --arg login_method "$login_method" '
+    def clamp:
+      if type != "number" then null
+      elif . < 0 then 0
+      elif . > 1 then 1
+      else . end;
+    def family($key; $entry):
+      (($key + " " + ($entry.displayName // "") + " " + ($entry.modelName // "")) | ascii_downcase) as $name
+      | if ($name | contains("opus")) then "Claude Opus 4.6"
+        elif ($name | test("sonnet\\b")) then "Claude Sonnet 4.6"
+        elif (($name | test("gemini[- .]?3[- .]?5")) and ($name | contains("flash"))) then "Gemini 3.5 Flash"
+        elif (($name | test("gemini[- .]?3[- .]?1")) and ($name | contains("pro"))) then "Gemini 3.1 Pro"
+        elif (($name | test("gemini[- .]?3")) and ($name | contains("flash"))) then "Gemini 3 Flash"
+        elif ($name | test("gpt[- ]?oss")) then "GPT-OSS 120B"
+        else null end;
+    def window($group): {
+      usedPercent: (((1 - $group.remaining) * 10000 | round) / 100),
+      windowMinutes: null,
+      resetsAt: $group.resetsAt,
+      resetDescription: $group.name,
+      displayValue: (((1 - $group.remaining) * 100 | round | tostring) + "% used")
+    };
+    [
+      .models | to_entries[]
+      | . as $model
+      | (family(.key; .value)) as $family
+      | (.value.quotaInfo.remainingFraction | clamp) as $remaining
+      | select($family != null and $remaining != null)
+      | {name:$family, remaining:$remaining, resetsAt:(.value.quotaInfo.resetTime // null)}
+    ]
+    | group_by(.name)
+    | map({
+        name: .[0].name,
+        remaining: (map(.remaining) | min),
+        resetsAt: (map(.resetsAt | select(. != null)) | sort | first // null)
+      })
+    | sort_by(.remaining)
+    | map(window(.)) as $windows
+    | if ($windows | length) == 0 then
+        error("no supported quota entries")
+      else {
+        provider:"antigravity",
+        source:"antigravity-internal",
+        usage:{
+          identity:{providerID:"antigravity",accountEmail:$account,loginMethod:$login_method},
+          accountEmail:$account,
+          loginMethod:$login_method,
+          primary:$windows[0],
+          secondary:($windows[1] // null),
+          tertiary:($windows[2] // null),
+          updatedAt:(now|todateiso8601)
+        },
+        credits:{remaining:"per-model quota"}
+      } end
+  ' "$tmp_body" 2>/dev/null || json_error antigravity antigravity-internal 1 provider "Antigravity quota response contains no supported model quota entries."
+  rm -f "$tmp_body"
+}
+
 fetch_openrouter_native() {
   local key="${OPENROUTER_API_KEY:-}"
   if [ -z "$key" ]; then
@@ -1302,6 +1512,9 @@ fetch_provider() {
       ;;
     gemini)
       fetch_gemini_native
+      ;;
+    antigravity)
+      fetch_antigravity_native
       ;;
     9router)
       fetch_9router_native 9router 9router

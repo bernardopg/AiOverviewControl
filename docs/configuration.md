@@ -29,6 +29,8 @@ codex,claude,copilot
 
 Add API providers only after their required environment variables are available to the DMS process.
 
+Antigravity does not use an environment variable. It prefers the signed-in CLI profile from Linux Secret Service via `secret-tool`, then falls back to `${XDG_CONFIG_HOME:-~/.config}/Antigravity/User/globalStorage/state.vscdb` via `sqlite3` for older IDE builds.
+
 ## Environment variables
 
 | Provider | Variables |

@@ -220,10 +220,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install dependencies (jq, curl)
+      - name: Install dependencies (jq, curl, sqlite3)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends jq curl
+          sudo apt-get install -y --no-install-recommends jq curl sqlite3
 
       - name: Smoke test — get-claude-usage (no credentials)
         run: |
@@ -262,6 +262,38 @@ jobs:
             exit 1
           }
           echo "get-provider-usage smoke: OK — provider=${PROVIDER}"
+
+      - name: Integration test — Antigravity quota fixture
+        run: |
+          OUT="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-valid.json \
+            ANTIGRAVITY_ACCOUNT_EMAIL=test@example.invalid \
+            providers/get-provider-usage "antigravity" "")"
+          echo "$OUT" | jq -e '
+            length == 1
+            and .[0].provider == "antigravity"
+            and .[0].usage.primary.resetDescription == "Claude Opus 4.6"
+            and .[0].usage.primary.usedPercent == 75
+            and .[0].usage.secondary.resetDescription == "Gemini 3.5 Flash"
+            and .[0].usage.secondary.usedPercent == 50
+            and .[0].usage.tertiary.resetDescription == "GPT-OSS 120B"
+            and .[0].usage.tertiary.usedPercent == 40
+          ' >/dev/null
+
+          AUTH_ERROR="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-valid.json \
+            ANTIGRAVITY_HTTP_STATUS=401 providers/get-provider-usage "antigravity" "")"
+          echo "$AUTH_ERROR" | jq -e '.[0].error.code == 401' >/dev/null
+
+          RATE_ERROR="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-valid.json \
+            ANTIGRAVITY_HTTP_STATUS=429 providers/get-provider-usage "antigravity" "")"
+          echo "$RATE_ERROR" | jq -e '.[0].error.code == 429' >/dev/null
+
+          MISSING_SESSION="$(ANTIGRAVITY_STATE_DB=/does/not/exist \
+            providers/get-provider-usage "antigravity" "")"
+          echo "$MISSING_SESSION" | jq -e '.[0].error.code == 2' >/dev/null
+
+          SCHEMA_ERROR="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-schema-changed.json \
+            providers/get-provider-usage "antigravity" "")"
+          echo "$SCHEMA_ERROR" | jq -e '.[0].error.message | contains("schema changed")' >/dev/null
 
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |

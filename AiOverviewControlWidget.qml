@@ -134,6 +134,7 @@ PluginComponent {
         "codex",
         "claude",
         "copilot",
+        "antigravity",
         "gemini",
         "9router",
         "openrouter",
@@ -526,6 +527,7 @@ PluginComponent {
             codex: "Codex",
             claude: "Claude",
             copilot: "Copilot",
+            antigravity: "Antigravity",
             cursor: "Cursor",
             gemini: "Gemini",
             openrouter: "OpenRouter",
@@ -722,6 +724,7 @@ PluginComponent {
         if (providerId === "codex") return "data_object";
         if (providerId === "claude") return "psychology";
         if (providerId === "copilot") return "hub";
+        if (providerId === "antigravity") return "rocket_launch";
         if (providerId === "gemini") return "auto_awesome";
         if (providerId === "openrouter") return "route";
         if (providerId === "9router") return "share";
@@ -758,6 +761,7 @@ PluginComponent {
         if (providerId === "claude") return Theme.warning;
         if (providerId === "codex") return Theme.success;
         if (providerId === "copilot") return Theme.primary;
+        if (providerId === "antigravity") return Theme.primary;
         if (providerId === "gemini") return Theme.secondary;
         if (providerId === "openrouter") return Theme.primary;
         if (providerId === "9router") return Theme.secondary;
@@ -816,6 +820,10 @@ PluginComponent {
         const windowData = primaryUsageWindow(provider);
         if (windowData && windowData.displayValue && String(windowData.displayValue).length > 0) {
             const label = windowData.resetDescription || t("status.usage", "usage");
+            const reset = provider.provider === "antigravity" ? formatTimeUntil(windowData.resetsAt) : "";
+            if (reset && reset !== "—") {
+                return `${source} · ${label} · ${windowData.displayValue} · ${t("status.reset", "reset")} ${reset}`;
+            }
             return `${source} · ${label} · ${windowData.displayValue}`;
         }
         const reset = providerReset(provider);
@@ -973,6 +981,7 @@ PluginComponent {
             claude: "https://claude.ai/settings/usage",
             codex: "https://chatgpt.com/codex/settings/usage",
             copilot: "https://github.com/settings/copilot/features",
+            antigravity: "",
             gemini: "https://aistudio.google.com/usage",
             openrouter: "https://openrouter.ai/activity",
             deepseek: "https://platform.deepseek.com/usage",
