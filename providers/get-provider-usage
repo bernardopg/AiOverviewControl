@@ -238,9 +238,9 @@ extract_antigravity_keyring_account() {
 fetch_antigravity_native() {
   local state_db="${ANTIGRAVITY_STATE_DB:-${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity/User/globalStorage/state.vscdb}"
   local project_file="${ANTIGRAVITY_PROJECT_FILE:-$HOME/.gemini/antigravity-cli/cache/default_project_id.txt}"
-  # Antigravity CLI 1.0.x uses the non-sandbox daily endpoint for model/quota
-  # discovery. Keep an override because this internal surface is not stable.
-  local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://daily-cloudcode-pa.googleapis.com}"
+  # The production host used by both Antigravity IDE and the official gemini-cli.
+  # Keep an override for testing or future endpoint migrations.
+  local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://cloudcode-pa.googleapis.com}"
   local response_file="${ANTIGRAVITY_RESPONSE_FILE:-}"
   local account="Antigravity"
   local login_method="local OAuth session"
@@ -324,6 +324,7 @@ fetch_antigravity_native() {
         -X POST \
         -H "Content-Type: application/json" \
         -H "User-Agent: antigravity/linux/amd64" \
+        -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
         --data-binary @- \
         "$endpoint/v1internal:fetchAvailableModels" 2>/dev/null \
         <<< "$request_body" \
@@ -364,9 +365,12 @@ fetch_antigravity_native() {
       else . end;
     def family($key; $entry):
       (($key + " " + ($entry.displayName // "") + " " + ($entry.modelName // "")) | ascii_downcase) as $name
-      | if ($name | contains("claude")) then "Claude"
-        elif (($name | test("gemini[- ]?3")) and ($name | contains("flash"))) then "Gemini 3 Flash"
-        elif ($name | test("gemini[- ]?3")) then "Gemini 3 Pro"
+      | if ($name | contains("opus")) then "Claude Opus 4.6"
+        elif ($name | test("sonnet\\b")) then "Claude Sonnet 4.6"
+        elif (($name | test("gemini[- .]?3[- .]?5")) and ($name | contains("flash"))) then "Gemini 3.5 Flash"
+        elif (($name | test("gemini[- .]?3[- .]?1")) and ($name | contains("pro"))) then "Gemini 3.1 Pro"
+        elif (($name | test("gemini[- .]?3")) and ($name | contains("flash"))) then "Gemini 3 Flash"
+        elif ($name | test("gpt[- ]?oss")) then "GPT-OSS 120B"
         else null end;
     def window($group): {
       usedPercent: (((1 - $group.remaining) * 10000 | round) / 100),
