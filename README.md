@@ -266,6 +266,7 @@ providers/get-provider-health     Local prerequisite checks
 providers/get-codex-usage         Codex app-server protocol bridge
 providers/get-claude-usage        Claude quota and local analytics bridge
 providers/get-copilot-usage       GitHub Copilot quota bridge
+providers/get-antigravity-usage   Antigravity Cloud Code Assist quota bridge
 providers/get-*-usage             Canonical single-provider entrypoints
 ```
 

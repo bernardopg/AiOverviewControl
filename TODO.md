@@ -49,6 +49,10 @@ _(Cleared in v1.4.8 — see Recently shipped below.)_
 
 ---
 
+## ✅ Recently shipped — v1.5.0 (2026-06-28)
+
+- **Antigravity provider (Quota coverage)** — surfaces real per-model quota and reset windows from the Google Cloud Code Assist endpoint (`v1internal:fetchAvailableModels` on `cloudcode-pa.googleapis.com`), the same protocol used by Antigravity IDE and the official `gemini-cli`. Quotas are grouped into current model families: Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.5 Flash, Gemini 3.1 Pro, and GPT-OSS 120B. Dual credential discovery prefers the signed-in `agy` CLI profile via Linux Secret Service, then falls back to the IDE `state.vscdb` for desktop builds. The bearer token is fed to `curl` via stdin and never appears in process arguments or logs. Provider count: 33 → 34. Contribution by [@arqueon](https://github.com/arqueon) in [#7](https://github.com/bernardopg/AiOverviewControl/pull/7), with an auth-header interpolation fix and model-family alignment landed during review.
+
 ## ✅ Recently shipped — v1.4.12 (2026-06-26)
 
 - **Provider tracking audit** — fixed Z.ai/GLM weekly-vs-daily unit decoding, GLM `ZAI_API_KEY` fallback, OpenRouter→9Router local fallback labeling, Codex subscription-credit display, stable two-decimal currency formatting, quota-only history snapshots, and quota-only fleet average load.
