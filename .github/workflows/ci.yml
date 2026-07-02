@@ -466,6 +466,14 @@ jobs:
           )
           PY
           JAR="/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar"
-          java -jar "$JAR" config lint         --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
-          java -jar "$JAR" config sources      --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
-          java -jar "$JAR" config translations --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
+          java -jar "$JAR" config lint --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
+
+          # These commands call Crowdin's remote API and can fail or hang for
+          # reasons outside this repository (service issues, token scope, rate
+          # limiting). Keep the structural lint above as the hard gate, and
+          # surface remote validation problems as warnings instead of breaking CI.
+          for check in sources translations; do
+            if ! timeout 60 java -jar "$JAR" config "$check" --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml; then
+              echo "::warning::Crowdin remote '${check}' validation failed or timed out; skipping as non-blocking."
+            fi
+          done
