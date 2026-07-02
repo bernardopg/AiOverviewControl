@@ -271,12 +271,12 @@ jobs:
           echo "$OUT" | jq -e '
             length == 1
             and .[0].provider == "antigravity"
-            and .[0].usage.primary.resetDescription == "Claude Opus 4.6"
-            and .[0].usage.primary.usedPercent == 75
+            and .[0].usage.primary.resetDescription == "Gemini 3.1 Pro"
+            and .[0].usage.primary.usedPercent == 80
             and .[0].usage.secondary.resetDescription == "Gemini 3.5 Flash"
             and .[0].usage.secondary.usedPercent == 50
             and .[0].usage.tertiary.resetDescription == "GPT-OSS 120B"
-            and .[0].usage.tertiary.usedPercent == 40
+            and .[0].usage.tertiary.usedPercent == 10
           ' >/dev/null
 
           AUTH_ERROR="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-valid.json \

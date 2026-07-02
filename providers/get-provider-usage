@@ -443,7 +443,10 @@ fetch_antigravity_native() {
     fi
 
     # Desktop keyring (agy CLI) as an extra source, if it carries a fresh session.
-    if command -v secret-tool >/dev/null 2>&1; then
+    # When ANTIGRAVITY_STATE_DB is explicitly set, it pins discovery to that DB
+    # for deterministic tests and targeted debugging, so do not fall through to
+    # unrelated local keyring credentials.
+    if [ -z "${ANTIGRAVITY_STATE_DB:-}" ] && command -v secret-tool >/dev/null 2>&1; then
       local keyring_payload service
       for service in "gemini" "${ANTIGRAVITY_KEYRING_SERVICE:-Antigravity CLI}" "antigravity-cli" "Antigravity"; do
         if [ "$service" = "gemini" ]; then
