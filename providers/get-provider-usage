@@ -373,6 +373,18 @@ fetch_antigravity_native() {
       json_error antigravity antigravity-internal 2 runtime "Antigravity response fixture is not readable."
       return 0
     fi
+    # ANTIGRAVITY_HTTP_STATUS lets tests exercise the transport error mapping
+    # without a live session; the live path applies the same codes per account.
+    local fixture_status="${ANTIGRAVITY_HTTP_STATUS:-200}"
+    if [ "$fixture_status" != "200" ]; then
+      rm -f "$tmp_body" "$accounts_file"
+      case "$fixture_status" in
+        401|403) json_error antigravity antigravity-internal "$fixture_status" provider "Antigravity session expired. Open Antigravity and sign in again." ;;
+        429) json_error antigravity antigravity-internal 429 provider "Antigravity quota endpoint is rate-limited. Retry after its reset time." ;;
+        *) json_error antigravity antigravity-internal "$fixture_status" provider "Antigravity quota request returned HTTP ${fixture_status}." ;;
+      esac
+      return 0
+    fi
     if ! jq -e '.groups | type == "array"' "$response_file" >/dev/null 2>&1; then
       rm -f "$tmp_body" "$accounts_file"
       json_error antigravity antigravity-internal 1 provider "Antigravity quota response schema changed: groups array is missing."
@@ -498,7 +510,7 @@ fetch_antigravity_native() {
               updatedAt:(now | todateiso8601)
             },
             accounts:$accts,
-            credits:{remaining: ($n | tostring) + " account" + (if $n == 1 then "" else "s" end)}
+            credits:{remaining: (($n | tostring) + " account" + (if $n == 1 then "" else "s" end))}
           }
       end
   ' "$accounts_file"
