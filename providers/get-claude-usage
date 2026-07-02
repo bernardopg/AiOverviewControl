@@ -25,7 +25,16 @@ FIVE_HOUR_UTIL=0
 FIVE_HOUR_RESET=""
 SEVEN_DAY_UTIL=0
 SEVEN_DAY_RESET=""
+SCOPED_LIMIT_UTIL=0
+SCOPED_LIMIT_RESET=""
+SCOPED_LIMIT_MODEL=""
+SCOPED_LIMIT_ACTIVE="false"
 EXTRA_USAGE_ENABLED="false"
+EXTRA_USAGE_UTIL=0
+EXTRA_USAGE_USED=0
+EXTRA_USAGE_LIMIT=0
+EXTRA_USAGE_CURRENCY=""
+EXTRA_USAGE_DECIMALS=2
 API_RESPONSE='{}'
 USAGE_ERROR_KIND=""
 USAGE_ERROR_MESSAGE=""
@@ -162,11 +171,28 @@ if [ -f "$CREDENTIALS" ]; then
         fi
     fi
 
-    FIVE_HOUR_UTIL=$(echo "$API_RESPONSE" | jq -r '.five_hour.utilization // 0')
-    FIVE_HOUR_RESET=$(echo "$API_RESPONSE" | jq -r '.five_hour.resets_at // ""')
-    SEVEN_DAY_UTIL=$(echo "$API_RESPONSE" | jq -r '.seven_day.utilization // 0')
-    SEVEN_DAY_RESET=$(echo "$API_RESPONSE" | jq -r '.seven_day.resets_at // ""')
+    # The Claude 5 rollout added a canonical `limits[]` array (kind: session /
+    # weekly_all / weekly_scoped). Prefer it when present; the flat five_hour /
+    # seven_day objects remain as fallback for older API responses.
+    FIVE_HOUR_UTIL=$(echo "$API_RESPONSE" | jq -r '([.limits[]? | select(.kind == "session")] | .[0].percent) // .five_hour.utilization // 0')
+    FIVE_HOUR_RESET=$(echo "$API_RESPONSE" | jq -r '([.limits[]? | select(.kind == "session")] | .[0].resets_at) // .five_hour.resets_at // ""')
+    SEVEN_DAY_UTIL=$(echo "$API_RESPONSE" | jq -r '([.limits[]? | select(.kind == "weekly_all")] | .[0].percent) // .seven_day.utilization // 0')
+    SEVEN_DAY_RESET=$(echo "$API_RESPONSE" | jq -r '([.limits[]? | select(.kind == "weekly_all")] | .[0].resets_at) // .seven_day.resets_at // ""')
+
+    # Model-scoped weekly window (e.g. weekly Fable allowance on Pro/Max).
+    # Active scopes sort first so the binding limit wins when several exist.
+    SCOPED_QUERY='[.limits[]? | select(.kind == "weekly_scoped" and (.scope.model.display_name // "") != "")] | sort_by(if .is_active then 0 else 1 end)'
+    SCOPED_LIMIT_UTIL=$(echo "$API_RESPONSE" | jq -r "${SCOPED_QUERY} | .[0].percent // 0")
+    SCOPED_LIMIT_RESET=$(echo "$API_RESPONSE" | jq -r "${SCOPED_QUERY} | .[0].resets_at // \"\"")
+    SCOPED_LIMIT_MODEL=$(echo "$API_RESPONSE" | jq -r "${SCOPED_QUERY} | .[0].scope.model.display_name // \"\"")
+    SCOPED_LIMIT_ACTIVE=$(echo "$API_RESPONSE" | jq -r "${SCOPED_QUERY} | .[0].is_active // false")
+
     EXTRA_USAGE_ENABLED=$(echo "$API_RESPONSE" | jq -r '.extra_usage.is_enabled // false')
+    EXTRA_USAGE_UTIL=$(echo "$API_RESPONSE" | jq -r '.extra_usage.utilization // 0')
+    EXTRA_USAGE_USED=$(echo "$API_RESPONSE" | jq -r '.extra_usage.used_credits // 0')
+    EXTRA_USAGE_LIMIT=$(echo "$API_RESPONSE" | jq -r '.extra_usage.monthly_limit // 0')
+    EXTRA_USAGE_CURRENCY=$(echo "$API_RESPONSE" | jq -r '.extra_usage.currency // ""')
+    EXTRA_USAGE_DECIMALS=$(echo "$API_RESPONSE" | jq -r '.extra_usage.decimal_places // 2')
 else
     USAGE_ERROR_KIND="authentication"
     USAGE_ERROR_MESSAGE="Claude credentials were not found. Run: claude auth login --claudeai"
@@ -339,7 +365,16 @@ echo "FIVE_HOUR_UTIL=${FIVE_HOUR_UTIL}"
 echo "FIVE_HOUR_RESET=${FIVE_HOUR_RESET}"
 echo "SEVEN_DAY_UTIL=${SEVEN_DAY_UTIL}"
 echo "SEVEN_DAY_RESET=${SEVEN_DAY_RESET}"
+echo "SCOPED_LIMIT_UTIL=${SCOPED_LIMIT_UTIL}"
+echo "SCOPED_LIMIT_RESET=${SCOPED_LIMIT_RESET}"
+echo "SCOPED_LIMIT_MODEL=${SCOPED_LIMIT_MODEL}"
+echo "SCOPED_LIMIT_ACTIVE=${SCOPED_LIMIT_ACTIVE}"
 echo "EXTRA_USAGE_ENABLED=${EXTRA_USAGE_ENABLED}"
+echo "EXTRA_USAGE_UTIL=${EXTRA_USAGE_UTIL}"
+echo "EXTRA_USAGE_USED=${EXTRA_USAGE_USED}"
+echo "EXTRA_USAGE_LIMIT=${EXTRA_USAGE_LIMIT}"
+echo "EXTRA_USAGE_CURRENCY=${EXTRA_USAGE_CURRENCY}"
+echo "EXTRA_USAGE_DECIMALS=${EXTRA_USAGE_DECIMALS}"
 echo "USAGE_ERROR_KIND=${USAGE_ERROR_KIND}"
 echo "USAGE_ERROR_MESSAGE=${USAGE_ERROR_MESSAGE}"
 echo "WEEK_MESSAGES=${WEEK_MESSAGES}"

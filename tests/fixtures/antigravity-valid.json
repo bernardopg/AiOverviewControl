@@ -1,35 +1,39 @@
 {
-  "models": {
-    "claude-opus-4-6-thinking": {
-      "displayName": "Claude Opus 4.6 (Thinking)",
-      "quotaInfo": {
-        "remainingFraction": 0.25,
-        "resetTime": "2026-06-27T03:00:00Z"
-      }
-    },
-    "gemini-3.1-pro-high": {
-      "displayName": "Gemini 3.1 Pro (High)",
-      "quotaInfo": {
-        "remainingFraction": 0.8,
-        "resetTime": "2026-06-27T04:00:00Z"
-      }
-    },
-    "gemini-3.5-flash-low": {
-      "displayName": "Gemini 3.5 Flash (Medium)",
-      "quotaInfo": {
-        "remainingFraction": 0.5,
-        "resetTime": "2026-06-27T05:00:00Z"
-      }
-    },
-    "gpt-oss-120b-medium": {
-      "displayName": "GPT-OSS 120B (Medium)",
-      "quotaInfo": {
-        "remainingFraction": 0.6,
-        "resetTime": "2026-06-27T06:00:00Z"
-      }
-    },
-    "unrelated-model": {
-      "displayName": "Unrelated model"
+  "description": "View your available model quota. Quota refreshes periodically based on your plan.",
+  "groups": [
+    {
+      "displayName": "All Models",
+      "description": "Gemini Pro, Gemini Flash, and Claude/GPT models have separate quota pools, each with a per-week and per-5-hour cap; this shows the one closest to being reached.",
+      "buckets": [
+        {
+          "bucketId": "gemini-3.5-flash-low",
+          "displayName": "Gemini 3.5 Flash (Medium)",
+          "resetTime": "2026-07-09T03:41:18Z",
+          "description": "Quota resets in 6 days, 23 hours.",
+          "remainingFraction": 0.5
+        },
+        {
+          "bucketId": "gemini-3.1-pro-low",
+          "displayName": "Gemini 3.1 Pro (Low)",
+          "resetTime": "2026-07-09T03:41:18Z",
+          "description": "Quota resets in 6 days, 23 hours.",
+          "remainingFraction": 0.2
+        },
+        {
+          "bucketId": "claude-sonnet-4-6",
+          "displayName": "Claude Sonnet 4.6",
+          "resetTime": "2026-07-09T03:41:18Z",
+          "description": "Quota resets in 6 days, 23 hours.",
+          "remainingFraction": 1
+        },
+        {
+          "bucketId": "gpt-oss-120b-medium",
+          "displayName": "GPT-OSS 120B (Medium)",
+          "resetTime": "2026-07-09T03:41:18Z",
+          "description": "Quota resets in 6 days, 23 hours.",
+          "remainingFraction": 0.9
+        }
+      ]
     }
-  }
+  ]
 }

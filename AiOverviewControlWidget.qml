@@ -91,7 +91,12 @@ PluginComponent {
     property string claudeFiveHourReset: ""
     property real claudeSevenDayUtil: 0
     property string claudeSevenDayReset: ""
+    property real claudeScopedLimitUtil: 0
+    property string claudeScopedLimitReset: ""
+    property string claudeScopedLimitModel: ""
+    property bool claudeScopedLimitActive: false
     property bool claudeExtraUsageEnabled: false
+    property real claudeExtraUsageUtil: 0
     property int claudeWeekMessages: 0
     property int claudeWeekSessions: 0
     property real claudeWeekTokens: 0
@@ -801,6 +806,35 @@ PluginComponent {
         return usage.primary || usage.secondary || usage.tertiary || null;
     }
 
+    // Providers exposing more than one signed-in account (Antigravity surfaces
+    // every local IDE / Google session) carry an `accounts` array.
+    function accountsForProvider(provider) {
+        if (!provider || !provider.accounts || !provider.accounts.length) return [];
+        return provider.accounts;
+    }
+
+    function hasMultipleAccounts(provider) {
+        return accountsForProvider(provider).length >= 1 && !!provider && !provider.error;
+    }
+
+    function accountLabel(account) {
+        return account && account.install ? account.install : t("card.account", "Account");
+    }
+
+    function accountEmail(account) {
+        return account && account.email ? account.email : "";
+    }
+
+    function accountWorstPercent(account) {
+        if (!account || !account.windows || !account.windows.length) return 0;
+        let worst = 0;
+        for (let i = 0; i < account.windows.length; i++) {
+            const p = Number(account.windows[i].usedPercent || 0);
+            if (p > worst) worst = p;
+        }
+        return worst;
+    }
+
     function weeklyUsageWindow(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
         if (!usage) return null;
@@ -874,7 +908,12 @@ PluginComponent {
         else if (key === "FIVE_HOUR_RESET") claudeFiveHourReset = val;
         else if (key === "SEVEN_DAY_UTIL") claudeSevenDayUtil = Number(val || 0);
         else if (key === "SEVEN_DAY_RESET") claudeSevenDayReset = val;
+        else if (key === "SCOPED_LIMIT_UTIL") claudeScopedLimitUtil = Number(val || 0);
+        else if (key === "SCOPED_LIMIT_RESET") claudeScopedLimitReset = val;
+        else if (key === "SCOPED_LIMIT_MODEL") claudeScopedLimitModel = val;
+        else if (key === "SCOPED_LIMIT_ACTIVE") claudeScopedLimitActive = (val === "true");
         else if (key === "EXTRA_USAGE_ENABLED") claudeExtraUsageEnabled = (val === "true");
+        else if (key === "EXTRA_USAGE_UTIL") claudeExtraUsageUtil = Number(val || 0);
         else if (key === "WEEK_MESSAGES") claudeWeekMessages = parseInt(val) || 0;
         else if (key === "WEEK_SESSIONS") claudeWeekSessions = parseInt(val) || 0;
         else if (key === "WEEK_TOKENS") claudeWeekTokens = Number(val || 0);
@@ -2354,6 +2393,99 @@ PluginComponent {
         }
     }
 
+    // One signed-in account (IDE / Google session) with its per-model quota,
+    // rendered as a self-contained block inside a multi-account provider card.
+    component AccountBlock: StyledRect {
+        id: acct
+        property var account
+        readonly property real worst: root.accountWorstPercent(account)
+        readonly property color accent: root.getUsageColor(worst)
+        readonly property var windows: (account && account.windows) ? account.windows : []
+        width: parent ? parent.width : implicitWidth
+        implicitHeight: acctCol.implicitHeight + Theme.spacingM * 2
+        radius: Theme.cornerRadius + 2
+        color: Theme.surfaceContainerHigh
+        border.width: 1
+        border.color: Theme.withAlpha(accent, 0.28)
+
+        Rectangle { // accent bar
+            width: 3
+            radius: 2
+            anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: Theme.spacingS }
+            color: acct.accent
+        }
+
+        Column {
+            id: acctCol
+            anchors {
+                left: parent.left; right: parent.right; top: parent.top
+                leftMargin: Theme.spacingM + 5; rightMargin: Theme.spacingM; topMargin: Theme.spacingM
+            }
+            spacing: Theme.spacingS
+
+            RowLayout {
+                width: parent.width
+                spacing: Theme.spacingS
+                DankIcon {
+                    name: "deployed_code"
+                    size: 16
+                    color: acct.accent
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    StyledText {
+                        text: root.accountLabel(acct.account)
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeSmall
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    StyledText {
+                        text: root.accountEmail(acct.account)
+                        visible: text.length > 0
+                        color: Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall - 2
+                        elide: Text.ElideMiddle
+                        Layout.fillWidth: true
+                    }
+                }
+                StyledText {
+                    text: `${Math.round(acct.worst)}%`
+                    color: acct.accent
+                    font.pixelSize: Theme.fontSizeLarge
+                    font.weight: Font.Bold
+                    Layout.alignment: Qt.AlignVCenter
+                }
+            }
+
+            StyledText { // pool explanation from the API
+                width: parent.width
+                visible: !!acct.account && !!acct.account.groupDescription
+                text: acct.account ? (acct.account.groupDescription || "") : ""
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall - 2
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: acct.windows
+                delegate: UsageBar {
+                    required property var modelData
+                    width: parent.width
+                    label: modelData.name || modelData.resetDescription || ""
+                    percent: Number(modelData.usedPercent || 0)
+                    aside: (modelData.description && String(modelData.description).length > 0)
+                        ? String(modelData.description)
+                        : `${Math.round(Number(modelData.usedPercent || 0))}% used`
+                    accentColor: root.getUsageColor(Number(modelData.usedPercent || 0))
+                }
+            }
+        }
+    }
+
     component ProviderDashboardCard: StyledRect {
         id: card
         required property var provider
@@ -2650,7 +2782,7 @@ PluginComponent {
                 spacing: Theme.spacingL
 
                 Repeater {
-                    model: card.windows
+                    model: (card.expanded && !root.hasMultipleAccounts(card.provider)) ? card.windows : []
 
                     UsageBar {
                         required property var modelData
@@ -2659,6 +2791,22 @@ PluginComponent {
                         percent: Number(modelData.data.usedPercent || 0)
                         aside: root.formatUsageLine(modelData.data)
                         accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                    }
+                }
+
+                Column { // multi-account breakdown (Antigravity: one block per IDE / Google account)
+                    width: parent.width
+                    spacing: Theme.spacingM
+                    visible: root.hasMultipleAccounts(card.provider)
+
+                    Repeater {
+                        model: (card.expanded && root.hasMultipleAccounts(card.provider)) ? root.accountsForProvider(card.provider) : []
+
+                        delegate: AccountBlock {
+                            required property var modelData
+                            width: parent.width
+                            account: modelData
+                        }
                     }
                 }
 
@@ -2770,6 +2918,18 @@ PluginComponent {
                                 return reset.length > 0 ? `${Math.round(root.claudeSevenDayUtil)}% · ${reset}` : `${Math.round(root.claudeSevenDayUtil)}%`;
                             }
                             accentColor: root.getUsageColor(root.claudeSevenDayUtil)
+                        }
+
+                        UsageBar {
+                            width: parent.width
+                            visible: root.claudeScopedLimitModel !== "" && root.claudeScopedLimitUtil > 0
+                            label: `${t("card.week", "Week")} · ${root.claudeScopedLimitModel}`
+                            percent: root.claudeScopedLimitUtil
+                            aside: {
+                                const reset = root.formatTimeUntil(root.claudeScopedLimitReset);
+                                return reset.length > 0 ? `${Math.round(root.claudeScopedLimitUtil)}% · ${reset}` : `${Math.round(root.claudeScopedLimitUtil)}%`;
+                            }
+                            accentColor: root.getUsageColor(root.claudeScopedLimitUtil)
                         }
 
                         Row {

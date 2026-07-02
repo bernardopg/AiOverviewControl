@@ -120,8 +120,33 @@ jq -c --arg source "$source_name" --argjson updated_at "$updated_at" '
       ((num($q.percent_remaining) | tostring) + "% remaining")
     else "Usage available" end;
 
+  # Plan label from the SKU + plan fields. access_type_sku distinguishes the
+  # Education/Student grant ("free_educational_quota") and the free tier from
+  # paid Pro — copilot_plan alone reports "individual" for all of them.
+  def plan_label:
+    (.access_type_sku // "" | tostring) as $sku |
+    (.copilot_plan // "" | tostring) as $plan |
+    if ($sku | test("educational|student")) then "Education"
+    elif ($sku | test("pro_plus")) or ($plan | test("pro_plus|individual_pro")) then "Pro+"
+    elif ($sku | test("^free")) or $plan == "free" then "Free"
+    elif $plan == "business" then "Business"
+    elif $plan == "enterprise" then "Enterprise"
+    elif $plan == "individual" then "Pro"
+    else ($plan | gsub("_"; " ")) end;
+
+  # Since 2026-06-01 Copilot bills token-based GitHub AI Credits instead of
+  # premium request units; the API keeps the premium_interactions snapshot but
+  # flags the new metering with token_based_billing.
+  def premium_label:
+    if (.token_based_billing? // false) == true
+    then "Premium requests · AI credits"
+    else "Premium requests" end;
+
   # reset_date lives at the top level (quota_reset_date_utc), not per-snapshot.
   (.quota_reset_date_utc // .quota_reset_date // null) as $reset_at |
+  (plan_label) as $plan_name |
+  ((.login // "GitHub Copilot") + (if $plan_name != "" then " · " + $plan_name else "" end)) as $account |
+  (premium_label) as $premium_desc |
 
   (quota("premium_interactions")) as $premium
   | (quota("chat")) as $chat
@@ -152,16 +177,16 @@ jq -c --arg source "$source_name" --argjson updated_at "$updated_at" '
       usage:{
         identity:{
           providerID:"copilot",
-          accountEmail:(.login // .copilot_plan // "GitHub Copilot"),
+          accountEmail:$account,
           loginMethod:"github-token"
         },
-        accountEmail:(.login // .copilot_plan // "GitHub Copilot"),
+        accountEmail:$account,
         loginMethod:"github-token",
         primary:{
           usedPercent:(used_percent($premium) | if . < 0 then 0 elif . > 100 then 100 else . end),
           windowMinutes:43200,
           resetsAt:$reset_at,
-          resetDescription:"Premium requests",
+          resetDescription:$premium_desc,
           displayValue:display($premium)
         },
         secondary:$chat_window,

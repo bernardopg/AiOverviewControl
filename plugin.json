@@ -2,13 +2,24 @@
   "id": "aiOverviewControl",
   "name": "AiOverviewControl",
   "description": "Plugin-managed AI quota, billing, authentication, and local usage telemetry for DankMaterialShell",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "author": "bernardopg",
   "icon": "monitoring",
   "type": "widget",
-  "capabilities": ["dankbar-widget", "process"],
+  "capabilities": [
+    "dankbar-widget",
+    "process"
+  ],
   "component": "./AiOverviewControlWidget.qml",
   "settings": "./AiOverviewControlSettings.qml",
-  "requires": ["bash", "jq", "curl"],
-  "permissions": ["process", "settings_read", "settings_write"]
+  "requires": [
+    "bash",
+    "jq",
+    "curl"
+  ],
+  "permissions": [
+    "process",
+    "settings_read",
+    "settings_write"
+  ]
 }

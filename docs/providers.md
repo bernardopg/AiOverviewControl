@@ -63,7 +63,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>claude</code></td>
 <td>Quota + local analytics</td>
 <td>local <code>~/.claude</code></td>
-<td>⚠️ best-effort 5h / 7d windows</td>
+<td>✅ 5h / 7d / weekly per-model (<code>limits[]</code>)</td>
 <td>✅ Pro / Max</td>
 <td>✅</td>
 <td><code>claude</code> OAuth</td>
@@ -74,8 +74,8 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>copilot</code></td>
 <td>Quota snapshot</td>
 <td><code>copilot_internal/user</code></td>
-<td>✅ premium quota + overage; chat/completions shown only when not unlimited</td>
-<td>✅ Business / Enterprise</td>
+<td>✅ premium (AI credits since 2026-06) + overage; chat/completions shown only when not unlimited</td>
+<td>✅ Free / Pro / Pro+ / Education / Business / Enterprise</td>
 <td>—</td>
 <td><code>GH_TOKEN</code></td>
 <td><a href="https://github.com/settings/copilot">github.com/settings/copilot</a></td>
@@ -85,13 +85,13 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <tr>
 <td><code>antigravity</code></td>
 <td>Quota (Cloud Code Assist)</td>
-<td>✅ local Antigravity OAuth session</td>
-<td>⚠️ per-model remaining fraction + reset time</td>
+<td>✅ local Antigravity OAuth (keyring / IDE session, auto-refreshed)</td>
+<td>✅ per-model remaining fraction + reset time</td>
 <td>✅ Antigravity plan</td>
 <td>—</td>
-<td><code>~/.config/Antigravity</code></td>
+<td><code>~/.config/Antigravity IDE</code></td>
 <td>Antigravity IDE</td>
-<td><code>v1internal:fetchAvailableModels</code> on <code>cloudcode-pa.googleapis.com</code></td>
+<td><code>v1internal:retrieveUserQuotaSummary</code> on <code>cloudcode-pa.googleapis.com</code> (multi-account)</td>
 </tr>
 <tr>
 <td><code>gemini</code></td>
