@@ -49,7 +49,7 @@ inventados. Nunca.
 
 | | |
 | --- | --- |
-| 📊 **Dashboard unificado** | 33 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
+| 📊 **Dashboard unificado** | 34 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
 | 🛰️ **Visão geral da frota** | Rollup cross-provider no hero — carga média só de cotas mensuráveis, provedor mais quente, quantos estão perto do limite e o próximo reset. |
 | ⏱️ **Janelas oficiais do Codex** | Janelas de rate-limit direto do `codex app-server`. |
 | 🤖 **Analytics profundo do Claude** | Cota mais analytics local de tokens, sessões, modelos, projetos e custo. |
@@ -81,7 +81,7 @@ provedor roteado — tudo lido de dados locais pertencentes ao provedor.
 
 ## Modelo de cobertura
 
-Os cartões usam um de quatro níveis honestos de cobertura:
+Os cartões usam um de seis níveis honestos de cobertura:
 
 | Cobertura | Significado |
 | --- | --- |
@@ -89,6 +89,7 @@ Os cartões usam um de quatro níveis honestos de cobertura:
 | **Analytics local** | Lê arquivos ou bancos de dados pertencentes ao provedor. |
 | **Autenticação** | Verifica credenciais sem dados estáveis de cota. |
 | **Informativo** | Aponta para o uso oficial quando não existe API somente leitura. |
+| **Runtime local** | Mostra processos ou modelos instalados localmente. |
 
 Integrações medidas notáveis:
 
@@ -97,7 +98,7 @@ Integrações medidas notáveis:
 | Codex | Métodos oficiais de conta e rate-limit do `codex app-server`. |
 | Claude Code | Cota OAuth mais analytics local de `~/.claude/projects`. |
 | GitHub Copilot | Snapshot autenticado de cota GitHub/Copilot. |
-| Antigravity | Cotas por modelo e horários de reset via endpoint Cloud Code Assist, usado pela IDE Antigravity e pelo gemini-cli. |
+| Antigravity | Famílias de cota Gemini e Claude/OpenAI, com reset via Cloud Code Assist; detalhes por modelo são opcionais e contas locais múltiplas ficam separadas. |
 | 9Router | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado. |
 | OpenRouter | Limites de chave, gasto, saldo e atividade de modelos em 30 dias. |
 | DeepSeek, Kimi, Together | APIs de saldo ou crédito do provedor. |

@@ -17,9 +17,12 @@ fi
 tmp_out="$(mktemp)"
 trap 'rm -f "$tmp_out"' EXIT
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_VERSION="$(jq -r '.version // "unknown"' "$SCRIPT_DIR/../plugin.json" 2>/dev/null || printf 'unknown')"
+
 {
   printf '%s\n' \
-    '{"method":"initialize","id":0,"params":{"clientInfo":{"name":"ai_overview_control","title":"AiOverviewControl","version":"1.4.12"}}}' \
+    "{\"method\":\"initialize\",\"id\":0,\"params\":{\"clientInfo\":{\"name\":\"ai_overview_control\",\"title\":\"AiOverviewControl\",\"version\":\"${PLUGIN_VERSION}\"}}}" \
     '{"method":"account/read","id":1,"params":{"refreshToken":false}}' \
     '{"method":"account/rateLimits/read","id":2,"params":{}}'
   sleep 4
@@ -47,7 +50,8 @@ jq -cn --argjson account "$account" --argjson response "$limits" '
       resetsAt: iso($value.resetsAt),
       resetDescription: $label
     } end;
-  ($response.rateLimitsByLimitId.codex // $response.rateLimits) as $limits
+  $response.rateLimits as $limits
+  | ($response.rateLimitResetCredits // {}) as $reset_credits
   | {
       provider:"codex",
       source:"codex-app-server",
@@ -66,12 +70,10 @@ jq -cn --argjson account "$account" --argjson response "$limits" '
       },
       credits:{
         remaining:(
-          if ($limits.credits.unlimited // false) then "unlimited"
-          # A subscription plan (Plus/Pro/Team) with a zero balance has no
-          # add-on credit pack — showing "0" reads like an exhausted wallet.
-          # Only surface a balance when it is genuinely positive; otherwise
-          # report "not available" so the card reflects the plan, not a scare.
-          elif (($limits.credits.balance // null) != null and (($limits.credits.balance // 0) | tonumber? // 0) > 0) then ($limits.credits.balance | tostring)
+          if ($reset_credits.availableCount // null) != null then
+            ($reset_credits.availableCount | tostring)
+          elif ($limits.individualLimit // null) != null then
+            ($limits.individualLimit | tostring)
           else "not available"
           end
         )

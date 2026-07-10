@@ -21,12 +21,12 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm` |
-| **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `together` |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID) |
+| **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek` |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local) |
-| **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `fireworks`, `minimax`, `xai`, `kilo` |
+| **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
-| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp`, `ai21` |
+| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp` |
 
 ## Coverage matrix
 
@@ -86,12 +86,12 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>antigravity</code></td>
 <td>Quota (Cloud Code Assist)</td>
 <td>✅ local Antigravity OAuth (keyring / IDE session, auto-refreshed)</td>
-<td>✅ per-model remaining fraction + reset time</td>
+<td>✅ Gemini / Claude &amp; OpenAI family quota + reset; optional per-model detail</td>
 <td>✅ Antigravity plan</td>
 <td>—</td>
 <td><code>~/.config/Antigravity IDE</code></td>
 <td>Antigravity IDE</td>
-<td><code>v1internal:retrieveUserQuotaSummary</code> on <code>cloudcode-pa.googleapis.com</code> (multi-account)</td>
+<td><code>loadCodeAssist</code> + <code>v1internal:fetchAvailableModels</code> on <code>cloudcode-pa.googleapis.com</code> (multi-account)</td>
 </tr>
 <tr>
 <td><code>gemini</code></td>
@@ -118,7 +118,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <tr>
 <td><code>mistral</code></td>
 <td>Auth</td>
-<td>✅ <code>GET /v1/models</code></td>
+<td>⚠️ <code>GET /v1/models</code> is public and cannot validate a key</td>
 <td>❌ dashboard-only</td>
 <td>✅ Vibe Pro $14.99 / Team $24.99</td>
 <td>✅ per token</td>
@@ -142,7 +142,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>Auth</td>
 <td>✅ <code>GET /v1/models</code></td>
 <td>❌ dashboard-only</td>
-<td>⚠️ 1k free credits once</td>
+<td>⚠️ rate-limited developer trial</td>
 <td>✅ NVIDIA Cloud Credits</td>
 <td><code>NVIDIA_API_KEY</code></td>
 <td><a href="https://build.nvidia.com/credits">build.nvidia.com/credits</a></td>
@@ -166,7 +166,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ <code>GET /v1/users/me/balance</code></td>
 <td>⚠️ top-up vouchers only</td>
 <td>✅ per token (USD/CNY)</td>
-<td><code>MOONSHOT_API_KEY</code></td>
+<td><code>MOONSHOT_API_KEY</code> or <code>KIMI_API_KEY</code></td>
 <td><a href="https://platform.kimi.ai/console">platform.kimi.ai</a></td>
 <td><a href="https://platform.kimi.ai/docs/intro">platform.kimi.ai/docs</a></td>
 </tr>
@@ -263,7 +263,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>vertexai</code></td>
 <td>Local runtime</td>
 <td><code>gcloud auth</code></td>
-<td>❌ dashboard-only</td>
+<td>⚠️ <code>GetUsage</code> exists with separate IAM Signature V4 credentials</td>
 <td>—</td>
 <td>✅</td>
 <td><code>gcloud</code></td>
@@ -283,14 +283,14 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>together</code></td>
-<td>Balance</td>
-<td>credits endpoint</td>
-<td>✅ remaining credits</td>
+<td>Auth</td>
+<td>✅ <code>GET /v1/models</code></td>
+<td>❌ no documented read-only credits endpoint</td>
 <td>—</td>
 <td>✅</td>
 <td><code>TOGETHER_API_KEY</code></td>
 <td><a href="https://api.together.ai/settings/api-keys">api.together.ai</a></td>
-<td><a href="https://docs.together.ai/reference/credits">docs.together.ai</a></td>
+<td><a href="https://docs.together.ai/reference/models">docs.together.ai</a></td>
 </tr>
 <tr>
 <td><code>groq</code></td>
@@ -327,19 +327,19 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>fireworks</code></td>
-<td>Auth</td>
+<td>Quota (with account ID)</td>
 <td>✅ inference models API</td>
-<td>❌ dashboard-only</td>
+<td>✅ <code>GET /v1/accounts/{account_id}/quotas</code></td>
 <td>—</td>
 <td>✅</td>
-<td><code>FIREWORKS_API_KEY</code></td>
+<td><code>FIREWORKS_API_KEY</code>; optional <code>FIREWORKS_ACCOUNT_ID</code></td>
 <td><a href="https://app.fireworks.ai">app.fireworks.ai</a></td>
 <td><a href="https://docs.fireworks.ai/tools-sdks/openai-compatibility">docs.fireworks.ai</a></td>
 </tr>
 <tr>
 <td><code>ai21</code></td>
-<td>Informational</td>
-<td>❌</td>
+<td>Auth</td>
+<td>✅ <code>GET /studio/v1/models</code></td>
 <td>❌ dashboard-only</td>
 <td>—</td>
 <td>✅</td>
@@ -488,13 +488,13 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **API base** | `https://integrate.api.nvidia.com/v1` (OpenAI-compatible). No regional mirror; backed by DGX Cloud. |
 | **Env var** | `NVIDIA_API_KEY` (NGC personal key, `nvapi-` prefix). |
 | **Auth** | `Authorization: Bearer <key>`. |
-| **Key check** | `GET /v1/models` → `200` OpenAI-style list; `401` on bad key. Zero credits (catalog read). |
+| **Key check** | `GET /v1/models` is a public catalog and cannot validate a key; the card truthfully reports only that a key is set. |
 | **Quota / balance** | ❌ None documented. NVCF/Cloud Functions billing doc is auth-gated (`401`). Balance is dashboard-only. Practical exhaustion signal: inference returns `402`/`429`. |
-| **Plans** | Free Developer tier: **1,000 credits** once (NVIDIA Developer Program). Then NVIDIA Cloud Credits (USD blocks). Enterprise: NVIDIA AI Enterprise license for self-hosted NIM. |
+| **Plans** | Rate-limited Developer trial, NVIDIA Cloud Credits (USD blocks), and NVIDIA AI Enterprise for self-hosted NIM. |
 | **Billing** | **Credit-based per request** (1 credit ≈ 1 standard request; heavy models cost more). No posted $/M-token table for the hosted catalog. |
 | **Dashboard** | [build.nvidia.com/credits](https://build.nvidia.com/credits). NGC keys at [org.ngc.nvidia.com](https://org.ngc.nvidia.com). |
 | **Changelog** | **Nemotron-3** family (Ultra-550B, Super-120B-A12B, Nano-30B-A3B, Nano-Omni-30B). Heavy expansion into third-party frontier models (DeepSeek V4 Pro/Flash, Mistral Large 3 675B + Medium 3.5 + Small 4, MiniMax M2.7/M3, Stepfun, Z.ai GLM 5.1/4.7, Qwen3-Coder-480B). New async `202`+polling pattern for heavy endpoints. Healthcare microservices (AlphaFold2, Boltz2, OpenFold3). |
-| **Adapter** | `fetch_nvidia_native` — `/v1/models` validation only. |
+| **Adapter** | `fetch_nvidia_native` — public `/v1/models` catalogue probe; it does not claim that the key is validated. |
 
 ### MiniMax
 

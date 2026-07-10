@@ -1,6 +1,9 @@
 {
   "app.title": "AI Usage Control",
   "card.account": "Account",
+  "card.accounts": "Accounts",
+  "card.accounts_count": "{count} local accounts",
+  "card.antigravity_families": "Quota families shared by Antigravity",
   "card.active": "Active",
   "card.add_provider": "Add provider",
   "card.attention": "Attention",
@@ -60,6 +63,8 @@
   "rollup.providers": "{count} live",
   "rollup.title": "Fleet overview",
   "settings.active_count": "{count} active",
+  "settings.antigravity_model_details": "Show individual Antigravity models",
+  "settings.antigravity_model_details_desc": "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.",
   "settings.configured_count": "{count} configured",
   "settings.copy_command": "Copy command",
   "settings.current_selection": "Current selection",

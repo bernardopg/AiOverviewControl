@@ -61,6 +61,19 @@ Zero can mean one of three things:
 
 Read the card's source and display value rather than assuming every provider has a percentage quota.
 
+## Antigravity quota or account layout
+
+The normal Antigravity view deliberately shows only **Gemini Models** and **Claude & OpenAI Models**. These are family quotas, not placeholders: each reflects the model in that family with the least quota remaining. With multiple locally signed-in accounts, expand the card to see the same two family rows under each account email and install.
+
+If the result looks inconsistent with the Antigravity Models screen, refresh the plugin and check the raw response without exposing credentials:
+
+```bash
+PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
+$PLUGIN/providers/get-provider-usage antigravity | jq .
+```
+
+For a temporary model-by-model diagnosis, enable **Show individual Antigravity models** in the plugin settings, then expand the Antigravity card. Turn it off again to return to the concise view. If the helper reports no session, open the affected Antigravity installation, sign in, and ensure `sqlite3` is installed.
+
 ## Slow refresh or timeout
 
 The widget has a 45-second total timeout. Each network adapter also has a shorter curl timeout. Reduce the selected provider count, increase the refresh interval, and test providers individually.
@@ -69,5 +82,5 @@ The widget has a 45-second total timeout. Each network adapter also has a shorte
 
 ```bash
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
-jq . i18n/en.json i18n/pt_BR.json i18n/zh_CN.json
+for file in i18n/*.json; do jq . "$file"; done
 ```

@@ -1,0 +1,2 @@
+{"id":1,"result":{"account":{"email":"test@example.invalid","planType":"pro"}}}
+{"id":2,"result":{"rateLimits":{"primary":{"usedPercent":25,"windowDurationMins":300,"resetsAt":1893456000},"secondary":{"usedPercent":50,"windowDurationMins":10080,"resetsAt":1894060800},"individualLimit":100},"rateLimitResetCredits":{"availableCount":12,"credits":[]}}}

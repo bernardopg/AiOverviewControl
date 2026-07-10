@@ -44,6 +44,10 @@ PluginComponent {
         return Number.isFinite(parsed) && parsed > 0 && parsed <= 100 ? parsed : 85;
     }
     property bool showClaudeProjects: String(pluginData.showClaudeProjects ?? "true") === "true"
+    // Antigravity normally groups quotas exactly as its own Models screen:
+    // Gemini and Claude/OpenAI. Per-model rows remain available for advanced
+    // troubleshooting without making every account card noisy by default.
+    property bool showAntigravityModelDetails: String(pluginData.showAntigravityModelDetails ?? "false") === "true"
     // Per-provider overrides: "claude:90,codex:75" beats the global threshold.
     readonly property var notifyThresholdOverrides: {
         const raw = String(pluginData.notifyThresholds || "").trim();
@@ -83,9 +87,6 @@ PluginComponent {
         return result;
     }
     property string pendingProviderId: availableProviderOptions[0] || "codex"
-    property string claudeRawBuffer: ""
-    property bool claudeStatsError: false
-    property string claudeSubscriptionType: ""
     property string claudeRateLimitTier: ""
     property real claudeFiveHourUtil: 0
     property string claudeFiveHourReset: ""
@@ -94,9 +95,7 @@ PluginComponent {
     property real claudeScopedLimitUtil: 0
     property string claudeScopedLimitReset: ""
     property string claudeScopedLimitModel: ""
-    property bool claudeScopedLimitActive: false
     property bool claudeExtraUsageEnabled: false
-    property real claudeExtraUsageUtil: 0
     property int claudeWeekMessages: 0
     property int claudeWeekSessions: 0
     property real claudeWeekTokens: 0
@@ -317,8 +316,6 @@ PluginComponent {
     readonly property bool hasProviderData: !!providerData && !!providerData.usage
     readonly property var usageData: hasProviderData ? providerData.usage : null
     readonly property var primaryWindow: usageData ? usageData.primary : null
-    readonly property var secondaryWindow: usageData ? usageData.secondary : null
-    readonly property var tertiaryWindow: usageData ? usageData.tertiary : null
     readonly property real primaryPercent: primaryWindow ? Number(primaryWindow.usedPercent || 0) : 0
     readonly property color heroAccent: getUsageColor(primaryPercent)
 
@@ -394,32 +391,6 @@ PluginComponent {
             return usageData.identity.loginMethod;
         }
         return usageData.loginMethod || "";
-    }
-
-    readonly property var usageWindows: {
-        const windows = [];
-        if (primaryWindow) {
-            windows.push({
-                key: "primary",
-                label: primaryWindow.resetDescription || getWindowLabel(primaryWindow.windowMinutes),
-                data: primaryWindow
-            });
-        }
-        if (secondaryWindow) {
-            windows.push({
-                key: "secondary",
-                label: secondaryWindow.resetDescription || getWindowLabel(secondaryWindow.windowMinutes),
-                data: secondaryWindow
-            });
-        }
-        if (tertiaryWindow) {
-            windows.push({
-                key: "tertiary",
-                label: tertiaryWindow.resetDescription || t("window.tertiary", "Tertiary"),
-                data: tertiaryWindow
-            });
-        }
-        return windows;
     }
 
     readonly property string statusTitle: {
@@ -689,6 +660,10 @@ PluginComponent {
     function providerAccount(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
         if (!usage) return "—";
+        const accounts = accountsForProvider(provider);
+        if (provider.provider === "antigravity" && accounts.length >= 2) {
+            return t("card.accounts_count", "{count} local accounts", { count: accounts.length });
+        }
         if (usage.identity && usage.identity.accountEmail) return usage.identity.accountEmail;
         return usage.accountEmail || "—";
     }
@@ -793,6 +768,16 @@ PluginComponent {
     function windowsForProvider(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
         if (!usage) return [];
+        const accounts = accountsForProvider(provider);
+        if (provider.provider === "antigravity" && showAntigravityModelDetails
+                && accounts.length === 1 && accounts[0].modelWindows && accounts[0].modelWindows.length) {
+            const modelWindows = accounts[0].modelWindows;
+            const detailed = [];
+            for (let i = 0; i < modelWindows.length; i++) {
+                detailed.push({ key: `model-${i}`, label: modelWindows[i].resetDescription || modelWindows[i].name || "", data: modelWindows[i] });
+            }
+            return detailed;
+        }
         const windows = [];
         if (usage.primary) windows.push({ key: "primary", label: usage.primary.resetDescription || getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
         if (usage.secondary) windows.push({ key: "secondary", label: usage.secondary.resetDescription || getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
@@ -814,7 +799,7 @@ PluginComponent {
     }
 
     function hasMultipleAccounts(provider) {
-        return accountsForProvider(provider).length >= 1 && !!provider && !provider.error;
+        return accountsForProvider(provider).length >= 2 && !!provider && !provider.error;
     }
 
     function accountLabel(account) {
@@ -835,10 +820,12 @@ PluginComponent {
         return worst;
     }
 
-    function weeklyUsageWindow(provider) {
-        const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage) return null;
-        return usage.secondary || null;
+    function accountWindows(account) {
+        if (!account) return [];
+        if (showAntigravityModelDetails && account.modelWindows && account.modelWindows.length) {
+            return account.modelWindows;
+        }
+        return account.windows || [];
     }
 
     function providerReset(provider) {
@@ -902,8 +889,7 @@ PluginComponent {
         if (idx < 0) return;
         const key = line.substring(0, idx);
         const val = line.substring(idx + 1);
-        if (key === "SUBSCRIPTION_TYPE") claudeSubscriptionType = val;
-        else if (key === "RATE_LIMIT_TIER") claudeRateLimitTier = val;
+        if (key === "RATE_LIMIT_TIER") claudeRateLimitTier = val;
         else if (key === "FIVE_HOUR_UTIL") claudeFiveHourUtil = Number(val || 0);
         else if (key === "FIVE_HOUR_RESET") claudeFiveHourReset = val;
         else if (key === "SEVEN_DAY_UTIL") claudeSevenDayUtil = Number(val || 0);
@@ -911,9 +897,7 @@ PluginComponent {
         else if (key === "SCOPED_LIMIT_UTIL") claudeScopedLimitUtil = Number(val || 0);
         else if (key === "SCOPED_LIMIT_RESET") claudeScopedLimitReset = val;
         else if (key === "SCOPED_LIMIT_MODEL") claudeScopedLimitModel = val;
-        else if (key === "SCOPED_LIMIT_ACTIVE") claudeScopedLimitActive = (val === "true");
         else if (key === "EXTRA_USAGE_ENABLED") claudeExtraUsageEnabled = (val === "true");
-        else if (key === "EXTRA_USAGE_UTIL") claudeExtraUsageUtil = Number(val || 0);
         else if (key === "WEEK_MESSAGES") claudeWeekMessages = parseInt(val) || 0;
         else if (key === "WEEK_SESSIONS") claudeWeekSessions = parseInt(val) || 0;
         else if (key === "WEEK_TOKENS") claudeWeekTokens = Number(val || 0);
@@ -1387,9 +1371,6 @@ PluginComponent {
         }
         onExited: code => {
             claudeTimeout.stop();
-            // Track the claude detail-fetch state independently of focus so a
-            // failure is not silently swallowed when claude isn't focused.
-            root.claudeStatsError = (code !== 0);
             if (code !== 0 && root.focusedProviderId === "claude") {
                 root.errorMessage = t("error.claude_unavailable", "Claude Code usage details are unavailable. Check claude, jq, and curl.");
             }
@@ -1403,7 +1384,6 @@ PluginComponent {
         onTriggered: {
             if (claudeStatsProcess.running) {
                 claudeStatsProcess.running = false;
-                root.claudeStatsError = true;
                 if (root.focusedProviderId === "claude") {
                     root.errorMessage = t("error.claude_timeout", "Claude Code usage fetch timed out.");
                 }
@@ -1427,13 +1407,13 @@ PluginComponent {
         procUsage.running = true;
         usageTimeout.restart();
         if (root.selectedProviders.indexOf("claude") >= 0 && !claudeStatsProcess.running) {
-            claudeStatsError = false;
             claudeStatsProcess.running = true;
             claudeTimeout.restart();
         }
         if (root.selectedProviders.indexOf("9router") >= 0 && !nineStatsProcess.running) {
             nineStatsBuffer = "";
             nineStatsProcess.running = true;
+            nineStatsTimeout.restart();
         }
     }
 
@@ -1445,6 +1425,7 @@ PluginComponent {
             onRead: data => root.nineStatsBuffer += data
         }
         onExited: code => {
+            nineStatsTimeout.stop();
             if (code !== 0 || root.nineStatsBuffer.length === 0) {
                 root.nineStatsBuffer = "";
                 return;
@@ -1456,6 +1437,18 @@ PluginComponent {
                 // Keep the previous snapshot; the section simply stays as-is.
             }
             root.nineStatsBuffer = "";
+        }
+    }
+
+    Timer {
+        id: nineStatsTimeout
+        interval: root.fetchTimeoutMs
+        repeat: false
+        onTriggered: {
+            if (nineStatsProcess.running) {
+                nineStatsProcess.running = false;
+                nineStatsBuffer = "";
+            }
         }
     }
 
@@ -1759,75 +1752,6 @@ PluginComponent {
         }
     }
 
-    component SectionFrame: StyledRect {
-        id: sectionRoot
-
-        property string title: ""
-        property string subtitle: ""
-        property string aside: ""
-        default property alias contentData: sectionBody.data
-
-        width: parent ? parent.width : implicitWidth
-        radius: Theme.cornerRadius
-        color: Theme.surfaceContainerHigh
-        border.width: 1
-        border.color: Theme.withAlpha(Theme.surfaceText, 0.08)
-        implicitHeight: sectionColumn.implicitHeight + Theme.spacingM * 2
-
-        Column {
-            id: sectionColumn
-            anchors.fill: parent
-            anchors.margins: Theme.spacingM
-            spacing: Theme.spacingS
-
-            Row {
-                width: parent.width
-                spacing: Theme.spacingS
-                visible: sectionRoot.title.length > 0 || sectionRoot.subtitle.length > 0
-
-                Column {
-                    width: parent.width - (asideText.visible ? asideText.width + Theme.spacingS : 0)
-                    spacing: 2
-
-                    StyledText {
-                        visible: sectionRoot.title.length > 0
-                        width: parent.width
-                        text: sectionRoot.title
-                        color: Theme.surfaceText
-                        font.pixelSize: Theme.fontSizeMedium
-                        font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap
-                    }
-
-                    StyledText {
-                        visible: sectionRoot.subtitle.length > 0
-                        width: parent.width
-                        text: sectionRoot.subtitle
-                        color: Theme.surfaceVariantText
-                        font.pixelSize: Theme.fontSizeSmall
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                StyledText {
-                    id: asideText
-                    visible: sectionRoot.aside.length > 0
-                    text: sectionRoot.aside
-                    color: Theme.surfaceVariantText
-                    font.pixelSize: Theme.fontSizeSmall - 1
-                    font.weight: Font.Medium
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-
-            Column {
-                id: sectionBody
-                width: parent.width
-                spacing: Theme.spacingS
-            }
-        }
-    }
-
     component MetricTile: Rectangle {
         id: tile
 
@@ -2118,7 +2042,7 @@ PluginComponent {
             ctx.lineWidth = lw;
             ctx.strokeStyle = Theme.withAlpha(ring.accent, 0.2);
             ctx.stroke();
-            const pct = percent / 100;
+            const pct = Math.max(0, Math.min(1, percent / 100));
             if (pct > 0) {
                 ctx.beginPath();
                 ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(pct, 1));
@@ -2400,7 +2324,7 @@ PluginComponent {
         property var account
         readonly property real worst: root.accountWorstPercent(account)
         readonly property color accent: root.getUsageColor(worst)
-        readonly property var windows: (account && account.windows) ? account.windows : []
+        readonly property var windows: root.accountWindows(account)
         width: parent ? parent.width : implicitWidth
         implicitHeight: acctCol.implicitHeight + Theme.spacingM * 2
         radius: Theme.cornerRadius + 2
@@ -2461,10 +2385,10 @@ PluginComponent {
                 }
             }
 
-            StyledText { // pool explanation from the API
+            StyledText { // concise family explanation; detailed mode keeps model labels self-explanatory
                 width: parent.width
-                visible: !!acct.account && !!acct.account.groupDescription
-                text: acct.account ? (acct.account.groupDescription || "") : ""
+                visible: !!acct.account && !!acct.account.groupDescription && !root.showAntigravityModelDetails
+                text: root.t("card.antigravity_families", "Quota families shared by Antigravity")
                 color: Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall - 2
                 wrapMode: Text.WordWrap
@@ -2838,7 +2762,8 @@ PluginComponent {
 
                     InfoPill {
                         iconName: "person"
-                        label: t("card.account", "Account")
+                        label: card.provider.provider === "antigravity" && root.accountsForProvider(card.provider).length >= 2
+                            ? t("card.accounts", "Accounts") : t("card.account", "Account")
                         value: root.providerAccount(card.provider)
                         accentColor: card.accentColor
                     }
@@ -3178,7 +3103,7 @@ PluginComponent {
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.nine_week_tokens", "Week tokens")
-                                value: `${root.formatTokens(Number(nineCol.nineWeek.promptTokens || 0))} in · ${root.formatTokens(Number(nineCol.nineWeek.completionTokens || 0))} out`
+                                value: `${root.formatTokens(Number(nineCol.nineWeek.promptTokens || 0))} in · ${root.formatTokens(Number(nineCol.nineWeek.cachedTokens || 0))} cached · ${root.formatTokens(Number(nineCol.nineWeek.completionTokens || 0))} out`
                                 accentColor: Theme.secondary
                             }
                         }
@@ -3437,12 +3362,20 @@ PluginComponent {
                 DankDropdown {
                     id: addProviderDropdown
                     Layout.preferredWidth: 220
-                    Layout.fillWidth: managerColumn.width < 560
-                    text: t("card.provider", "Provider")
-                    description: t("card.provider_description", "Choose a provider supported by local helpers or fallback.")
+                    Layout.minimumWidth: 220
+                    Layout.maximumWidth: 220
+                    // DankDropdown's labelled mode binds its width to the
+                    // parent. Inside this GridLayout that makes its trigger
+                    // spill into adjacent cells and leaves the visible picker
+                    // without a reliable hit target. Compact mode owns its
+                    // explicit width, so the whole visible control is
+                    // clickable at every dashboard width.
+                    text: ""
+                    description: ""
                     currentValue: root.pendingProviderId
                     options: root.availableProviderOptions
                     dropdownWidth: 220
+                    enableFuzzySearch: true
                     onValueChanged: function(value) {
                         root.pendingProviderId = value;
                     }

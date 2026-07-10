@@ -11,6 +11,20 @@ chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
 dms restart
 ```
 
+## Install from a release archive
+
+Download the release archive and its matching SHA-256 checksum from the project's GitHub Releases page. Verify it before replacing an existing installation:
+
+```bash
+sha256sum --check AiOverviewControl-*.sha256
+mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
+tar -xzf AiOverviewControl-*.tar.gz -C ~/.config/DankMaterialShell/plugins/AiOverviewControl --strip-components=1
+chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
+dms restart
+```
+
+For a `.zip` release, verify the same checksum and replace the extraction command with `unzip AiOverviewControl-*.zip -d ~/.config/DankMaterialShell/plugins/AiOverviewControl`.
+
 ## Core dependencies
 
 ```bash

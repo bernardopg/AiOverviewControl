@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -euo pipefail
 
 CLAUDE_DIR="${HOME}/.claude"
 CREDENTIALS="${CLAUDE_DIR}/.credentials.json"
@@ -227,7 +227,7 @@ if [ -d "$PROJECTS_DIR" ]; then
             # Timestamps in session JSONL are UTC; WEEK_START/TODAY above are
             # local dates. Convert to the local day so buckets line up — with
             # the raw UTC prefix as fallback if parsing ever fails.
-            fromjson? | select(.type == "assistant" and (.timestamp | type == "string"))
+            fromjson? | select(.type == "assistant" and (.timestamp | type == "string") and (.message.model? != "<synthetic>"))
             | ((.timestamp | sub("\\.[0-9]+"; "") | fromdateiso8601?) // null) as $ts
             | (if $ts != null then ($ts | strflocaltime("%Y-%m-%d")) else .timestamp[:10] end) as $date
             | "\($date) \(.message.model // "unknown") \(.message.usage.input_tokens // 0) \(.message.usage.output_tokens // 0) \(.message.usage.cache_read_input_tokens // 0) \(.message.usage.cache_creation_input_tokens // 0) \(.sessionId // "unknown")"' \
@@ -334,7 +334,7 @@ if [ -d "$PROJECTS_DIR" ]; then
     WEEK_PROJECTS=$(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -8 -exec cat {} + 2>/dev/null \
         | jq -r -R '
             fromjson?
-            | select(.type == "assistant" and (.timestamp | type == "string"))
+            | select(.type == "assistant" and (.timestamp | type == "string") and (.message.model? != "<synthetic>"))
             | ((.timestamp | sub("\\.[0-9]+"; "") | fromdateiso8601?) // null) as $ts
             | (if $ts != null then ($ts | strflocaltime("%Y-%m-%d")) else (.timestamp[:10]) end) as $date
             | ((.cwd // "unknown") | gsub("[,:]"; "_")) as $proj

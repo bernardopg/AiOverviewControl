@@ -3,10 +3,10 @@ set -euo pipefail
 
 # Emit 9Router local telemetry as one JSON object for the dashboard card:
 #   {
-#     days:       [7 entries, oldest→today: {date, weekday, requests, cost, promptTokens, completionTokens}],
+#     days:       [7 entries, oldest→today: {date, weekday, requests, cost, promptTokens, cachedTokens, completionTokens}],
 #     topModels:  [up to 6, 7-day window, sorted by cost desc: {model, provider, requests, cost, tokens}],
 #     byProvider: [7-day window, sorted by cost desc: {provider, requests, cost}],
-#     today / week / month: {requests, cost, promptTokens, completionTokens}
+#     today / week / month: {requests, cost, promptTokens, cachedTokens, completionTokens}
 #   }
 # Source of truth: ~/.9router/db/data.sqlite (usageDaily), fallback ~/.9router/usage.json.
 
@@ -33,12 +33,13 @@ fi
 
 jq -c --arg today "$(date +%F)" --arg month_prefix "$(date +%Y-%m)" '
   def num($v): ($v // 0 | tonumber? // 0);
-  def zero: {requests:0, cost:0, promptTokens:0, completionTokens:0};
+  def zero: {requests:0, cost:0, promptTokens:0, cachedTokens:0, completionTokens:0};
   def add_day($acc; $d):
     $acc
     | .requests += num($d.requests)
     | .cost += num($d.cost)
     | .promptTokens += num($d.promptTokens)
+    | .cachedTokens += num($d.cachedTokens)
     | .completionTokens += num($d.completionTokens);
 
   [ .[] | {date, day:(.data | if type == "string" then fromjson else . end)} ] as $all
@@ -55,12 +56,13 @@ jq -c --arg today "$(date +%F)" --arg month_prefix "$(date +%Y-%m)" '
           requests: num($d.requests),
           cost: num($d.cost),
           promptTokens: num($d.promptTokens),
+          cachedTokens: num($d.cachedTokens),
           completionTokens: num($d.completionTokens)
         }
     ]) as $days
 
   | ($all | map(select(.date == $today)) | first | .day // {}) as $today_day
-  | ([ $days[] | {requests, cost, promptTokens, completionTokens} ]
+  | ([ $days[] | {requests, cost, promptTokens, cachedTokens, completionTokens} ]
       | reduce .[] as $d (zero; add_day(.; $d))) as $week
   | ($all | map(select(.date | startswith($month_prefix)) | .day)
       | reduce .[] as $d (zero; add_day(.; $d))) as $month
@@ -76,7 +78,7 @@ jq -c --arg today "$(date +%F)" --arg month_prefix "$(date +%Y-%m)" '
           provider: (.[0].value.provider // (.[0].key | split("|")[1] // "")),
           requests: (map(num(.value.requests)) | add),
           cost: (map(num(.value.cost)) | add),
-          tokens: (map(num(.value.promptTokens) + num(.value.completionTokens)) | add)
+          tokens: (map(num(.value.promptTokens) + num(.value.cachedTokens) + num(.value.completionTokens)) | add)
         })
       | sort_by(-.cost) | .[0:6]) as $top_models
   | ([ $week_rows[] | .day.byProvider // {} | to_entries[] ]
@@ -96,6 +98,7 @@ jq -c --arg today "$(date +%F)" --arg month_prefix "$(date +%Y-%m)" '
         requests: num($today_day.requests),
         cost: num($today_day.cost),
         promptTokens: num($today_day.promptTokens),
+        cachedTokens: num($today_day.cachedTokens),
         completionTokens: num($today_day.completionTokens)
       },
       week: $week,

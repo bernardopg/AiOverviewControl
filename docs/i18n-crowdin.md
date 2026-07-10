@@ -7,6 +7,8 @@ AiOverviewControl is localized with runtime JSON bundles loaded by `AiOverviewCo
 - `i18n/en.json` — source language and fallback bundle.
 - `i18n/pt_BR.json` — Portuguese (Brazil).
 - `i18n/zh_CN.json` — Chinese Simplified.
+- `i18n/es_ES.json` — Spanish.
+- `i18n/de_DE.json` — German.
 - `AiOverviewControlI18n.qml` — loads the selected bundle and falls back to English per key.
 - `qmldir` — registers the i18n singleton for QML.
 
@@ -16,6 +18,8 @@ The UI language is stored in the plugin settings key `languageOverride`:
 - `en_US` forces English.
 - `pt_BR` forces Portuguese (Brazil).
 - `zh_CN` forces Chinese Simplified.
+- `es_ES` forces Spanish.
+- `de_DE` forces German.
 
 ## Crowdin project setup
 
@@ -27,8 +31,10 @@ Required Crowdin language setup:
 - Target languages:
   - Portuguese, Brazil (`pt-BR`).
   - Chinese Simplified (`zh-CN`).
+  - Spanish (`es-ES`).
+  - German (`de-DE`).
 
-Do not add English as a target language; English is the source file. Remove Spanish (`es-ES`) unless it is intentionally added later.
+Do not add English as a target language; English is the source file.
 
 ## Crowdin CLI
 
@@ -52,6 +58,8 @@ Upload local translations after adding the target languages in Crowdin:
 ```bash
 crowdin upload translations --language pt-BR --config .github/crowdin.yml
 crowdin upload translations --language zh-CN --config .github/crowdin.yml
+crowdin upload translations --language es-ES --config .github/crowdin.yml
+crowdin upload translations --language de --config .github/crowdin.yml
 ```
 
 Download translations:
@@ -60,7 +68,7 @@ Download translations:
 crowdin download --config .github/crowdin.yml
 ```
 
-If Crowdin downloads `i18n/en_US.json` or `i18n/es_ES.json`, the Crowdin target languages are still wrong. Fix the project languages, delete those files, then download again.
+If Crowdin downloads an unexpected locale file, fix the project languages before committing it. The shipped locale files are `en.json`, `pt_BR.json`, `zh_CN.json`, `es_ES.json`, and `de_DE.json`.
 
 ## GitHub integration
 
@@ -75,7 +83,7 @@ Recommended Crowdin GitHub integration settings:
 CI validates:
 
 - `plugin.json` JSON syntax.
-- `i18n/en.json`, `i18n/pt_BR.json`, `i18n/zh_CN.json` JSON syntax.
+- Every `i18n/*.json` file for JSON syntax.
 - Translation key parity against `i18n/en.json`.
 - `.github/crowdin.yml` syntax.
 - QML files when `qmllint` is available.

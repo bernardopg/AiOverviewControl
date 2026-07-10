@@ -1,6 +1,9 @@
 {
   "app.title": "Controle de Uso de IA",
   "card.account": "Conta",
+  "card.accounts": "Contas",
+  "card.accounts_count": "{count} contas locais",
+  "card.antigravity_families": "Famílias de cota compartilhadas pelo Antigravity",
   "card.active": "Ativos",
   "card.add_provider": "Adicionar provedor",
   "card.attention": "Atenção",
@@ -60,6 +63,8 @@
   "rollup.providers": "{count} ativos",
   "rollup.title": "Visão geral da frota",
   "settings.active_count": "{count} ativos",
+  "settings.antigravity_model_details": "Mostrar modelos individuais do Antigravity",
+  "settings.antigravity_model_details_desc": "Por padrão, o Antigravity mostra as mesmas famílias de cota Gemini e Claude/OpenAI da tela Modelos. Ative apenas para diagnosticar cada modelo.",
   "settings.configured_count": "{count} configurados",
   "settings.copy_command": "Copiar comando",
   "settings.current_selection": "Seleção atual",

@@ -1,6 +1,9 @@
 {
   "app.title": "KI-Nutzungsübersicht",
   "card.account": "Konto",
+  "card.accounts": "Konten",
+  "card.accounts_count": "{count} lokale Konten",
+  "card.antigravity_families": "Von Antigravity gemeinsam genutzte Kontingentfamilien",
   "card.active": "Aktiv",
   "card.add_provider": "Anbieter hinzufügen",
   "card.attention": "Achtung",
@@ -60,6 +63,8 @@
   "rollup.providers": "{count} aktiv",
   "rollup.title": "Flottenübersicht",
   "settings.active_count": "{count} aktiv",
+  "settings.antigravity_model_details": "Einzelne Antigravity-Modelle anzeigen",
+  "settings.antigravity_model_details_desc": "Standardmäßig zeigt Antigravity dieselben Gemini- und Claude/OpenAI-Kontingentfamilien wie im Bildschirm „Modelle“. Nur zur Diagnose einzelner Modelle aktivieren.",
   "settings.configured_count": "{count} konfiguriert",
   "settings.copy_command": "Befehl kopieren",
   "settings.current_selection": "Aktuelle Auswahl",

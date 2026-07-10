@@ -77,7 +77,8 @@ QtObject {
         if (!params) return text;
         for (const param in params) {
             const value = params[param] === undefined || params[param] === null ? "" : params[param].toString();
-            text = text.replace(new RegExp("\{" + param + "\}", "g"), value);
+            const escapedParam = String(param).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            text = text.replace(new RegExp("\\{" + escapedParam + "\\}", "g"), () => value);
         }
         return text;
     }

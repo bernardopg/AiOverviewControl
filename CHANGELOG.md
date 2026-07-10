@@ -1,22 +1,38 @@
 # Changelog
 
+## 1.6.1 - 2026-07-10
+
+### Antigravity UX and quota accuracy
+
+- **Concise quota families by default.** Antigravity cards now show the same actionable groups as the Models screen: **Gemini Models** and **Claude & OpenAI Models**. A family uses the tightest model's percentage and reset, so it remains safe when individual model entries differ.
+- **Clean multi-account layout.** One local account uses the ordinary provider-card view. With two or more detected sessions, the expanded card creates one compact, labelled group per installation and email instead of repeating every model as a placeholder-like list.
+- **Advanced model diagnostics are opt-in.** The new Settings toggle **Show individual Antigravity models** restores the raw model rows only when troubleshooting is needed. It is off by default for every user.
+- **Documentation and tests.** Updated configuration, architecture, provider matrix, troubleshooting, English and Brazilian Portuguese README guidance, and the `fetchAvailableModels` fixture coverage.
+
 ## 1.6.0 - 2026-07-02
 
-### Providers
+### Earlier provider additions
 - **Claude: model-scoped weekly limits (Claude 5 rollout).** `get-claude-usage` now parses the canonical `limits[]` array from the OAuth usage endpoint (`session`, `weekly_all`, `weekly_scoped`) and surfaces the per-model weekly window (e.g. the weekly Fable allowance) as the card's tertiary window and as a dedicated "Week · Model" bar in the Claude details panel, with fallback to the legacy flat `five_hour`/`seven_day` objects. Extra-usage credit state (`monthly_limit`, `used_credits`, currency, utilization) is exported too.
 - **Copilot: plan-aware account label.** The adapter decodes `access_type_sku` (e.g. `free_educational_quota` → "Education") and `copilot_plan`, showing "login · Plan" on the card, and labels the primary window "Premium requests · AI credits" on accounts migrated to GitHub's usage-based billing (`token_based_billing`, effective 2026-06-01).
 - **Z.ai: MCP pool labelled and plan tier surfaced.** The monthly window backed by `usageDetails` (shared Search/Reader/Zread pool) is now labelled "MCP" with call counts (e.g. "6 / 100"), and the account label shows the detected plan tier ("GLM Coding Lite/Pro/Max") instead of a generic "Z.ai account".
 - **Antigravity: multiple accounts / IDEs, side by side.** Each install keeps its own `state.vscdb` under a distinct config dir, so two IDEs or two Google accounts are discovered independently, refreshed separately, deduped by email, and rendered as one `AccountBlock` per account in the expanded card (install label, email, per-model quota bars, pool description). The compact card mirrors the most-constrained account. Quota comes from `v1internal:retrieveUserQuotaSummary` — the exact IDE statusline endpoint (per-week + per-5-hour pools, human "Quota resets in …" strings). Refresh-token recovery handles both `antigravityUnifiedStateSync.oauthToken` and the older `jetskiStateSync.agentManagerInitState` layouts.
 
-### Fixed
+### Earlier fixes
 - **Antigravity: session always 401 on current desktop builds.** The adapter read the wrong state DB (`~/.config/Antigravity/…`, the pre-rename path) and expected the old `antigravityAuthStatus.apiKey` key holding a raw, short-lived `ya29.*` access token — which is expired by the time a background widget reads it. It now reads the signed-in build's `~/.config/Antigravity IDE/…` (with legacy fallback), extracts the long-lived **refresh token** from the OAuth blob, and mints a fresh access token via Google's public OAuth token endpoint (Cloud Code client credentials from the IDE bundle) before querying the quota endpoint. The account label now comes from the refreshed `id_token` email. Health probe checks both state-DB paths. Secrets never touch the command line, stdout, or a temp file.
 
-### Providers
-- **Antigravity provider added (Quota coverage).** Surfaces real per-model quota and reset windows from the Google Cloud Code Assist endpoint (`v1internal:fetchAvailableModels` on `cloudcode-pa.googleapis.com`) — the same protocol used by Antigravity IDE and the official `gemini-cli`. Quotas are grouped into current model families: Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.5 Flash, Gemini 3.1 Pro, and GPT-OSS 120B.
+### Audit fixes
+- Codex now reads reset credits from `rateLimitResetCredits.availableCount`; the helper initializes with the installed plugin version.
+- Cloudflare Workers AI GraphQL now uses the valid `String!` scalar and deterministic date ordering.
+- Together AI uses its documented models endpoint for read-only authentication instead of reporting an unverified credits balance.
+- Fireworks exposes account quotas when `FIREWORKS_ACCOUNT_ID` is configured; AI21 validates its API key through the models endpoint.
+- Claude bridge analytics and 9Router cached tokens are retained in normalized usage data.
+
+### Historical provider notes
+- **Antigravity provider added (Quota coverage).** Surfaces real per-model quota and reset windows from the Google Cloud Code Assist endpoint (`v1internal:retrieveUserQuotaSummary` on `cloudcode-pa.googleapis.com`) — the same protocol used by Antigravity IDE and the official `gemini-cli`. Quotas are grouped into current model families: Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.5 Flash, Gemini 3.1 Pro, and GPT-OSS 120B.
 - **Dual credential discovery.** Authentication prefers the signed-in `agy` CLI profile via Linux Secret Service (`secret-tool`), then falls back to the IDE's `globalStorage/state.vscdb` (`antigravityAuthStatus`) for desktop builds. The OAuth bearer token is supplied to `curl` via stdin and never appears in process arguments, stdout, or logs.
 - **Health probe.** `get-provider-health` now recognizes `antigravity` and reports ready/missing based on the keyring or SQLite state availability.
 
-### Fixed
+### Historical fixes
 - **Antigravity Authorization header.** The bearer token was not interpolated into the `curl` config line (missing `%s`), so the live path always failed authentication while fixture tests passed. Token interpolation now works and the live path returns real quota data.
 
 ### Notes

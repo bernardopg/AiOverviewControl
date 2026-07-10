@@ -240,7 +240,7 @@ PluginSettings {
                             StyledText {
                                 id: versionLabel
                                 anchors.centerIn: parent
-                                text: "v1.4.12"
+                                text: "v1.6.1"
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
@@ -368,6 +368,14 @@ PluginSettings {
         description: t("settings.show_projects_desc", "List the week's top projects inside the Claude card.")
         checked: loadValue("showClaudeProjects", "true") === "true"
         onToggled: function(checked) { saveValue("showClaudeProjects", checked ? "true" : "false"); }
+    }
+
+    DankToggle {
+        width: parent.width
+        text: t("settings.antigravity_model_details", "Show individual Antigravity models")
+        description: t("settings.antigravity_model_details_desc", "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.")
+        checked: loadValue("showAntigravityModelDetails", "false") === "true"
+        onToggled: function(checked) { saveValue("showAntigravityModelDetails", checked ? "true" : "false"); }
     }
 
     DankToggle {

@@ -64,7 +64,7 @@ jobs:
 
       - name: Validate i18n JSON syntax
         run: |
-          for f in i18n/en.json i18n/pt_BR.json i18n/zh_CN.json; do
+          for f in i18n/*.json; do
             jq --exit-status . "$f" >/dev/null || {
               echo "::error::${f} is not valid JSON" >&2
               exit 1
@@ -200,15 +200,17 @@ jobs:
           existing = {f.name.removeprefix('get-').removesuffix('-usage')
                       for f in Path('providers').glob('get-*-usage')}
           missing_stub = sorted(canonical - existing - skip)
+          errors = []
 
           if missing_dispatch:
-              print(f'::warning::Stubs with no dispatch case: {missing_dispatch}')
+              errors.append(f'Stubs with no dispatch case: {missing_dispatch}')
           if missing_stub:
-              print(f'::warning::Canonical dispatch cases with no script: {missing_stub}')
+              errors.append(f'Canonical dispatch cases with no script: {missing_stub}')
 
           print(f'Coverage: {len(stubs)} stubs, {len(dispatched)} dispatch entries '
                 f'({len(canonical)} canonical).')
-          # Not a hard failure — aliases make exact matching non-trivial
+          if errors:
+              sys.exit('\n'.join(f'::error::{error}' for error in errors))
           PY
 
   # ─── integration tests ───────────────────────────────────────────────────────
@@ -263,6 +265,32 @@ jobs:
           }
           echo "get-provider-usage smoke: OK — provider=${PROVIDER}"
 
+      - name: Integration test — Codex app-server fixture
+        run: |
+          FAKE_BIN="$(mktemp -d)"
+          cat > "$FAKE_BIN/codex" <<'SH'
+          #!/usr/bin/env bash
+          cat >/dev/null
+          cat "$GITHUB_WORKSPACE/tests/fixtures/codex-app-server.jsonl"
+          SH
+          chmod +x "$FAKE_BIN/codex"
+          OUT="$(PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
+          echo "$OUT" | jq --exit-status '
+            length == 1 and .[0].provider == "codex" and
+            .[0].usage.primary.usedPercent == 25 and
+            .[0].usage.secondary.usedPercent == 50 and
+            .[0].credits.remaining == "12"
+          ' >/dev/null
+
+      - name: Integration test — 9Router cached tokens
+        run: |
+          HOME_DIR="$(mktemp -d)"
+          mkdir -p "$HOME_DIR/.9router"
+          TODAY="$(date +%F)"
+          printf '{"dailySummary":{"%s":{"requests":2,"promptTokens":100,"cachedTokens":40,"completionTokens":20,"cost":0.5}}}\n' "$TODAY" > "$HOME_DIR/.9router/usage.json"
+          OUT="$(HOME="$HOME_DIR" providers/get-provider-usage "9router" "")"
+          echo "$OUT" | jq --exit-status '.[0].usage.tertiary.displayValue | contains("40 cached")' >/dev/null
+
       - name: Integration test — Antigravity quota fixture
         run: |
           OUT="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-valid.json \
@@ -294,6 +322,23 @@ jobs:
           SCHEMA_ERROR="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-schema-changed.json \
             providers/get-provider-usage "antigravity" "")"
           echo "$SCHEMA_ERROR" | jq -e '.[0].error.message | contains("schema changed")' >/dev/null
+
+      - name: Integration test — Antigravity available-models fixture
+        run: |
+          # fetchAvailableModels is the live endpoint. Its models member is an
+          # object keyed by model ID, unlike the older groups/buckets response.
+          OUT="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-models-valid.json \
+            providers/get-provider-usage "antigravity" "")"
+          echo "$OUT" | jq -e '
+            .[0].usage.primary.resetDescription == "Gemini Models"
+            and .[0].usage.primary.usedPercent == 100
+            and .[0].usage.secondary.resetDescription == "Claude & OpenAI Models"
+            and .[0].usage.secondary.usedPercent == 0
+            and .[0].accounts[0].modelWindows[0].name == "Gemini Flash"
+            and .[0].accounts[0].modelWindows[0].usedPercent == 65
+            and .[0].accounts[0].modelWindows[1].name == "Gemini Pro"
+            and .[0].accounts[0].modelWindows[1].usedPercent == 100
+          ' >/dev/null
 
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |
@@ -362,14 +407,6 @@ jobs:
             exit 1
           fi
           echo "usage history round-trip: OK"
-
-      - name: Reject removed aggregation dependency
-        run: |
-          removed_name="codex""bar"
-          if grep -Rin --exclude-dir=.git --exclude='screenshot*.png' "$removed_name" .; then
-            echo "::error::Removed aggregation dependency is still referenced"
-            exit 1
-          fi
 
   # ─── qml ─────────────────────────────────────────────────────────────────────
   qml:

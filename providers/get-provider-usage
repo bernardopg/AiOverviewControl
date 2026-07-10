@@ -171,6 +171,28 @@ fetch_claude_native() {
         updatedAt:(now|todateiso8601)
       },
       credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")}
+      ,analytics:{
+        weekMessages:num("WEEK_MESSAGES"),
+        weekSessions:num("WEEK_SESSIONS"),
+        weekTokens:num("WEEK_TOKENS"),
+        monthTokens:num("MONTH_TOKENS"),
+        alltimeSessions:num("ALLTIME_SESSIONS"),
+        alltimeMessages:num("ALLTIME_MESSAGES"),
+        firstSession:nullable($d.FIRST_SESSION),
+        todayCost:num("TODAY_COST"),
+        weekCost:num("WEEK_COST"),
+        monthCost:num("MONTH_COST"),
+        dailyTokens:(text("DAILY") | split(",") | map(tonumber? // 0)),
+        dailyCosts:(text("DAILY_COSTS") | split(",") | map(tonumber? // 0)),
+        weekModels:text("WEEK_MODELS"),
+        weekModelCosts:text("WEEK_MODEL_COSTS"),
+        weekProjects:text("WEEK_PROJECTS"),
+        extraUsage:{
+          enabled:(text("EXTRA_USAGE_ENABLED") == "true"),
+          used:num("EXTRA_USAGE_USED"), limit:num("EXTRA_USAGE_LIMIT"),
+          utilization:num("EXTRA_USAGE_UTIL"), currency:text("EXTRA_USAGE_CURRENCY")
+        }
+      }
     }
   ' < "$tmp_out"
   rm -f "$tmp_out" "$tmp_err"
@@ -355,11 +377,110 @@ antigravity_account_json() {
       }'
 }
 
+# Map fetchAvailableModels (the endpoint used by the desktop client) to an
+# account. QuotaInfo lives on each ClientModelConfig rather than in the legacy
+# retrieveUserQuotaSummary groups/buckets structure.
+antigravity_models_account_json() {
+  jq -c --arg install "$1" --arg email "$2" --arg login "$3" '
+    def clamp: if type != "number" then 0 elif . < 0 then 0 elif . > 1 then 1 else . end;
+    def family($id; $name):
+      ($id + " " + $name | ascii_downcase) as $value
+      | if ($value | test("gemini")) then {name:"Gemini Models", rank:0}
+        else {name:"Claude & OpenAI Models", rank:1}
+        end;
+    def window:
+      {
+        name:.name,
+        usedPercent:(((1 - .rem) * 10000 | round) / 100),
+        windowMinutes:null,
+        resetsAt:.reset,
+        resetDescription:.name,
+        description:.desc,
+        displayValue:(((1 - .rem) * 100 | round | tostring) + "% used")
+      };
+    # fetchAvailableModels is model-granular. The Antigravity UI, however,
+    # exposes shared Gemini and Claude/OpenAI pools. Keep modelWindows for an
+    # optional advanced view, while windows provides the concise family view.
+    ([.models | to_entries[]? | .key as $id | .value
+      | select(.quotaInfo != null)
+      | (.displayName // .model // $id) as $name
+      | (family($id; $name)) as $family
+      | {
+          name:$name,
+          family:$family.name,
+          familyRank:$family.rank,
+          rem:(.quotaInfo.remainingFraction | clamp),
+          reset:(.quotaInfo.resetTime // null),
+          desc:(.tagDescription // .description // null)
+        }]
+      | sort_by([.familyRank, .name])) as $models
+    | ($models
+      | group_by(.family)
+      | map(
+          . as $members
+          | ($members | sort_by([.rem, .name]) | .[0]) as $tightest
+          | {
+              name:$tightest.family,
+              rank:$tightest.familyRank,
+              rem:$tightest.rem,
+              reset:$tightest.reset,
+              desc:null
+            }
+        )
+      | sort_by([.rem, .rank])) as $families
+    | {
+        install:$install,
+        email:$email,
+        loginMethod:$login,
+        groupDescription:"Antigravity quota families",
+        windows:($families | map(window)),
+        modelWindows:($models | map(window)),
+        updatedAt:(now | todateiso8601)
+      }'
+}
+
+# 9Router follows the same sequence used by Antigravity: load the account's
+# Cloud Code Assist project first, then pass it to fetchAvailableModels.  An
+# empty request body is accepted by the service, but can select its generic
+# entitlement view instead of the subscription associated with the IDE.
+# Print a compact JSON request body, never the API response or credentials.
+antigravity_quota_request_body() {
+  local access_token="$1" endpoint="$2" user_agent="$3" platform="$4"
+  local tmp_body project
+  tmp_body="$(mktemp)"
+  : > "$tmp_body"
+
+  if curl -sS --max-time 10 \
+      --config <(printf 'header = "Authorization: Bearer %s"\n' "$access_token") \
+      -o "$tmp_body" \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -H "User-Agent: ${user_agent}" \
+      -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
+      -d "{\"metadata\":{\"ideType\":9,\"platform\":${platform},\"pluginType\":2},\"mode\":1}" \
+      "${endpoint}/v1internal:loadCodeAssist" 2>/dev/null; then
+    project="$(jq -c '.cloudaicompanionProject // empty' "$tmp_body" 2>/dev/null || true)"
+  fi
+  rm -f "$tmp_body"
+
+  if [ -n "${project:-}" ] && [ "$project" != "null" ]; then
+    jq -cn --argjson project "$project" '{project:$project}'
+  else
+    printf '{}'
+  fi
+}
+
 fetch_antigravity_native() {
   local cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+  # Match the quota path used by 9Router and the Cloud Code Assist client.
+  # The `daily` host accepts the request too, but may return a generic quota
+  # view. Keep the base URL override for future Antigravity builds.
   local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://cloudcode-pa.googleapis.com}"
+  local quota_method="${ANTIGRAVITY_QUOTA_METHOD:-v1internal:fetchAvailableModels}"
   local response_file="${ANTIGRAVITY_RESPONSE_FILE:-}"
-  local accounts_file tmp_body rt refreshed at id_token email install db
+  local user_agent="${ANTIGRAVITY_USER_AGENT:-antigravity/ide/2.1.1 darwin/arm64}"
+  local platform="${ANTIGRAVITY_PLATFORM:-3}"
+  local accounts_file tmp_body quota_body rt refreshed at id_token email install db
   local -a dbs=()
 
   accounts_file="$(mktemp)"
@@ -385,15 +506,22 @@ fetch_antigravity_native() {
       esac
       return 0
     fi
-    if ! jq -e '.groups | type == "array"' "$response_file" >/dev/null 2>&1; then
+    if jq -e '.groups | type == "array"' "$response_file" >/dev/null 2>&1; then
+      # Legacy fixture support for retrieveUserQuotaSummary captures.
+      antigravity_account_json \
+        "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
+        "${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}" \
+        "fixture" < "$response_file" >> "$accounts_file"
+    elif jq -e '(.models | type) == "object"' "$response_file" >/dev/null 2>&1; then
+      antigravity_models_account_json \
+        "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
+        "${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}" \
+        "fixture" < "$response_file" >> "$accounts_file"
+    else
       rm -f "$tmp_body" "$accounts_file"
-      json_error antigravity antigravity-internal 1 provider "Antigravity quota response schema changed: groups array is missing."
+      json_error antigravity antigravity-internal 1 provider "Antigravity quota response schema changed: groups or models object is missing."
       return 0
     fi
-    antigravity_account_json \
-      "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
-      "${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}" \
-      "fixture" < "$response_file" >> "$accounts_file"
   else
     # --- Discover install sessions. Each Antigravity install keeps its own
     # state.vscdb under a distinct config dir, so two IDEs / two Google accounts
@@ -427,17 +555,20 @@ fetch_antigravity_native() {
         install="$(printf '%s' "$db" | sed -E 's#.*/\.config/([^/]+)/User/.*#\1#')"
         [ -n "$install" ] && [ "$install" != "$db" ] || install="Antigravity"
         : > "$tmp_body"
+        quota_body="$(antigravity_quota_request_body "$at" "$endpoint" "$user_agent" "$platform")"
         if curl -sS --max-time 12 \
             --config <(printf 'header = "Authorization: Bearer %s"\n' "$at") \
             -o "$tmp_body" \
             -X POST \
             -H "Content-Type: application/json" \
-            -H "User-Agent: antigravity/linux/amd64" \
+            -H "User-Agent: ${user_agent}" \
+            -H "X-Client-Name: antigravity" \
+            -H "X-Client-Version: 2.1.1" \
             -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
-            -d '{}' \
-            "$endpoint/v1internal:retrieveUserQuotaSummary" 2>/dev/null \
-          && jq -e '.groups | type == "array"' "$tmp_body" >/dev/null 2>&1; then
-          antigravity_account_json "$install" "$email" "IDE session OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
+            -d "$quota_body" \
+            "$endpoint/$quota_method" 2>/dev/null \
+          && jq -e '(.models | type) == "object"' "$tmp_body" >/dev/null 2>&1; then
+          antigravity_models_account_json "$install" "$email" "IDE session OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
         fi
       done
     fi
@@ -465,15 +596,19 @@ fetch_antigravity_native() {
         case "$seen_emails" in *" $email "*) continue ;; esac
         seen_emails="$seen_emails$email "
         : > "$tmp_body"
+        quota_body="$(antigravity_quota_request_body "$at" "$endpoint" "$user_agent" "$platform")"
         if curl -sS --max-time 12 \
             --config <(printf 'header = "Authorization: Bearer %s"\n' "$at") \
             -o "$tmp_body" -X POST \
             -H "Content-Type: application/json" \
-            -H "User-Agent: antigravity/linux/amd64" \
-            -d '{}' \
-            "$endpoint/v1internal:retrieveUserQuotaSummary" 2>/dev/null \
-          && jq -e '.groups | type == "array"' "$tmp_body" >/dev/null 2>&1; then
-          antigravity_account_json "CLI keyring" "$email" "CLI keyring OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
+            -H "User-Agent: ${user_agent}" \
+            -H "X-Client-Name: antigravity" \
+            -H "X-Client-Version: 2.1.1" \
+            -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
+            -d "$quota_body" \
+            "$endpoint/$quota_method" 2>/dev/null \
+          && jq -e '(.models | type) == "object"' "$tmp_body" >/dev/null 2>&1; then
+          antigravity_models_account_json "CLI keyring" "$email" "CLI keyring OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
         fi
         break
       done
@@ -580,8 +715,11 @@ fetch_openrouter_native() {
     | .data as $d
     | ($d.label // $d.name // "OpenRouter API key") as $label
     | ($d.limit // null) as $limit
+    | (if ($d.include_byok_in_limit // false) then num($d.byok_usage) else 0 end) as $byok_usage
+    | (if ($d.include_byok_in_limit // false) then num($d.byok_usage_daily) else 0 end) as $byok_daily
+    | (if ($d.include_byok_in_limit // false) then num($d.byok_usage_weekly) else 0 end) as $byok_weekly
     | (if $d.limit_remaining != null then num($d.limit_remaining)
-       elif $limit != null then (num($limit) - num($d.usage))
+       elif $limit != null then (num($limit) - num($d.usage) - $byok_usage)
        else null end) as $remaining
     | {
       provider:"openrouter",
@@ -595,13 +733,13 @@ fetch_openrouter_native() {
         accountEmail:$label,
         loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end),
         primary:{
-          usedPercent:pct($d.usage; $limit),
+          usedPercent:pct((num($d.usage) + $byok_usage); $limit),
           windowMinutes:null,
           resetsAt:($d.limit_reset // null),
           resetDescription:"Key limit",
           displayValue:(
-            if $limit == null then (money($d.usage) + " used")
-            else (money($d.usage) + " / " + money($limit))
+            if $limit == null then (money(num($d.usage) + $byok_usage) + " used")
+            else (money(num($d.usage) + $byok_usage) + " / " + money($limit))
             end
           )
         },
@@ -610,22 +748,23 @@ fetch_openrouter_native() {
           windowMinutes:1440,
           resetsAt:null,
           resetDescription:"Spent today",
-          displayValue:(money($d.usage_daily))
+          displayValue:(money(num($d.usage_daily) + $byok_daily))
         },
         tertiary:(
-          if ($top_models | length) > 0 then {
-            usedPercent:0,
-            windowMinutes:43200,
-            resetsAt:null,
-            resetDescription:"Top models (30d)",
-            displayValue:($top_models | map(short_model(.model) + " " + money(.usage)) | join(" · "))
-          } else {
-            usedPercent:0,
-            windowMinutes:43200,
-            resetsAt:null,
-            resetDescription:"Spent this month",
-            displayValue:(money($d.usage_monthly))
-          } end
+          ("Week " + money(num($d.usage_weekly) + $byok_weekly) + " · ") as $week_prefix
+          | if ($top_models | length) > 0 then {
+              usedPercent:0,
+              windowMinutes:10080,
+              resetsAt:null,
+              resetDescription:"Week and top models",
+              displayValue:($week_prefix + ($top_models | map(short_model(.model) + " " + money(.usage)) | join(" · ")))
+            } else {
+              usedPercent:0,
+              windowMinutes:10080,
+              resetsAt:null,
+              resetDescription:"Week and month spend",
+              displayValue:($week_prefix + "Month " + money($d.usage_monthly))
+            } end
         ),
         updatedAt:(now|todateiso8601)
       },
@@ -701,9 +840,10 @@ fetch_9router_native() {
     | if ($matches | length) == 0 then empty
       else
         ($matches | sort_by(.date) | last) as $latest
-        | (reduce $matches[] as $entry ({requests:0,promptTokens:0,completionTokens:0,cost:0};
+        | (reduce $matches[] as $entry ({requests:0,promptTokens:0,cachedTokens:0,completionTokens:0,cost:0};
             .requests += num($entry.data.requests)
             | .promptTokens += num($entry.data.promptTokens)
+            | .cachedTokens += num($entry.data.cachedTokens)
             | .completionTokens += num($entry.data.completionTokens)
             | .cost += num($entry.data.cost)
           )) as $total
@@ -741,7 +881,7 @@ fetch_9router_native() {
                 windowMinutes:null,
                 resetsAt:null,
                 resetDescription:"Tokens",
-                displayValue:(compact($total.promptTokens) + " in · " + compact($total.completionTokens) + " out")
+                displayValue:(compact($total.promptTokens) + " in · " + compact($total.cachedTokens) + " cached · " + compact($total.completionTokens) + " out")
               },
               updatedAt:(now|todateiso8601)
             },
@@ -788,10 +928,11 @@ fetch_deepseek_native() {
     | ($infos[0] // {}) as $b
     | num($b.total_balance) as $total
     | num($b.granted_balance) as $granted
+    | num($b.topped_up_balance) as $topped_up
     # The balance API reports remaining funds, not consumption — there is no
     # original total to derive a usage percent from. Mirror the Kimi pattern:
     # full bar only when the balance is depleted.
-    | (if $total <= 0 then 100 else 0 end) as $used_pct
+    | (if ($b.is_available // ($total > 0)) then 0 else 100 end) as $used_pct
     | {
         provider: "deepseek",
         source: "deepseek-api",
@@ -813,7 +954,13 @@ fetch_deepseek_native() {
             resetDescription: "Granted credits",
             displayValue: (($b.currency // "CNY") + " " + ($granted | tostring))
           },
-          tertiary: null,
+          tertiary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Paid balance",
+            displayValue: (($b.currency // "CNY") + " " + ($topped_up | tostring))
+          },
           updatedAt: (now | todateiso8601)
         },
         credits: {
@@ -917,8 +1064,8 @@ fetch_minimax_native() {
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
     "https://api.minimax.io/v1/models" 2>/dev/null || true)"
-  rm -f "$tmp_body"
   if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
     json_note_usage minimax minimax-api "MiniMax account" "api-key" "Authenticated — balance at platform.minimax.io/user-center/payment/balance" "platform.minimax.io"
     return 0
   fi
@@ -969,16 +1116,17 @@ fetch_glm_native() {
         else null end;
       def win_label($type; $unit; $n):
         ( if $type == "TIME_LIMIT" then
-            if $unit == 4 then "5 horas" elif $unit == 6 then "semanal" elif $unit == 5 then "mensal" else "janela" end
+            if $unit == 4 then "5h" elif $unit == 6 then "weekly" elif $unit == 5 then "monthly" else "window" end
           else
-            if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/semana" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end
+            if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/week" elif $unit == 5 then "tokens/month" elif $unit == 3 then "total tokens" else "tokens" end
           end
         ) + (if $n > 1 then " ×\($n)" else "" end);
       def make_window($lim):
         { usedPercent: clamp(($lim.percentage // 0) | tonumber),
           windowMinutes: win_min($lim.unit; $lim.number),
           resetsAt: ms_to_iso($lim.nextResetTime),
-          resetDescription: win_label($lim.type; $lim.unit; $lim.number) };
+          resetDescription: win_label($lim.type; $lim.unit; $lim.number),
+          displayValue: (if ($lim.usage? != null and $lim.currentValue? != null) then "\($lim.currentValue) / \($lim.usage)" else null end) };
 
       .data as $d |
       ($d.limits // []) as $limits |
@@ -1069,9 +1217,9 @@ fetch_zai_native() {
         # (Search / Reader / Zread), not model prompts.
         (if ($lim.usageDetails? != null) then "MCP " else "" end) as $mcp |
         ( if $lim.type == "TIME_LIMIT" then
-            $mcp + (if $unit == 4 then "5 horas" elif $unit == 6 then "semanal" elif $unit == 5 then "mensal" else "janela" end)
+            $mcp + (if $unit == 4 then "5h" elif $unit == 6 then "weekly" elif $unit == 5 then "monthly" else "window" end)
           else
-            $mcp + (if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/semana" elif $unit == 5 then "tokens/mês" elif $unit == 3 then "tokens total" else "tokens" end)
+            $mcp + (if $unit == 4 then "tokens/5h" elif $unit == 6 then "tokens/week" elif $unit == 5 then "tokens/month" elif $unit == 3 then "total tokens" else "tokens" end)
           end
         ) + (if $n > 1 then " ×\($n)" else "" end);
       def display($lim):
@@ -1159,8 +1307,8 @@ fetch_mistral_native() {
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
     "https://api.mistral.ai/v1/models" 2>/dev/null || true)"
-  rm -f "$tmp_body"
   if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
     json_note_usage mistral mistral-api "Mistral account" "api-key" "Authenticated — usage at console.mistral.ai" "console.mistral.ai"
     return 0
   fi
@@ -1232,7 +1380,7 @@ fetch_nvidia_native() {
     "https://integrate.api.nvidia.com/v1/models" 2>/dev/null || true)"
   rm -f "$tmp_body"
   if [ "$http_status" = "200" ]; then
-    json_note_usage nvidia nvidia-nim "NVIDIA NIM account" "api-key" "Authenticated — credits at build.nvidia.com" "build.nvidia.com"
+    json_note_usage nvidia nvidia-nim "NVIDIA NIM account" "api-key" "API key set (the public models endpoint cannot validate it); credits at build.nvidia.com" "build.nvidia.com"
     return 0
   fi
   json_error nvidia nvidia-nim "${http_status:-1}" provider "NVIDIA NIM API key invalid (HTTP ${http_status:-0}). Credits visible at build.nvidia.com only."
@@ -1270,7 +1418,7 @@ fetch_cloudflare_native() {
     start_date="$(date -d '6 days ago' +%Y-%m-%d)"
     graph_status="$(jq -cn --arg tag "$account" --arg start "$start_date" --arg end "$end_date" '
       {
-        query: "query($tag: string!, $start: Date!, $end: Date!) { viewer { accounts(filter: {accountTag: $tag}) { aiInferenceAdaptiveGroups(limit: 1000, filter: {date_geq: $start, date_leq: $end}) { sum { requests neurons } dimensions { date } } } } }",
+        query: "query($tag: String!, $start: Date!, $end: Date!) { viewer { accounts(filter: {accountTag: $tag}) { aiInferenceAdaptiveGroups(limit: 1000, orderBy: [date_ASC], filter: {date_geq: $start, date_leq: $end}) { sum { requests neurons } dimensions { date } } } } }",
         variables: {tag: $tag, start: $start, end: $end}
       }' | curl -sS --max-time 8 -o "$tmp_graph" -w '%{http_code}' \
         -H "Authorization: Bearer ${token}" \
@@ -1340,7 +1488,7 @@ fetch_vertexai_native() {
 fetch_byteplus_native() {
   local key="${BYTEPLUS_API_KEY:-${ARK_API_KEY:-}}"
   if [ -z "$key" ]; then
-    json_error byteplus byteplus-ark 2 provider "BYTEPLUS_API_KEY or ARK_API_KEY is not set. BytePlus ModelArk has no programmatic balance endpoint."
+    json_error byteplus byteplus-ark 2 provider "BYTEPLUS_API_KEY or ARK_API_KEY is not set. BytePlus usage requires separate IAM AccessKey/SecretKey credentials."
     return 0
   fi
   local tmp_body http_status
@@ -1349,12 +1497,16 @@ fetch_byteplus_native() {
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
     "https://ark.ap-southeast.bytepluses.com/api/v3/models" 2>/dev/null || true)"
-  rm -f "$tmp_body"
   if [ "$http_status" = "200" ]; then
-    json_note_usage byteplus byteplus-ark "BytePlus ModelArk account" "api-key" "Authenticated — balance at console.volcengine.com" "console.volcengine.com"
+    rm -f "$tmp_body"
+    json_note_usage byteplus byteplus-ark "BytePlus ModelArk account" "api-key" "Authenticated — IAM-signed usage API is available separately; billing at console.byteplus.com" "console.byteplus.com"
     return 0
   fi
-  json_error byteplus byteplus-ark "${http_status:-1}" provider "BytePlus ModelArk API key invalid (HTTP ${http_status:-0}). No programmatic balance endpoint — check console.volcengine.com."
+  local message
+  message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+  [ -n "$message" ] || message="BytePlus ModelArk API key invalid (HTTP ${http_status:-0}). Usage requires IAM Signature V4 credentials; check console.byteplus.com."
+  rm -f "$tmp_body"
+  json_error byteplus byteplus-ark "${http_status:-1}" provider "$message"
 }
 
 fetch_together_native() {
@@ -1367,41 +1519,17 @@ fetch_together_native() {
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: Bearer ${key}" \
-    "https://api.together.xyz/v1/credits" 2>/dev/null || true)"
+    "https://api.together.xyz/v1/models" 2>/dev/null || true)"
   if [ "$http_status" != "200" ]; then
     local message
     message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
-    [ -n "$message" ] || message="Together AI credits API returned HTTP ${http_status:-0}."
+    [ -n "$message" ] || message="Together AI models API returned HTTP ${http_status:-0}."
     rm -f "$tmp_body"
     json_error together together-api "${http_status:-1}" provider "$message"
     return 0
   fi
-  jq -c '
-    def num($v): ($v // 0 | tonumber? // 0);
-    . as $r
-    | (num($r.credits)) as $credits
-    | {
-        provider: "together",
-        source: "together-api",
-        usage: {
-          identity: { providerID: "together", accountEmail: "Together AI account", loginMethod: "api-key" },
-          accountEmail: "Together AI account",
-          loginMethod: "api-key",
-          primary: {
-            usedPercent: 0,
-            windowMinutes: null,
-            resetsAt: null,
-            resetDescription: "Credits",
-            displayValue: ("$" + ($credits | tostring))
-          },
-          secondary: null,
-          tertiary: null,
-          updatedAt: (now | todateiso8601)
-        },
-        credits: { remaining: ("$" + ($credits | tostring)) }
-      }
-  ' "$tmp_body"
   rm -f "$tmp_body"
+  json_note_usage together together-api "Together AI account" "api-key" "Authenticated — Together AI does not document a read-only credits endpoint; billing is available in the console" "api.together.ai/settings/billing"
 }
 
 fetch_groq_native() {
@@ -1416,12 +1544,16 @@ fetch_groq_native() {
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
     "https://api.groq.com/openai/v1/models" 2>/dev/null || true)"
-  rm -f "$tmp_body"
   if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
     json_note_usage groq groq-api "Groq account" "api-key" "Authenticated — usage at console.groq.com/usage" "console.groq.com/usage"
     return 0
   fi
-  json_error groq groq-api "${http_status:-1}" provider "Groq API key invalid (HTTP ${http_status:-0}). No public quota endpoint — check console.groq.com/usage."
+  local message
+  message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+  [ -n "$message" ] || message="Groq API key invalid (HTTP ${http_status:-0}). No public quota endpoint — check console.groq.com/usage."
+  rm -f "$tmp_body"
+  json_error groq groq-api "${http_status:-1}" provider "$message"
 }
 
 fetch_cohere_native() {
@@ -1499,7 +1631,40 @@ fetch_fireworks_native() {
     json_error fireworks fireworks-api 2 provider "FIREWORKS_API_KEY is not set."
     return 0
   fi
-  local tmp_body http_status
+  local tmp_body http_status account_id
+  account_id="${FIREWORKS_ACCOUNT_ID:-}"
+  if [ -n "$account_id" ]; then
+    tmp_body="$(mktemp)"
+    http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+      -H "Authorization: Bearer ${key}" \
+      -H "Accept: application/json" \
+      "https://api.fireworks.ai/v1/accounts/${account_id}/quotas?pageSize=200" 2>/dev/null || true)"
+    if [ "$http_status" = "200" ] && jq -e '(.quotas // []) | type == "array"' "$tmp_body" >/dev/null 2>&1; then
+      jq -c --arg account "$account_id" '
+        def num($v): ($v // 0 | tonumber? // 0);
+        def pct($used; $limit): if num($limit) > 0 then ((num($used) / num($limit)) * 100 | if . > 100 then 100 elif . < 0 then 0 else . end) else 0 end;
+        def window($quota): if $quota == null then null else {usedPercent:pct($quota.usage; $quota.value), windowMinutes:null, resetsAt:null, resetDescription:$quota.name, displayValue:(($quota.usage | tostring) + " / " + ($quota.value | tostring) + " (max " + ($quota.max | tostring) + ")")} end;
+        [(.quotas // [])[] | {name:(.name // "quota" | split("/") | last), usage:num(.usage), value:num(.value), max:num(.maxValue), update:(.updateTime // null)}]
+        | sort_by(-pct(.usage; .value)) as $quotas
+        | {
+            provider:"fireworks", source:"fireworks-quotas",
+            usage:{identity:{providerID:"fireworks", accountEmail:("Fireworks account " + $account), loginMethod:"api-key"}, accountEmail:("Fireworks account " + $account), loginMethod:"api-key", primary:window($quotas[0]), secondary:window($quotas[1]), tertiary:window($quotas[2]), updatedAt:(now | todateiso8601)},
+            credits:{remaining:(if ($quotas | length) == 0 then "No quotas returned" else (($quotas[0].usage | tostring) + " / " + ($quotas[0].value | tostring)) end)}
+          }
+      ' "$tmp_body"
+      rm -f "$tmp_body"
+      return 0
+    fi
+    if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
+      local quota_message
+      quota_message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+      [ -n "$quota_message" ] || quota_message="Fireworks quota API authorization failed (HTTP ${http_status})."
+      rm -f "$tmp_body"
+      json_error fireworks fireworks-quotas "$http_status" provider "$quota_message"
+      return 0
+    fi
+    rm -f "$tmp_body"
+  fi
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: Bearer ${key}" \
@@ -1514,7 +1679,11 @@ fetch_fireworks_native() {
     return 0
   fi
   rm -f "$tmp_body"
-  json_note_usage fireworks fireworks-api "Fireworks AI account" "api-key" "Authenticated; billing is available in the Fireworks console" "app.fireworks.ai"
+  if [ -n "$account_id" ]; then
+    json_note_usage fireworks fireworks-api "Fireworks AI account ${account_id}" "api-key" "Authenticated; quota API is temporarily unavailable, billing is available in the Fireworks console" "app.fireworks.ai"
+  else
+    json_note_usage fireworks fireworks-api "Fireworks AI account" "api-key" "Authenticated — set FIREWORKS_ACCOUNT_ID to display documented account quotas" "app.fireworks.ai"
+  fi
 }
 
 fetch_ai21_native() {
@@ -1523,7 +1692,22 @@ fetch_ai21_native() {
     json_error ai21 ai21-api 2 provider "AI21_API_KEY is not set."
     return 0
   fi
-  json_note_usage ai21 ai21-config "AI21 account" "api-key" "API key configured; no documented read-only usage endpoint" "studio.ai21.com"
+  local tmp_body http_status
+  tmp_body="$(mktemp)"
+  http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
+    -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
+    "https://api.ai21.com/studio/v1/models" 2>/dev/null || true)"
+  if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
+    json_note_usage ai21 ai21-api "AI21 account" "api-key" "Authenticated — no documented read-only usage endpoint" "studio.ai21.com"
+    return 0
+  fi
+  local message
+  message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+  [ -n "$message" ] || message="AI21 API key validation returned HTTP ${http_status:-0}."
+  rm -f "$tmp_body"
+  json_error ai21 ai21-api "${http_status:-1}" provider "$message"
 }
 
 fetch_qwen_native() {
@@ -1541,8 +1725,8 @@ fetch_qwen_native() {
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     "${headers[@]}" \
     "https://dashscope.aliyuncs.com/compatible-mode/v1/models" 2>/dev/null || true)"
-  rm -f "$tmp_body"
   if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
     json_note_usage qwen dashscope-api "DashScope account" "api-key" "Authenticated — quota at dashscope.console.aliyun.com" "dashscope.console.aliyun.com"
     return 0
   fi
@@ -1607,15 +1791,20 @@ fetch_kilo_native() {
     -H "Authorization: Bearer ${key}" \
     -H "Accept: application/json" \
     "https://api.kilo.ai/api/gateway/models" 2>/dev/null || true)"
-  rm -f "$tmp_body"
   if [ "$http_status" = "200" ]; then
+    rm -f "$tmp_body"
     json_note_usage kilo kilo-gateway "Kilo account" "api-key" "Key accepted — balance at app.kilo.ai/credits" "app.kilo.ai/credits"
     return 0
   fi
   if [ "$http_status" = "401" ] || [ "$http_status" = "403" ]; then
-    json_error kilo kilo-gateway "${http_status}" provider "Kilo API key invalid (HTTP ${http_status})."
+    local message
+    message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
+    [ -n "$message" ] || message="Kilo API key invalid (HTTP ${http_status})."
+    rm -f "$tmp_body"
+    json_error kilo kilo-gateway "${http_status}" provider "$message"
     return 0
   fi
+  rm -f "$tmp_body"
   json_note_usage kilo kilo-gateway "Kilo account" "api-key" "Key set; usage at app.kilo.ai/credits" "app.kilo.ai/credits"
 }
 
@@ -1631,7 +1820,7 @@ fetch_provider() {
     gemini)
       fetch_gemini_native
       ;;
-    antigravity)
+    antigravity|agy)
       fetch_antigravity_native
       ;;
     9router)
@@ -1703,7 +1892,7 @@ fetch_provider() {
       json_note_usage warp warp-local "Warp account" "subscription" "No public quota API; usage is available in Warp settings" "app.warp.dev"
       ;;
     amp)
-      json_note_usage amp amp-local "Amp account" "subscription" "No public quota API; usage is available in Amp settings" "ampcode.com"
+      json_note_usage amp amp-local "Amp account" "payg" "No public quota API; usage is available in Amp settings" "ampcode.com"
       ;;
     cline)
       json_note_usage cline cline-local "Cline account" "subscription" "No public quota API; usage is available in the Cline client" "app.cline.bot"

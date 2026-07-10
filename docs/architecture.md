@@ -42,6 +42,9 @@ usage.primary / secondary / tertiary
   resetDescription
   displayValue (optional)
 usage.updatedAt
+accounts[] (optional; local multi-account providers)
+  windows (concise quota families)
+  modelWindows (optional advanced detail)
 credits.remaining
 ```
 
@@ -65,7 +68,9 @@ Errors return:
 
 ## Antigravity protocol
 
-`get-antigravity-usage` reads the current Antigravity CLI OAuth profile from the desktop keyring, falling back to the IDE SQLite state used by older builds, and calls the read-only `v1internal:fetchAvailableModels` endpoint on `cloudcode-pa.googleapis.com` — the same host used by Antigravity IDE and the official gemini-cli. It groups model quotas into current families (Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.5 Flash, Gemini 3.1 Pro, GPT-OSS 120B), ordered by highest consumption. The bearer token is supplied to curl over stdin and is never printed or placed in process arguments.
+`get-antigravity-usage` reads local Antigravity OAuth sessions from the desktop keyring and each IDE SQLite state database, refreshes them, and calls `v1internal:loadCodeAssist` followed by `v1internal:fetchAvailableModels` on `cloudcode-pa.googleapis.com`. Supplying the account's Cloud Code Assist project is essential: an empty request may receive a generic entitlement view and incorrectly report 0% use. Bearer tokens are supplied to curl over stdin and are never printed or placed in process arguments.
+
+The adapter preserves the API's per-model values in `modelWindows`, but publishes concise `windows` grouped as **Gemini Models** and **Claude & OpenAI Models**, matching the two quota families presented by Antigravity. The group percentage and reset come from the model with the least remaining quota in that family, so the dashboard does not hide the first limit a user will hit. A single local account uses the normal provider card; two or more accounts get a compact block per account. The optional `showAntigravityModelDetails` setting exposes the raw per-model list for troubleshooting.
 
 ## Settings keys
 
@@ -74,10 +79,18 @@ Errors return:
 | `providerSelection` | `codex,claude,copilot` | Comma-separated provider IDs. |
 | `refreshInterval` | `120000` | Poll interval in milliseconds. |
 | `showErrorProviders` | `true` | Keep provider failures visible. |
-| `pillMode` | `auto` | Automatic or custom DankBar provider list. |
+| `pillMode` | `auto` | Automatic, custom, or highest-usage (`top`) DankBar provider list. |
 | `pillProviders` | selection | Custom DankBar provider IDs. |
 | `densityMode` | `comfortable` | Comfortable or compact card layout. |
 | `languageOverride` | `auto` | Plugin locale override. |
+| `quotaNotifications` | `true` | Enable desktop quota notifications. |
+| `notifyThreshold` | `85` | Global quota notification threshold. |
+| `notifyThresholds` | empty | Per-provider `id:percent` notification overrides. |
+| `notifyCooldownMinutes` | `0` | Minimum minutes between repeated alerts. |
+| `historyRetention` | `2000` | Maximum local usage-history snapshots. |
+| `pinnedProviders` | empty | Provider IDs sorted before unpinned cards. |
+| `showClaudeProjects` | `true` | Show Claude local project analytics. |
+| `showAntigravityModelDetails` | `false` | Replace Antigravity family rows with per-model rows in expanded cards. |
 
 Legacy settings unknown to the current code are ignored.
 

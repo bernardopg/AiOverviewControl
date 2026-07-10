@@ -2,36 +2,35 @@
 
 All settings are stored through DMS. Plugin updates do not overwrite user choices.
 
-## Interface
+## Settings
 
-| Setting | Values | Default |
-| --- | --- | --- |
-| Language | `auto`, `en_US`, `pt_BR`, `zh_CN` | `auto` |
-| Dashboard density | `comfortable`, `compact` | `comfortable` |
-| Claude cost currency | `USD`, `EUR` | `USD` |
-| Pill mode | `auto`, `custom` | `auto` |
-| Pill providers | comma-separated IDs | provider selection |
-| Refresh interval | 1, 2, 5, 15, or 30 minutes | 2 minutes |
-| Show provider errors | true/false | true |
-| Claude project breakdown | true/false | false |
+| Key | Values | Default | Purpose |
+| --- | --- | --- | --- |
+| `languageOverride` | `auto`, `en_US`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE` | `auto` | UI language. `auto` follows the system locale. |
+| `providerSelection` | comma-separated IDs | `codex,claude,copilot` | Enabled providers; at least one is retained. |
+| `refreshInterval` | 60000, 120000, 300000, 900000, 1800000 | 120000 | Refresh interval in milliseconds. |
+| `showErrorProviders` | `true` / `false` | `true` | Keep failed provider cards visible. |
+| `densityMode` | `comfortable`, `compact` | `comfortable` | Compact cards hide the preview bar; expanded details remain available. |
+| `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: selected, custom list, or the most-used provider. |
+| `pillProviders` | comma-separated IDs | provider selection | Provider IDs used by `custom` pill mode. |
+| `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
+| `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |
+| `notifyThreshold` | 1–100 | 85 | Global notification threshold. |
+| `notifyThresholds` | `provider:percent,...` | empty | Per-provider threshold overrides, for example `codex:75,claude:90`. |
+| `notifyCooldownMinutes` | non-negative integer | 0 | Minutes between repeat alerts; `0` means once per quota window. |
+| `historyRetention` | integer >= 50 | 2000 | Maximum history snapshots kept locally. |
+| `showClaudeProjects` | `true` / `false` | `true` | Shows Claude local project analytics. |
+| `showAntigravityModelDetails` | `true` / `false` | `false` | In expanded Antigravity cards, replaces concise Gemini / Claude & OpenAI family rows with individual model rows. |
 
-Compact density reduces collapsed-card height and hides the preview progress bar. Expanded details remain available.
+## Antigravity display
 
-## Provider selection
+The default presentation mirrors Antigravity's Models screen: **Gemini Models** and **Claude & OpenAI Models**. Each family shows the most constrained model's usage and reset, which is the safe value to act on when models share a quota pool.
 
-Use the provider chips or edit the comma-separated field. At least one provider remains selected.
-
-Recommended baseline:
-
-```text
-codex,claude,copilot
-```
-
-Add API providers only after their required environment variables are available to the DMS process.
-
-Antigravity does not use an environment variable. It prefers the signed-in CLI profile from Linux Secret Service via `secret-tool`, then falls back to `${XDG_CONFIG_HOME:-~/.config}/Antigravity/User/globalStorage/state.vscdb` via `sqlite3` for older IDE builds.
+One detected account stays in the normal provider-card layout. When two or more local Antigravity sessions are found, the expanded card shows one clearly labelled block per account and install. Enable **Show individual Antigravity models** only when diagnosing a model-specific difference; it intentionally adds more rows.
 
 ## Environment variables
+
+Environment variables must be present in the process that starts DMS. Shell-only exports may not reach a graphical session.
 
 | Provider | Variables |
 | --- | --- |
@@ -41,7 +40,7 @@ Antigravity does not use an environment variable. It prefers the signed-in CLI p
 | DeepSeek | `DEEPSEEK_API_KEY` |
 | Kimi | `MOONSHOT_API_KEY` or `KIMI_API_KEY`; optional `MOONSHOT_API_BASE` |
 | MiniMax | `MINIMAX_API_KEY` |
-| GLM | `GLM_API_KEY` or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
+| GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST` |
 | NVIDIA | `NVIDIA_API_KEY` |
@@ -53,10 +52,10 @@ Antigravity does not use an environment variable. It prefers the signed-in CLI p
 | Groq | `GROQ_API_KEY` |
 | Cohere | `COHERE_API_KEY` |
 | Replicate | `REPLICATE_API_TOKEN` |
-| Fireworks | `FIREWORKS_API_KEY` |
+| Fireworks | `FIREWORKS_API_KEY`; optional `FIREWORKS_ACCOUNT_ID` enables quota data |
 | AI21 | `AI21_API_KEY` |
-
-Environment variables must be present in the process that starts DMS. Shell-only exports may not reach a graphical session.
+| xAI | `XAI_API_KEY` |
+| Kilo | `KILO_API_KEY` |
 
 ## Health indicators
 

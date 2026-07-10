@@ -1,0 +1,25 @@
+{
+  "models": {
+    "gemini-pro-agent": {
+      "displayName": "Gemini Pro",
+      "quotaInfo": {
+        "remainingFraction": 0,
+        "resetTime": "2026-07-17T16:15:09Z"
+      }
+    },
+    "gemini-flash-agent": {
+      "displayName": "Gemini Flash",
+      "quotaInfo": {
+        "remainingFraction": 0.35,
+        "resetTime": "2026-07-17T16:15:09Z"
+      }
+    },
+    "claude-sonnet": {
+      "displayName": "Claude Sonnet",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-17T16:15:09Z"
+      }
+    }
+  }
+}
