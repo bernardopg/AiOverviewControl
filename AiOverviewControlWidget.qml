@@ -806,7 +806,7 @@ PluginComponent {
         return account && account.install ? account.install : t("card.account", "Account");
     }
 
-    function accountEmail(account) {
+    function accountEmailFor(account) {
         return account && account.email ? account.email : "";
     }
 
@@ -2368,7 +2368,7 @@ PluginComponent {
                         Layout.fillWidth: true
                     }
                     StyledText {
-                        text: root.accountEmail(acct.account)
+                        text: root.accountEmailFor(acct.account)
                         visible: text.length > 0
                         color: Theme.surfaceVariantText
                         font.pixelSize: Theme.fontSizeSmall - 2
