@@ -20,6 +20,8 @@ codex login
 
 The adapter requires a Codex CLI version with `app-server` and `account/rateLimits/read`. Update Codex if the helper reports that rate limits are unavailable.
 
+The app-server may temporarily return only a `10080`-minute weekly window in `rateLimits.primary` with `secondary: null`. The plugin labels that window **Weekly** from its duration. OpenAI's current pricing documentation still describes a shared five-hour window plus possible weekly limits, so a missing five-hour row should be treated as a server/account response change or incident, not automatically as a formally announced quota-policy change.
+
 ## Claude
 
 If the local analytics are present but the 5-hour window shows an authentication error, renew the Claude subscription session:
@@ -63,7 +65,7 @@ Read the card's source and display value rather than assuming every provider has
 
 ## Antigravity quota or account layout
 
-The normal Antigravity view deliberately shows only **Gemini Models** and **Claude & OpenAI Models**. These are family quotas, not placeholders: each reflects the model in that family with the least quota remaining. With multiple locally signed-in accounts, expand the card to see the same two family rows under each account email and install.
+The normal Antigravity view deliberately groups known quotas as **Gemini Models** and **Claude & OpenAI Models**. These are family quotas, not placeholders: each reflects the model in that family with the least quota remaining. A real unrecognized model is isolated under **Other Models**, while internal placeholder entries are discarded. With multiple locally signed-in accounts, expand the card to see the family rows under each account email and install.
 
 If the result looks inconsistent with the Antigravity Models screen, refresh the plugin and check the raw response without exposing credentials:
 
@@ -72,7 +74,7 @@ PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
 $PLUGIN/providers/get-provider-usage antigravity | jq .
 ```
 
-For a temporary model-by-model diagnosis, enable **Show individual Antigravity models** in the plugin settings, then expand the Antigravity card. Turn it off again to return to the concise view. If the helper reports no session, open the affected Antigravity installation, sign in, and ensure `sqlite3` is installed.
+For a temporary model-by-model diagnosis, enable **Show individual Antigravity models** in the plugin settings, then expand the Antigravity card. Turn it off again to return to the concise view. A **Partial** badge means at least one account succeeded and another failed; the expanded warning identifies the account, request stage, and cause. If every account fails, the card reports the actual OAuth, HTTP, rate-limit, or schema error. If the helper reports no session at all, open the affected Antigravity installation, sign in, and ensure `sqlite3` is installed.
 
 ## Slow refresh or timeout
 

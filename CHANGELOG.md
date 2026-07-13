@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.0 - 2026-07-13
+
+### DankBar and provider identity
+
+- Added a visual custom-provider picker that separates providers tracked by the plugin from the compact subset rendered in the DankBar pill.
+- Custom pill mode is now strict and no longer falls back to every successful provider when a chosen provider has no current data.
+- Provider readiness checks now queue selection changes made during an in-flight check, replacing misleading persistent “not checked” states with a transient “Checking…” state and a distinct informational status.
+- Added normalized local provider logos with transparent canvases, preserved brand colors, theme-aware monochrome rendering, offline assets, and documented sources/licenses.
+
+### Quota accuracy and connector diagnostics
+
+- Codex window labels now come from `windowDurationMins`, not the `primary`/`secondary` field position. A weekly-only response is therefore shown as **Weekly** instead of **Session**. OpenAI's current pricing documentation still describes a shared five-hour window plus possible weekly limits, so the adapter treats the observed weekly-only payload as a valid server shape, not proof that the five-hour policy was formally removed.
+- Antigravity now requires a valid `cloudaicompanionProject` before requesting quota, preventing the generic empty-project entitlement response from being reported as a false 0% reading.
+- Antigravity captures transport, 401/403, 429, and schema failures per local account. Healthy accounts remain visible during a partial failure, with the affected account and reason shown as a warning; if every account fails, the most precise error is returned.
+- Google refresh tokens are form-encoded from stdin and never placed in `curl` arguments. Placeholder models are ignored, known Gemini/Claude/OpenAI families are classified explicitly, and unknown real model families are labelled **Other Models**.
+- Added live-path regression coverage for project discovery, HTTP/schema errors, partial accounts, secret handling, model classification, and weekly-only Codex quota responses.
+
 ## 1.6.1 - 2026-07-10
 
 ### Antigravity UX and quota accuracy

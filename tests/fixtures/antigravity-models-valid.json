@@ -20,6 +20,20 @@
         "remainingFraction": 1,
         "resetTime": "2026-07-17T16:15:09Z"
       }
+    },
+    "MODEL_CHAT_EXPERIMENTAL": {
+      "displayName": "Experimental Chat",
+      "quotaInfo": {
+        "remainingFraction": 0.75,
+        "resetTime": "2026-07-18T16:15:09Z"
+      }
+    },
+    "MODEL_PLACEHOLDER_INTERNAL": {
+      "displayName": "Placeholder",
+      "quotaInfo": {
+        "remainingFraction": 0,
+        "resetTime": "2026-07-18T16:15:09Z"
+      }
     }
   }
 }

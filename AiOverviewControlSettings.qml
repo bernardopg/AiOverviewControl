@@ -13,6 +13,7 @@ PluginSettings {
     readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
     property var selectedIds: normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"))
     property var pinnedIds: normalizeCsvList(loadValue("pinnedProviders", ""))
+    property var pillIds: normalizePillSelection(loadValue("pillProviders", selectedIds.join(",")))
 
     function normalizeCsvList(value) {
         const parts = String(value || "").split(",");
@@ -22,6 +23,27 @@ PluginSettings {
             if (id.length > 0 && result.indexOf(id) < 0) result.push(id);
         }
         return result;
+    }
+
+    function normalizePillSelection(value) {
+        const parts = normalizeCsvList(value);
+        const result = [];
+        for (let i = 0; i < parts.length; i++) {
+            if (selectedIds.indexOf(parts[i]) >= 0) result.push(parts[i]);
+        }
+        return result.length > 0 ? result : [selectedIds[0]];
+    }
+
+    function isPillSelected(id) { return pillIds.indexOf(id) >= 0; }
+
+    function togglePillProvider(id) {
+        if (!isSelected(id)) return;
+        const result = pillIds.slice();
+        const index = result.indexOf(id);
+        if (index >= 0 && result.length > 1) result.splice(index, 1);
+        else if (index < 0) result.push(id);
+        pillIds = result;
+        saveValue("pillProviders", result.join(","));
     }
 
     function isPinned(id) { return pinnedIds.indexOf(id) >= 0; }
@@ -37,6 +59,7 @@ PluginSettings {
     property var providerHealth: ({})
     property string healthBuffer: ""
     property string healthScript: ""
+    property bool healthRefreshPending: false
 
     readonly property int readyCount: {
         let n = 0;
@@ -52,6 +75,15 @@ PluginSettings {
         for (let i = 0; i < selectedIds.length; i++) {
             const health = providerHealth[selectedIds[i]];
             if (health && health.status === "missing") n++;
+        }
+        return n;
+    }
+
+    readonly property int informationalCount: {
+        let n = 0;
+        for (let i = 0; i < selectedIds.length; i++) {
+            const health = providerHealth[selectedIds[i]];
+            if (health && health.status === "info") n++;
         }
         return n;
     }
@@ -116,7 +148,13 @@ PluginSettings {
     function toggleProvider(id) {
         const result = selectedIds.slice();
         const index = result.indexOf(id);
-        if (index >= 0 && result.length > 1) result.splice(index, 1);
+        if (index >= 0 && result.length > 1) {
+            result.splice(index, 1);
+            const nextPillIds = pillIds.filter(function(providerId) { return providerId !== id; });
+            if (nextPillIds.length === 0) nextPillIds.push(result[0]);
+            pillIds = nextPillIds;
+            saveValue("pillProviders", nextPillIds.join(","));
+        }
         else if (index < 0) result.push(id);
         selectedIds = result;
         saveValue("providerSelection", result.join(","));
@@ -124,11 +162,23 @@ PluginSettings {
     }
 
     function healthFor(id) {
-        return providerHealth[id] || { status:"unknown", detail:t("settings.health.pending", "Not checked") };
+        return providerHealth[id] || { status:"checking", detail:t("settings.health.checking", "Checking…") };
+    }
+
+    function healthColor(status) {
+        if (status === "ready") return Theme.success;
+        if (status === "missing") return Theme.warning;
+        if (status === "info") return Theme.primary;
+        return Theme.surfaceVariantText;
     }
 
     function runHealth() {
-        if (!healthScript || healthProcess.running) return;
+        if (!healthScript) return;
+        if (healthProcess.running) {
+            healthRefreshPending = true;
+            return;
+        }
+        healthRefreshPending = false;
         healthBuffer = "";
         healthProcess.command = ["bash", healthScript, selectedIds.join(",")];
         healthProcess.running = true;
@@ -144,15 +194,27 @@ PluginSettings {
         id: healthProcess
         stdout: SplitParser { splitMarker: ""; onRead: data => root.healthBuffer += data }
         onExited: code => {
-            if (code !== 0 || root.healthBuffer.length === 0) return;
-            try {
-                const items = JSON.parse(root.healthBuffer);
-                const map = {};
-                for (let i = 0; i < items.length; i++) map[items[i].provider] = items[i];
-                root.providerHealth = map;
-            } catch (error) {
-                root.providerHealth = {};
+            if (code === 0 && root.healthBuffer.length > 0) {
+                try {
+                    const items = JSON.parse(root.healthBuffer);
+                    const map = {};
+                    for (let i = 0; i < items.length; i++) map[items[i].provider] = items[i];
+                    root.providerHealth = map;
+                } catch (error) {
+                    const failedMap = {};
+                    for (let i = 0; i < root.selectedIds.length; i++) {
+                        failedMap[root.selectedIds[i]] = { status:"unknown", detail:t("settings.health.failed", "Check failed") };
+                    }
+                    root.providerHealth = failedMap;
+                }
+            } else {
+                const failedMap = {};
+                for (let i = 0; i < root.selectedIds.length; i++) {
+                    failedMap[root.selectedIds[i]] = { status:"unknown", detail:t("settings.health.failed", "Check failed") };
+                }
+                root.providerHealth = failedMap;
             }
+            if (root.healthRefreshPending) Qt.callLater(root.runHealth);
         }
     }
 
@@ -291,6 +353,13 @@ PluginSettings {
                     chipLabel: t("settings.health.missing_count", "{count} missing", { count: root.missingCount })
                     chipAccent: Theme.warning
                 }
+
+                HealthChip {
+                    visible: root.informationalCount > 0
+                    chipIcon: "info"
+                    chipLabel: t("settings.health.info_count", "{count} informational", { count: root.informationalCount })
+                    chipAccent: Theme.primary
+                }
             }
         }
     }
@@ -335,12 +404,103 @@ PluginSettings {
         onValueChanged: function(value) { saveValue("pillMode", value); }
     }
 
-    DankTextField {
+    StyledRect {
         visible: pillModeDropdown.currentValue === "custom"
         width: parent.width
-        placeholderText: "claude,codex,copilot"
-        text: loadValue("pillProviders", "")
-        onEditingFinished: saveValue("pillProviders", text.trim())
+        radius: Theme.cornerRadius
+        color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, 0.18)
+        implicitHeight: pillProviderColumn.implicitHeight + Theme.spacingM * 2
+
+        Column {
+            id: pillProviderColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingM
+            spacing: Theme.spacingS
+
+            StyledText {
+                text: t("settings.pill_providers.label", "Providers shown in DankBar")
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+            }
+
+            StyledText {
+                width: parent.width
+                text: t("settings.pill_providers.description", "Choose a compact subset of tracked providers. This only changes the DankBar pill; tracking and dashboard cards remain unchanged.")
+                wrapMode: Text.WordWrap
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall
+            }
+
+            Flow {
+                width: parent.width
+                spacing: Theme.spacingS
+
+                Repeater {
+                    model: root.allProviders.filter(function(provider) { return root.isSelected(provider.id); })
+
+                    Rectangle {
+                        id: pillProviderChip
+                        required property var modelData
+                        readonly property bool active: root.isPillSelected(modelData.id)
+                        width: pillProviderRow.implicitWidth + Theme.spacingM * 2
+                        height: 36
+                        radius: 18
+                        color: active
+                            ? Theme.withAlpha(Theme.primary, 0.17)
+                            : Theme.withAlpha(Theme.surfaceVariantText, pillProviderMouse.containsMouse ? 0.13 : 0.07)
+                        border.width: active ? 1 : 0
+                        border.color: Theme.withAlpha(Theme.primary, 0.48)
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.CheckBox
+                        Accessible.name: modelData.name
+                        Accessible.checked: active
+                        Keys.onReturnPressed: root.togglePillProvider(modelData.id)
+                        Keys.onSpacePressed: root.togglePillProvider(modelData.id)
+
+                        Row {
+                            id: pillProviderRow
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingXS
+
+                            ProviderLogo {
+                                providerId: pillProviderChip.modelData.id
+                                fallbackIcon: pillProviderChip.modelData.icon
+                                logoSize: 16
+                                tintColor: pillProviderChip.active ? Theme.primary : Theme.surfaceVariantText
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            StyledText {
+                                text: pillProviderChip.modelData.name
+                                color: pillProviderChip.active ? Theme.primary : Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: pillProviderChip.active ? Font.Medium : Font.Normal
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            DankIcon {
+                                visible: pillProviderChip.active
+                                name: "check"
+                                size: 13
+                                color: Theme.primary
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: pillProviderMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.togglePillProvider(pillProviderChip.modelData.id)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     DankDropdown {
@@ -489,7 +649,13 @@ PluginSettings {
                 onEditingFinished: {
                     const normalized = root.normalizeProviderSelection(text);
                     root.selectedIds = normalized;
+                    const nextPillIds = root.pillIds.filter(function(providerId) {
+                        return normalized.indexOf(providerId) >= 0;
+                    });
+                    if (nextPillIds.length === 0) nextPillIds.push(normalized[0]);
+                    root.pillIds = nextPillIds;
                     root.saveValue("providerSelection", normalized.join(","));
+                    root.saveValue("pillProviders", nextPillIds.join(","));
                     root.runHealth();
                 }
             }
@@ -710,12 +876,18 @@ PluginSettings {
                         id: chipRow
                         anchors.centerIn: parent
                         spacing: Theme.spacingXS
-                        DankIcon { name:providerChip.active ? "check" : modelData.icon; size:14; color:providerChip.active ? Theme.primary : Theme.surfaceVariantText }
+                        ProviderLogo {
+                            providerId: providerChip.modelData.id
+                            fallbackIcon: providerChip.modelData.icon
+                            logoSize: 16
+                            tintColor: providerChip.active ? Theme.primary : Theme.surfaceVariantText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                         StyledText { text:modelData.name; color:providerChip.active ? Theme.primary : Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall; font.weight:providerChip.active ? Font.Medium : Font.Normal }
                         Rectangle {
                             visible: providerChip.active
                             width: 7; height: 7; radius: 4
-                            color: providerChip.health.status === "ready" ? Theme.success : (providerChip.health.status === "missing" ? Theme.warning : Theme.surfaceVariantText)
+                            color: root.healthColor(providerChip.health.status)
                         }
                     }
                     MouseArea { id:chipMouse; anchors.fill:parent; hoverEnabled:true; cursorShape:Qt.PointingHandCursor; onClicked:root.toggleProvider(modelData.id) }
@@ -732,7 +904,7 @@ PluginSettings {
                     id: providerDetailRow
                     required property var modelData
                     readonly property var health: root.healthFor(modelData.id)
-                    readonly property color healthColor: health.status === "ready" ? Theme.success : (health.status === "missing" ? Theme.warning : Theme.surfaceVariantText)
+                    readonly property color healthColor: root.healthColor(health.status)
                     width: parent.width
                     radius: Theme.cornerRadius
                     color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
@@ -753,11 +925,12 @@ PluginSettings {
                             radius: 9
                             color: Theme.withAlpha(Theme.primary, 0.1)
 
-                            DankIcon {
+                            ProviderLogo {
                                 anchors.centerIn: parent
-                                name: providerDetailRow.modelData.icon
-                                size: 14
-                                color: Theme.primary
+                                providerId: providerDetailRow.modelData.id
+                                fallbackIcon: providerDetailRow.modelData.icon
+                                logoSize: 16
+                                tintColor: Theme.primary
                             }
                         }
 

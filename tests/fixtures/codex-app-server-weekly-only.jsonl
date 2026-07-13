@@ -1,0 +1,2 @@
+{"id":1,"result":{"account":{"email":"weekly@example.invalid","planType":"pro"}}}
+{"id":2,"result":{"rateLimits":{"primary":{"usedPercent":79,"windowDurationMins":10080,"resetsAt":1894060800},"secondary":null,"individualLimit":100},"rateLimitResetCredits":{"availableCount":1,"credits":[]}}}

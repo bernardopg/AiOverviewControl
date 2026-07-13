@@ -52,7 +52,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>codex</code></td>
 <td>Quota</td>
 <td>codex <code>app-server</code></td>
-<td>✅ session + weekly windows</td>
+<td>✅ duration-labelled session / weekly windows, including weekly-only responses</td>
 <td>✅ Plus / Pro / Team</td>
 <td>✅</td>
 <td><code>codex</code> login</td>
@@ -86,7 +86,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>antigravity</code></td>
 <td>Quota (Cloud Code Assist)</td>
 <td>✅ local Antigravity OAuth (keyring / IDE session, auto-refreshed)</td>
-<td>✅ Gemini / Claude &amp; OpenAI family quota + reset; optional per-model detail</td>
+<td>✅ Gemini / Claude &amp; OpenAI / unknown family quota + reset; optional per-model detail; per-account failures</td>
 <td>✅ Antigravity plan</td>
 <td>—</td>
 <td><code>~/.config/Antigravity IDE</code></td>

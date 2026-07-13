@@ -66,11 +66,15 @@ Errors return:
 
 `get-codex-usage` starts `codex app-server`, sends `initialize`, `account/read`, and `account/rateLimits/read`, then maps the official response to the common schema. The bridge uses a bounded process lifetime and never reads browser state.
 
+Window labels are derived from `windowDurationMins`, not from whether app-server placed a limit in `primary` or `secondary`. This matters for current weekly-only responses, where `primary.windowDurationMins` is `10080` and `secondary` is null. OpenAI's current pricing page still documents a shared five-hour window with additional weekly limits, so a weekly-only app-server payload is handled as a temporary or account-specific response shape rather than interpreted as a confirmed policy removal.
+
 ## Antigravity protocol
 
-`get-antigravity-usage` reads local Antigravity OAuth sessions from the desktop keyring and each IDE SQLite state database, refreshes them, and calls `v1internal:loadCodeAssist` followed by `v1internal:fetchAvailableModels` on `cloudcode-pa.googleapis.com`. Supplying the account's Cloud Code Assist project is essential: an empty request may receive a generic entitlement view and incorrectly report 0% use. Bearer tokens are supplied to curl over stdin and are never printed or placed in process arguments.
+`get-antigravity-usage` reads local Antigravity OAuth sessions from the desktop keyring and each IDE SQLite state database, refreshes them, and calls `v1internal:loadCodeAssist` followed by `v1internal:fetchAvailableModels` on `cloudcode-pa.googleapis.com`. Supplying the account's Cloud Code Assist project is essential: an empty request may receive a generic entitlement view and incorrectly report 0% use. The adapter now aborts that account before the quota call when the project is absent. Refresh tokens are form-encoded from stdin; bearer tokens use an ephemeral curl config descriptor. Neither secret is printed or placed in process arguments.
 
-The adapter preserves the API's per-model values in `modelWindows`, but publishes concise `windows` grouped as **Gemini Models** and **Claude & OpenAI Models**, matching the two quota families presented by Antigravity. The group percentage and reset come from the model with the least remaining quota in that family, so the dashboard does not hide the first limit a user will hit. A single local account uses the normal provider card; two or more accounts get a compact block per account. The optional `showAntigravityModelDetails` setting exposes the raw per-model list for troubleshooting.
+The adapter preserves the API's per-model values in `modelWindows`, but publishes concise `windows` grouped as **Gemini Models**, **Claude & OpenAI Models**, and, only when the service returns a real unrecognized family, **Other Models**. Internal placeholder entries are discarded. The group percentage and reset come from the model with the least remaining quota in that family, so the dashboard does not hide the first limit a user will hit. A single local account uses the normal provider card; two or more accounts get a compact block per account. The optional `showAntigravityModelDetails` setting exposes the raw per-model list for troubleshooting.
+
+Every account request captures HTTP status and validates the response schema. Partial failures are retained in `accountErrors` while healthy accounts remain usable; an all-account failure becomes a provider error carrying the first precise cause instead of the generic “no session” message.
 
 ## Settings keys
 
@@ -80,7 +84,7 @@ The adapter preserves the API's per-model values in `modelWindows`, but publishe
 | `refreshInterval` | `120000` | Poll interval in milliseconds. |
 | `showErrorProviders` | `true` | Keep provider failures visible. |
 | `pillMode` | `auto` | Automatic, custom, or highest-usage (`top`) DankBar provider list. |
-| `pillProviders` | selection | Custom DankBar provider IDs. |
+| `pillProviders` | selection | Strict custom DankBar provider subset; independent from the tracked provider list. |
 | `densityMode` | `comfortable` | Comfortable or compact card layout. |
 | `languageOverride` | `auto` | Plugin locale override. |
 | `quotaNotifications` | `true` | Enable desktop quota notifications. |

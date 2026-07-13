@@ -11,8 +11,8 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `refreshInterval` | 60000, 120000, 300000, 900000, 1800000 | 120000 | Refresh interval in milliseconds. |
 | `showErrorProviders` | `true` / `false` | `true` | Keep failed provider cards visible. |
 | `densityMode` | `comfortable`, `compact` | `comfortable` | Compact cards hide the preview bar; expanded details remain available. |
-| `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: selected, custom list, or the most-used provider. |
-| `pillProviders` | comma-separated IDs | provider selection | Provider IDs used by `custom` pill mode. |
+| `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: measurable providers, an explicit compact subset, or the most-used provider. |
+| `pillProviders` | comma-separated IDs | provider selection | Strict provider subset used by `custom` pill mode. The settings UI exposes this as provider chips and never falls back to every tracked provider. |
 | `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
 | `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |
 | `notifyThreshold` | 1–100 | 85 | Global notification threshold. |
@@ -24,13 +24,22 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 
 ## Antigravity display
 
-The default presentation mirrors Antigravity's Models screen: **Gemini Models** and **Claude & OpenAI Models**. Each family shows the most constrained model's usage and reset, which is the safe value to act on when models share a quota pool.
+The default presentation mirrors Antigravity's Models screen: **Gemini Models** and **Claude & OpenAI Models**. Each family shows the most constrained model's usage and reset, which is the safe value to act on when models share a quota pool. A real model that cannot yet be classified appears under **Other Models**; internal placeholder entries are never displayed.
 
-One detected account stays in the normal provider-card layout. When two or more local Antigravity sessions are found, the expanded card shows one clearly labelled block per account and install. Enable **Show individual Antigravity models** only when diagnosing a model-specific difference; it intentionally adds more rows.
+One detected account stays in the normal provider-card layout. When two or more local Antigravity sessions are found, the expanded card shows one clearly labelled block per account and install. If one session fails while another succeeds, the card remains live and shows a partial-account warning with the failed stage and reason. Enable **Show individual Antigravity models** only when diagnosing a model-specific difference; it intentionally adds more rows.
 
 ## Environment variables
 
 Environment variables must be present in the process that starts DMS. Shell-only exports may not reach a graphical session.
+
+## Provider readiness labels
+
+The settings health check describes whether the plugin can run an adapter in the current DMS process; it is not a claim that the provider publishes a quota API.
+
+- **Ready** means the required CLI, local session, database, or environment variable was found.
+- **Missing** names the credential or executable that DMS cannot see. In particular, a key exported only by an interactive shell is invisible when DMS was started by the graphical session.
+- **Informational** means the provider does not expose a stable public read-only quota surface. The plugin can still show a card that points to the official usage page.
+- **Checking…** is transient while the asynchronous readiness command runs. Provider changes made during a running check are queued and checked immediately afterward.
 
 | Provider | Variables |
 | --- | --- |

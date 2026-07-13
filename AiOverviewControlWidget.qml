@@ -233,7 +233,7 @@ PluginComponent {
         for (let i = 0; i < displayProviders.length; i++) {
             const provider = displayProviders[i];
             if (providerStatusFilter === "live" && (provider.error || !provider.usage)) continue;
-            if (providerStatusFilter === "issues" && !provider.error) continue;
+            if (providerStatusFilter === "issues" && !provider.error && !root.hasPartialAccountErrors(provider)) continue;
             if (query.length > 0) {
                 const haystack = `${providerName(provider.provider)} ${provider.provider} ${providerSourceLabel(provider)}`.toLowerCase();
                 if (haystack.indexOf(query) < 0) continue;
@@ -281,7 +281,10 @@ PluginComponent {
                     }
                 }
             }
-            return result.length > 0 ? result : successfulProviders;
+            // Custom mode is strict: never widen the pill by silently falling
+            // back to every successful provider when the chosen subset has no
+            // current data.
+            return result;
         }
         // auto: show all with usedPercent > 0, else all successful
         const active = [];
@@ -292,6 +295,9 @@ PluginComponent {
         }
         return active.length > 0 ? active : successfulProviders;
     }
+    readonly property var pillPrimaryProvider: pillDisplayProviders.length > 0 ? pillDisplayProviders[0] : null
+    readonly property real pillPrimaryPercent: pillPrimaryProvider ? providerPercent(pillPrimaryProvider) : 0
+    readonly property color pillAccent: pillPrimaryProvider ? providerAccent(pillPrimaryProvider.provider) : Theme.surfaceVariantText
 
     readonly property var providerData: {
         for (let i = 0; i < pinnedProviders.length; i++) {
@@ -565,9 +571,18 @@ PluginComponent {
     function saveProviderSelection(csv) {
         const normalized = providersCsv(csv.split(","));
         if (normalized.length === 0) return;
+        const tracked = normalized.split(",");
+        const currentPillIds = providersCsv(pillProviders.split(",")).split(",");
+        const nextPillIds = [];
+        for (let i = 0; i < currentPillIds.length; i++) {
+            if (tracked.indexOf(currentPillIds[i]) >= 0) nextPillIds.push(currentPillIds[i]);
+        }
+        if (nextPillIds.length === 0) nextPillIds.push(tracked[0]);
+        pillProviders = nextPillIds.join(",");
         providerSelection = normalized;
         providers = [];
         PluginService.savePluginData("aiOverviewControl", "providerSelection", normalized);
+        PluginService.savePluginData("aiOverviewControl", "pillProviders", pillProviders);
         if (procUsage.running) {
             procUsage.running = false;
         }
@@ -615,6 +630,7 @@ PluginComponent {
     function providerStatus(provider) {
         if (!provider) return "missing";
         if (provider.error) return "error";
+        if (hasPartialAccountErrors(provider)) return "partial";
         if (provider.usage) return "active";
         return "empty";
     }
@@ -622,6 +638,7 @@ PluginComponent {
     function providerStatusLabel(provider) {
         const status = root.providerStatus(provider);
         if (status === "error") return t("status.error", "Error");
+        if (status === "partial") return t("status.partial", "Partial");
         if (status === "active") return t("status.online", "Live");
         if (status === "empty") return t("status.waiting", "Waiting");
         return t("status.none", "(none)");
@@ -796,6 +813,25 @@ PluginComponent {
     function accountsForProvider(provider) {
         if (!provider || !provider.accounts || !provider.accounts.length) return [];
         return provider.accounts;
+    }
+
+    function accountErrorsForProvider(provider) {
+        if (!provider || !provider.accountErrors || !provider.accountErrors.length) return [];
+        return provider.accountErrors;
+    }
+
+    function hasPartialAccountErrors(provider) {
+        return !!provider && !!provider.usage && !provider.error && accountErrorsForProvider(provider).length > 0;
+    }
+
+    function partialAccountErrorText(provider) {
+        const errors = accountErrorsForProvider(provider);
+        if (errors.length === 0) return "";
+        const countLabel = t("card.account_errors_count", "{count} account(s) unavailable", { count: errors.length });
+        const first = errors[0];
+        const account = first.email || first.install || t("card.account", "Account");
+        const message = first.message || t("status.error", "Error");
+        return countLabel + " · " + account + ": " + message;
     }
 
     function hasMultipleAccounts(provider) {
@@ -2062,15 +2098,15 @@ PluginComponent {
                 width: 26
                 height: 26
                 radius: 13
-                color: Theme.withAlpha(root.heroAccent, 0.16)
+                color: Theme.withAlpha(root.pillAccent, 0.16)
                 border.width: 1
-                border.color: Theme.withAlpha(root.heroAccent, 0.28)
+                border.color: Theme.withAlpha(root.pillAccent, 0.28)
                 anchors.verticalCenter: parent.verticalCenter
 
                 PillProgressRing {
                     anchors.centerIn: parent
-                    percent: root.primaryPercent
-                    accent: root.heroAccent
+                    percent: root.pillPrimaryPercent
+                    accent: root.pillAccent
                 }
             }
 
@@ -2080,7 +2116,7 @@ PluginComponent {
                 visible: !root.hasError || root.hasProviderData
 
                 Repeater {
-                    model: root.pillDisplayProviders.length > 0 ? root.pillDisplayProviders : (root.hasProviderData ? [root.providerData] : [])
+                    model: root.pillDisplayProviders
 
                     Row {
                         id: pillEntry
@@ -2098,14 +2134,12 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        Rectangle {
-                            width: 7
-                            height: 7
-                            radius: 3.5
-                            color: root.providerAccent(pillEntry.modelData.provider)
+                        ProviderLogo {
+                            providerId: pillEntry.modelData.provider
+                            fallbackIcon: root.iconForProvider(pillEntry.modelData.provider)
+                            logoSize: 14
+                            tintColor: root.providerAccent(pillEntry.modelData.provider)
                             anchors.verticalCenter: parent.verticalCenter
-
-                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         StyledText {
@@ -2128,9 +2162,9 @@ PluginComponent {
             }
 
             StyledText {
-                visible: root.hasError && !root.hasProviderData
-                text: root.isLoading ? "..." : "ERR"
-                color: root.isLoading ? Theme.surfaceVariantText : Theme.error
+                visible: root.pillDisplayProviders.length === 0
+                text: root.isLoading ? "..." : (root.hasError ? "ERR" : "N/A")
+                color: root.isLoading ? Theme.surfaceVariantText : (root.hasError ? Theme.error : Theme.surfaceVariantText)
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.DemiBold
                 anchors.verticalCenter: parent.verticalCenter
@@ -2146,33 +2180,46 @@ PluginComponent {
                 width: 24
                 height: 24
                 radius: 12
-                color: Theme.withAlpha(root.heroAccent, 0.16)
+                color: Theme.withAlpha(root.pillAccent, 0.16)
                 border.width: 1
-                border.color: Theme.withAlpha(root.heroAccent, 0.28)
+                border.color: Theme.withAlpha(root.pillAccent, 0.28)
                 anchors.horizontalCenter: parent.horizontalCenter
 
                 PillProgressRing {
                     anchors.centerIn: parent
-                    percent: root.primaryPercent
-                    accent: root.heroAccent
+                    percent: root.pillPrimaryPercent
+                    accent: root.pillAccent
                 }
             }
 
             Repeater {
-                model: root.pillDisplayProviders.length > 0 ? root.pillDisplayProviders : (root.hasProviderData ? [root.providerData] : [])
+                model: root.pillDisplayProviders
 
-                StyledText {
+                Column {
                     required property var modelData
-                    text: `${Math.round(root.providerPercent(modelData))}%`
-                    color: root.providerAccent(modelData.provider)
-                    font.pixelSize: Theme.fontSizeSmall
-                    font.weight: Font.DemiBold
+                    spacing: 1
                     anchors.horizontalCenter: parent.horizontalCenter
+
+                    ProviderLogo {
+                        providerId: modelData.provider
+                        fallbackIcon: root.iconForProvider(modelData.provider)
+                        logoSize: 13
+                        tintColor: root.providerAccent(modelData.provider)
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+
+                    StyledText {
+                        text: `${Math.round(root.providerPercent(modelData))}%`
+                        color: root.providerAccent(modelData.provider)
+                        font.pixelSize: Theme.fontSizeSmall
+                        font.weight: Font.DemiBold
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
                 }
             }
 
             StyledText {
-                visible: (root.hasError && !root.hasProviderData) || (root.pillDisplayProviders.length === 0 && !root.hasProviderData)
+                visible: root.pillDisplayProviders.length === 0
                 text: root.isLoading ? "..." : (root.hasError ? "ERR" : "N/A")
                 color: root.hasError ? Theme.error : Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
@@ -2443,6 +2490,7 @@ PluginComponent {
         border.color: {
             if (card.activeFocus) return Theme.primary;
             if (provider && provider.error) return Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16);
+            if (root.hasPartialAccountErrors(provider)) return Theme.withAlpha(Theme.warning, expanded ? 0.48 : 0.24);
             return Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.07));
         }
         activeFocusOnTab: true
@@ -2530,11 +2578,12 @@ PluginComponent {
                         border.width: card.hasUsage ? 0 : 1
                         border.color: Theme.withAlpha(card.accentColor, 0.4)
 
-                        DankIcon {
+                        ProviderLogo {
                             anchors.centerIn: parent
-                            name: root.iconForProvider(card.provider.provider)
-                            size: card.dense ? 15 : (card.compact ? 17 : 20)
-                            color: card.accentColor
+                            providerId: card.provider.provider
+                            fallbackIcon: root.iconForProvider(card.provider.provider)
+                            logoSize: card.dense ? 15 : (card.compact ? 17 : 20)
+                            tintColor: card.accentColor
                         }
                     }
                 }
@@ -2704,6 +2753,27 @@ PluginComponent {
                 visible: card.expanded
                 width: parent.width
                 spacing: Theme.spacingL
+
+                RowLayout {
+                    visible: root.hasPartialAccountErrors(card.provider)
+                    width: parent.width
+                    spacing: Theme.spacingS
+
+                    DankIcon {
+                        name: "warning"
+                        size: 17
+                        color: Theme.warning
+                        Layout.alignment: Qt.AlignTop
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: root.partialAccountErrorText(card.provider)
+                        color: Theme.warning
+                        font.pixelSize: Theme.fontSizeSmall - 1
+                        wrapMode: Text.WordWrap
+                    }
+                }
 
                 Repeater {
                     model: (card.expanded && !root.hasMultipleAccounts(card.provider)) ? card.windows : []

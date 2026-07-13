@@ -241,7 +241,8 @@ shellcheck -S warning providers/get-* providers/send-quota-alert
 qmllint \
   AiOverviewControlWidget.qml \
   AiOverviewControlSettings.qml \
-  AiOverviewControlI18n.qml
+  AiOverviewControlI18n.qml \
+  ProviderLogo.qml
 ./providers/get-provider-health "codex,claude,copilot" | jq .
 ./providers/get-provider-usage \
   "codex,claude,copilot" \

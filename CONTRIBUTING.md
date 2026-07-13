@@ -75,7 +75,7 @@ Two caveats that cost real debugging time:
 | i18n JSON valid | `for f in i18n/*.json; do jq -e . "$f"; done` |
 | **i18n key parity** (all locales == `en`) | `diff <(jq -r 'keys[]' i18n/en.json | sort) <(jq -r 'keys[]' i18n/pt_BR.json | sort)` |
 | CHANGELOG has the `plugin.json` version | `grep "## $(jq -r .version plugin.json)" CHANGELOG.md` |
-| **QML lint (hard gate)** | `qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml` |
+| **QML lint (hard gate)** | `qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml` |
 | Shell lint | `shellcheck providers/get-*` |
 
 Parity is strict: every key in `en.json` must exist in `pt_BR`, `zh_CN`,

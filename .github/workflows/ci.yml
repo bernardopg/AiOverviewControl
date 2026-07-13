@@ -271,15 +271,28 @@ jobs:
           cat > "$FAKE_BIN/codex" <<'SH'
           #!/usr/bin/env bash
           cat >/dev/null
-          cat "$GITHUB_WORKSPACE/tests/fixtures/codex-app-server.jsonl"
+          cat "$GITHUB_WORKSPACE/tests/fixtures/${CODEX_FIXTURE:-codex-app-server.jsonl}"
           SH
           chmod +x "$FAKE_BIN/codex"
           OUT="$(PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
           echo "$OUT" | jq --exit-status '
             length == 1 and .[0].provider == "codex" and
             .[0].usage.primary.usedPercent == 25 and
+            .[0].usage.primary.resetDescription == "Session" and
             .[0].usage.secondary.usedPercent == 50 and
+            .[0].usage.secondary.resetDescription == "Weekly" and
             .[0].credits.remaining == "12"
+          ' >/dev/null
+
+          WEEKLY_OUT="$(CODEX_FIXTURE=codex-app-server-weekly-only.jsonl \
+            PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
+          echo "$WEEKLY_OUT" | jq --exit-status '
+            length == 1 and .[0].provider == "codex" and
+            .[0].usage.primary.usedPercent == 79 and
+            .[0].usage.primary.windowMinutes == 10080 and
+            .[0].usage.primary.resetDescription == "Weekly" and
+            .[0].usage.secondary == null and
+            .[0].credits.remaining == "1"
           ' >/dev/null
 
       - name: Integration test — 9Router cached tokens
@@ -332,13 +345,21 @@ jobs:
           echo "$OUT" | jq -e '
             .[0].usage.primary.resetDescription == "Gemini Models"
             and .[0].usage.primary.usedPercent == 100
-            and .[0].usage.secondary.resetDescription == "Claude & OpenAI Models"
-            and .[0].usage.secondary.usedPercent == 0
+            and ([.[0].usage.primary, .[0].usage.secondary, .[0].usage.tertiary]
+              | map(select(.resetDescription == "Claude & OpenAI Models" and .usedPercent == 0))
+              | length) == 1
+            and ([.[0].usage.primary, .[0].usage.secondary, .[0].usage.tertiary]
+              | map(select(.resetDescription == "Other Models" and .usedPercent == 25))
+              | length) == 1
             and .[0].accounts[0].modelWindows[0].name == "Gemini Flash"
             and .[0].accounts[0].modelWindows[0].usedPercent == 65
             and .[0].accounts[0].modelWindows[1].name == "Gemini Pro"
             and .[0].accounts[0].modelWindows[1].usedPercent == 100
+            and ([.[0].accounts[0].modelWindows[].name] | index("Placeholder")) == null
           ' >/dev/null
+
+      - name: Integration test — Antigravity live request safeguards
+        run: tests/test-antigravity-live.sh
 
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |
@@ -452,7 +473,8 @@ jobs:
           "${{ steps.qmllint.outputs.bin }}" \
             AiOverviewControlWidget.qml \
             AiOverviewControlSettings.qml \
-            AiOverviewControlI18n.qml
+            AiOverviewControlI18n.qml \
+            ProviderLogo.qml
 
   # ─── crowdin ─────────────────────────────────────────────────────────────────
   crowdin:
