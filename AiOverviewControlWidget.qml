@@ -37,6 +37,8 @@ PluginComponent {
     property string historyBuffer: ""
     property string retryBuffer: ""
     property string retryingProviderId: ""
+    // In-process dispatch bookkeeping. The helper owns the durable state so
+    // this remains only a cheap guard between refreshes in this instance.
     property var notifiedMap: ({})
     property bool notifyEnabled: String(pluginData.quotaNotifications ?? "true") === "true"
     property int notifyThreshold: {
@@ -555,6 +557,51 @@ PluginComponent {
 
     function normalizeProviderId(providerId) {
         return String(providerId || "").trim().toLowerCase();
+    }
+
+    function notificationProviderId(providerId) {
+        const aliases = {
+            agy: "antigravity", moonshot: "kimi", zhipu: "glm",
+            dashscope: "qwen", alibaba: "qwen", nim: "nvidia",
+            vertex: "vertexai", ark: "byteplus", modelark: "byteplus",
+            grok: "xai"
+        };
+        const normalized = normalizeProviderId(providerId);
+        return aliases[normalized] || normalized;
+    }
+
+    function notificationIconPath(providerId) {
+        const canonicalId = notificationProviderId(providerId);
+        if (canonicalId.length === 0 || _pluginDir.length === 0) {
+            return "dialog-warning";
+        }
+        const extension = canonicalId === "byteplus" ? ".png" : ".svg";
+        // DMS accepts a local path as the notification app icon, which lets
+        // its popup use the same provider mark as the dashboard card.
+        return _pluginDir + "/assets/provider-logos/" + canonicalId + extension;
+    }
+
+    function notificationWindowKey(providerId, windowData) {
+        const canonicalId = notificationProviderId(providerId);
+        const minutes = Math.max(0, Math.round(Number(windowData && windowData.windowMinutes || 0)));
+        // Keep the identity independent of translated display text. Changing
+        // the DMS/plugin locale must never re-arm a quota alert.
+        let windowKind = "usage";
+        if (minutes > 0 && minutes <= 300) windowKind = "session";
+        else if (minutes > 0 && minutes <= 10080) windowKind = "weekly";
+        else if (minutes > 0 && minutes <= 43200) windowKind = "monthly";
+        else if (minutes > 0) windowKind = `${Math.floor(minutes / 1440)}d`;
+        const resetMs = new Date(windowData && windowData.resetsAt || "").getTime();
+        if (Number.isFinite(resetMs) && resetMs > 0) {
+            // Some APIs recalculate a reset timestamp by a few seconds on
+            // every poll. Bucket it by its quota duration so that drift does
+            // not look like a brand-new quota window.
+            const periodMs = minutes > 0
+                ? Math.max(60 * 60 * 1000, minutes * 60 * 1000)
+                : 24 * 60 * 60 * 1000;
+            return `${canonicalId}:${windowKind}:${minutes}:${Math.floor(resetMs / periodMs)}`;
+        }
+        return `${canonicalId}:${windowKind}:${minutes}:static`;
     }
 
     function providersCsv(list) {
@@ -1126,53 +1173,63 @@ PluginComponent {
     function checkNotifications() {
         if (!notifyEnabled) return;
         const seen = notifiedMap;
+        const now = Date.now();
         for (let i = 0; i < successfulProviders.length; i++) {
             const provider = successfulProviders[i];
             const windowData = primaryUsageWindow(provider);
             if (!windowData) continue;
             const percent = Number(windowData.usedPercent || 0);
             const threshold = thresholdFor(provider.provider);
-            // Key includes the reset timestamp so a new window re-arms the alert.
-            const dedupeKey = `${provider.provider}:${windowData.resetsAt || "static"}:${threshold}`;
+            // One stable key per provider quota window. In particular, do not
+            // include the threshold or an unbucketed reset time: changing a
+            // setting or a provider's timestamp jitter must not create a
+            // fresh toast on every refresh.
+            const dedupeKey = notificationWindowKey(provider.provider, windowData);
             if (percent < threshold - 5) {
-                // Usage dropped well below the threshold (window reset): clear
-                // the persisted entry so the next crossing alerts again. The
-                // 5pp hysteresis band avoids notify/clear flapping right at
-                // the threshold. Matters mostly for "static" keys (null
-                // resetsAt) that would otherwise never re-arm. Unconditional
-                // because the on-disk entry may have been written by another
-                // instance or before a reload; the helper exits early when
-                // the key is absent.
+                // Re-arm only after a meaningful fall. The hysteresis avoids
+                // a noisy alert/clear loop around the selected threshold and
+                // also makes static (no reset timestamp) windows usable.
                 delete seen[dedupeKey];
                 Quickshell.execDetached(["bash", notifyAlertScript, "--clear", dedupeKey]);
                 continue;
             }
-            if (percent < threshold || seen[dedupeKey]) continue;
-            seen[dedupeKey] = true;
+            if (percent < threshold) continue;
 
             const pct = Math.round(percent);
-            const exhausted = pct >= 100;
+            const exhausted = percent >= 100;
+            const severity = exhausted ? 2 : 1;
+            const previous = seen[dedupeKey];
+            const cooldownElapsed = previous
+                && notifyCooldownSecs < 999999999
+                && now - previous.lastAttemptMs >= notifyCooldownSecs * 1000;
+            // Dispatch on the crossing, when it becomes exhausted, or for an
+            // explicitly requested reminder. The helper repeats this check
+            // atomically across bars/reloads and updates, rather than stacks,
+            // the DMS notification when an escalation is needed.
+            if (previous && severity <= previous.severity && !cooldownElapsed) continue;
+            seen[dedupeKey] = { severity: Math.max(severity, previous ? previous.severity : 0), lastAttemptMs: now };
+
             const reset = formatTimeUntil(windowData.resetsAt);
             const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
-            const display = String(windowData.displayValue || "").trim();
 
             const title = exhausted
-                ? t("notify.title_exhausted", "{provider} — quota exhausted", { provider: providerName(provider.provider) })
-                : t("notify.title", "{provider} at {percent}%", { provider: providerName(provider.provider), percent: pct });
-            const bodyParts = [windowLabel];
-            if (display.length > 0 && display !== windowLabel) bodyParts.push(display);
+                ? t("notify.title_exhausted", "{provider} quota reached", { provider: providerName(provider.provider) })
+                : t("notify.title", "{provider} usage is high ({percent}%)", { provider: providerName(provider.provider), percent: pct });
+            const bodyParts = [exhausted
+                ? t("notify.body_exhausted", "No quota remains in the {window} window.", { window: windowLabel })
+                : t("notify.body", "{window} quota · {percent}% used", { window: windowLabel, percent: pct })];
             if (reset.length > 0) bodyParts.push(t("notify.resets_in", "resets in {time}", { time: reset }));
 
             // The helper persists state on disk (flock-guarded), so duplicate
             // widget instances, plugin reloads and shell restarts cannot
-            // re-fire inside the cooldown window. `seen` stays as a cheap
-            // in-process fast path only.
+            // re-fire inside the cooldown window. At 100%, it replaces the
+            // prior provider toast with a critical, branded update.
             Quickshell.execDetached([
                 "bash", notifyAlertScript,
                 dedupeKey,
                 String(notifyCooldownSecs),
                 exhausted ? "critical" : "normal",
-                exhausted ? "dialog-error" : "dialog-warning",
+                notificationIconPath(provider.provider),
                 title,
                 bodyParts.join(" · ")
             ]);

@@ -542,7 +542,7 @@ PluginSettings {
         id: notifyToggle
         width: parent.width
         text: t("settings.notify.label", "Quota notifications")
-        description: t("settings.notify.description", "Send a desktop notification when a provider crosses the threshold.")
+        description: t("settings.notify.description", "Alert once when a provider crosses the threshold, then update the same notification if its quota is exhausted.")
         checked: loadValue("quotaNotifications", "true") === "true"
         onToggled: function(checked) { saveValue("quotaNotifications", checked ? "true" : "false"); }
     }
@@ -563,7 +563,7 @@ PluginSettings {
         visible: notifyToggle.checked
         width: parent.width
         text: t("settings.notify.cooldown", "Re-alert interval")
-        description: t("settings.notify.cooldown_desc", "0 alerts once per quota window; other values repeat the alert after that many minutes while usage stays above the threshold.")
+        description: t("settings.notify.cooldown_desc", "0 alerts once per quota window. Other values update the same notification after that many minutes while usage stays high.")
         currentValue: loadValue("notifyCooldownMinutes", "0")
         options: ["0", "60", "360", "1440"]
         optionIcons: ["notifications_off", "schedule", "schedule", "schedule"]

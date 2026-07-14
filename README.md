@@ -56,7 +56,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 | 🗂️ **Rich provider cards** | Usage windows, reset times, identity, credits, sparklines, trends, and console links. |
 | 🛡️ **Failure isolation** | One timeout or invalid credential never hides healthy providers. |
 | 🎛️ **Flexible layout** | Compact/comfortable density, status filters, pinned providers, and `auto`/`custom`/`top` pill modes. |
-| 🔔 **Quota notifications** | Desktop alerts with global and per-provider thresholds, fired once per quota window. |
+| 🔔 **Quota notifications** | Branded DMS desktop alerts with global/per-provider thresholds; one toast per quota window, upgraded in place when quota is exhausted. |
 | 🌍 **5 UI languages** | English, Português (BR), 简体中文, Español, and Deutsch. |
 | 🔒 **Privacy first** | Local adapters, no paid endpoints just to test keys, secrets never displayed. |
 
@@ -173,6 +173,7 @@ Settings are stored by DMS and survive plugin upgrades.
 | Quota notifications | enabled or disabled | enabled |
 | Global notification threshold | 75%, 85%, or 95% | 85% |
 | Per-provider thresholds | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`) | empty |
+| Re-alert interval | once per window, 1h, 6h, or 24h (updates the existing alert) | once per window |
 | History retention | 500, 2,000, or 10,000 snapshots | 2,000 |
 
 The default provider selection is:

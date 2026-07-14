@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Notification experience
+
+- Reworked quota-alert deduplication around a stable provider/window identity. Timestamp jitter, locale changes, and threshold edits no longer re-arm alerts or flood the DankMaterialShell notification popup.
+- High-usage alerts now escalate in place to a critical “quota reached” notification at 100%; reminders reuse the same DMS notification instead of stacking cards, and a critical alert is never downgraded back to a warning.
+- Notification popups now use each provider's bundled brand logo and concise localized text for the quota window, usage percentage, and reset time.
+- Clarified the notification settings, re-alert behavior, and documentation in every supported locale.
+
 ## 1.7.0 - 2026-07-13
 
 ### DankBar and provider identity

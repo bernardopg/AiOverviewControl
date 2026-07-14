@@ -8,8 +8,8 @@ set -euo pipefail
 # State lives in one JSON file shared by every widget instance (multi-monitor
 # bars, plugin reloads, shell restarts), guarded by flock so two instances
 # firing in the same refresh tick cannot both emit. Re-sends reuse the daemon
-# notification id (notify-send -r), so a repeat replaces the bubble instead of
-# stacking a new entry.
+# notification id (notify-send -r), so a reminder or a critical escalation
+# replaces the existing DMS popup instead of stacking a new entry.
 
 state_dir_for_clear="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
 # --clear <key>: drop the stored entry so the alert re-arms (used when usage
@@ -56,14 +56,26 @@ flock -w 10 9 || exit 0
 now="$(date +%s)"
 last=0
 prev_id=0
+previous_level=1
 if [ -s "$state_file" ]; then
   last="$(jq -r --arg k "$key" '.[$k].last // 0' "$state_file" 2>/dev/null || echo 0)"
   prev_id="$(jq -r --arg k "$key" '.[$k].id // 0' "$state_file" 2>/dev/null || echo 0)"
+  # State written before level tracking existed represents a normal alert.
+  previous_level="$(jq -r --arg k "$key" '.[$k].level // 1' "$state_file" 2>/dev/null || echo 1)"
 fi
 case "$last" in ''|*[!0-9]*) last=0 ;; esac
 case "$prev_id" in ''|*[!0-9]*) prev_id=0 ;; esac
+case "$previous_level" in ''|*[!0-9]*) previous_level=1 ;; esac
 
-if [ "$last" -gt 0 ] && [ $((now - last)) -lt "$cooldown" ]; then
+level=1
+[ "$urgency" = "critical" ] && level=2
+
+# Never downgrade a critical quota-reached notification. A critical escalation
+# bypasses the reminder cooldown once, then takes over the same notification.
+if [ "$last" -gt 0 ] && [ "$level" -lt "$previous_level" ]; then
+  exit 0
+fi
+if [ "$last" -gt 0 ] && [ "$level" -le "$previous_level" ] && [ $((now - last)) -lt "$cooldown" ]; then
   exit 0
 fi
 
@@ -85,8 +97,9 @@ jq -n \
   --argjson state "$existing" \
   --arg k "$key" \
   --argjson now "$now" \
-  --argjson id "$notify_id" '
+  --argjson id "$notify_id" \
+  --argjson level "$level" '
   ($state | with_entries(select(($now - (.value.last // 0)) < 5184000)))
-  + {($k): {last: $now, id: $id}}
+  + {($k): {last: $now, id: $id, level: $level}}
 ' >"$tmp"
 mv "$tmp" "$state_file"

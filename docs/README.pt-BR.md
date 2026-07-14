@@ -57,7 +57,7 @@ inventados. Nunca.
 | 🗂️ **Cartões ricos** | Janelas de uso, horários de reset, identidade, créditos, sparklines, tendências e links para o console. |
 | 🛡️ **Falhas isoladas** | Um timeout ou credencial inválida nunca esconde provedores saudáveis. |
 | 🎛️ **Layout flexível** | Densidade compacta/confortável, filtros por status, provedores fixados e pílula `auto`/`custom`/`top`. |
-| 🔔 **Notificações de cota** | Alertas de desktop com limiares globais e por provedor, disparados uma vez por janela de cota. |
+| 🔔 **Notificações de cota** | Alertas do DMS com a marca do provedor, limiares globais/por provedor e atualização no mesmo toast quando a cota esgota. |
 | 🌍 **5 idiomas de UI** | English, Português (BR), 简体中文, Español e Deutsch. |
 | 🔒 **Privacidade em primeiro lugar** | Adaptadores locais, nenhuma chamada paga só para testar chave, segredos nunca exibidos. |
 
@@ -172,6 +172,7 @@ As configurações são armazenadas pelo DMS e sobrevivem a upgrades do plugin.
 | Notificações de cota | habilitado ou desabilitado | habilitado |
 | Limiar global de notificação | 75%, 85% ou 95% | 85% |
 | Limiares por provedor | pares `provedor:percentual` separados por vírgula (ex.: `claude:90,codex:75`) | vazio |
+| Intervalo de repetição | uma vez por janela, 1h, 6h ou 24h (atualiza o alerta existente) | uma vez por janela |
 | Retenção de histórico | 500, 2.000 ou 10.000 snapshots | 2.000 |
 
 A seleção padrão de provedores é:

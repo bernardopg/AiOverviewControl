@@ -90,7 +90,7 @@ Every account request captures HTTP status and validates the response schema. Pa
 | `quotaNotifications` | `true` | Enable desktop quota notifications. |
 | `notifyThreshold` | `85` | Global quota notification threshold. |
 | `notifyThresholds` | empty | Per-provider `id:percent` notification overrides. |
-| `notifyCooldownMinutes` | `0` | Minimum minutes between repeated alerts. |
+| `notifyCooldownMinutes` | `0` | Minimum minutes between in-place notification updates; `0` means once per quota window. |
 | `historyRetention` | `2000` | Maximum local usage-history snapshots. |
 | `pinnedProviders` | empty | Provider IDs sorted before unpinned cards. |
 | `showClaudeProjects` | `true` | Show Claude local project analytics. |
