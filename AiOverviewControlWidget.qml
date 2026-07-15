@@ -40,6 +40,10 @@ PluginComponent {
     // In-process dispatch bookkeeping. The helper owns the durable state so
     // this remains only a cheap guard between refreshes in this instance.
     property var notifiedMap: ({})
+    property color providerLogoColor: {
+        const saved = String(pluginData.providerLogoColor || "").trim();
+        return saved.length > 0 ? saved : Theme.primary;
+    }
     property bool notifyEnabled: String(pluginData.quotaNotifications ?? "true") === "true"
     property int notifyThreshold: {
         const parsed = parseInt(pluginData.notifyThreshold || "85");
@@ -1230,6 +1234,7 @@ PluginComponent {
                 String(notifyCooldownSecs),
                 exhausted ? "critical" : "normal",
                 notificationIconPath(provider.provider),
+                providerLogoColor.toString(),
                 title,
                 bodyParts.join(" · ")
             ]);
@@ -1278,6 +1283,9 @@ PluginComponent {
             const lastSlash = withoutScheme.lastIndexOf("/");
             _pluginDir = lastSlash !== -1 ? withoutScheme.substring(0, lastSlash) : withoutScheme;
         }
+        // One-time, idempotent cleanup of the legacy state whose full reset
+        // timestamp made jitter look like a new quota window every refresh.
+        Quickshell.execDetached(["bash", notifyAlertScript, "--migrate"]);
         detectBinary();
     }
 
@@ -2195,7 +2203,7 @@ PluginComponent {
                             providerId: pillEntry.modelData.provider
                             fallbackIcon: root.iconForProvider(pillEntry.modelData.provider)
                             logoSize: 14
-                            tintColor: root.providerAccent(pillEntry.modelData.provider)
+                            tintColor: root.providerLogoColor
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -2261,7 +2269,7 @@ PluginComponent {
                         providerId: modelData.provider
                         fallbackIcon: root.iconForProvider(modelData.provider)
                         logoSize: 13
-                        tintColor: root.providerAccent(modelData.provider)
+                        tintColor: root.providerLogoColor
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
 
@@ -2631,16 +2639,21 @@ PluginComponent {
                         anchors.fill: parent
                         anchors.margins: 4
                         radius: width / 2
-                        color: Theme.withAlpha(card.accentColor, 0.14)
-                        border.width: card.hasUsage ? 0 : 1
-                        border.color: Theme.withAlpha(card.accentColor, 0.4)
+                        // Logo surfaces intentionally use the single
+                        // user-selected provider-logo colour. Usage state
+                        // remains on the surrounding progress ring instead
+                        // of making each provider mark look like a different
+                        // brand-coloured icon.
+                        color: Theme.withAlpha(root.providerLogoColor, 0.14)
+                        border.width: 1
+                        border.color: Theme.withAlpha(root.providerLogoColor, 0.32)
 
                         ProviderLogo {
                             anchors.centerIn: parent
                             providerId: card.provider.provider
                             fallbackIcon: root.iconForProvider(card.provider.provider)
                             logoSize: card.dense ? 15 : (card.compact ? 17 : 20)
-                            tintColor: card.accentColor
+                            tintColor: root.providerLogoColor
                         }
                     }
                 }

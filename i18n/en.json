@@ -89,6 +89,8 @@
   "settings.informational_providers_desc": "These providers expose no public read-only quota API. Their cards point to the official usage surface.",
   "settings.language.description": "UI language for this plugin. Auto follows system locale.",
   "settings.language.label": "Language",
+  "settings.logo_color": "Provider logo color",
+  "settings.logo_color_desc": "One monochrome color for every provider logo in the dashboard and desktop notifications.",
   "settings.notify.description": "Alert once when a provider crosses the threshold, then update the same notification if its quota is exhausted.",
   "settings.notify.label": "Quota notifications",
   "settings.notify.overrides": "Per-provider threshold overrides",

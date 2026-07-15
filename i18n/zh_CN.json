@@ -89,6 +89,8 @@
   "settings.informational_providers_desc": "这些提供商没有公开的只读配额 API，卡片会指向官方用量页面。",
   "settings.language.description": "此插件的界面语言。自动模式跟随系统区域设置。",
   "settings.language.label": "语言",
+  "settings.logo_color": "服务商徽标颜色",
+  "settings.logo_color_desc": "为仪表板和桌面通知中的所有服务商徽标使用同一种单色。",
   "settings.notify.description": "服务商超过阈值时仅提醒一次；配额耗尽时会更新同一条通知。",
   "settings.notify.label": "配额通知",
   "settings.notify.overrides": "按服务商覆盖阈值",

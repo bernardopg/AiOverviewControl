@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs.Common
+import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
 
@@ -14,6 +15,7 @@ PluginSettings {
     property var selectedIds: normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"))
     property var pinnedIds: normalizeCsvList(loadValue("pinnedProviders", ""))
     property var pillIds: normalizePillSelection(loadValue("pillProviders", selectedIds.join(",")))
+    property color providerLogoColor: loadValue("providerLogoColor", Theme.primary.toString())
 
     function normalizeCsvList(value) {
         const parts = String(value || "").split(",");
@@ -47,6 +49,18 @@ PluginSettings {
     }
 
     function isPinned(id) { return pinnedIds.indexOf(id) >= 0; }
+
+    function openProviderLogoColorPicker() {
+        const modal = PopoutService.colorPickerModal;
+        if (!modal) return;
+        modal.selectedColor = loadValue("providerLogoColor", Theme.primary.toString());
+        modal.pickerTitle = t("settings.logo_color", "Provider logo color");
+        modal.onColorSelectedCallback = function(selectedColor) {
+            root.providerLogoColor = selectedColor;
+            saveValue("providerLogoColor", selectedColor.toString());
+        };
+        modal.show();
+    }
 
     function togglePinned(id) {
         const result = pinnedIds.slice();
@@ -469,7 +483,7 @@ PluginSettings {
                                 providerId: pillProviderChip.modelData.id
                                 fallbackIcon: pillProviderChip.modelData.icon
                                 logoSize: 16
-                                tintColor: pillProviderChip.active ? Theme.primary : Theme.surfaceVariantText
+                                tintColor: root.providerLogoColor
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
@@ -520,6 +534,72 @@ PluginSettings {
         description: t("settings.show_errors_desc", "Keep authentication and configuration failures visible in the dashboard.")
         checked: loadValue("showErrorProviders", "true") === "true"
         onToggled: function(checked) { saveValue("showErrorProviders", checked ? "true" : "false"); }
+    }
+
+    Column {
+        width: parent.width
+        spacing: Theme.spacingXS
+
+        StyledText {
+            width: parent.width
+            text: t("settings.logo_color", "Provider logo color")
+            color: Theme.surfaceText
+            font.pixelSize: Theme.fontSizeSmall
+            font.weight: Font.Medium
+        }
+
+        StyledText {
+            width: parent.width
+            text: t("settings.logo_color_desc", "One monochrome color for every provider logo in the dashboard and desktop notifications.")
+            color: Theme.surfaceVariantText
+            font.pixelSize: Theme.fontSizeSmall - 1
+            wrapMode: Text.WordWrap
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 46
+            radius: Theme.cornerRadius
+            color: Theme.surfaceContainerHigh
+
+            Row {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.spacingM
+                anchors.rightMargin: Theme.spacingM
+                spacing: Theme.spacingM
+
+                Rectangle {
+                    width: 28
+                    height: 28
+                    radius: width / 2
+                    color: root.providerLogoColor
+                    border.color: Theme.outline
+                    border.width: 1
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                StyledText {
+                    text: root.providerLogoColor.toString()
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeSmall
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Item { width: 1; height: 1; Layout.fillWidth: true }
+
+                DankIcon {
+                    name: "edit"
+                    size: Theme.iconSizeSmall
+                    color: Theme.surfaceVariantText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            StateLayer {
+                stateColor: Theme.surfaceText
+                onClicked: root.openProviderLogoColorPicker()
+            }
+        }
     }
 
     DankToggle {
@@ -880,7 +960,7 @@ PluginSettings {
                             providerId: providerChip.modelData.id
                             fallbackIcon: providerChip.modelData.icon
                             logoSize: 16
-                            tintColor: providerChip.active ? Theme.primary : Theme.surfaceVariantText
+                            tintColor: root.providerLogoColor
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText { text:modelData.name; color:providerChip.active ? Theme.primary : Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall; font.weight:providerChip.active ? Font.Medium : Font.Normal }
@@ -930,7 +1010,7 @@ PluginSettings {
                                 providerId: providerDetailRow.modelData.id
                                 fallbackIcon: providerDetailRow.modelData.icon
                                 logoSize: 16
-                                tintColor: Theme.primary
+                                tintColor: root.providerLogoColor
                             }
                         }
 

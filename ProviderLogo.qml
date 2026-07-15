@@ -27,13 +27,6 @@ Item {
         const normalized = String(providerId || "").trim().toLowerCase();
         return aliases[normalized] || normalized;
     }
-    readonly property var colorLogoIds: [
-        "9router", "ai21", "amp", "antigravity", "byteplus", "claude",
-        "cloudflare", "cohere", "copilot", "deepseek", "fireworks",
-        "gemini", "glm", "kimi", "kiro", "minimax", "mistral",
-        "nvidia", "perplexity", "qwen", "together", "vertexai", "warp"
-    ]
-    readonly property bool usesBrandColors: colorLogoIds.indexOf(canonicalId) >= 0
     readonly property string logoExtension: canonicalId === "byteplus" ? ".png" : ".svg"
     readonly property url logoSource: canonicalId.length > 0
         ? Qt.resolvedUrl("assets/provider-logos/" + canonicalId + logoExtension)
@@ -57,15 +50,16 @@ Item {
         mipmap: true
         asynchronous: true
         cache: true
-        visible: root.usesBrandColors && root.logoReady
-    }
 
-    MultiEffect {
-        anchors.fill: logoImage
-        source: logoImage
-        visible: !root.usesBrandColors && root.logoReady
-        colorization: 1.0
-        colorizationColor: root.tintColor
+        // Applying the colorization to the image layer keeps the original
+        // transparent SVG silhouette; do not use it as a sibling effect
+        // source, which is opaque with this renderer.
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            brightness: 1.0
+            colorization: 1.0
+            colorizationColor: root.tintColor
+        }
     }
 
     DankIcon {

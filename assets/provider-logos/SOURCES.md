@@ -8,5 +8,6 @@ All marks are stored locally so the plugin never depends on a network request at
 - 9Router: [official `public/favicon.svg`](https://github.com/decolua/9router/blob/master/public/favicon.svg), MIT.
 - BytePlus Ark: [official BytePlus favicon](https://sf-bpcms.bytepluscdn.com/obj/byteplus-public-aiso/portal/assets/favicon.png), discovered from the ModelArk product page.
 - Warp: [Simple Icons `warp`](https://simpleicons.org/?q=warp), CC0-1.0, brand color `#01A4FF`.
+- GitHub Copilot: [Simple Icons `githubcopilot`](https://simpleicons.org/?q=githubcopilot), CC0-1.0.
 
 The included license files cover the MIT-licensed Lobe Icons and 9Router assets. Product names and logos remain trademarks of their respective owners.

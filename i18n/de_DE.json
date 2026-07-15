@@ -89,6 +89,8 @@
   "settings.informational_providers_desc": "Diese Anbieter bieten keine öffentliche, schreibgeschützte Kontingent-API. Ihre Karten verweisen auf die offizielle Nutzungsoberfläche.",
   "settings.language.description": "Sprache der Plugin-Oberfläche. Auto folgt der Systemsprache.",
   "settings.language.label": "Sprache",
+  "settings.logo_color": "Farbe der Anbieterlogos",
+  "settings.logo_color_desc": "Eine monochrome Farbe für alle Anbieterlogos im Dashboard und in Desktop-Benachrichtigungen.",
   "settings.notify.description": "Warnt einmal, wenn ein Anbieter den Schwellwert überschreitet, und aktualisiert dieselbe Benachrichtigung bei ausgeschöpftem Kontingent.",
   "settings.notify.label": "Kontingent-Benachrichtigungen",
   "settings.notify.overrides": "Schwellwerte pro Anbieter",

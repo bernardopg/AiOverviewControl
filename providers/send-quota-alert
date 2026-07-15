@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 # Cross-instance deduplicated quota notification.
 #
-# Usage: send-quota-alert <key> <cooldown_seconds> <urgency> <icon> <title> <body>
+# Usage: send-quota-alert <key> <cooldown_seconds> <urgency> <icon_source> <icon_color> <title> <body>
 #
 # State lives in one JSON file shared by every widget instance (multi-monitor
 # bars, plugin reloads, shell restarts), guarded by flock so two instances
@@ -12,6 +13,23 @@ set -euo pipefail
 # replaces the existing DMS popup instead of stacking a new entry.
 
 state_dir_for_clear="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
+# --migrate: remove state written by the pre-1.7 dedupe key format. That
+# format embedded the full reset timestamp, so a provider that reports a few
+# milliseconds of jitter accumulated a new entry (and notification) per poll.
+# Current keys use provider:window-kind:duration:window-bucket instead.
+if [ "${1:-}" = "--migrate" ]; then
+  state_file="${state_dir_for_clear}/notify-state.json"
+  lock_file="${state_dir_for_clear}/notify-state.lock"
+  [ -s "$state_file" ] || exit 0
+  mkdir -p "$state_dir_for_clear"
+  exec 9>"$lock_file"
+  flock -w 10 9 || exit 0
+  tmp="$(mktemp "${state_dir_for_clear}/.notify-state.XXXXXX")"
+  jq 'with_entries(select(.key | test("^[^:]+:[0-9]{4}-[0-9]{2}-[0-9]{2}T") | not))' "$state_file" >"$tmp" 2>/dev/null || { rm -f "$tmp"; exit 0; }
+  mv "$tmp" "$state_file"
+  exit 0
+fi
+
 # --clear <key>: drop the stored entry so the alert re-arms (used when usage
 # falls back below the threshold, e.g. a quota window reset with a null
 # resetsAt that produces a "static" dedupe key).
@@ -33,9 +51,10 @@ fi
 key="${1:?missing dedupe key}"
 cooldown="${2:-21600}"
 urgency="${3:-normal}"
-icon="${4:-dialog-warning}"
-title="${5:?missing title}"
-body="${6:-}"
+icon_source="${4:-dialog-warning}"
+icon_color="${5:-#6750A4}"
+title="${6:?missing title}"
+body="${7:-}"
 
 case "$cooldown" in
   ''|*[!0-9]*) cooldown=21600 ;;
@@ -44,6 +63,52 @@ case "$urgency" in
   low|normal|critical) ;;
   *) urgency=normal ;;
 esac
+
+render_monochrome_icon() {
+  local source="$1" color="$2" hex viewbox min_x min_y source_width source_height box_x box_y box_size red green blue output_dir output_file tmp
+  [ -f "$source" ] || return 1
+  case "$source" in
+    *.svg) ;;
+    *) return 1 ;;
+  esac
+
+  hex="${color#\#}"
+  # QColor may serialize with alpha (#AARRGGBB); the icon is intentionally
+  # opaque, so retain only RGB.
+  [ "${#hex}" -eq 8 ] && hex="${hex:2}"
+  [ "${#hex}" -eq 6 ] || return 1
+  case "$hex" in *[!0-9A-Fa-f]*) return 1 ;; esac
+  viewbox="$(sed -n '1{s/.*viewBox="\([^"]*\)".*/\1/p;}' "$source")"
+  read -r min_x min_y source_width source_height <<EOF
+$viewbox
+EOF
+  [ -n "$source_width" ] && [ -n "$source_height" ] || return 1
+
+  red=$((16#${hex:0:2}))
+  green=$((16#${hex:2:2}))
+  blue=$((16#${hex:4:2}))
+  read -r box_x box_y box_size <<EOF
+$(awk -v x="$min_x" -v y="$min_y" -v w="$source_width" -v h="$source_height" 'BEGIN { s=(w>h?w:h)*1.30; printf "%.6f %.6f %.6f", x-(s-w)/2, y-(s-h)/2, s }')
+EOF
+
+  output_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl/notification-icons"
+  mkdir -p "$output_dir"
+  output_file="${output_dir}/$(printf '%s' "${source}|${hex}" | sha256sum | cut -d' ' -f1).svg"
+  if [ -s "$output_file" ]; then
+    printf '%s\n' "$output_file"
+    return 0
+  fi
+
+  tmp="$(mktemp "${output_dir}/.icon.XXXXXX")"
+  {
+    printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="%s %s %s %s">\n' "$box_x" "$box_y" "$box_size" "$box_size"
+    printf '<defs><filter id="mono"><feColorMatrix type="matrix" values="0 0 0 0 %.6f 0 0 0 0 %.6f 0 0 0 0 %.6f 0 0 0 1 0"/></filter></defs><g filter="url(#mono)">\n' "$(awk -v v="$red" 'BEGIN { print v / 255 }')" "$(awk -v v="$green" 'BEGIN { print v / 255 }')" "$(awk -v v="$blue" 'BEGIN { print v / 255 }')"
+    sed '1s/^[^>]*>//; $s#</svg>[[:space:]]*$##' "$source"
+    printf '</g></svg>\n'
+  } >"$tmp"
+  mv "$tmp" "$output_file"
+  printf '%s\n' "$output_file"
+}
 
 state_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
 state_file="${state_dir}/notify-state.json"
@@ -82,7 +147,7 @@ fi
 notify_id="$(notify-send -p -r "$prev_id" \
   -a "AiOverviewControl" \
   -u "$urgency" \
-  -i "$icon" \
+  -i "$(render_monochrome_icon "$icon_source" "$icon_color" || printf '%s' 'dialog-warning')" \
   -h "string:x-canonical-private-synchronous:aioverviewcontrol-${key}" \
   "$title" "$body" 2>/dev/null || echo 0)"
 case "$notify_id" in ''|*[!0-9]*) notify_id=0 ;; esac

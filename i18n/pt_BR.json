@@ -89,6 +89,8 @@
   "settings.informational_providers_desc": "Estes provedores não expõem API pública somente leitura para cotas. Os cartões apontam para a tela oficial de uso.",
   "settings.language.description": "Idioma da interface deste plugin. Automático segue o idioma do sistema.",
   "settings.language.label": "Idioma",
+  "settings.logo_color": "Cor dos logos dos provedores",
+  "settings.logo_color_desc": "Uma única cor monocromática para todos os logos dos provedores no painel e nas notificações da área de trabalho.",
   "settings.notify.description": "Alerta uma vez quando um provider cruza o limiar e atualiza a mesma notificação se a cota se esgotar.",
   "settings.notify.label": "Notificações de quota",
   "settings.notify.overrides": "Limiares por provider",

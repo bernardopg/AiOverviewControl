@@ -89,6 +89,8 @@
   "settings.informational_providers_desc": "Estos proveedores no exponen una API pública de cuota de solo lectura. Sus tarjetas remiten a la superficie de uso oficial.",
   "settings.language.description": "Idioma de la interfaz del plugin. Auto sigue la configuración regional del sistema.",
   "settings.language.label": "Idioma",
+  "settings.logo_color": "Color de los logotipos de proveedores",
+  "settings.logo_color_desc": "Un color monocromático para todos los logotipos de proveedores del panel y las notificaciones de escritorio.",
   "settings.notify.description": "Alerta una vez cuando un proveedor supera el umbral y actualiza la misma notificación si se agota su cuota.",
   "settings.notify.label": "Notificaciones de cuota",
   "settings.notify.overrides": "Umbrales por proveedor",

@@ -6,8 +6,13 @@
 
 - Reworked quota-alert deduplication around a stable provider/window identity. Timestamp jitter, locale changes, and threshold edits no longer re-arm alerts or flood the DankMaterialShell notification popup.
 - High-usage alerts now escalate in place to a critical “quota reached” notification at 100%; reminders reuse the same DMS notification instead of stacking cards, and a critical alert is never downgraded back to a warning.
-- Notification popups now use each provider's bundled brand logo and concise localized text for the quota window, usage percentage, and reset time.
+- Notification popups now use a padded monochrome rendering of each provider's bundled logo and concise localized text for the quota window, usage percentage, and reset time.
 - Clarified the notification settings, re-alert behavior, and documentation in every supported locale.
+
+### Provider logo presentation
+
+- All provider marks in the DankBar pill, dashboard, settings, and new desktop alerts now use one configurable monochrome color while preserving the vector silhouette and transparent canvas.
+- Provider-card logo surfaces now share that same color instead of individual brand accents, and Copilot uses the GitHub Copilot mark.
 
 ## 1.7.0 - 2026-07-13
 
