@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.7.1 - 2026-07-14
+
 ### Notification experience
 
 - Reworked quota-alert deduplication around a stable provider/window identity. Timestamp jitter, locale changes, and threshold edits no longer re-arm alerts or flood the DankMaterialShell notification popup.
