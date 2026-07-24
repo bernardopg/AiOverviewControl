@@ -7,7 +7,11 @@ Item {
     id: root
 
     property string providerId: ""
-    property string fallbackIcon: "monitoring"
+    // Single source of truth for the Material fallback icon, keyed by canonical
+    // id. Callers pass only providerId; overriding fallbackIcon is no longer
+    // needed (kept overridable for edge cases). Previously the widget and
+    // settings maintained separate, diverging maps.
+    property string fallbackIcon: defaultIcon
     property color tintColor: Theme.surfaceText
     property int logoSize: 20
 
@@ -26,6 +30,21 @@ Item {
         };
         const normalized = String(providerId || "").trim().toLowerCase();
         return aliases[normalized] || normalized;
+    }
+    readonly property string defaultIcon: {
+        const icons = {
+            codex: "data_object", claude: "psychology", copilot: "hub",
+            antigravity: "rocket_launch", gemini: "auto_awesome", openrouter: "route",
+            "9router": "share", deepseek: "tsunami", kimi: "dark_mode", mistral: "air",
+            glm: "bubble_chart", minimax: "grid_view", qwen: "cloud", nvidia: "memory",
+            cloudflare: "shield", vertexai: "hexagon", byteplus: "bolt",
+            perplexity: "travel_explore", cursor: "ads_click", ollama: "dns",
+            together: "join_inner", groq: "fast_forward", cohere: "waves",
+            replicate: "content_copy", fireworks: "local_fire_department", xai: "bolt",
+            ai21: "looks_21", cline: "terminal", opencode: "code", warp: "rocket_launch",
+            amp: "electric_bolt", kilo: "speed", kiro: "tune"
+        };
+        return icons[canonicalId] || "monitoring";
     }
     readonly property string logoExtension: canonicalId === "byteplus" ? ".png" : ".svg"
     readonly property url logoSource: canonicalId.length > 0

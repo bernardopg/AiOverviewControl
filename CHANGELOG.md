@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.8.1 - 2026-07-24
+
+### Consistency and i18n hardening
+
+- **Single source of truth for provider icons.** `ProviderLogo` now owns the Material fallback-icon map (keyed by canonical id), so the DankBar pill, dashboard cards, and settings chips always agree. Removes the diverging `iconForProvider()` map in the widget and the per-entry `fallbackIcon` overrides in settings (audit finding 2.16, ~20/34 providers previously mismatched).
+- **Completed UI localization.** The Claude card's `5h` window label and the DankBar pill's `ERR` / `N/A` status codes now go through i18n (`card.five_hour`, `pill.error`, `pill.no_data`) and are translated in all five locales (audit 2.9, 2.11).
+- **Removed dead i18n keys** `card.backend`, `status.check_settings`, `status.self_managed` from every bundle (audit 2.20). Parity preserved at 156 keys × 5 locales.
+
 ## 1.8.0 - 2026-07-24
 
 ### Kimi Code subscription tracking

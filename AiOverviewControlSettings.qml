@@ -316,7 +316,7 @@ PluginSettings {
                             StyledText {
                                 id: versionLabel
                                 anchors.centerIn: parent
-                                text: "v1.8.0"
+                                text: "v1.8.1"
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
@@ -481,7 +481,6 @@ PluginSettings {
 
                             ProviderLogo {
                                 providerId: pillProviderChip.modelData.id
-                                fallbackIcon: pillProviderChip.modelData.icon
                                 logoSize: 16
                                 tintColor: root.providerLogoColor
                                 anchors.verticalCenter: parent.verticalCenter
@@ -958,7 +957,6 @@ PluginSettings {
                         spacing: Theme.spacingXS
                         ProviderLogo {
                             providerId: providerChip.modelData.id
-                            fallbackIcon: providerChip.modelData.icon
                             logoSize: 16
                             tintColor: root.providerLogoColor
                             anchors.verticalCenter: parent.verticalCenter
@@ -1008,7 +1006,6 @@ PluginSettings {
                             ProviderLogo {
                                 anchors.centerIn: parent
                                 providerId: providerDetailRow.modelData.id
-                                fallbackIcon: providerDetailRow.modelData.icon
                                 logoSize: 16
                                 tintColor: root.providerLogoColor
                             }

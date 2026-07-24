@@ -768,42 +768,8 @@ PluginComponent {
         return `…/${parts.slice(-2).join("/")}`;
     }
 
-    function iconForProvider(providerId) {
-        if (providerId === "codex") return "data_object";
-        if (providerId === "claude") return "psychology";
-        if (providerId === "copilot") return "hub";
-        if (providerId === "antigravity") return "rocket_launch";
-        if (providerId === "gemini") return "auto_awesome";
-        if (providerId === "openrouter") return "route";
-        if (providerId === "9router") return "share";
-        if (providerId === "deepseek") return "tsunami";
-        if (providerId === "kimi" || providerId === "moonshot") return "dark_mode";
-        if (providerId === "mistral") return "air";
-        if (providerId === "glm" || providerId === "zhipu" || providerId === "zai") return "bubble_chart";
-        if (providerId === "minimax") return "grid_view";
-        if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return "cloud";
-        if (providerId === "nvidia" || providerId === "nim") return "memory";
-        if (providerId === "cloudflare") return "shield";
-        if (providerId === "vertexai" || providerId === "vertex") return "hexagon";
-        if (providerId === "byteplus" || providerId === "ark" || providerId === "modelark") return "bolt";
-        if (providerId === "perplexity") return "travel_explore";
-        if (providerId === "cursor") return "ads_click";
-        if (providerId === "ollama") return "dns";
-        if (providerId === "together") return "join_inner";
-        if (providerId === "groq") return "fast_forward";
-        if (providerId === "cohere") return "waves";
-        if (providerId === "replicate") return "content_copy";
-        if (providerId === "fireworks") return "local_fire_department";
-        if (providerId === "xai" || providerId === "grok") return "bolt";
-        if (providerId === "ai21") return "looks_21";
-        if (providerId === "cline") return "terminal";
-        if (providerId === "opencode") return "code";
-        if (providerId === "warp") return "rocket_launch";
-        if (providerId === "amp") return "electric_bolt";
-        if (providerId === "kilo") return "speed";
-        if (providerId === "kiro") return "tune";
-        return "monitoring";
-    }
+    // Provider fallback icons live in ProviderLogo.defaultIcon (single source);
+    // callers pass only providerId.
 
     function providerAccent(providerId) {
         if (providerId === "claude") return Theme.warning;
@@ -2201,7 +2167,6 @@ PluginComponent {
 
                         ProviderLogo {
                             providerId: pillEntry.modelData.provider
-                            fallbackIcon: root.iconForProvider(pillEntry.modelData.provider)
                             logoSize: 14
                             tintColor: root.providerLogoColor
                             anchors.verticalCenter: parent.verticalCenter
@@ -2228,7 +2193,7 @@ PluginComponent {
 
             StyledText {
                 visible: root.pillDisplayProviders.length === 0
-                text: root.isLoading ? "..." : (root.hasError ? "ERR" : "N/A")
+                text: root.isLoading ? "…" : (root.hasError ? root.t("pill.error", "ERR") : root.t("pill.no_data", "N/A"))
                 color: root.isLoading ? Theme.surfaceVariantText : (root.hasError ? Theme.error : Theme.surfaceVariantText)
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.DemiBold
@@ -2267,7 +2232,6 @@ PluginComponent {
 
                     ProviderLogo {
                         providerId: modelData.provider
-                        fallbackIcon: root.iconForProvider(modelData.provider)
                         logoSize: 13
                         tintColor: root.providerLogoColor
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -2285,7 +2249,7 @@ PluginComponent {
 
             StyledText {
                 visible: root.pillDisplayProviders.length === 0
-                text: root.isLoading ? "..." : (root.hasError ? "ERR" : "N/A")
+                text: root.isLoading ? "…" : (root.hasError ? root.t("pill.error", "ERR") : root.t("pill.no_data", "N/A"))
                 color: root.hasError ? Theme.error : Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.DemiBold
@@ -2651,7 +2615,6 @@ PluginComponent {
                         ProviderLogo {
                             anchors.centerIn: parent
                             providerId: card.provider.provider
-                            fallbackIcon: root.iconForProvider(card.provider.provider)
                             logoSize: card.dense ? 15 : (card.compact ? 17 : 20)
                             tintColor: root.providerLogoColor
                         }
@@ -3019,7 +2982,7 @@ PluginComponent {
 
                         UsageBar {
                             width: parent.width
-                            label: "5h"
+                            label: root.t("card.five_hour", "5h")
                             percent: root.claudeFiveHourUtil
                             aside: {
                                 const reset = root.formatTimeUntil(root.claudeFiveHourReset);

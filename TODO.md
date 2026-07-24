@@ -9,9 +9,20 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ---
 
-## ⚡ Quick wins / cleanup (do next)
+## ⚡ Next up — post-1.8.0 (prioritized)
 
-_(Cleared in v1.4.8 — see Recently shipped below.)_
+Grounded in the v1.6.0 audit (`AUDIT-REPORT.md`) — its 6 critical data bugs are
+all resolved as of 1.8.0 (Codex credits, hardcoded versions, Cloudflare
+`String!`, Together credits endpoint, dead `SectionFrame`, `" req"` strings).
+What remains is correctness-of-new-features, consistency, and i18n polish.
+
+- [ ] **Kimi Code `/usages` live schema verification** — the parser added in 1.8.0 handles two payload shapes from community sources (`Golden0Voyager/kimi-code-usage`), not an official spec. Validate against a real `sk-kimi-` key, pin the actual field names, and trim the defensive dual-shape jq once the live shape is confirmed. `M · ★★★`
+- [ ] **Simultaneous Kimi cards** — key-routing means a user with BOTH an Open Platform `sk-xxx` balance key and a Kimi Code `sk-kimi-` subscription key sees only one. Emit two cards (balance + coding) when both creds exist. `M · ★★`
+- [ ] **Notification click action** — open the popout focused on the offending provider. `M · ★★★` _(moved up from Dashboard-UX)_
+- [x] ~~**Icon reconciliation** (audit 2.16)~~ — done in 1.8.1: `ProviderLogo.defaultIcon` is the single source; widget `iconForProvider()` and settings `fallbackIcon` overrides removed.
+- [x] ~~**Finish UI i18n**~~ — done in 1.8.1: `"5h"` (2.9), pill `ERR`/`N/A` (2.11) localized; 3 dead keys removed (2.20). Non-issues: `notify.body` is live (not dead); the `String.replace` `$`-bug (2.19) is already avoided via function-replacement `() => value`. **Skipped (WONTFIX):** `formatTier()` names (2.10) — `Max 20x`/`Pro`/`Free` are brand plan names, not UI chrome.
+- [ ] **QML smoke test** — headless instantiate the three QML files with stub data to catch binding-loop / undefined-property regressions before a tag ships. Highest-leverage safety net for third-party distribution. `L · ★★`
+- [ ] **Refresh or retire `AUDIT-REPORT.md`** — it targets 1.6.0 and is mostly resolved; re-baseline to 1.8.0 or fold the open items here and delete the 41KB report. `S · ★`
 
 ## Dashboard — UX
 
