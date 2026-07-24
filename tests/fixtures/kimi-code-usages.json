@@ -1,0 +1,6 @@
+{
+  "data": [
+    { "model_name": "all", "used": 98000, "limit": 130000, "resetTime": "2026-07-31T00:00:00Z" },
+    { "model_name": "5h burst", "used": 400, "limit": 2500, "reset_in": 7200 }
+  ]
+}

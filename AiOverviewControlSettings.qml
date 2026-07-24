@@ -111,7 +111,7 @@ PluginSettings {
         { id:"9router", name:"9Router", icon:"share", mode:"telemetry", requirement:"local 9Router database", envVar:"", note:"Local requests, tokens and cost" },
         { id:"openrouter", name:"OpenRouter", icon:"route", mode:"telemetry", requirement:"API key or 9Router data", envVar:"OPENROUTER_API_KEY", note:"Official key usage and limits" },
         { id:"deepseek", name:"DeepSeek", icon:"search", mode:"telemetry", requirement:"API key", envVar:"DEEPSEEK_API_KEY", note:"Official account balance" },
-        { id:"kimi", name:"Kimi", icon:"language", mode:"telemetry", requirement:"API key", envVar:"MOONSHOT_API_KEY", note:"Official account balance (USD/CNY)" },
+        { id:"kimi", name:"Kimi", icon:"language", mode:"telemetry", requirement:"API key", envVar:"MOONSHOT_API_KEY", note:"Account balance (USD/CNY), or Kimi Code subscription quota with a sk-kimi- key / KIMI_CODING_API_KEY" },
         { id:"minimax", name:"MiniMax", icon:"bar_chart", mode:"telemetry", requirement:"API key", envVar:"MINIMAX_API_KEY", note:"Official models API authentication check" },
         { id:"glm", name:"GLM", icon:"memory", mode:"telemetry", requirement:"API key", envVar:"GLM_API_KEY", note:"China (Zhipu) models API authentication check" },
         { id:"zai", name:"Z.ai", icon:"bubble_chart", mode:"telemetry", requirement:"API key", envVar:"ZAI_API_KEY", note:"Official /models auth check; GLM Coding Plan + PAYG" },
@@ -316,7 +316,7 @@ PluginSettings {
                             StyledText {
                                 id: versionLabel
                                 anchors.centerIn: parent
-                                text: "v1.6.1"
+                                text: "v1.8.0"
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
                                 color: Theme.primary

@@ -100,7 +100,7 @@ Notable integrations:
 | Antigravity | Gemini and Claude/OpenAI quota families with reset times from Cloud Code Assist; optional per-model diagnostics and automatic multi-account separation. |
 | 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
 | OpenRouter | Key limits, spend, balance, and 30-day model activity. |
-| Kimi (Moonshot) | `GET /v1/users/me/balance` — available, voucher, and cash balance (USD/CNY). |
+| Kimi (Moonshot) | Open Platform balance (`GET /v1/users/me/balance`, USD/CNY) — or **Kimi Code** subscription quota (`GET /coding/v1/usages`, weekly + 5h windows) when a `sk-kimi-` / `KIMI_CODING_API_KEY` is set. |
 | DeepSeek, Together | Provider balance or credit APIs. |
 | Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
 | Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check. |

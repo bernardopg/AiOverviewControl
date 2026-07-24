@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 1.8.0 - 2026-07-24
+
+### Kimi Code subscription tracking
+
+- The Kimi card now tracks the **Kimi Code / Coding Plan** subscription quota, not only the Open Platform prepaid balance. These are two independent systems with non-interchangeable keys. The adapter routes automatically: a `KIMI_CODING_API_KEY`, or a `KIMI_API_KEY`/`MOONSHOT_API_KEY` carrying the `sk-kimi-` prefix, reads `GET https://api.kimi.com/coding/v1/usages` (fallback `/usage`) and maps the weekly window to `primary` and the 5-hour window to `secondary` (`source: kimi-code`); an Open Platform `sk-xxx` key keeps reading the currency balance (`source: kimi-api`). Override the coding host with `KIMI_BASE_URL`.
+- `get-provider-health` now recognizes `KIMI_CODING_API_KEY` as a valid Kimi credential. Added `tests/test-kimi-code.sh` covering key routing and the weekly/5h window mapping.
+- Documented the two Kimi quota surfaces, the musical-tempo subscription tiers (Adagio → Vivace), the `kimi-k2.5`/`moonshot-v1` retirement on 2026-08-31, and the `kimi-k2.7-code` / `kimi-k3` successors across `docs/providers.md`, `docs/configuration.md`, and `docs/provider-verification.md`.
+
+### Codex documentation
+
+- Clarified that Codex rate-limit windows are model-agnostic: the GPT-5.6 tier rename (Sol / Terra / Luna, 2026-07-09) and the 2026-04 move to token-based metering do not change the `app-server` schema the adapter reads.
+
 ## 1.7.1 - 2026-07-14
 
 ### Notification experience
