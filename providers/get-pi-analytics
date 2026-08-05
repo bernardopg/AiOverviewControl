@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# Emit local pi coding-agent session telemetry as one JSON object for the
+# dashboard card:
+#   {
+#     days:        [7 trailing days, oldest→today: {date, weekday, cost, tokens}],
+#     topModels:   [up to 6, 7-day window, sorted by cost desc: {model, tokens, cost}]
+#                  ("model" is "provider/modelId", mirrors session-breakdown.ts ModelKey),
+#     topProjects: [up to 5, 7-day window, sorted by tokens desc: {cwd, tokens}],
+#     today / week / month: {cost, tokens}
+#   }
+# Source of truth: ~/.pi/agent/sessions/**/*.jsonl (each session is one file;
+# per session-breakdown.ts convention, a whole session's totals are bucketed
+# to the session's local start day — sessions spanning midnight are not
+# split across days).
+#
+# AIDEV-NOTE: ~/.pi/agent/sessions may be a symlink (e.g. to a synced
+# Documents folder) — `find` must use -L or it silently returns nothing.
+
+SESSIONS_DIR="${HOME}/.pi/agent/sessions"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+CACHE_FILE="$CACHE_DIR/pi-analytics-cache.json"
+CACHE_TTL=120 # seconds — matches the widget's default refreshInterval
+
+TODAY=$(date +%Y-%m-%d)
+DOW=$(date +%u) # 1=Monday, 7=Sunday
+WEEK_START=$(date -d "$((DOW - 1)) days ago" +%Y-%m-%d)
+MONTH_START=$(date +%Y-%m-01)
+
+# --- TTL cache: skip the full scan if a fresh snapshot already exists ---
+if [ -f "$CACHE_FILE" ]; then
+  cache_ts=$(jq -r '.cached_at // 0' "$CACHE_FILE" 2>/dev/null || echo 0)
+  now_ts=$(date +%s)
+  age=$((now_ts - cache_ts))
+  if [ "$age" -ge 0 ] && [ "$age" -lt "$CACHE_TTL" ] \
+    && jq -e '.data | type == "object"' "$CACHE_FILE" >/dev/null 2>&1; then
+    jq -c '.data' "$CACHE_FILE"
+    exit 0
+  fi
+fi
+
+if [ ! -d "$SESSIONS_DIR" ]; then
+  echo '{"error":"pi sessions directory not found"}'
+  exit 0
+fi
+
+tmp_rows="$(mktemp)"
+trap 'rm -f "$tmp_rows"' EXIT
+
+# Session start date (local calendar day), preferring the filename's UTC
+# timestamp (mirrors parseSessionStartFromFilename in session-breakdown.ts),
+# falling back to file mtime for files that don't match the naming scheme.
+parse_session_date() {
+  local f="$1" base="$2"
+  if [[ "$base" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2})-([0-9]{2})-([0-9]{2})-[0-9]{3}Z_ ]]; then
+    date -d "${BASH_REMATCH[1]}T${BASH_REMATCH[2]}:${BASH_REMATCH[3]}:${BASH_REMATCH[4]}Z" +%Y-%m-%d 2>/dev/null && return 0
+  fi
+  date -d "@$(stat -c %Y "$f" 2>/dev/null || echo 0)" +%Y-%m-%d 2>/dev/null
+}
+
+# One pass per file: aggregate tokens/cost/model breakdown/cwd for that
+# session, tagged with its local start date. Per-file scoping is required —
+# unlike Claude's session format, cwd only appears on the {type:"session"}
+# header line, not on every message.
+while IFS= read -r -d '' f; do
+  base="$(basename "$f")"
+  date_key="$(parse_session_date "$f" "$base")"
+  [ -n "$date_key" ] || continue
+
+  summary="$(jq -c -n -R '
+    reduce inputs as $line (
+      {cwd: null, curModel: null, tokens: 0, cost: 0, byModel: {}};
+      ($line | fromjson?) as $obj
+      | if $obj == null then .
+        elif $obj.type == "session" then .cwd = ($obj.cwd // .cwd)
+        elif $obj.type == "model_change" then
+          .curModel = (($obj.provider // "unknown") + "/" + ($obj.modelId // "unknown"))
+        elif $obj.type == "message" and ($obj.message.usage != null) then
+          ($obj.message.usage) as $u
+          | ( $u.totalTokens // (($u.input // 0) + ($u.output // 0) + ($u.cacheRead // 0) + ($u.cacheWrite // 0)) ) as $tok
+          | ( if ($u.cost | type) == "object" then ($u.cost.total // 0)
+              elif ($u.cost | type) == "number" then $u.cost
+              else 0 end ) as $cost
+          # provider/model live directly on the message in current session
+          # format; fall back to the last model_change seen in this file for
+          # older/partial formats (mirrors extractProviderModelAndUsage).
+          | ( ($obj.message.provider // ((.curModel // "unknown/unknown") | split("/")[0])) ) as $prov
+          | ( ($obj.message.model // ((.curModel // "unknown/unknown") | split("/")[1])) ) as $mod
+          | ($prov + "/" + $mod) as $model
+          | .tokens += $tok
+          | .cost += $cost
+          | .byModel[$model].tokens = ((.byModel[$model].tokens // 0) + $tok)
+          | .byModel[$model].cost = ((.byModel[$model].cost // 0) + $cost)
+        else . end
+    ) | del(.curModel)
+  ' <"$f" 2>/dev/null)"
+  [ -n "$summary" ] || continue
+  jq -c --arg date "$date_key" '. + {date:$date}' <<<"$summary" >>"$tmp_rows" 2>/dev/null
+done < <(find -L "$SESSIONS_DIR" -name '*.jsonl' -mtime -31 -print0 2>/dev/null)
+
+result="$(jq -s --arg today "$TODAY" --arg month_start "$MONTH_START" '
+  ($today | strptime("%Y-%m-%d") | mktime) as $today_epoch
+  | . as $rows
+  # Trailing 7 days ending today (not Mon-Sun aligned — mirrors get-9router-analytics).
+  | ([ range(6; -1; -1) as $offset
+      | (($today_epoch - $offset * 86400) | strftime("%Y-%m-%d")) as $d
+      | (($today_epoch - $offset * 86400) | strftime("%a")) as $wd
+      | ([$rows[] | select(.date == $d)]) as $day_rows
+      | { date: $d, weekday: $wd,
+          cost: ([$day_rows[].cost] | add // 0),
+          tokens: ([$day_rows[].tokens] | add // 0) }
+    ]) as $days
+  | ([$days[].date]) as $week_dates
+  | ([$rows[] | select(.date as $d | $week_dates | index($d))]) as $week_rows
+  | ([$rows[] | select(.date == $today)]) as $today_rows
+  | ([$rows[] | select(.date >= $month_start)]) as $month_rows
+  | (reduce $today_rows[] as $r ({cost: 0, tokens: 0}; .cost += $r.cost | .tokens += $r.tokens)) as $today_total
+  | (reduce $week_rows[]  as $r ({cost: 0, tokens: 0}; .cost += $r.cost | .tokens += $r.tokens)) as $week_total
+  | (reduce $month_rows[] as $r ({cost: 0, tokens: 0}; .cost += $r.cost | .tokens += $r.tokens)) as $month_total
+  | ([$week_rows[].byModel // {} | to_entries[]]
+      | group_by(.key)
+      | map({ model: .[0].key,
+              tokens: (map(.value.tokens) | add),
+              cost: (map(.value.cost) | add) })
+      | sort_by(-.cost) | .[0:6]) as $top_models
+  | ([$week_rows[] | select(.cwd != null) | {cwd, tokens}]
+      | group_by(.cwd)
+      | map({ cwd: .[0].cwd, tokens: (map(.tokens) | add) })
+      | sort_by(-.tokens) | .[0:5]) as $top_projects
+  | { days: $days, topModels: $top_models, topProjects: $top_projects,
+      today: $today_total, week: $week_total, month: $month_total }
+' "$tmp_rows" 2>/dev/null)"
+
+if ! jq -e . >/dev/null 2>&1 <<<"$result"; then
+  echo '{"error":"failed to aggregate pi session data"}'
+  exit 0
+fi
+
+mkdir -p "$CACHE_DIR" 2>/dev/null || true
+jq -n --argjson data "$result" '{cached_at: (now | floor), data: $data}' >"$CACHE_FILE" 2>/dev/null || true
+
+printf '%s' "$result"
