@@ -33,7 +33,7 @@ Item {
     }
     readonly property string defaultIcon: {
         const icons = {
-            codex: "data_object", claude: "psychology", copilot: "hub",
+            codex: "data_object", claude: "psychology", copilot: "hub", pi: "smart_toy",
             antigravity: "rocket_launch", gemini: "auto_awesome", openrouter: "route",
             "9router": "share", deepseek: "tsunami", kimi: "dark_mode", mistral: "air",
             glm: "bubble_chart", minimax: "grid_view", qwen: "cloud", nvidia: "memory",

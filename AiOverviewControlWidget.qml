@@ -140,10 +140,14 @@ PluginComponent {
     property string nineRouterAnalyticsScript: _pluginDir + "/providers/get-9router-analytics"
     property var nineStats: null
     property string nineStatsBuffer: ""
+    property string piAnalyticsScript: _pluginDir + "/providers/get-pi-analytics"
+    property var piStats: null
+    property string piStatsBuffer: ""
     readonly property var availableProviderOptions: [
         "codex",
         "claude",
         "copilot",
+        "pi",
         "antigravity",
         "gemini",
         "9router",
@@ -515,6 +519,7 @@ PluginComponent {
             codex: "Codex",
             claude: "Claude",
             copilot: "Copilot",
+            pi: "pi",
             antigravity: "Antigravity",
             cursor: "Cursor",
             gemini: "Gemini",
@@ -775,6 +780,7 @@ PluginComponent {
         if (providerId === "claude") return Theme.warning;
         if (providerId === "codex") return Theme.success;
         if (providerId === "copilot") return Theme.primary;
+        if (providerId === "pi") return Theme.success;
         if (providerId === "antigravity") return Theme.primary;
         if (providerId === "gemini") return Theme.secondary;
         if (providerId === "openrouter") return Theme.primary;
@@ -1057,6 +1063,7 @@ PluginComponent {
             claude: "https://claude.ai/settings/usage",
             codex: "https://chatgpt.com/codex/settings/usage",
             copilot: "https://github.com/settings/copilot/features",
+            pi: "",
             antigravity: "",
             gemini: "https://aistudio.google.com/usage",
             openrouter: "https://openrouter.ai/activity",

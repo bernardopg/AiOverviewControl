@@ -106,6 +106,7 @@ PluginSettings {
         { id:"codex", name:"Codex", icon:"terminal", mode:"telemetry", requirement:"codex CLI", envVar:"", note:"Official app-server rate limits" },
         { id:"claude", name:"Claude", icon:"psychology", mode:"telemetry", requirement:"claude CLI or ~/.claude", envVar:"", note:"Local analytics and authenticated usage" },
         { id:"copilot", name:"Copilot", icon:"code", mode:"telemetry", requirement:"gh CLI or GitHub token", envVar:"COPILOT_GITHUB_TOKEN", note:"Authenticated Copilot quota from the GitHub session" },
+        { id:"pi", name:"pi", icon:"smart_toy", mode:"telemetry", requirement:"pi CLI or ~/.pi/agent/sessions", envVar:"", note:"Local session cost/token analytics — no quota API" },
         { id:"antigravity", name:"Antigravity", icon:"rocket_launch", mode:"telemetry", requirement:"Antigravity CLI keyring or IDE session", envVar:"", note:"Per-model quota and reset times, one block per signed-in account / IDE — expand the card to compare accounts" },
         { id:"gemini", name:"Gemini", icon:"star", mode:"telemetry", requirement:"gemini CLI or API key", envVar:"GEMINI_API_KEY", note:"Authentication status; quota remains in AI Studio" },
         { id:"9router", name:"9Router", icon:"share", mode:"telemetry", requirement:"local 9Router database", envVar:"", note:"Local requests, tokens and cost" },
@@ -753,8 +754,9 @@ PluginSettings {
                 model: [
                     { label:t("settings.test_backend", "Test selected providers"), cmd:"PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl\n$PLUGIN/providers/get-provider-usage \"" + root.selectedIds.join(",") + "\" $PLUGIN/providers/get-copilot-usage | jq ." },
                     { label:t("settings.test_codex", "Test Codex app-server adapter"), cmd:"~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-codex-usage | jq ." },
+                    { label:t("settings.test_pi", "Test pi session analytics adapter"), cmd:"~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-pi-analytics | jq ." },
                     { label:t("settings.test_health", "Check provider prerequisites"), cmd:"~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
-                    { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude gh gcloud ollama" },
+                    { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi gh gcloud ollama" },
                     { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint ~/.config/DankMaterialShell/plugins/AiOverviewControl/AiOverviewControlWidget.qml ~/.config/DankMaterialShell/plugins/AiOverviewControl/AiOverviewControlSettings.qml" }
                 ]
                 delegate: Column {
