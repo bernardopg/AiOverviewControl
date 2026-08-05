@@ -1489,6 +1489,11 @@ PluginComponent {
             nineStatsProcess.running = true;
             nineStatsTimeout.restart();
         }
+        if (root.selectedProviders.indexOf("pi") >= 0 && !piStatsProcess.running) {
+            piStatsBuffer = "";
+            piStatsProcess.running = true;
+            piStatsTimeout.restart();
+        }
     }
 
     Process {
@@ -1522,6 +1527,41 @@ PluginComponent {
             if (nineStatsProcess.running) {
                 nineStatsProcess.running = false;
                 nineStatsBuffer = "";
+            }
+        }
+    }
+
+    Process {
+        id: piStatsProcess
+        command: ["bash", root.piAnalyticsScript]
+        stdout: SplitParser {
+            splitMarker: ""
+            onRead: data => root.piStatsBuffer += data
+        }
+        onExited: code => {
+            piStatsTimeout.stop();
+            if (code !== 0 || root.piStatsBuffer.length === 0) {
+                root.piStatsBuffer = "";
+                return;
+            }
+            try {
+                const parsed = JSON.parse(root.piStatsBuffer);
+                root.piStats = (parsed && !parsed.error) ? parsed : null;
+            } catch (error) {
+                // Keep the previous snapshot; the section simply stays as-is.
+            }
+            root.piStatsBuffer = "";
+        }
+    }
+
+    Timer {
+        id: piStatsTimeout
+        interval: root.fetchTimeoutMs
+        repeat: false
+        onTriggered: {
+            if (piStatsProcess.running) {
+                piStatsProcess.running = false;
+                piStatsBuffer = "";
             }
         }
     }
@@ -3358,6 +3398,263 @@ PluginComponent {
                                     percent: Number(nineCol.nineWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(nineCol.nineWeek.cost)) * 100 : 0
                                     aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} req`
                                     accentColor: Theme.secondary
+                                }
+                            }
+                        }
+                    }
+                }
+
+                StyledRect {
+                    visible: card.provider.provider === "pi" && root.piStats !== null
+                    width: parent.width
+                    radius: Theme.cornerRadius + 2
+                    color: Theme.withAlpha(Theme.success, 0.08)
+                    border.width: 1
+                    border.color: Theme.withAlpha(Theme.success, 0.22)
+                    implicitHeight: piCol.implicitHeight + Theme.spacingL * 2
+
+                    Column {
+                        id: piCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingL
+                        spacing: Theme.spacingL
+
+                        readonly property var stats: root.piStats || ({})
+                        readonly property var piToday: stats.today || ({})
+                        readonly property var piWeek: stats.week || ({})
+                        readonly property var piMonth: stats.month || ({})
+                        readonly property var piDays: stats.days || []
+                        readonly property var piModels: stats.topModels || []
+                        readonly property var piProjects: stats.topProjects || []
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: t("card.pi_details", "pi telemetry")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeLarge
+                                font.weight: Font.Bold
+                            }
+
+                            StyledText {
+                                text: t("card.pi_month_total", "{cost} this month", { cost: root.formatCost(Number(piCol.piMonth.cost || 0)) })
+                                color: Theme.success
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+                        }
+
+                        GridLayout {
+                            width: parent.width
+                            columns: card.width < 520 ? 1 : 3
+                            columnSpacing: Theme.spacingM
+                            rowSpacing: Theme.spacingM
+
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.pi_today", "Today")
+                                value: `${root.formatCost(Number(piCol.piToday.cost || 0))} · ${root.formatTokens(Number(piCol.piToday.tokens || 0))} tok`
+                                accentColor: Theme.success
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.week", "Week")
+                                value: `${root.formatCost(Number(piCol.piWeek.cost || 0))} · ${root.formatTokens(Number(piCol.piWeek.tokens || 0))} tok`
+                                accentColor: Theme.success
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.month", "Month")
+                                value: `${root.formatCost(Number(piCol.piMonth.cost || 0))} · ${root.formatTokens(Number(piCol.piMonth.tokens || 0))} tok`
+                                accentColor: Theme.success
+                            }
+                        }
+
+                        // 7-day cost chart, trailing window (today is the last bar).
+                        Row {
+                            id: piBars
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            readonly property real maxCost: {
+                                let top = 0;
+                                for (let i = 0; i < piCol.piDays.length; i++) {
+                                    top = Math.max(top, Number(piCol.piDays[i].cost || 0));
+                                }
+                                return top > 0 ? top : 1;
+                            }
+
+                            Repeater {
+                                model: piCol.piDays
+
+                                Column {
+                                    id: piDayColumn
+                                    required property var modelData
+                                    required property int index
+                                    width: (piBars.width - Theme.spacingS * 6) / 7
+                                    spacing: 7
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 66
+                                        radius: Theme.cornerRadius - 2
+                                        color: Theme.surfaceContainer
+                                        border.width: piDayHover.containsMouse ? 1 : 0
+                                        border.color: Theme.withAlpha(index === 6 ? Theme.warning : Theme.success, 0.5)
+                                        clip: true
+
+                                        Rectangle {
+                                            anchors.bottom: parent.bottom
+                                            width: parent.width
+                                            height: Math.max(3, (Number(piDayColumn.modelData.cost || 0) / piBars.maxCost) * parent.height)
+                                            color: index === 6 ? Theme.warning : Theme.withAlpha(Theme.success, piDayHover.containsMouse ? 0.75 : 0.55)
+
+                                            Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                            Behavior on color { ColorAnimation { duration: 120 } }
+                                        }
+
+                                        Rectangle {
+                                            visible: piDayHover.containsMouse
+                                            anchors.fill: parent
+                                            radius: parent.radius
+                                            color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
+
+                                            Column {
+                                                anchors.centerIn: parent
+                                                spacing: 1
+
+                                                StyledText {
+                                                    anchors.horizontalCenter: parent.horizontalCenter
+                                                    text: root.formatCost(Number(piDayColumn.modelData.cost || 0))
+                                                    color: Theme.surfaceText
+                                                    font.pixelSize: Theme.fontSizeSmall
+                                                    font.weight: Font.Bold
+                                                }
+
+                                                StyledText {
+                                                    anchors.horizontalCenter: parent.horizontalCenter
+                                                    text: root.formatTokens(Number(piDayColumn.modelData.tokens || 0))
+                                                    color: Theme.surfaceVariantText
+                                                    font.pixelSize: Theme.fontSizeSmall - 1
+                                                }
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: piDayHover
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.NoButton
+                                        }
+                                    }
+
+                                    StyledText {
+                                        width: parent.width
+                                        text: String(piDayColumn.modelData.weekday || "")
+                                        horizontalAlignment: Text.AlignHCenter
+                                        color: piDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: piCol.piModels.length > 0
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: t("card.pi_models_week", "Top models (7 days)")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: piCol.piModels
+
+                                UsageBar {
+                                    required property var modelData
+                                    width: parent.width
+                                    label: String(modelData.model || "")
+                                    percent: Number(piCol.piWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(piCol.piWeek.cost)) * 100 : 0
+                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${root.formatTokens(Number(modelData.tokens || 0))}`
+                                    accentColor: Theme.success
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: piCol.piProjects.length > 0
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: t("card.top_projects", "Top projects this week")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: piCol.piProjects
+
+                                Column {
+                                    required property var modelData
+                                    required property int index
+                                    width: parent.width
+                                    spacing: 3
+
+                                    RowLayout {
+                                        width: parent.width
+                                        spacing: Theme.spacingS
+
+                                        StyledText {
+                                            text: root.projectDisplayName(String(modelData.cwd || ""))
+                                            color: Theme.surfaceText
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.weight: Font.DemiBold
+                                        }
+
+                                        StyledText {
+                                            Layout.fillWidth: true
+                                            text: root.compactPath(String(modelData.cwd || ""))
+                                            color: Theme.withAlpha(Theme.surfaceVariantText, 0.7)
+                                            font.pixelSize: Theme.fontSizeSmall - 2
+                                            elide: Text.ElideLeft
+                                        }
+
+                                        StyledText {
+                                            text: root.formatTokens(Number(modelData.tokens || 0))
+                                            color: Theme.success
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 5
+                                        radius: 2.5
+                                        color: Theme.withAlpha(Theme.surfaceText, 0.06)
+
+                                        Rectangle {
+                                            readonly property real topTokens: piCol.piProjects.length > 0 ? Math.max(1, Number(piCol.piProjects[0].tokens || 0)) : 1
+                                            width: Math.max(3, (Number(modelData.tokens || 0) / topTokens) * parent.width)
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.withAlpha(Theme.success, index === 0 ? 0.85 : 0.45)
+
+                                            Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                        }
+                                    }
                                 }
                             }
                         }
