@@ -12,6 +12,8 @@ providers/get-codex-usage         Codex app-server protocol bridge
 providers/get-claude-usage        Claude local analytics and quota bridge
 providers/get-copilot-usage       Authenticated GitHub Copilot quota bridge
 providers/get-antigravity-usage   Local Antigravity session quota bridge
+providers/get-9router-analytics   9Router local telemetry blob (expanded card)
+providers/get-pi-analytics        pi coding-agent local session telemetry blob (expanded card)
 providers/get-provider-wrapper    Single-provider wrapper
 providers/get-*-usage             Canonical provider entrypoints
 ```
@@ -24,6 +26,7 @@ providers/get-*-usage             Canonical provider entrypoints
 4. The dispatcher calls one adapter per provider and validates every result with `jq`.
 5. QML normalizes the JSON array, isolates errors, updates stale timestamps, and renders cards.
 6. Claude details run in a separate process so analytics failure cannot block other providers.
+7. `pi` follows the same isolation principle via a lighter mechanism: its dispatcher-side envelope (`fetch_pi_native`, inline in `get-provider-usage`) only ever reads a cached snapshot and never scans session files itself; the expanded card's own process (`get-pi-analytics`) does the actual scan on the normal refresh cycle.
 
 ## Provider contract
 
@@ -76,6 +79,12 @@ The adapter preserves the API's per-model values in `modelWindows`, but publishe
 
 Every account request captures HTTP status and validates the response schema. Partial failures are retained in `accountErrors` while healthy accounts remain usable; an all-account failure becomes a provider error carrying the first precise cause instead of the generic “no session” message.
 
+## pi protocol
+
+`pi` is Analytics-only (no quota API) — same tier as Claude's local half, Cloudflare, and 9Router. It splits the same way 9Router does: `fetch_pi_native()` (inline in `get-provider-usage`) builds the cheap collapsed-card envelope, and the standalone `providers/get-pi-analytics` does the real work for the expanded "pi telemetry" card.
+
+`get-pi-analytics` scans `~/.pi/agent/sessions/**/*.jsonl` (recursively, `find -L` — the sessions directory may be a symlink to a synced folder, and plain `find` silently returns nothing in that case). Each session file is aggregated once (cwd from its `{type:"session"}` header, tokens/cost from `{type:"message"}` lines with a `usage` payload) and the whole file's totals are bucketed to its local start day — sessions are not split across midnight, matching the existing `~/.pi/agent/extensions/session-breakdown.ts` TUI tool's convention. Provider/model come directly off each message; a `{type:"model_change"}` fallback exists for older/partial formats. Results are cached at `${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/pi-analytics-cache.json` with a 120s TTL (matches the default `refreshInterval`), so the full scan only runs once per window regardless of poll frequency; the envelope function only ever reads that cache, never triggering a scan itself.
+
 ## Settings keys
 
 | Key | Default | Purpose |
@@ -116,6 +125,7 @@ Legacy settings unknown to the current code are ignored.
 - Filter: shown when more than eight cards are visible.
 - Cards: collapsed preview, expanded windows, identity, credits, source, and timestamps.
 - Claude details: token/cost history and model distribution.
+- pi details: token/cost history, 7-day chart, top models, top projects (same expanded-card slot pattern as 9Router).
 
 ## Validation
 
@@ -123,6 +133,7 @@ Legacy settings unknown to the current code are ignored.
 bash -n providers/get-*
 shellcheck providers/get-*
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
-./providers/get-provider-health "codex,claude,copilot" | jq .
-./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage | jq .
+./providers/get-provider-health "codex,claude,copilot,pi" | jq .
+./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .
+./providers/get-pi-analytics | jq .
 ```

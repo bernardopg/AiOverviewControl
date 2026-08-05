@@ -23,7 +23,7 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 | --- | --- | --- |
 | **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID) |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek` |
-| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local) |
+| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local) |
 | **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp` |
@@ -223,6 +223,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>—</td>
 <td>—</td>
 <td><code>~/.9router</code></td>
+<td>—</td>
+<td>local store</td>
+</tr>
+<tr>
+<td><code>pi</code></td>
+<td>Local analytics</td>
+<td>local JSONL session logs</td>
+<td>✅ local cost/tokens — no quota API (pi has no rate limits)</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
 <td>—</td>
 <td>local store</td>
 </tr>
