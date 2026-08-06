@@ -67,7 +67,7 @@ Errors return:
 
 ## Codex protocol
 
-`get-codex-usage` starts `codex app-server`, sends `initialize`, `account/read`, and `account/rateLimits/read`, then maps the official response to the common schema. The bridge uses a bounded process lifetime and never reads browser state.
+`get-codex-usage` starts `codex app-server`, completes the `initialize` / `initialized` handshake, sends `account/read` and `account/rateLimits/read`, then maps the official response to the common schema. The bridge reads until both account and rate-limit responses arrive instead of closing stdin after a fixed delay. It retries an authenticated account's transient rate-limit failure once, then may reuse a successful snapshot for up to 15 minutes while preserving its original `updatedAt` timestamp. Authentication failures never fall back to cached data. The bridge uses a bounded process lifetime and never reads browser state.
 
 Window labels are derived from `windowDurationMins`, not from whether app-server placed a limit in `primary` or `secondary`. This matters for current weekly-only responses, where `primary.windowDurationMins` is `10080` and `secondary` is null. OpenAI's current pricing page still documents a shared five-hour window with additional weekly limits, so a weekly-only app-server payload is handled as a temporary or account-specific response shape rather than interpreted as a confirmed policy removal.
 
