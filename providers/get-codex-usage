@@ -37,7 +37,10 @@ run_app_server() {
   : >"$tmp_out"
   : >"$tmp_error"
 
-  coproc CODEX_APP_SERVER { codex app-server 2>"$tmp_error"; }
+  # `exec` keeps the coproc from forking an extra subshell, so
+  # $CODEX_APP_SERVER_PID is the app-server itself and the kill below can
+  # actually reach it.
+  coproc CODEX_APP_SERVER { exec codex app-server 2>"$tmp_error"; }
   local server_pid="$CODEX_APP_SERVER_PID"
   local read_fd="${CODEX_APP_SERVER[0]}"
   local write_fd="${CODEX_APP_SERVER[1]}"
@@ -65,6 +68,14 @@ run_app_server() {
   exec {write_fd}>&-
   if kill -0 "$server_pid" 2>/dev/null; then
     kill "$server_pid" 2>/dev/null || true
+    # An app-server that ignores SIGTERM used to be reaped by the previous
+    # `timeout --kill-after=2s`; without this fallback it outlives the helper
+    # and one process leaks per poll.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      kill -0 "$server_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -9 "$server_pid" 2>/dev/null || true
   fi
   wait "$server_pid" 2>/dev/null || true
   exec {read_fd}<&-
