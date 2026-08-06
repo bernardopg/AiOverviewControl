@@ -1,0 +1,30 @@
+# Path-based auto-labeling for pull requests (actions/labeler v5).
+# Each label is applied when a PR touches any matching file.
+"area:providers":
+  - changed-files:
+      - any-glob-to-any-file: "providers/**"
+
+"area:i18n":
+  - changed-files:
+      - any-glob-to-any-file: "i18n/**"
+
+"area:assets":
+  - changed-files:
+      - any-glob-to-any-file: "assets/**"
+
+"area:qml":
+  - changed-files:
+      - any-glob-to-any-file: "**/*.qml"
+
+"area:ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/dependabot.yml"
+          - ".github/labeler.yml"
+
+"documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "LICENSE"
