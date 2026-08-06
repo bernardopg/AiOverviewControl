@@ -2,13 +2,20 @@
 
 ## Unreleased
 
+## 1.9.0 - 2026-08-06
+
 ### pi coding-agent local analytics provider
 
-- Added `pi` as a new Analytics-coverage provider — local session cost/token telemetry from `~/.pi/agent/sessions/**/*.jsonl` (no quota API; pi has no rate limits). Mirrors the 9Router local-telemetry pattern: a cheap cached envelope for the collapsed card (`fetch_pi_native` in `get-provider-usage`) plus a standalone `providers/get-pi-analytics` for the expanded "pi telemetry" card (today/week/month cost+tokens, 7-day chart, top models, top projects). TTL-cached (120s) so the session-file scan runs at most once per refresh window.
+- Added `pi` as a new Analytics-coverage provider — local session cost/token telemetry from `~/.pi/agent/sessions/**/*.jsonl` (no quota API; pi has no rate limits). Mirrors the 9Router local-telemetry pattern: a cheap cached envelope for the collapsed card (`fetch_pi_native` in `get-provider-usage`) plus a standalone `providers/get-pi-analytics` for the expanded "pi telemetry" card (today/week/month cost+tokens, 7-day chart, top models, top projects). TTL-cached (120s) so the session-file scan runs at most once per refresh window. The official [pi.dev](https://pi.dev/) mark ships as `assets/provider-logos/pi.svg`. Contributed by [@gtheys](https://github.com/gtheys) (#10).
 
 ### Codex reliability
 
-- The Codex adapter now completes the documented app-server initialization handshake, waits for responses instead of closing stdin after four seconds, and retries transient rate-limit transport failures once. A recent successful snapshot remains available for 15 minutes when both live attempts fail, preventing short ChatGPT usage-endpoint outages from incorrectly switching the widget to `ERR` or “Setup required.”
+- The Codex adapter now completes the documented app-server initialization handshake, waits for responses instead of closing stdin after four seconds, and retries transient rate-limit transport failures once. A recent successful snapshot remains available for 15 minutes when both live attempts fail, preventing short ChatGPT usage-endpoint outages from incorrectly switching the widget to `ERR` or “Setup required.” Contributed by [@gouwazi](https://github.com/gouwazi) (#12, fixes #11).
+- Follow-up: the adapter no longer leaks the `codex app-server` child process when a fetch is aborted or times out — it is now reaped on every exit path.
+
+### Thanks
+
+- Thanks to [@gtheys](https://github.com/gtheys) and [@gouwazi](https://github.com/gouwazi) for their contributions to this release.
 
 ## 1.8.1 - 2026-07-24
 
