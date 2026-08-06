@@ -1,0 +1,38 @@
+# Groups the auto-generated release notes (generate_release_notes: true in
+# release.yml) into sections by label. First matching category wins.
+changelog:
+  exclude:
+    labels:
+      - duplicate
+      - invalid
+      - wontfix
+      - question
+  categories:
+    - title: 🔌 Providers
+      labels:
+        - area:providers
+        - provider
+    - title: 🎨 UI
+      labels:
+        - area:qml
+        - area:assets
+    - title: 🐛 Fixes
+      labels:
+        - bug
+    - title: ✨ Enhancements
+      labels:
+        - enhancement
+    - title: 🌍 Translations
+      labels:
+        - area:i18n
+    - title: 📚 Documentation
+      labels:
+        - documentation
+    - title: 🔧 CI & Dependencies
+      labels:
+        - area:ci
+        - dependencies
+        - github-actions
+    - title: Other changes
+      labels:
+        - "*"
