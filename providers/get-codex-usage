@@ -15,32 +15,100 @@ if ! command -v codex >/dev/null 2>&1; then
 fi
 
 tmp_out="$(mktemp)"
-trap 'rm -f "$tmp_out"' EXIT
+tmp_error="$(mktemp)"
+cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
+cache_file="${cache_dir}/codex-usage.json"
+cache_ttl=900
+trap 'rm -f "$tmp_out" "$tmp_error"' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_VERSION="$(jq -r '.version // "unknown"' "$SCRIPT_DIR/../plugin.json" 2>/dev/null || printf 'unknown')"
 
-{
+account=null
+limits=null
+limit_error=null
+
+run_app_server() {
+  local line id
+  local account_seen=0
+  local limits_seen=0
+  local deadline=$((SECONDS + 8))
+
+  : >"$tmp_out"
+  : >"$tmp_error"
+
+  coproc CODEX_APP_SERVER { codex app-server 2>"$tmp_error"; }
+  local server_pid="$CODEX_APP_SERVER_PID"
+  local read_fd="${CODEX_APP_SERVER[0]}"
+  local write_fd="${CODEX_APP_SERVER[1]}"
+
   printf '%s\n' \
     "{\"method\":\"initialize\",\"id\":0,\"params\":{\"clientInfo\":{\"name\":\"ai_overview_control\",\"title\":\"AiOverviewControl\",\"version\":\"${PLUGIN_VERSION}\"}}}" \
+    '{"method":"initialized","params":{}}' \
     '{"method":"account/read","id":1,"params":{"refreshToken":false}}' \
-    '{"method":"account/rateLimits/read","id":2,"params":{}}'
-  sleep 4
-} | timeout --kill-after=2s 8s codex app-server >"$tmp_out" 2>/dev/null || true
+    '{"method":"account/rateLimits/read","id":2,"params":{}}' >&"$write_fd"
 
-account="$(jq -cs '[.[] | select(.id == 1)][0].result.account // null' "$tmp_out" 2>/dev/null || printf 'null')"
-limits="$(jq -cs '[.[] | select(.id == 2)][0].result // null' "$tmp_out" 2>/dev/null || printf 'null')"
+  while (( SECONDS < deadline )); do
+    if ! IFS= read -r -t "$((deadline - SECONDS))" -u "$read_fd" line; then
+      break
+    fi
+
+    printf '%s\n' "$line" >>"$tmp_out"
+    id="$(printf '%s' "$line" | jq -r '.id // empty' 2>/dev/null || true)"
+    [ "$id" != "1" ] || account_seen=1
+    [ "$id" != "2" ] || limits_seen=1
+    if [ "$account_seen" -eq 1 ] && [ "$limits_seen" -eq 1 ]; then
+      break
+    fi
+  done
+
+  exec {write_fd}>&-
+  if kill -0 "$server_pid" 2>/dev/null; then
+    kill "$server_pid" 2>/dev/null || true
+  fi
+  wait "$server_pid" 2>/dev/null || true
+  exec {read_fd}<&-
+}
+
+for attempt in 1 2; do
+  run_app_server
+
+  account="$(jq -cs '[.[] | select(.id == 1)][0].result.account // null' "$tmp_out" 2>/dev/null || printf 'null')"
+  limits="$(jq -cs '[.[] | select(.id == 2)][0].result // null' "$tmp_out" 2>/dev/null || printf 'null')"
+  limit_error="$(jq -cs '[.[] | select(.id == 2)][0].error // null' "$tmp_out" 2>/dev/null || printf 'null')"
+
+  if [ "$limits" != "null" ] && printf '%s' "$limits" | jq -e '.rateLimits' >/dev/null 2>&1; then
+    break
+  fi
+
+  if [ "$attempt" -eq 2 ] || [ "$account" = "null" ]; then
+    break
+  fi
+
+  sleep 1
+done
 
 if [ "$limits" = "null" ] || ! printf '%s' "$limits" | jq -e '.rateLimits' >/dev/null 2>&1; then
   if [ "$account" = "null" ]; then
     fail_json 2 "Codex CLI is not authenticated. Run: codex login"
   else
-    fail_json 3 "Codex app-server did not return account rate limits. Update Codex CLI and try again."
+    if [ -f "$cache_file" ] && jq -e '.cached_at and (.data.usage | type == "object")' "$cache_file" >/dev/null 2>&1; then
+      cached_at="$(jq -r '.cached_at' "$cache_file")"
+      cache_age=$(( $(date +%s) - cached_at ))
+      if [ "$cache_age" -ge 0 ] && [ "$cache_age" -le "$cache_ttl" ]; then
+        jq -c '.data | .source = "codex-app-server-cache"' "$cache_file"
+        exit 0
+      fi
+    fi
+
+    error_message="$(printf '%s' "$limit_error" | jq -r '.message // empty' 2>/dev/null || true)"
+    [ -n "$error_message" ] || error_message="Codex app-server did not return account rate limits."
+    fail_json 3 "$error_message"
   fi
   exit 0
 fi
 
-jq -cn --argjson account "$account" --argjson response "$limits" '
+result="$(jq -cn --argjson account "$account" --argjson response "$limits" '
   def iso($seconds):
     if $seconds == null then null else ($seconds | todateiso8601) end;
   def counted($value; $unit):
@@ -94,4 +162,10 @@ jq -cn --argjson account "$account" --argjson response "$limits" '
         )
       }
     }
-'
+')"
+
+if mkdir -p "$cache_dir" 2>/dev/null; then
+  jq -cn --argjson data "$result" '{cached_at:(now | floor),data:$data}' >"$cache_file" 2>/dev/null || true
+fi
+
+printf '%s\n' "$result"

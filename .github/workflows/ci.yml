@@ -270,8 +270,44 @@ jobs:
           FAKE_BIN="$(mktemp -d)"
           cat > "$FAKE_BIN/codex" <<'SH'
           #!/usr/bin/env bash
-          cat >/dev/null
+          set -euo pipefail
+          REQUESTS=""
+          for _ in 1 2 3 4; do
+            IFS= read -r REQUEST
+            REQUESTS="${REQUESTS}${REQUESTS:+$'\n'}${REQUEST}"
+          done
+          printf '%s\n' "$REQUESTS" | jq --exit-status --slurp '
+            map(.method) as $methods |
+            ($methods | index("initialize")) as $initialize |
+            ($methods | index("initialized")) as $initialized |
+            ($methods | index("account/read")) as $account |
+            ($methods | index("account/rateLimits/read")) as $limits |
+            $initialize != null and
+            $initialized == ($initialize + 1) and
+            $account > $initialized and
+            $limits > $initialized
+          ' >/dev/null
+
+          if [ -n "${CODEX_ATTEMPT_FILE:-}" ]; then
+            ATTEMPT=0
+            if [ -f "$CODEX_ATTEMPT_FILE" ]; then
+              ATTEMPT="$(cat "$CODEX_ATTEMPT_FILE")"
+            fi
+            ATTEMPT="$((ATTEMPT + 1))"
+            printf '%s\n' "$ATTEMPT" > "$CODEX_ATTEMPT_FILE"
+
+            if [ "$ATTEMPT" -eq 1 ] || [ "${CODEX_ALWAYS_FAIL:-0}" = "1" ]; then
+              jq --compact-output 'select(.id == 1)' \
+                "$GITHUB_WORKSPACE/tests/fixtures/codex-app-server.jsonl"
+              printf '%s\n' '{"id":2,"error":{"code":-32603,"message":"failed to fetch codex rate limits: transient transport error"}}'
+              sleep 0.1
+              exit 0
+            fi
+          fi
+
+          [ -z "${CODEX_DELAY_SECONDS:-}" ] || sleep "$CODEX_DELAY_SECONDS"
           cat "$GITHUB_WORKSPACE/tests/fixtures/${CODEX_FIXTURE:-codex-app-server.jsonl}"
+          sleep 0.1
           SH
           chmod +x "$FAKE_BIN/codex"
           OUT="$(PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
@@ -293,6 +329,34 @@ jobs:
             .[0].usage.primary.resetDescription == "Weekly" and
             .[0].usage.secondary == null and
             .[0].credits.remaining == "1"
+          ' >/dev/null
+
+          RETRY_DIR="$(mktemp -d)"
+          RETRY_OUT="$(CODEX_ATTEMPT_FILE="$RETRY_DIR/attempt" \
+            XDG_CACHE_HOME="$RETRY_DIR/cache" \
+            PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
+          echo "$RETRY_OUT" | jq --exit-status '
+            length == 1 and .[0].provider == "codex" and
+            .[0].usage.primary.usedPercent == 25
+          ' >/dev/null
+          [ "$(cat "$RETRY_DIR/attempt")" = "2" ]
+
+          CACHED_OUT="$(CODEX_ATTEMPT_FILE="$RETRY_DIR/cache-attempt" \
+            CODEX_ALWAYS_FAIL=1 XDG_CACHE_HOME="$RETRY_DIR/cache" \
+            PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
+          echo "$CACHED_OUT" | jq --exit-status '
+            length == 1 and .[0].provider == "codex" and
+            .[0].source == "codex-app-server-cache" and
+            .[0].usage.primary.usedPercent == 25
+          ' >/dev/null
+          [ "$(cat "$RETRY_DIR/cache-attempt")" = "2" ]
+
+          DELAYED_OUT="$(CODEX_DELAY_SECONDS=5 XDG_CACHE_HOME="$RETRY_DIR/delayed-cache" \
+            PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
+          echo "$DELAYED_OUT" | jq --exit-status '
+            length == 1 and .[0].provider == "codex" and
+            .[0].source == "codex-app-server" and
+            .[0].usage.primary.usedPercent == 25
           ' >/dev/null
 
       - name: Integration test — 9Router cached tokens

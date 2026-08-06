@@ -18,7 +18,7 @@ codex login
 ./providers/get-codex-usage | jq .
 ```
 
-The adapter requires a Codex CLI version with `app-server` and `account/rateLimits/read`. Update Codex if the helper reports that rate limits are unavailable.
+The adapter requires a Codex CLI version with `app-server` and `account/rateLimits/read`. It retries a transient rate-limit transport failure once and may reuse a successful snapshot for up to 15 minutes; the original `updatedAt` timestamp is preserved so the card can become visibly stale. Authentication failures never use this cache. Persistent app-server failures surface the underlying JSON-RPC message when one is available.
 
 The app-server may temporarily return only a `10080`-minute weekly window in `rateLimits.primary` with `secondary: null`. The plugin labels that window **Weekly** from its duration. OpenAI's current pricing documentation still describes a shared five-hour window plus possible weekly limits, so a missing five-hour row should be treated as a server/account response change or incident, not automatically as a formally announced quota-policy change.
 

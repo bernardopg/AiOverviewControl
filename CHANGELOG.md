@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Codex reliability
+
+- The Codex adapter now completes the documented app-server initialization handshake, waits for responses instead of closing stdin after four seconds, and retries transient rate-limit transport failures once. A recent successful snapshot remains available for 15 minutes when both live attempts fail, preventing short ChatGPT usage-endpoint outages from incorrectly switching the widget to `ERR` or “Setup required.”
+
 ## 1.8.1 - 2026-07-24
 
 ### Consistency and i18n hardening
