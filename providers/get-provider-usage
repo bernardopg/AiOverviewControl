@@ -198,6 +198,9 @@ fetch_claude_native() {
   rm -f "$tmp_out" "$tmp_err"
 }
 
+# The `~/.pi/agent/sessions` strings below are labels shown in the card, not
+# paths this script resolves, so tilde expansion is not wanted.
+# shellcheck disable=SC2088
 fetch_pi_native() {
   # pi is Analytics-only (no quota API) — the envelope stays cheap by only
   # ever reading the cache providers/get-pi-analytics maintains; it never

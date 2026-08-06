@@ -24,8 +24,6 @@ CACHE_FILE="$CACHE_DIR/pi-analytics-cache.json"
 CACHE_TTL=120 # seconds — matches the widget's default refreshInterval
 
 TODAY=$(date +%Y-%m-%d)
-DOW=$(date +%u) # 1=Monday, 7=Sunday
-WEEK_START=$(date -d "$((DOW - 1)) days ago" +%Y-%m-%d)
 MONTH_START=$(date +%Y-%m-01)
 
 # --- TTL cache: skip the full scan if a fresh snapshot already exists ---
