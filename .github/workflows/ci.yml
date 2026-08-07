@@ -168,7 +168,7 @@ jobs:
           from pathlib import Path
 
           # collect stub IDs: get-<id>-usage (strip known non-provider scripts)
-          skip = {'provider', 'provider-wrapper', 'copilot', 'claude', 'codex', 'provider-health'}
+          skip = {'provider', 'provider-wrapper', 'copilot', 'claude', 'codex', 'pi', 'provider-health'}
           stubs = set()
           for f in Path('providers').glob('get-*-usage'):
               name = f.name.removeprefix('get-').removesuffix('-usage')
