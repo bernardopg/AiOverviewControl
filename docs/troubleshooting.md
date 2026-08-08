@@ -1,5 +1,15 @@
 # Troubleshooting
 
+The `PLUGIN=` path below matches a manual checkout or release-archive install
+(see [installation](./installation.md)), which uses the `AiOverviewControl`
+display-name casing. A DMS plugin-store install instead uses the manifest id
+and lands at `~/.config/DankMaterialShell/plugins/aiOverviewControl`
+(lowercase leading `a`) — Linux paths are case-sensitive, so adjust the
+`PLUGIN=` line below to match whichever directory `ls
+~/.config/DankMaterialShell/plugins` actually shows. The commands shown in the
+plugin's own Settings panel always use the correct path for your install
+automatically.
+
 ## No cards appear
 
 ```bash

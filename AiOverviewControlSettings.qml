@@ -70,6 +70,12 @@ PluginSettings {
         pinnedIds = result;
         saveValue("pinnedProviders", result.join(","));
     }
+    // Resolved imperatively in Component.onCompleted — Qt.resolvedUrl is only reliable
+    // when called from the file's own execution context, not from a declarative binding.
+    // Store installs place the plugin under its manifest id (e.g. "aiOverviewControl"),
+    // which is not necessarily the display-name casing used by manual checkouts, so
+    // this must never be a hardcoded literal.
+    property string _pluginDir: ""
     property var providerHealth: ({})
     property string healthBuffer: ""
     property string healthScript: ""
@@ -200,6 +206,20 @@ PluginSettings {
     }
 
     Component.onCompleted: {
+        // 1. Try PluginService (authoritative, case-correct)
+        if (pluginService && pluginId) {
+            const fromService = pluginService.getPluginPath(pluginId);
+            if (fromService && fromService.length > 0) {
+                _pluginDir = fromService;
+            }
+        }
+        // 2. Fallback: derive from this file's URL (Qt.resolvedUrl is reliable here)
+        if (!_pluginDir) {
+            const selfUrl = Qt.resolvedUrl("AiOverviewControlSettings.qml").toString();
+            const withoutScheme = selfUrl.startsWith("file://") ? selfUrl.substring(7) : selfUrl;
+            const lastSlash = withoutScheme.lastIndexOf("/");
+            _pluginDir = lastSlash !== -1 ? withoutScheme.substring(0, lastSlash) : withoutScheme;
+        }
         const url = Qt.resolvedUrl("providers/get-provider-health").toString();
         healthScript = url.startsWith("file://") ? url.substring(7) : url;
         runHealth();
@@ -752,12 +772,12 @@ PluginSettings {
             spacing: Theme.spacingM
             Repeater {
                 model: [
-                    { label:t("settings.test_backend", "Test selected providers"), cmd:"PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl\n$PLUGIN/providers/get-provider-usage \"" + root.selectedIds.join(",") + "\" $PLUGIN/providers/get-copilot-usage | jq ." },
-                    { label:t("settings.test_codex", "Test Codex app-server adapter"), cmd:"~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-codex-usage | jq ." },
-                    { label:t("settings.test_pi", "Test pi session analytics adapter"), cmd:"~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-pi-analytics | jq ." },
-                    { label:t("settings.test_health", "Check provider prerequisites"), cmd:"~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
+                    { label:t("settings.test_backend", "Test selected providers"), cmd:root._pluginDir + "/providers/get-provider-usage \"" + root.selectedIds.join(",") + "\" " + root._pluginDir + "/providers/get-copilot-usage | jq ." },
+                    { label:t("settings.test_codex", "Test Codex app-server adapter"), cmd:root._pluginDir + "/providers/get-codex-usage | jq ." },
+                    { label:t("settings.test_pi", "Test pi session analytics adapter"), cmd:root._pluginDir + "/providers/get-pi-analytics | jq ." },
+                    { label:t("settings.test_health", "Check provider prerequisites"), cmd:root._pluginDir + "/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
                     { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi gh gcloud ollama" },
-                    { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint ~/.config/DankMaterialShell/plugins/AiOverviewControl/AiOverviewControlWidget.qml ~/.config/DankMaterialShell/plugins/AiOverviewControl/AiOverviewControlSettings.qml" }
+                    { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint " + root._pluginDir + "/AiOverviewControlWidget.qml " + root._pluginDir + "/AiOverviewControlSettings.qml" }
                 ]
                 delegate: Column {
                     id: diagRow

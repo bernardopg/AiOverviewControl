@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Settings
+
+- Fixed the diagnostic commands in Settings ("Test selected providers", "Test Codex app-server adapter", "Test pi session analytics adapter", "Check provider prerequisites", "Validate QML") hardcoding the `AiOverviewControl` display-name casing instead of the manifest id `aiOverviewControl` used by DMS plugin-store installs. Settings now resolves its own install directory the same way the widget already did (`PluginService.getPluginPath`, with a `Qt.resolvedUrl` fallback), so copied commands always match the actual on-disk path regardless of install method.
+
 ## 1.9.0 - 2026-08-06
 
 ### pi coding-agent local analytics provider

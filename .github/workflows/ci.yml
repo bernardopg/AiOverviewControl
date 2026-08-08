@@ -545,6 +545,17 @@ jobs:
             AiOverviewControlI18n.qml \
             ProviderLogo.qml
 
+      - name: No hardcoded install path in QML
+        run: |
+          # DMS plugin-store installs land under the manifest id ("aiOverviewControl"),
+          # not the display name ("AiOverviewControl") — Linux paths are case-sensitive.
+          # QML must resolve its own directory (PluginService.getPluginPath / Qt.resolvedUrl)
+          # instead of hardcoding either casing, so this stays correct for both install methods.
+          if grep -rnE 'plugins/[Aa]iOverviewControl' -- *.qml; then
+            echo "::error::Found a hardcoded plugin install path in QML — resolve it via PluginService.getPluginPath()/Qt.resolvedUrl() instead" >&2
+            exit 1
+          fi
+
   # ─── crowdin ─────────────────────────────────────────────────────────────────
   crowdin:
     name: Crowdin config
