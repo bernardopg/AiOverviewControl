@@ -293,6 +293,14 @@ provider contract.
 | Release checklist | [docs/release-checklist.md](./docs/release-checklist.md) |
 | Changelog | [CHANGELOG.md](./CHANGELOG.md) |
 
+## Contributors
+
+Thanks to everyone who has improved the plugin:
+
+- **[@emmsixx](https://github.com/emmsixx)** — fixed the Settings diagnostic commands hardcoding the display-name casing (`AiOverviewControl`) instead of the DMS plugin-store manifest id (`aiOverviewControl`), so copied commands resolve correctly on case-sensitive filesystems ([#13](https://github.com/bernardopg/AiOverviewControl/pull/13)).
+
+Contributions welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 ---
 
 <div align="center">

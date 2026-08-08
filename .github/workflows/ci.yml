@@ -551,10 +551,42 @@ jobs:
           # not the display name ("AiOverviewControl") — Linux paths are case-sensitive.
           # QML must resolve its own directory (PluginService.getPluginPath / Qt.resolvedUrl)
           # instead of hardcoding either casing, so this stays correct for both install methods.
-          if grep -rnE 'plugins/[Aa]iOverviewControl' -- *.qml; then
+          # Recursive + --include so it also catches QML files moved into
+          # subdirectories later, not just the root-level set qmllint lints.
+          if grep -rnE 'plugins/[Aa]iOverviewControl' --include='*.qml' .; then
             echo "::error::Found a hardcoded plugin install path in QML — resolve it via PluginService.getPluginPath()/Qt.resolvedUrl() instead" >&2
             exit 1
           fi
+
+      - name: QML provider-script references resolve
+        run: |
+          python3 - <<'PY'
+          import re, stat, sys
+          from pathlib import Path
+
+          # The Settings/Widget diagnostics build their commands from
+          # `_pluginDir + "/providers/<script>"`, so every provider script
+          # referenced from QML must exist and be executable — a renamed or
+          # removed helper would otherwise silently produce a broken
+          # copy-to-clipboard command. Mirrors the cross-file style of the
+          # "Provider dispatch coverage" check in the shell job.
+          refs = set()
+          for qml in Path('.').rglob('*.qml'):
+              for m in re.finditer(r'providers/([A-Za-z0-9][A-Za-z0-9._-]*)', qml.read_text()):
+                  refs.add(m.group(1))
+
+          errors = []
+          for name in sorted(refs):
+              p = Path('providers') / name
+              if not p.is_file():
+                  errors.append(f'Referenced from QML but not a regular file: providers/{name}')
+              elif not (p.stat().st_mode & stat.S_IXUSR):
+                  errors.append(f'Referenced from QML but not executable: providers/{name}')
+
+          print(f'QML references {len(refs)} provider script(s): {", ".join(sorted(refs))}')
+          if errors:
+              sys.exit('\n'.join(f'::error::{e}' for e in errors))
+          PY
 
   # ─── crowdin ─────────────────────────────────────────────────────────────────
   crowdin:

@@ -273,6 +273,14 @@ normalizado de provedores.
 | Checklist de release | [release-checklist.md](./release-checklist.md) |
 | Changelog | [CHANGELOG.md](../CHANGELOG.md) |
 
+## Colaboradores
+
+Agradecemos a todos que melhoraram o plugin:
+
+- **[@emmsixx](https://github.com/emmsixx)** — corrigiu os comandos de diagnóstico em Settings que codificavam o casing do nome de exibição (`AiOverviewControl`) em vez do id de manifesto da loja de plugins do DMS (`aiOverviewControl`), de modo que os comandos copiados resolvam corretamente em sistemas de arquivos sensíveis a maiúsculas/minúsculas ([#13](https://github.com/bernardopg/AiOverviewControl/pull/13)).
+
+Contribuições são bem-vindas — veja [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 ---
 
 <div align="center">
