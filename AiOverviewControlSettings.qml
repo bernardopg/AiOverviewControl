@@ -337,7 +337,7 @@ PluginSettings {
                             StyledText {
                                 id: versionLabel
                                 anchors.centerIn: parent
-                                text: "v1.9.0"
+                                text: "v1.9.1"
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
                                 color: Theme.primary

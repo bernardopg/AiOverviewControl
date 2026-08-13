@@ -17,8 +17,8 @@ dms restart
 Download one release archive and the release's `.sha256` file from the project's GitHub Releases page. The checksum file contains entries for both archive formats, so filter it to the file you actually downloaded:
 
 ```bash
-ARCHIVE=AiOverviewControl-v1.9.0.tar.gz
-CHECKSUM=AiOverviewControl-v1.9.0.sha256
+ARCHIVE=AiOverviewControl-v1.9.1.tar.gz
+CHECKSUM=AiOverviewControl-v1.9.1.sha256
 grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
 
 PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
@@ -28,11 +28,11 @@ chmod +x "$PLUGIN"/providers/get-*
 dms restart
 ```
 
-Replace `v1.9.0` with the version you downloaded. For a `.zip` release, verify and unpack through a temporary directory so the archive's top-level `AiOverviewControl-vX.Y.Z` directory is not nested inside the plugin directory:
+Replace `v1.9.1` with the version you downloaded. For a `.zip` release, verify and unpack through a temporary directory so the archive's top-level `AiOverviewControl-vX.Y.Z` directory is not nested inside the plugin directory:
 
 ```bash
-ARCHIVE=AiOverviewControl-v1.9.0.zip
-CHECKSUM=AiOverviewControl-v1.9.0.sha256
+ARCHIVE=AiOverviewControl-v1.9.1.zip
+CHECKSUM=AiOverviewControl-v1.9.1.sha256
 grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
 
 PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"

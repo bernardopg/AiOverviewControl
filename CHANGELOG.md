@@ -2,9 +2,25 @@
 
 ## Unreleased
 
+## 1.9.1 - 2026-08-13
+
+### Provider accuracy
+
+- Corrected provider coverage and status text so Together is described as API-key validation rather than a balance API, NVIDIA and Kilo no longer claim conclusive authentication through public model catalogs, and Fireworks, GLM, and Z.ai accurately describe their quota-capable paths.
+- Updated the Groq usage and Perplexity settings links used by the widget and provider dispatcher.
+
 ### Settings
 
 - Fixed the diagnostic commands in Settings ("Test selected providers", "Test Codex app-server adapter", "Test pi session analytics adapter", "Check provider prerequisites", "Validate QML") hardcoding the `AiOverviewControl` display-name casing instead of the manifest id `aiOverviewControl` used by DMS plugin-store installs. Settings now resolves its own install directory the same way the widget already did (`PluginService.getPluginPath`, with a `Qt.resolvedUrl` fallback), so copied commands always match the actual on-disk path regardless of install method.
+
+### CI and release safety
+
+- Release tags now rerun the complete reusable CI gate before publication, must point to `main`, and produce checksum-verified ZIP and TAR archives through one tested packaging script.
+- Expanded CI coverage across provider dispatch, local logos, manifest targets, shell scripts, Kimi Code, notification deduplication, Crowdin configuration, and release contents.
+
+### Documentation
+
+- Aligned the English and Brazilian Portuguese guides with all 35 providers, six coverage levels, current runtime dependencies, installation layout, settings, adapter contracts, and release workflow.
 
 ## 1.9.0 - 2026-08-06
 
