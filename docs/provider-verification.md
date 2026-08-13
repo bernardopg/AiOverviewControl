@@ -1,6 +1,6 @@
 # Provider verification
 
-This document records the upstream surface used by each adapter. It was reviewed on 2026-06-18. Provider APIs change; re-check these links before changing an adapter. See `docs/providers.md` for the full per-provider reference (plans, billing, flagship models, changelog).
+This document records the upstream surface used by each adapter. It was reviewed on 2026-08-13. Provider APIs change; re-check these links before changing an adapter. See `docs/providers.md` for the full per-provider reference (plans, billing, flagship models, changelog).
 
 ## Verified quota, balance, or billing surfaces
 
@@ -11,16 +11,19 @@ This document records the upstream surface used by each adapter. It was reviewed
 | DeepSeek | [Get user balance](https://api-docs.deepseek.com/api/get-user-balance/) | Remaining account balance. |
 | Kimi/Moonshot (balance) | [Balance API](https://platform.kimi.ai/docs/intro) — `GET https://api.moonshot.ai/v1/users/me/balance` | Account balance where available for the selected regional host (USD on `.ai`, CNY on `.cn`). Uses an Open Platform key (`sk-xxx`). |
 | Kimi Code (subscription quota) | Coding Plan quota — `GET https://api.kimi.com/coding/v1/usages` (fallback `/usage`), `Authorization: Bearer sk-kimi-xxx`, `User-Agent: KimiCLI/1.6` | Weekly + 5-hour subscription windows (`used`/`limit`/`remaining` + reset), same data as the Kimi CLI `/usage` command. Separate from the Open Platform balance; the two keys are not interchangeable. Undocumented/community-verified endpoint — treated as best-effort. |
-| Together AI | [Models API](https://docs.together.ai/reference/models) | Read-only API-key validation. Together does not document a stable read-only credits endpoint. |
 | 9Router | Local provider-owned SQLite/JSON usage store | Requests, tokens, and tracked cost; no network request. |
 | Claude Code | Provider-owned local JSONL and credentials; OAuth `api.anthropic.com/api/oauth/usage` | Local analytics plus the account's own usage endpoint. Since the Claude 5 rollout the response carries a canonical `limits[]` array (`kind`: `session`, `weekly_all`, `weekly_scoped` with `scope.model.display_name`, e.g. a weekly Fable allowance); the adapter prefers it and falls back to the flat `five_hour`/`seven_day` objects. `extra_usage` exposes usage-credit state (`monthly_limit`, `used_credits`, `currency`). The endpoint is account-scoped and undocumented — treated as best-effort. |
 | GitHub Copilot | Authenticated `copilot_internal/user` response used by GitHub's Copilot clients | `quota_snapshots.premium_interactions` — `remaining`, `entitlement`, `percent_remaining`, `overage_count`, `unlimited`, `has_quota`. Reset date from top-level `quota_reset_date_utc`. Chat/completions suppressed when `unlimited: true` and `entitlement: 0` (no cap). `token_based_billing: true` marks accounts migrated to GitHub AI Credits (usage-based billing, 2026-06-01); `access_type_sku` distinguishes Education/Student grants (`free_educational_quota`) and free tier from paid Pro, and the adapter surfaces it in the account label. This endpoint is not a documented public API and may change. |
+| Antigravity | Local Antigravity OAuth sessions plus Cloud Code Assist `loadCodeAssist` and `fetchAvailableModels` | Per-account Gemini / Claude & OpenAI quota families and reset times. The integration is fixture-tested and treats the internal endpoint as unstable. |
+| Z.ai / GLM | [Z.ai API reference](https://docs.z.ai/api-reference/introduction) — `GET /api/monitor/usage/quota/limit`; China mirror on `open.bigmodel.cn` | Timed quota windows, percentages, reset timestamps, remaining units, and plan tier. Falls back to `GET /paas/v4/models` when the quota endpoint is unavailable. |
+| Fireworks AI | [List quotas](https://docs.fireworks.ai/api-reference/list-quotas) | `GET /v1/accounts/{account_id}/quotas` when `FIREWORKS_ACCOUNT_ID` is set; otherwise inference-model API validation. |
 
 ## Verified analytics surfaces (consumption counters, not remaining quota)
 
 | Provider | Upstream source | Plugin use |
 | --- | --- | --- |
 | Cloudflare | [GraphQL Analytics API](https://developers.cloudflare.com/analytics/graphql-api/) — `aiInferenceAdaptiveGroups` dataset | 7-day and latest-day requests/neurons when `CLOUDFLARE_ACCOUNT_ID` is set. Explicitly **not** a billing measure per Cloudflare's docs; graceful fallback to the token-verified note card. The dedicated Workers AI analytics tutorial was removed in 2025 — verify the node/fields via GraphQL introspection before relying on them. |
+| pi | Provider-owned local JSONL under `~/.pi/agent/sessions` | Local cost, tokens, models, and projects via `get-pi-analytics`; no quota API and no network request. |
 
 ## Verified authentication or runtime surfaces
 
@@ -34,11 +37,10 @@ This document records the upstream surface used by each adapter. It was reviewed
 | Vertex AI | [gcloud authentication](https://cloud.google.com/sdk/gcloud/reference/auth/print-access-token) | Local OAuth validation and selected project label. |
 | BytePlus ModelArk | [ModelArk API reference](https://docs.byteplus.com/en/docs/ModelArk/1099455) | Models API validation. |
 | Qwen/DashScope | [OpenAI-compatible API](https://www.alibabacloud.com/help/en/model-studio/compatibility-of-openai-with-dashscope) — `GET https://dashscope.aliyuncs.com/compatible-mode/v1/models` | Models API validation (best-effort; endpoint not officially documented in the OpenAI-compat surface). |
+| Together AI | [Models API](https://docs.together.ai/reference/models) | Read-only API-key validation. Together does not document a stable read-only credits endpoint. |
 | Groq | [Models endpoint](https://console.groq.com/docs/api-reference#models) | API-key validation. |
 | Cohere | [Cohere API reference](https://docs.cohere.com/reference/about) | Models API validation. |
 | Replicate | [Account endpoint](https://replicate.com/docs/reference/http#account.get) | Token validation and account identity. |
-| Fireworks AI | [List quotas](https://docs.fireworks.ai/api-reference/list-quotas) | `GET /v1/accounts/{account_id}/quotas` when `FIREWORKS_ACCOUNT_ID` is set; otherwise inference models API validation. |
-| Z.ai / GLM | [Z.ai API reference](https://docs.z.ai/api-reference/introduction.md) — `https://api.z.ai/api/monitor/usage/quota/limit` (global); China mirror `https://open.bigmodel.cn/api/monitor/usage/quota/limit` | `GET /api/monitor/usage/quota/limit` returns `data.limits[]` with `type`, `percentage`, `nextResetTime` (epoch ms), `remaining`, `unit`, `number`, and `data.level` (plan tier). Period units are decoded as `4=5h session`, `6=weekly`, `5=monthly Web Search/Reader/Zread`, `3=total tokens`; this was validated against the live Z.ai Usage page reset timestamps. Limits sort by urgency (highest % first), then map to primary/secondary/tertiary. Falls back to `GET /paas/v4/models` auth-only if quota endpoint unavailable. Key: `ZAI_API_KEY`; fallbacks: `GLM_API_KEY`, `ZHIPU_API_KEY`. |
 | xAI (Grok) | [xAI API reference](https://docs.x.ai/) — `GET https://api.x.ai/v1/api-key` | Key validation returning `{name, api_key_blocked, api_key_disabled, team_blocked, acls, ...}`. No remaining-credits field; per-request cost in `usage.cost_in_usd_ticks`. Key: `XAI_API_KEY`. |
 | MiniMax | [MiniMax API reference](https://platform.minimax.io/docs/api-reference) — `GET https://api.minimax.io/v1/models` | Models API validation (lists `MiniMax-M3`, `MiniMax-M2.7`, …). No documented balance API; dashboard at `platform.minimax.io/user-center/payment/balance`. Key: `MINIMAX_API_KEY`. |
 | Kilo | [Kilo Gateway](https://kilo.ai/docs/gateway) — `GET https://api.kilo.ai/api/gateway/models` | Best-effort models probe. **The endpoint is documented as no-auth**, so a `200` is inconclusive; only a `401` reliably rejects a malformed key. No balance API; `402` on a paid call carries `metadata.buyCreditsUrl`. Key: `KILO_API_KEY`. |

@@ -1,6 +1,6 @@
 # Provider logo sources
 
-All marks are stored locally so the plugin never depends on a network request at runtime. They are rendered inside a square `PreserveAspectFit` box; their canvases remain transparent. Multicolor marks retain the vendor colors, while single-color marks are tinted with the current DankMaterialShell theme for contrast in light and dark modes.
+All marks are stored locally so the plugin never depends on a network request at runtime. They are rendered inside a square `PreserveAspectFit` box with transparent canvases, then colorized uniformly with the user-configurable provider-logo color (the current DankMaterialShell primary color by default). The source files may contain vendor colors, but runtime rendering is intentionally monochrome for consistent contrast in light and dark modes.
 
 ## Sources
 

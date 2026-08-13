@@ -14,6 +14,7 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: measurable providers, an explicit compact subset, or the most-used provider. |
 | `pillProviders` | comma-separated IDs | provider selection | Strict provider subset used by `custom` pill mode. The settings UI exposes this as provider chips and never falls back to every tracked provider. |
 | `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
+| `providerLogoColor` | QML color string | current DMS primary color | Monochrome tint used for provider logos and notification icons. |
 | `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |
 | `notifyThreshold` | 1–100 | 85 | Global notification threshold. |
 | `notifyThresholds` | `provider:percent,...` | empty | Per-provider threshold overrides, for example `codex:75,claude:90`. |
@@ -75,3 +76,5 @@ The settings page executes `providers/get-provider-health` for selected provider
 - Neutral: informational provider or no check is applicable.
 
 Health checks do not send network requests and never print secret values.
+
+Quota notifications require `notify-send` and `flock` in the DMS process environment. Antigravity readiness requires either `secret-tool` for keyring-backed sessions or `sqlite3` plus a readable IDE state database.

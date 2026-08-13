@@ -10,8 +10,10 @@ CI gates you must satisfy, and the QML/shell gotchas that have bitten us before.
 | `AiOverviewControlWidget.qml` | Main UI — dankbar pill + popout dashboard. |
 | `AiOverviewControlSettings.qml` | Plugin settings page. |
 | `AiOverviewControlI18n.qml` | Locale loading + string interpolation (singleton). |
+| `ProviderLogo.qml` | Local provider-logo resolution, tinting, and fallback icons. |
 | `i18n/*.json` | Translation bundles (`en` is the source of truth). |
-| `providers/get-*` | One adapter per provider; `get-provider-usage` dispatches. |
+| `providers/get-*` | Provider adapters and helpers; `get-provider-usage` dispatches. |
+| `scripts/package-release` | Builds and validates the installable release archives. |
 
 ## Dev loop
 
@@ -61,10 +63,13 @@ Two caveats that cost real debugging time:
 
 ## Providers
 
-- Each `providers/get-<id>-usage` stub `exec`s `get-provider-wrapper <id>`,
-  which calls into `get-provider-usage`'s `fetch_provider()` dispatch. A case is
-  `canonical|alias1|alias2)`; the **first** token is the canonical provider that
-  owns a stub, the rest are documented aliases.
+- Most API-backed and informational `providers/get-<id>-usage` stubs `exec`
+  `get-provider-wrapper <id>`, which calls into `get-provider-usage`'s
+  `fetch_provider()` dispatch. A case is `canonical|alias1|alias2)`; the
+  **first** token is the canonical provider that owns a stub, and the rest are
+  documented aliases. Codex, Claude, and Copilot use specialized helpers; `pi`
+  uses an inline dispatcher envelope plus `get-pi-analytics` rather than a
+  generic usage stub.
 - Scripts must be executable (`chmod +x`) and pass `shellcheck`.
 
 ## CI gates (run these locally before pushing)
@@ -73,10 +78,12 @@ Two caveats that cost real debugging time:
 | --- | --- |
 | `plugin.json` valid + semver | `jq -e . plugin.json` |
 | i18n JSON valid | `for f in i18n/*.json; do jq -e . "$f"; done` |
-| **i18n key parity** (all locales == `en`) | `diff <(jq -r 'keys[]' i18n/en.json | sort) <(jq -r 'keys[]' i18n/pt_BR.json | sort)` |
-| CHANGELOG has the `plugin.json` version | `grep "## $(jq -r .version plugin.json)" CHANGELOG.md` |
+| **i18n key parity** (all locales == `en`) | `for locale in pt_BR zh_CN es_ES de_DE; do diff <(jq -r 'keys[]' i18n/en.json) <(jq -r 'keys[]' "i18n/$locale.json") || exit 1; done` |
+| CHANGELOG has the `plugin.json` version | `VERSION="$(jq -r .version plugin.json)"; grep -qF "## $VERSION" CHANGELOG.md \|\| grep -qF "## [$VERSION]" CHANGELOG.md` |
 | **QML lint (hard gate)** | `qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml` |
-| Shell lint | `shellcheck providers/get-*` |
+| Shell syntax | `find providers -maxdepth 1 -type f -print0 \| xargs -0 bash -n; for test in tests/*.sh; do bash -n "$test"; done; bash -n scripts/package-release` |
+| Shell lint | `shellcheck providers/* tests/*.sh scripts/package-release` |
+| Release package | `scripts/package-release` |
 
 Parity is strict: every key in `en.json` must exist in `pt_BR`, `zh_CN`,
 `es_ES`, and `de_DE`, and vice versa. Prefer `t("key", "English fallback")`

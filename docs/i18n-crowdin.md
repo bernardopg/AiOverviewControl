@@ -82,8 +82,8 @@ Recommended Crowdin GitHub integration settings:
 
 CI validates:
 
-- `plugin.json` JSON syntax.
+- `plugin.json` JSON syntax and semantic version format.
 - Every `i18n/*.json` file for JSON syntax.
-- Translation key parity against `i18n/en.json`.
-- `.github/crowdin.yml` syntax.
-- QML files when `qmllint` is available.
+- Exact translation key parity against `i18n/en.json`.
+- `.github/crowdin.yml` with the checksum-verified Crowdin CLI as an offline hard gate; remote source/translation checks also run when `CROWDIN_API_TOKEN` is available.
+- All four QML files with an installed Qt5 `qmllint` hard gate.

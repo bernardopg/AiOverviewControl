@@ -1,6 +1,6 @@
 # Providers
 
-`providers/get-provider-usage` dispatches every selected provider independently and returns one normalized JSON object per provider. Each provider also has a `providers/get-<id>-usage` entrypoint and is covered by `providers/get-provider-health`.
+`providers/get-provider-usage` dispatches every selected provider independently and returns one normalized JSON object per provider. Most providers also expose a normalized `providers/get-<id>-usage` entrypoint, and every provider is covered by `providers/get-provider-health`. Claude's specialized helper emits `KEY=VALUE` data for the dispatcher to normalize; `pi` uses an inline dispatcher envelope plus `providers/get-pi-analytics` rather than a generic usage entrypoint.
 
 This document is the authoritative reference for adapter authors. It records, for every provider:
 
@@ -13,7 +13,7 @@ This document is the authoritative reference for adapter authors. It records, fo
 - the **current flagship model(s)** and recent **changelog** highlights,
 - and the **official documentation source** used.
 
-Reviewed 2026-06-18. Provider APIs change; re-check the linked sources before changing an adapter.
+Reviewed 2026-08-13. Provider APIs change; re-check the linked sources before changing an adapter.
 
 ## Coverage levels
 
@@ -24,7 +24,7 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 | **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID) |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek` |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local) |
-| **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
+| **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp` |
 
@@ -118,7 +118,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <tr>
 <td><code>mistral</code></td>
 <td>Auth</td>
-<td>⚠️ <code>GET /v1/models</code> is public and cannot validate a key</td>
+<td>✅ <code>GET /v1/models</code></td>
 <td>❌ dashboard-only</td>
 <td>✅ Vibe Pro $14.99 / Team $24.99</td>
 <td>✅ per token</td>
@@ -140,7 +140,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <tr>
 <td><code>nvidia</code></td>
 <td>Auth</td>
-<td>✅ <code>GET /v1/models</code></td>
+<td>⚠️ <code>GET /v1/models</code> is public and cannot validate a key</td>
 <td>❌ dashboard-only</td>
 <td>⚠️ rate-limited developer trial</td>
 <td>✅ NVIDIA Cloud Credits</td>
@@ -311,7 +311,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>—</td>
 <td>✅</td>
 <td><code>GROQ_API_KEY</code></td>
-<td><a href="https://console.groq.com/usage">console.groq.com</a></td>
+<td><a href="https://console.groq.com/dashboard/usage">console.groq.com</a></td>
 <td><a href="https://console.groq.com/docs/api-reference">console.groq.com/docs</a></td>
 </tr>
 <tr>
@@ -366,7 +366,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ Pro</td>
 <td>✅</td>
 <td>—</td>
-<td><a href="https://perplexity.ai/settings/billing">perplexity.ai/settings</a></td>
+<td><a href="https://www.perplexity.ai/settings">perplexity.ai/settings</a></td>
 <td><a href="https://docs.perplexity.ai">docs.perplexity.ai</a></td>
 </tr>
 <tr>
@@ -488,7 +488,7 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Quota / balance** | ✅ `/api/monitor/usage/quota/limit` returns `data.limits[]` — each limit has `type` (`TIME_LIMIT` or `TOKENS_LIMIT`), `percentage` (0–100), `nextResetTime` (epoch ms), `remaining`, `unit`, and `number`. Live cross-check against the Z.ai Usage page confirms the period unit table used by the adapter: `unit=4` → 5-hour session window, `unit=6` → weekly quota, `unit=5` → monthly web/search/reader quota, `unit=3` → total token allotment (no reset window). Also returns `data.level` (plan tier, e.g. `lite`). |
 | **Plans** | PAYG per token **or** **GLM Coding Plan** (Lite $18, **Pro $72**, Max $160/mo; quarterly/annual discounts). Subscription usage exposes a 5-hour session quota, weekly token quota, and monthly Web Search / Reader / Zread quota; supported in Claude Code, Cline, OpenCode, Roo, Kilo, Crush, Goose, OpenClaw. **GLM-5.2 & GLM-5-Turbo consume 3× quota at peak (14:00–18:00 UTC+8), 2× off-peak** (1× off-peak promo through end of September). |
 | **Billing** | Per 1M tokens: **`glm-5.2`** $1.40/$4.40 (cached $0.26) &middot; `glm-5`/`glm-5-turbo` $1.0–$1.2/$3.2–$4.0 &middot; `glm-4.7`/`4.6`/`4.5` $0.60/$2.20 &middot; `glm-4.7-flash` & `glm-4.5-flash` **Free** &middot; `glm-5v-turbo` (vision) $1.2/$4.0. Web Search $0.01/use. |
-| **Dashboard** | [z.ai/manage-apikey](https://z.ai/manage-apikey) (keys), [/subscription](https://z.ai/manage-apikey/subscription) (Coding Plan), [/billing](https://z.ai/manage-apikey/billing) (finance). China: [open.bigmodel.cn](https://open.bigmodel.cn). |
+| **Dashboard** | [API keys](https://z.ai/manage-apikey/apikey-list), [subscription](https://z.ai/manage-apikey/subscription) (Coding Plan), and [billing](https://z.ai/manage-apikey/billing) (finance). China: [open.bigmodel.cn](https://open.bigmodel.cn). |
 | **Changelog** | **GLM-5.2** live (1M lossless context, 128K max output, MCP, structured output). Lineage: 4.5 → 4.6 → 4.7 → 5 → 5-Turbo → 5.1 → **5.2**. New GLM-5V-Turbo (vision coding), GLM-Image, CogVideoX-3, GLM-ASR-2512, GLM-OCR. Coding Plan restructured (legacy plans migrated by 2026-04-30). |
 | **Adapter** | `fetch_glm_native` (China console, `open.bigmodel.cn`) and `fetch_zai_native` (global, `api.z.ai`). Both call `GET /api/monitor/usage/quota/limit` for real quota data; fall back to `GET /models` auth-only check if the quota endpoint is unavailable. Sorts limits by urgency (highest % first among timed windows), then maps to primary / secondary / tertiary. |
 
@@ -600,7 +600,7 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 
 ## Direct tests
 
-Every provider has a `providers/get-<id>-usage` entrypoint and is covered by `providers/get-provider-health`. Examples:
+Every provider is covered by `providers/get-provider-health`. Most providers also have a normalized `providers/get-<id>-usage` entrypoint; use the dispatcher for Claude and `providers/get-pi-analytics` for pi. Examples:
 
 ```bash
 ./providers/get-codex-usage | jq .

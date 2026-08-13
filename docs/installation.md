@@ -5,7 +5,8 @@
 ```bash
 mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
 cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml \
-  plugin.json qmldir providers README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
+  ProviderLogo.qml plugin.json qmldir providers assets README.md CHANGELOG.md LICENSE \
+  docs i18n screenshot.png \
   ~/.config/DankMaterialShell/plugins/AiOverviewControl/
 chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
 dms restart
@@ -13,17 +14,36 @@ dms restart
 
 ## Install from a release archive
 
-Download the release archive and its matching SHA-256 checksum from the project's GitHub Releases page. Verify it before replacing an existing installation:
+Download one release archive and the release's `.sha256` file from the project's GitHub Releases page. The checksum file contains entries for both archive formats, so filter it to the file you actually downloaded:
 
 ```bash
-sha256sum --check AiOverviewControl-*.sha256
-mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
-tar -xzf AiOverviewControl-*.tar.gz -C ~/.config/DankMaterialShell/plugins/AiOverviewControl --strip-components=1
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
+ARCHIVE=AiOverviewControl-v1.9.0.tar.gz
+CHECKSUM=AiOverviewControl-v1.9.0.sha256
+grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
+
+PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
+mkdir -p "$PLUGIN"
+tar -xzf "$ARCHIVE" -C "$PLUGIN" --strip-components=1
+chmod +x "$PLUGIN"/providers/get-*
 dms restart
 ```
 
-For a `.zip` release, verify the same checksum and replace the extraction command with `unzip AiOverviewControl-*.zip -d ~/.config/DankMaterialShell/plugins/AiOverviewControl`.
+Replace `v1.9.0` with the version you downloaded. For a `.zip` release, verify and unpack through a temporary directory so the archive's top-level `AiOverviewControl-vX.Y.Z` directory is not nested inside the plugin directory:
+
+```bash
+ARCHIVE=AiOverviewControl-v1.9.0.zip
+CHECKSUM=AiOverviewControl-v1.9.0.sha256
+grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
+
+PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
+tmpdir="$(mktemp -d)"
+unzip -q "$ARCHIVE" -d "$tmpdir"
+mkdir -p "$PLUGIN"
+cp -a "$tmpdir"/AiOverviewControl-v*/. "$PLUGIN"/
+rm -rf "$tmpdir"
+chmod +x "$PLUGIN"/providers/get-*
+dms restart
+```
 
 ## Core dependencies
 
@@ -33,7 +53,7 @@ command -v jq
 command -v curl
 ```
 
-Only enabled providers need their provider-specific CLI or credentials.
+Only enabled providers need their provider-specific CLI or credentials. Antigravity needs `secret-tool` for keyring sessions or `sqlite3` for IDE state databases. Desktop quota notifications need `notify-send` and `flock`.
 
 ## Initial authentication
 
@@ -58,7 +78,7 @@ Then enable the plugin in DMS settings and add the widget to the desired DankBar
 
 ## Upgrade
 
-Replace tracked plugin files, preserve the DMS settings store, restore executable bits, and restart DMS:
+Replace the installed plugin files using either method above, preserve the DMS settings store, restore executable bits, and restart DMS:
 
 ```bash
 chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*

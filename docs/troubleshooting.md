@@ -90,9 +90,31 @@ For a temporary model-by-model diagnosis, enable **Show individual Antigravity m
 
 The widget has a 45-second total timeout. Each network adapter also has a shorter curl timeout. Reduce the selected provider count, increase the refresh interval, and test providers individually.
 
+## Notifications do not appear
+
+Quota alerts require `notify-send` and `flock` in the environment that starts
+DMS:
+
+```bash
+command -v notify-send flock
+```
+
+The helper stores deduplication state under
+`${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/notify-state.json`. Test a
+notification without exposing provider credentials:
+
+```bash
+PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
+bash "$PLUGIN/providers/send-quota-alert" \
+  manual-test 0 normal dialog-warning '#6750A4' \
+  'AiOverviewControl test' 'Notification helper is working.'
+```
+
+Adjust `PLUGIN` for a plugin-store install as described at the top of this page.
+
 ## QML validation
 
 ```bash
-qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
+qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml
 for file in i18n/*.json; do jq . "$file"; done
 ```

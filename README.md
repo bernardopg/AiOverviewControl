@@ -85,9 +85,10 @@ Provider cards use one of these honest coverage levels:
 | Coverage | Meaning |
 | --- | --- |
 | **Quota** | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM). |
-| **Balance** | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek, Together). |
-| **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, pi, Ollama). |
-| **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, NVIDIA, MiniMax, Qwen, xAI, and more). |
+| **Balance** | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek). |
+| **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, pi). |
+| **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, MiniMax, Qwen, xAI, and more). Some configured-status cards, such as NVIDIA, cannot validate the key because the provider's catalog is public. |
+| **Local runtime** | Reports local state rather than account quota (Ollama models, Vertex AI authentication). |
 | **Informational** | Links official usage when no read-only API exists (Kiro, Cursor, Warp, and more). |
 
 Notable integrations:
@@ -102,10 +103,12 @@ Notable integrations:
 | pi | Local session JSONL telemetry (`~/.pi/agent/sessions`) — cost, tokens, top models, top projects; no quota API (pi has no rate limits). |
 | OpenRouter | Key limits, spend, balance, and 30-day model activity. |
 | Kimi (Moonshot) | Open Platform balance (`GET /v1/users/me/balance`, USD/CNY) — or **Kimi Code** subscription quota (`GET /coding/v1/usages`, weekly + 5h windows) when a `sk-kimi-` / `KIMI_CODING_API_KEY` is set. |
-| DeepSeek, Together | Provider balance or credit APIs. |
+| DeepSeek | Official account balance API. |
+| Together | Read-only API-key validation; usage and billing remain in the Together console. |
 | Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
 | Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check. |
-| xAI, MiniMax, Qwen, NVIDIA, Mistral | Read-only `/models` (or `/api-key`) validation — zero token consumption. |
+| xAI, MiniMax, Qwen, Mistral | Read-only `/models` (or `/api-key`) validation — zero token consumption. |
+| NVIDIA | Configured-key status only; its public model catalog cannot validate the key. |
 | Ollama | Installed and running models from `/api/tags` and `/api/ps`. |
 
 The full matrix, credentials, and upstream references are documented in
@@ -116,7 +119,8 @@ The full matrix, credentials, and upstream references are documented in
 
 - DankMaterialShell running on Quickshell.
 - `bash`, `jq`, and `curl`.
-- Provider-specific CLIs or credentials only for providers you enable; Antigravity additionally requires `sqlite3`.
+- Provider-specific CLIs or credentials only for providers you enable. Antigravity needs `secret-tool` for keyring sessions or `sqlite3` for IDE state databases.
+- Quota notifications additionally need `notify-send` and `flock`.
 
 Recommended baseline for the default provider set:
 
@@ -166,11 +170,16 @@ Settings are stored by DMS and survive plugin upgrades.
 | Setting | Values | Default |
 | --- | --- | --- |
 | Language | `auto`, `en_US`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE` | `auto` |
+| Tracked providers | comma-separated provider IDs | `codex,claude,copilot` |
 | Dashboard density | `comfortable`, `compact` | `comfortable` |
 | Pill mode | `auto`, `custom`, `top` | `auto` |
+| Custom pill providers | comma-separated tracked-provider IDs | tracked providers |
+| Pinned providers | comma-separated provider IDs | empty |
+| Provider logo color | any QML color string | current DMS primary color |
 | Refresh interval | 1, 2, 5, 15, or 30 minutes | 2 minutes |
 | Show provider errors | enabled or disabled | enabled |
 | Claude project breakdown | enabled or disabled | enabled |
+| Individual Antigravity models | enabled or disabled | disabled |
 | Quota notifications | enabled or disabled | enabled |
 | Global notification threshold | 75%, 85%, or 95% | 85% |
 | Per-provider thresholds | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`) | empty |
@@ -238,8 +247,10 @@ QML lint is a **hard gate** in CI (Qt5 `qmllint`, syntax verification — no
 ```bash
 jq -e . plugin.json >/dev/null
 for file in i18n/*.json; do jq -e . "$file" >/dev/null; done
-find providers -name 'get-*' -type f -print0 | xargs -0 bash -n
-shellcheck -S warning providers/get-* providers/send-quota-alert
+find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
+for test in tests/*.sh; do bash -n "$test"; done
+bash -n scripts/package-release
+shellcheck -S warning providers/* tests/*.sh scripts/package-release
 qmllint \
   AiOverviewControlWidget.qml \
   AiOverviewControlSettings.qml \
@@ -264,6 +275,7 @@ and release packaging.
 AiOverviewControlWidget.qml       Runtime orchestration and dashboard
 AiOverviewControlSettings.qml     Settings, provider selection, and health UI
 AiOverviewControlI18n.qml         Locale loading and interpolation
+ProviderLogo.qml                  Local provider-logo resolution and fallback icons
 providers/get-provider-usage      Multi-provider dispatcher and history writer
 providers/get-provider-health     Local prerequisite checks
 providers/get-codex-usage         Codex app-server protocol bridge
@@ -273,6 +285,7 @@ providers/get-antigravity-usage   Antigravity Cloud Code Assist quota bridge
 providers/get-9router-analytics   9Router local telemetry blob
 providers/get-pi-analytics        pi local session telemetry blob
 providers/get-*-usage             Canonical single-provider entrypoints
+scripts/package-release           Release archive build and validation
 ```
 
 See [Architecture](./docs/architecture.md) for the runtime flow and normalized

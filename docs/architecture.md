@@ -6,6 +6,7 @@
 AiOverviewControlWidget.qml       Runtime orchestration and dashboard
 AiOverviewControlSettings.qml     Settings, provider selection, health UI
 AiOverviewControlI18n.qml         Locale loading and interpolation
+ProviderLogo.qml                  Local provider-logo resolution and fallback icons
 providers/get-provider-usage      Multi-provider dispatcher
 providers/get-provider-health     Prerequisite checks for settings
 providers/get-codex-usage         Codex app-server protocol bridge
@@ -16,7 +17,14 @@ providers/get-9router-analytics   9Router local telemetry blob (expanded card)
 providers/get-pi-analytics        pi coding-agent local session telemetry blob (expanded card)
 providers/get-provider-wrapper    Single-provider wrapper
 providers/get-*-usage             Canonical provider entrypoints
+scripts/package-release           Release archive build and validation
 ```
+
+Most API-backed and informational providers expose a normalized JSON
+`get-<id>-usage` entrypoint through `get-provider-wrapper`. The specialized
+Claude helper emits `KEY=VALUE` analytics for the dispatcher to normalize, and
+`pi` uses an inline dispatcher envelope plus `get-pi-analytics`; neither follows
+the generic stub contract.
 
 ## Runtime flow
 
@@ -102,6 +110,7 @@ Every account request captures HTTP status and validates the response schema. Pa
 | `notifyCooldownMinutes` | `0` | Minimum minutes between in-place notification updates; `0` means once per quota window. |
 | `historyRetention` | `2000` | Maximum local usage-history snapshots. |
 | `pinnedProviders` | empty | Provider IDs sorted before unpinned cards. |
+| `providerLogoColor` | current DMS primary color | Monochrome tint for provider logos and notification icons. |
 | `showClaudeProjects` | `true` | Show Claude local project analytics. |
 | `showAntigravityModelDetails` | `false` | Replace Antigravity family rows with per-model rows in expanded cards. |
 
@@ -130,9 +139,11 @@ Legacy settings unknown to the current code are ignored.
 ## Validation
 
 ```bash
-bash -n providers/get-*
-shellcheck providers/get-*
-qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml
+find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
+for test in tests/*.sh; do bash -n "$test"; done
+bash -n scripts/package-release
+shellcheck providers/* tests/*.sh scripts/package-release
+qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml
 ./providers/get-provider-health "codex,claude,copilot,pi" | jq .
 ./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .
 ./providers/get-pi-analytics | jq .
