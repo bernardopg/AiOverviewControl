@@ -681,13 +681,20 @@ jobs:
           echo "${CROWDIN_CLI_SHA256}  ${ARCHIVE}" | sha256sum --check --strict
           unzip -q "$ARCHIVE" -d /tmp/crowdin-cli
           JAR="/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar"
+          OFFLINE_IDENTITY="/tmp/crowdin-offline-identity.yml"
           test -f "$JAR"
-          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          printf 'api_token: offline-lint-placeholder\n' > "$OFFLINE_IDENTITY"
+          chmod 600 "$OFFLINE_IDENTITY"
+          {
+            echo "jar=$JAR"
+            echo "offline_identity=$OFFLINE_IDENTITY"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Validate Crowdin config (hard gate, no secret required)
         run: |
           java -jar "${{ steps.crowdin_cli.outputs.jar }}" \
-            config lint --config .github/crowdin.yml
+            config lint --config .github/crowdin.yml \
+            --identity "${{ steps.crowdin_cli.outputs.offline_identity }}"
 
       - name: Validate Crowdin project remotely (requires secret)
         env:
