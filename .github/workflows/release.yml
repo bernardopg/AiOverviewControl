@@ -6,28 +6,46 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  ci:
+    name: Full CI gate
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   package_and_release:
     name: Package and release
+    needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate tag matches plugin.json version
+      - name: Validate release ref and version
         run: |
           TAG="${GITHUB_REF_NAME}"
-          VERSION="$(jq -r '.version' plugin.json)"
+          VERSION="$(jq --exit-status --raw-output '.version' plugin.json)"
+          if ! printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::plugin.json version '${VERSION}' is not semver (expected X.Y.Z)" >&2
+            exit 1
+          fi
           if [ "$TAG" != "v${VERSION}" ]; then
             echo "::error::Tag ${TAG} does not match plugin.json version v${VERSION}" >&2
+            exit 1
+          fi
+          RELEASE_COMMIT="$(git rev-list --max-count=1 "$TAG")"
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" "origin/main"; then
+            echo "::error::Release tag ${TAG} is not on the main branch" >&2
             exit 1
           fi
           {
@@ -36,56 +54,9 @@ jobs:
             echo "DIST_NAME=AiOverviewControl-${TAG}"
           } >> "$GITHUB_ENV"
 
-      - name: Validate CHANGELOG has entry for this version
+      - name: Build and validate release artifacts
         run: |
-          VERSION="$(jq -r '.version' plugin.json)"
-          if ! grep -qF "## ${VERSION}" CHANGELOG.md && ! grep -qF "## [${VERSION}]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no entry for version ${VERSION} — add one before tagging" >&2
-            exit 1
-          fi
-
-      - name: Validate i18n completeness
-        run: |
-          python3 - <<'PY'
-          import json, sys
-          from pathlib import Path
-          base = set(json.loads(Path('i18n/en.json').read_text()).keys())
-          errors = []
-          for locale in ('pt_BR', 'zh_CN', 'es_ES', 'de_DE'):
-              keys = set(json.loads(Path(f'i18n/{locale}.json').read_text()).keys())
-              missing = sorted(base - keys)
-              if missing:
-                  errors.append(f'::error::{locale}: missing i18n keys before release: {missing}')
-          if errors:
-              sys.exit('\n'.join(errors))
-          PY
-
-      - name: Confirm provider scripts are executable
-        run: |
-          FAIL=0
-          while IFS= read -r -d '' f; do
-            if [ ! -x "$f" ]; then
-              echo "::error::Not executable: ${f}"
-              FAIL=1
-            fi
-          done < <(find providers -name 'get-*' -type f -print0)
-          exit "$FAIL"
-
-      - name: Build release artifacts
-        run: |
-          mkdir -p dist
-          git archive \
-            --format=zip \
-            --prefix="${DIST_NAME}/" \
-            -o "dist/${DIST_NAME}.zip" \
-            HEAD
-          git archive \
-            --format=tar \
-            --prefix="${DIST_NAME}/" \
-            HEAD | gzip -9 > "dist/${DIST_NAME}.tar.gz"
-          cd dist
-          sha256sum "${DIST_NAME}.zip" "${DIST_NAME}.tar.gz" > "${DIST_NAME}.sha256"
-
+          scripts/package-release "$TAG"
           {
             echo "## Release artifacts"
             echo ""
@@ -94,11 +65,11 @@ jobs:
             while IFS= read -r -d '' f; do
               size="$(du -sh "$f" | cut -f1)"
               echo "| $(basename "$f") | ${size} |"
-            done < <(find . -maxdepth 1 -name "${DIST_NAME}.*" -type f -print0 | sort -z)
+            done < <(find dist -maxdepth 1 -name "${DIST_NAME}.*" -type f -print0 | sort -z)
             echo ""
             echo "### SHA-256 checksums"
             echo '```'
-            cat "${DIST_NAME}.sha256"
+            cat "dist/${DIST_NAME}.sha256"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -107,6 +78,7 @@ jobs:
         with:
           name: ${{ env.TAG }}
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             dist/${{ env.DIST_NAME }}.zip
             dist/${{ env.DIST_NAME }}.tar.gz

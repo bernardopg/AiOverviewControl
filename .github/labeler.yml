@@ -1,4 +1,4 @@
-# Path-based auto-labeling for pull requests (actions/labeler v5).
+# Path-based auto-labeling for pull requests (actions/labeler v7).
 # Each label is applied when a PR touches any matching file.
 "area:providers":
   - changed-files:
@@ -20,8 +20,12 @@
   - changed-files:
       - any-glob-to-any-file:
           - ".github/workflows/**"
+          - ".github/crowdin.yml"
           - ".github/dependabot.yml"
           - ".github/labeler.yml"
+          - ".github/release.yml"
+          - "scripts/package-release"
+          - "tests/**"
 
 "documentation":
   - changed-files:

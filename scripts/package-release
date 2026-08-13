@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+VERSION="$(jq --exit-status --raw-output '.version' plugin.json)"
+TAG="${1:-v${VERSION}}"
+DIST_NAME="AiOverviewControl-${TAG}"
+DIST_DIR="${2:-$ROOT/dist}"
+
+if [ "$TAG" != "v${VERSION}" ]; then
+  printf 'Tag %s does not match plugin.json version v%s\n' "$TAG" "$VERSION" >&2
+  exit 1
+fi
+
+mkdir -p "$DIST_DIR"
+rm -f \
+  "$DIST_DIR/${DIST_NAME}.zip" \
+  "$DIST_DIR/${DIST_NAME}.tar.gz" \
+  "$DIST_DIR/${DIST_NAME}.sha256"
+
+git archive \
+  --format=zip \
+  --prefix="${DIST_NAME}/" \
+  -o "$DIST_DIR/${DIST_NAME}.zip" \
+  HEAD
+git archive \
+  --format=tar \
+  --prefix="${DIST_NAME}/" \
+  HEAD | gzip -9 > "$DIST_DIR/${DIST_NAME}.tar.gz"
+
+(
+  cd "$DIST_DIR"
+  sha256sum "${DIST_NAME}.zip" "${DIST_NAME}.tar.gz" > "${DIST_NAME}.sha256"
+  sha256sum --check --strict "${DIST_NAME}.sha256"
+)
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+tar -tzf "$DIST_DIR/${DIST_NAME}.tar.gz" | sort > "$TMP/tar.list"
+unzip -tq "$DIST_DIR/${DIST_NAME}.zip" >/dev/null
+unzip -Z1 "$DIST_DIR/${DIST_NAME}.zip" | sort > "$TMP/zip.list"
+diff -u "$TMP/tar.list" "$TMP/zip.list"
+
+if grep -vE "^${DIST_NAME}/" "$TMP/tar.list"; then
+  printf 'Release archive contains an entry outside %s/\n' "$DIST_NAME" >&2
+  exit 1
+fi
+
+tar -xzf "$DIST_DIR/${DIST_NAME}.tar.gz" -C "$TMP"
+PACKAGE="$TMP/$DIST_NAME"
+for required in \
+  plugin.json qmldir \
+  AiOverviewControlWidget.qml AiOverviewControlSettings.qml \
+  AiOverviewControlI18n.qml ProviderLogo.qml \
+  assets/provider-logos/SOURCES.md \
+  providers/get-provider-usage providers/get-provider-health \
+  providers/send-quota-alert i18n/en.json; do
+  if [ ! -f "$PACKAGE/$required" ]; then
+    printf 'Release archive is missing %s\n' "$required" >&2
+    exit 1
+  fi
+done
+
+[ "$(jq -r '.version' "$PACKAGE/plugin.json")" = "$VERSION" ]
+while IFS= read -r -d '' script; do
+  if [ ! -x "$script" ]; then
+    printf 'Release archive contains a non-executable provider script: %s\n' \
+      "${script#"$PACKAGE/"}" >&2
+    exit 1
+  fi
+done < <(find "$PACKAGE/providers" -maxdepth 1 -type f -print0)
+
+printf 'Release package OK: %s\n' "$DIST_NAME"

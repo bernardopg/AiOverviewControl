@@ -6,12 +6,18 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      CROWDIN_API_TOKEN:
+        required: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Keep this distinct from the caller's group when CI runs as a reusable
+  # workflow from release.yml; sharing a group would cancel the caller.
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -19,10 +25,11 @@ env:
   ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
   SHELLCHECK_VERSION: "v0.11.0"
   SHELLCHECK_SHA256: "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6"
-  CROWDIN_CLI_VERSION: "4.14.2"
+  CROWDIN_CLI_VERSION: "4.15.0"
+  CROWDIN_CLI_SHA256: "c159ee285c354aad96efa60a797e9dd029bf6cf1b2154a97417c8a8d389a52ad"
 
 jobs:
-  # ─── workflow lint (runs first — catches YAML errors in other jobs) ──────────
+  # ─── workflow lint ───────────────────────────────────────────────────────────
   actionlint:
     name: Workflow lint
     runs-on: ubuntu-latest
@@ -62,7 +69,54 @@ jobs:
             echo "::error::plugin.json version '${VERSION}' is not semver (expected X.Y.Z)" >&2
             exit 1
           }
+          grep -qF "text: \"v${VERSION}\"" AiOverviewControlSettings.qml || {
+            echo "::error::AiOverviewControlSettings.qml does not show v${VERSION}" >&2
+            exit 1
+          }
           echo "version=${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate runtime manifest and provider logos
+        run: |
+          python3 - <<'PY'
+          import json, re, sys
+          from pathlib import Path
+
+          manifest = json.loads(Path('plugin.json').read_text())
+          errors = []
+          for field in ('component', 'settings'):
+              target = Path(manifest.get(field, '').removeprefix('./'))
+              if not target.is_file():
+                  errors.append(f"plugin.json {field} does not resolve to a file: {target}")
+
+          for line in Path('qmldir').read_text().splitlines():
+              if line.strip():
+                  target = Path(line.split()[-1])
+                  if not target.is_file():
+                      errors.append(f'qmldir target is missing: {target}')
+
+          settings = Path('AiOverviewControlSettings.qml').read_text()
+          try:
+              provider_block = settings.split('readonly property var allProviders: [', 1)[1].split('\n    ]', 1)[0]
+          except IndexError:
+              errors.append('Could not locate allProviders in AiOverviewControlSettings.qml')
+              provider_block = ''
+          provider_ids = re.findall(r'\{ id:"([^"]+)"', provider_block)
+          if len(provider_ids) != len(set(provider_ids)):
+              errors.append('allProviders contains duplicate provider IDs')
+
+          logo_ids = {p.stem for p in Path('assets/provider-logos').iterdir()
+                      if p.suffix in {'.svg', '.png'}}
+          missing_logos = sorted(set(provider_ids) - logo_ids)
+          orphan_logos = sorted(logo_ids - set(provider_ids))
+          if missing_logos:
+              errors.append(f'Providers without local logos: {missing_logos}')
+          if orphan_logos:
+              errors.append(f'Logos without selectable providers: {orphan_logos}')
+
+          if errors:
+              sys.exit('\n'.join(f'::error::{error}' for error in errors))
+          print(f'Runtime manifest OK — {len(provider_ids)} providers and logos.')
+          PY
 
       - name: Validate i18n JSON syntax
         run: |
@@ -101,6 +155,19 @@ jobs:
             exit 1
           }
 
+  # ─── release packaging ───────────────────────────────────────────────────────
+  packaging:
+    name: Release packaging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build and validate installable archives
+        run: scripts/package-release
+
   # ─── shell ───────────────────────────────────────────────────────────────────
   shell:
     name: Shell scripts
@@ -111,10 +178,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Syntax check — all get-* scripts
-        run: find providers -name 'get-*' -type f -print0 | xargs -0 bash -n
+      - name: Syntax check — provider, test, and packaging scripts
+        run: |
+          find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
+          find tests -maxdepth 1 -name '*.sh' -type f -print0 | xargs -0 bash -n
+          bash -n scripts/package-release
 
-      - name: Confirm all provider scripts are executable
+      - name: Confirm all scripts are executable
         run: |
           FAIL=0
           while IFS= read -r -d '' f; do
@@ -122,7 +192,17 @@ jobs:
               echo "::error::Not executable: ${f}"
               FAIL=1
             fi
-          done < <(find providers -name 'get-*' -type f -print0)
+          done < <(find providers -maxdepth 1 -type f -print0)
+          while IFS= read -r -d '' f; do
+            if [ ! -x "$f" ]; then
+              echo "::error::Not executable: ${f}"
+              FAIL=1
+            fi
+          done < <(find tests -maxdepth 1 -name '*.sh' -type f -print0)
+          if [ ! -x scripts/package-release ]; then
+            echo "::error::Not executable: scripts/package-release"
+            FAIL=1
+          fi
           exit "$FAIL"
 
       - name: Install shellcheck (verified checksum)
@@ -135,31 +215,8 @@ jobs:
           tar -xzf "$TARBALL" --strip-components=1 -C /tmp "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
           /tmp/shellcheck --version
 
-      - name: shellcheck — main backends (error level)
-        run: |
-          /tmp/shellcheck -S error \
-            providers/get-provider-usage \
-            providers/get-copilot-usage \
-            providers/get-claude-usage \
-            providers/get-provider-wrapper
-
-      - name: shellcheck — main backends (warning level)
-        run: |
-          /tmp/shellcheck -S warning \
-            providers/get-provider-usage \
-            providers/get-copilot-usage \
-            providers/get-claude-usage \
-            providers/get-provider-wrapper
-
-      - name: shellcheck — all provider stubs (warning level)
-        run: |
-          find providers -name 'get-*' \
-            ! -name 'get-provider-usage' \
-            ! -name 'get-copilot-usage' \
-            ! -name 'get-claude-usage' \
-            ! -name 'get-provider-wrapper' \
-            -type f -print0 \
-            | xargs -0 /tmp/shellcheck -S warning
+      - name: shellcheck — all provider, test, and packaging scripts (warning level)
+        run: /tmp/shellcheck -S warning providers/* tests/*.sh scripts/package-release
 
       - name: Provider dispatch coverage
         run: |
@@ -199,19 +256,29 @@ jobs:
           # a provider is covered if ANY of its tokens routes; aliases are fine.
           missing_dispatch = sorted(stubs - dispatched)
           # only canonical names are expected to back a script; ignore the
-          # dedicated non-stub providers (claude/copilot/codex live in `skip`).
+          # dedicated non-stub providers (claude/copilot/codex/pi live in `skip`).
           existing = {f.name.removeprefix('get-').removesuffix('-usage')
                       for f in Path('providers').glob('get-*-usage')}
           missing_stub = sorted(canonical - existing - skip)
+
+          settings = Path('AiOverviewControlSettings.qml').read_text()
+          provider_block = settings.split('readonly property var allProviders: [', 1)[1].split('\n    ]', 1)[0]
+          selectable = set(re.findall(r'\{ id:"([^"]+)"', provider_block))
+          missing_selectable = sorted(selectable - canonical)
+          hidden_canonical = sorted(canonical - selectable)
           errors = []
 
           if missing_dispatch:
               errors.append(f'Stubs with no dispatch case: {missing_dispatch}')
           if missing_stub:
               errors.append(f'Canonical dispatch cases with no script: {missing_stub}')
+          if missing_selectable:
+              errors.append(f'Selectable providers with no canonical dispatch: {missing_selectable}')
+          if hidden_canonical:
+              errors.append(f'Canonical dispatch cases absent from settings: {hidden_canonical}')
 
-          print(f'Coverage: {len(stubs)} stubs, {len(dispatched)} dispatch entries '
-                f'({len(canonical)} canonical).')
+          print(f'Coverage: {len(selectable)} selectable providers, {len(stubs)} stubs, '
+                f'{len(dispatched)} dispatch entries ({len(canonical)} canonical).')
           if errors:
               sys.exit('\n'.join(f'::error::{error}' for error in errors))
           PY
@@ -429,6 +496,12 @@ jobs:
       - name: Integration test — Antigravity live request safeguards
         run: tests/test-antigravity-live.sh
 
+      - name: Integration test — Kimi Code routing and quota fixture
+        run: tests/test-kimi-code.sh
+
+      - name: Integration test — quota notification deduplication
+        run: tests/test-quota-alert.sh
+
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |
           FAIL=0
@@ -598,37 +671,33 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Validate Crowdin config structure
+      - name: Install Crowdin CLI (verified checksum)
+        id: crowdin_cli
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          config = Path('.github/crowdin.yml').read_text()
-          required = [
-              'project_id: "899362"',
-              'base_path: ".."',
-              'source: "/i18n/en.json"',
-              'translation: "/i18n/%locale_with_underscore%.json"',
-          ]
-          missing = [item for item in required if item not in config]
-          if missing:
-              raise SystemExit(f'::error::Crowdin config missing entries: {missing}')
-          if not Path('i18n/en.json').is_file():
-              raise SystemExit('::error::Crowdin source file i18n/en.json is missing')
-          PY
-
-      - name: Validate with Crowdin CLI (requires secret)
-        env:
-          CROWDIN_API_TOKEN: ${{ secrets.CROWDIN_API_TOKEN }}
-        run: |
-          if [ -z "${CROWDIN_API_TOKEN:-}" ]; then
-            echo "Crowdin token not available — skipping remote CLI validation."
-            exit 0
-          fi
-
+          ARCHIVE="/tmp/crowdin-cli.zip"
           curl -fsSL \
             "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-cli.zip" \
-            -o /tmp/crowdin-cli.zip
-          unzip -q /tmp/crowdin-cli.zip -d /tmp/crowdin-cli
+            -o "$ARCHIVE"
+          echo "${CROWDIN_CLI_SHA256}  ${ARCHIVE}" | sha256sum --check --strict
+          unzip -q "$ARCHIVE" -d /tmp/crowdin-cli
+          JAR="/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar"
+          test -f "$JAR"
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Crowdin config (hard gate, no secret required)
+        run: |
+          java -jar "${{ steps.crowdin_cli.outputs.jar }}" \
+            config lint --config .github/crowdin.yml
+
+      - name: Validate Crowdin project remotely (requires secret)
+        env:
+          CROWDIN_API_TOKEN: ${{ secrets.CROWDIN_API_TOKEN }}
+          CROWDIN_JAR: ${{ steps.crowdin_cli.outputs.jar }}
+        run: |
+          if [ -z "${CROWDIN_API_TOKEN:-}" ]; then
+            echo "Crowdin token not available — skipping remote project validation."
+            exit 0
+          fi
 
           python3 - <<'PY'
           import os
@@ -637,15 +706,13 @@ jobs:
               'api_token: ' + os.environ['CROWDIN_API_TOKEN'] + '\n'
           )
           PY
-          JAR="/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar"
-          java -jar "$JAR" config lint --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml
 
           # These commands call Crowdin's remote API and can fail or hang for
           # reasons outside this repository (service issues, token scope, rate
-          # limiting). Keep the structural lint above as the hard gate, and
-          # surface remote validation problems as warnings instead of breaking CI.
+          # limiting). The offline config lint remains the hard gate.
           for check in sources translations; do
-            if ! timeout 60 java -jar "$JAR" config "$check" --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml; then
+            if ! timeout 60 java -jar "$CROWDIN_JAR" config "$check" \
+              --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml; then
               echo "::warning::Crowdin remote '${check}' validation failed or timed out; skipping as non-blocking."
             fi
           done
