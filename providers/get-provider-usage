@@ -1836,12 +1836,12 @@ fetch_groq_native() {
     "https://api.groq.com/openai/v1/models" 2>/dev/null || true)"
   if [ "$http_status" = "200" ]; then
     rm -f "$tmp_body"
-    json_note_usage groq groq-api "Groq account" "api-key" "Authenticated — usage at console.groq.com/usage" "console.groq.com/usage"
+    json_note_usage groq groq-api "Groq account" "api-key" "Authenticated — usage at console.groq.com/dashboard/usage" "console.groq.com/dashboard/usage"
     return 0
   fi
   local message
   message="$(jq -r '.error.message // .message // empty' "$tmp_body" 2>/dev/null || true)"
-  [ -n "$message" ] || message="Groq API key invalid (HTTP ${http_status:-0}). No public quota endpoint — check console.groq.com/usage."
+  [ -n "$message" ] || message="Groq API key invalid (HTTP ${http_status:-0}). No public quota endpoint — check console.groq.com/dashboard/usage."
   rm -f "$tmp_body"
   json_error groq groq-api "${http_status:-1}" provider "$message"
 }
@@ -2170,7 +2170,7 @@ fetch_provider() {
       fetch_xai_native
       ;;
     perplexity)
-      json_note_usage perplexity perplexity-web "Perplexity account" "subscription" "No public quota API; usage is available in Perplexity settings" "perplexity.ai/settings/billing"
+      json_note_usage perplexity perplexity-web "Perplexity account" "subscription" "No public quota API; usage is available in Perplexity settings" "perplexity.ai/settings"
       ;;
     cursor)
       json_note_usage cursor cursor-local "Cursor account" "subscription" "No public quota API; usage is available in Cursor settings" "cursor.com/settings"
