@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.10.0 - 2026-08-14
+
 ### Hermes agent provider (dual-nature)
 
 - Added `hermes` ([NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)) as an Analytics-coverage provider — the first dual-nature entry: an agent harness that also fronts providers (Nous Portal, OpenRouter, ...). The collapsed card reads Today/Week tokens+cost straight from `~/.hermes/state.db` (indexed SQLite aggregates computed inline by `fetch_hermes_native`, milliseconds even on large state databases) and shows the active billing provider + default model from `~/.hermes/config.yaml` / `auth.json`.
