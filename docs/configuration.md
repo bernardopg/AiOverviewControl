@@ -53,6 +53,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST` |
+| Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`) |
 | NVIDIA | `NVIDIA_API_KEY` |
 | Cloudflare | `CLOUDFLARE_AI_TOKEN` or `CLOUDFLARE_API_TOKEN`; optional `CLOUDFLARE_ACCOUNT_ID` |
 | Vertex AI | optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` |

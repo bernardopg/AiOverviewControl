@@ -86,6 +86,16 @@ $PLUGIN/providers/get-provider-usage antigravity | jq .
 
 For a temporary model-by-model diagnosis, enable **Show individual Antigravity models** in the plugin settings, then expand the Antigravity card. Turn it off again to return to the concise view. A **Partial** badge means at least one account succeeded and another failed; the expanded warning identifies the account, request stage, and cause. If every account fails, the card reports the actual OAuth, HTTP, rate-limit, or schema error. If the helper reports no session at all, open the affected Antigravity installation, sign in, and ensure `sqlite3` is installed.
 
+## Hermes telemetry
+
+Hermes reads `$HERMES_HOME/state.db` (default `~/.hermes/state.db`) read-only, so the gateway can keep running while the card refreshes.
+
+- **Card reports "state database not found"** — Hermes has not created its state database yet, or it lives elsewhere. Start Hermes once (`hermes`), or export `HERMES_HOME` for a custom install (native Windows installs live under `%LOCALAPPDATA%\hermes`).
+- **Card reports "sqlite3 is required"** — install the `sqlite3` command-line binary; the adapter uses it instead of linking a SQLite library.
+- **Cost shows `$0` while tokens grow** — expected. Hermes resolves pricing upstream, so `estimated_cost_usd` / `actual_cost_usd` are frequently `0` for routed providers. Tokens and API calls carry the real signal, which is why the 7-day chart plots tokens.
+- **"Top projects" is empty** — only sessions that recorded a working directory appear there. Gateway sessions (Telegram, WhatsApp, Discord) have no `cwd`, so a week of chat-only usage legitimately shows no projects; the session-source badges still break the traffic down.
+- **Numbers look stale right after a conversation** — the expanded telemetry is cached for 120s (matching the default refresh interval). Press **Refresh** twice, or wait one cycle.
+
 ## Slow refresh or timeout
 
 The widget has a 45-second total timeout. Each network adapter also has a shorter curl timeout. Reduce the selected provider count, increase the refresh interval, and test providers individually.

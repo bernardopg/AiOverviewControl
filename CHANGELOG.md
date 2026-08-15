@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Hermes agent provider (dual-nature)
+
+- Added `hermes` ([NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)) as an Analytics-coverage provider — the first dual-nature entry: an agent harness that also fronts providers (Nous Portal, OpenRouter, ...). The collapsed card reads Today/Week tokens+cost straight from `~/.hermes/state.db` (indexed SQLite aggregates computed inline by `fetch_hermes_native`, milliseconds even on large state databases) and shows the active billing provider + default model from `~/.hermes/config.yaml` / `auth.json`.
+- The expanded card renders a dedicated "Hermes telemetry" section fed by the new `providers/get-hermes-analytics` (TTL-cached 120s, mirrors the pi adapter): today/week/month cost+tokens, a 7-day token chart (hover shows cost), top models, top projects (repo root or cwd), session-source breakdown (CLI / Telegram / TUI / WhatsApp ...), session/message/API-call counters, and the installed Hermes version.
+- Provider-side billing stays honestly linked to the [Nous Portal](https://portal.nousresearch.com) ("Open console"), since Hermes routes its own provider spend there.
+- Covered across the stack: provider kind "Agent · Provider", health check (`hermes` CLI or `~/.hermes/state.db`), Settings entry + diagnostics command, fixture-database test (`tests/test-hermes-analytics.sh`, wired into CI) covering the envelope, analytics aggregation, TTL cache reuse, missing database, empty ledger, and absent `sqlite3`; an original caduceus logo mark; and docs (README EN/PT-BR, providers reference, architecture protocol section, verification evidence, troubleshooting, configuration — now 36 providers).
+- All Hermes SQLite access is read-only, so the running gateway keeps its WAL database while the dashboard refreshes. `sqlite3` is required for this provider (documented alongside the existing Antigravity/9Router requirement). A locked, corrupt, or pre-ledger database surfaces as a provider error instead of a healthy-looking card full of zeros.
+
+### Dashboard and popout polish
+
+- Removed the hover scale effect on provider cards: the growth was clipped on the left by the scroll area's edge, so the card appeared cut. Hover feedback now relies on the background, border and gradient changes only.
+- The animated accent bar on the left of each provider card now tracks the card's height animation directly, fixing the lag and misalignment seen while expanding or collapsing a provider's details, and the card content gained clearance so the title no longer hugs that bar.
+- The popout header shows a version pill read from `plugin.json` at runtime (the Settings hero pill also became dynamic), so the displayed version always matches the installed manifest.
+
+### Provider taxonomy
+
+- Providers are now classified by kind: hosted model providers (the default), `agent` (pi — local coding-agent analytics, not a provider), `gateway` (9Router — a router that fronts other providers), and `local` (Ollama — self-hosted inference). Non-provider entries carry a kind badge on their dashboard card and in the hero, the add-provider picker shows a kind icon per row with local tooling grouped at the end of the list, and Settings chips tag agent/gateway/local entries. Dual-nature entries such as Hermes (agent manager that is also a provider) render as "Agent · Provider".
+
+### Release tooling
+
+- The release checklist no longer asks for a hardcoded version literal in `AiOverviewControlSettings.qml` — `plugin.json` is now the single place a release version is written, and the metadata CI check verifies the QML reads it dynamically instead.
+- New CI guard: provider detail sections (Claude / 9Router / pi / Hermes telemetry) must stay nested inside the card's `visible: card.expanded` container. A misplaced brace keeps the file valid for `qmllint` but leaks the expanded statistics onto the collapsed card, so the nesting is now checked structurally.
+- Every shipped locale (`pt_BR`, `zh_CN`, `es_ES`, `de_DE`) carries the new keys, keeping the enforced i18n key parity with `i18n/en.json` green.
+
 ## 1.9.1 - 2026-08-13
 
 ### Provider accuracy

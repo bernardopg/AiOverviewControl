@@ -76,6 +76,9 @@ PluginSettings {
     // which is not necessarily the display-name casing used by manual checkouts, so
     // this must never be a hardcoded literal.
     property string _pluginDir: ""
+    // Version pill in the hero; read from plugin.json so releases only bump
+    // the manifest.
+    property string pluginVersion: ""
     property var providerHealth: ({})
     property string healthBuffer: ""
     property string healthScript: ""
@@ -113,6 +116,7 @@ PluginSettings {
         { id:"claude", name:"Claude", icon:"psychology", mode:"telemetry", requirement:"claude CLI or ~/.claude", envVar:"", note:"Local analytics and authenticated usage" },
         { id:"copilot", name:"Copilot", icon:"code", mode:"telemetry", requirement:"gh CLI or GitHub token", envVar:"COPILOT_GITHUB_TOKEN", note:"Authenticated Copilot quota from the GitHub session" },
         { id:"pi", name:"pi", icon:"smart_toy", mode:"telemetry", requirement:"pi CLI or ~/.pi/agent/sessions", envVar:"", note:"Local session cost/token analytics — no quota API" },
+        { id:"hermes", name:"Hermes", icon:"hub", mode:"telemetry", requirement:"hermes CLI or ~/.hermes/state.db", envVar:"", note:"Dual-nature: agent harness telemetry (sessions, tokens, models, projects) from the local state database; provider side routes through Nous Portal / OpenRouter — expand the card for details" },
         { id:"antigravity", name:"Antigravity", icon:"rocket_launch", mode:"telemetry", requirement:"Antigravity CLI keyring or IDE session", envVar:"", note:"Per-model quota and reset times, one block per signed-in account / IDE — expand the card to compare accounts" },
         { id:"gemini", name:"Gemini", icon:"star", mode:"telemetry", requirement:"gemini CLI or API key", envVar:"GEMINI_API_KEY", note:"Authentication status; quota remains in AI Studio" },
         { id:"9router", name:"9Router", icon:"share", mode:"telemetry", requirement:"local 9Router database", envVar:"", note:"Local requests, tokens and cost" },
@@ -193,6 +197,33 @@ PluginSettings {
         return Theme.surfaceVariantText;
     }
 
+    // Mirrors the widget's taxonomy: local tooling is tagged so pi (agent
+    // analytics) and 9Router (gateway) never read as plain cloud providers.
+    // Dual-nature entries (e.g. a future Hermes "agent,provider") render as
+    // "Agent · Provider".
+    function providerKind(providerId) {
+        const kinds = {
+            pi: "agent",
+            hermes: "agent,provider",
+            "9router": "gateway",
+            ollama: "local"
+        };
+        return kinds[String(providerId || "").trim().toLowerCase()] || "";
+    }
+
+    function providerKindLabel(providerId) {
+        const kinds = providerKind(providerId).split(",").filter(function(kind) { return kind.length > 0; });
+        const labels = [];
+        for (let i = 0; i < kinds.length; i++) {
+            const kind = kinds[i];
+            if (kind === "agent") labels.push(t("kind.agent", "Agent"));
+            else if (kind === "gateway") labels.push(t("kind.gateway", "Gateway"));
+            else if (kind === "local") labels.push(t("kind.local", "Local"));
+            else labels.push(t("kind.provider", "Provider"));
+        }
+        return labels.join(" · ");
+    }
+
     function runHealth() {
         if (!healthScript) return;
         if (healthProcess.running) {
@@ -223,6 +254,23 @@ PluginSettings {
         const url = Qt.resolvedUrl("providers/get-provider-health").toString();
         healthScript = url.startsWith("file://") ? url.substring(7) : url;
         runHealth();
+    }
+
+    // Manifest reader for the hero version pill; loads once _pluginDir is set.
+    FileView {
+        id: pluginManifestView
+        path: root._pluginDir.length > 0 ? root._pluginDir + "/plugin.json" : ""
+        printErrors: false
+        onLoaded: {
+            try {
+                const manifest = JSON.parse(text());
+                if (manifest && manifest.version) {
+                    root.pluginVersion = String(manifest.version);
+                }
+            } catch (error) {
+                // Manifest unreadable: the hero simply hides the version pill.
+            }
+        }
     }
 
     Process {
@@ -326,6 +374,7 @@ PluginSettings {
                         }
 
                         Rectangle {
+                            visible: root.pluginVersion.length > 0
                             implicitWidth: versionLabel.implicitWidth + Theme.spacingS * 2
                             implicitHeight: 20
                             radius: 10
@@ -337,7 +386,7 @@ PluginSettings {
                             StyledText {
                                 id: versionLabel
                                 anchors.centerIn: parent
-                                text: "v1.9.1"
+                                text: "v" + root.pluginVersion
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
@@ -775,6 +824,7 @@ PluginSettings {
                     { label:t("settings.test_backend", "Test selected providers"), cmd:root._pluginDir + "/providers/get-provider-usage \"" + root.selectedIds.join(",") + "\" " + root._pluginDir + "/providers/get-copilot-usage | jq ." },
                     { label:t("settings.test_codex", "Test Codex app-server adapter"), cmd:root._pluginDir + "/providers/get-codex-usage | jq ." },
                     { label:t("settings.test_pi", "Test pi session analytics adapter"), cmd:root._pluginDir + "/providers/get-pi-analytics | jq ." },
+                    { label:t("settings.test_hermes", "Test Hermes telemetry adapter"), cmd:root._pluginDir + "/providers/get-hermes-analytics | jq ." },
                     { label:t("settings.test_health", "Check provider prerequisites"), cmd:root._pluginDir + "/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
                     { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi gh gcloud ollama" },
                     { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint " + root._pluginDir + "/AiOverviewControlWidget.qml " + root._pluginDir + "/AiOverviewControlSettings.qml" }
@@ -984,6 +1034,14 @@ PluginSettings {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText { text:modelData.name; color:providerChip.active ? Theme.primary : Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall; font.weight:providerChip.active ? Font.Medium : Font.Normal }
+                        StyledText {
+                            visible: root.providerKind(providerChip.modelData.id).length > 0
+                            text: "· " + root.providerKindLabel(providerChip.modelData.id)
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall - 2
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                         Rectangle {
                             visible: providerChip.active
                             width: 7; height: 7; radius: 4

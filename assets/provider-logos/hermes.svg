@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- Hermes agent mark: caduceus staff with wing arcs (original line art).
+       Solid strokes only — ProviderLogo colorizes this silhouette at runtime. -->
+  <g stroke="#000" stroke-width="1.7" stroke-linecap="round" fill="none">
+    <!-- staff -->
+    <line x1="12" y1="3.2" x2="12" y2="20.8"/>
+    <!-- top orb -->
+    <circle cx="12" cy="2.6" r="1.1" fill="#000" stroke="none"/>
+    <!-- upper wings -->
+    <path d="M10.9 6.4 C 8.6 5.4, 6.4 5.9, 4.9 7.9 C 7.2 8.6, 9.3 8.3, 10.9 6.9"/>
+    <path d="M13.1 6.4 C 15.4 5.4, 17.6 5.9, 19.1 7.9 C 16.8 8.6, 14.7 8.3, 13.1 6.9"/>
+    <!-- intertwined arcs -->
+    <path d="M9.4 9.8 C 13.2 10.6, 13.4 13.0, 9.6 13.9"/>
+    <path d="M14.6 9.8 C 10.8 10.6, 10.6 13.0, 14.4 13.9"/>
+    <path d="M9.4 14.6 C 13.2 15.4, 13.4 17.8, 9.6 18.7"/>
+    <path d="M14.6 14.6 C 10.8 15.4, 10.6 17.8, 14.4 18.7"/>
+  </g>
+</svg>

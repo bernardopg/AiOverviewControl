@@ -69,10 +69,16 @@ jobs:
             echo "::error::plugin.json version '${VERSION}' is not semver (expected X.Y.Z)" >&2
             exit 1
           }
-          grep -qF "text: \"v${VERSION}\"" AiOverviewControlSettings.qml || {
-            echo "::error::AiOverviewControlSettings.qml does not show v${VERSION}" >&2
+          grep -qF 'text: "v" + root.pluginVersion' AiOverviewControlSettings.qml || {
+            echo "::error::AiOverviewControlSettings.qml does not render the manifest version dynamically" >&2
             exit 1
           }
+          for file in AiOverviewControlWidget.qml AiOverviewControlSettings.qml; do
+            grep -qF '"/plugin.json"' "$file" || {
+              echo "::error::$file does not read plugin.json for its version" >&2
+              exit 1
+            }
+          done
           echo "version=${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate runtime manifest and provider logos
@@ -225,7 +231,7 @@ jobs:
           from pathlib import Path
 
           # collect stub IDs: get-<id>-usage (strip known non-provider scripts)
-          skip = {'provider', 'provider-wrapper', 'copilot', 'claude', 'codex', 'pi', 'provider-health'}
+          skip = {'provider', 'provider-wrapper', 'copilot', 'claude', 'codex', 'pi', 'hermes', 'provider-health'}
           stubs = set()
           for f in Path('providers').glob('get-*-usage'):
               name = f.name.removeprefix('get-').removesuffix('-usage')
@@ -502,6 +508,9 @@ jobs:
       - name: Integration test — quota notification deduplication
         run: tests/test-quota-alert.sh
 
+      - name: Integration test — Hermes local telemetry (fixture database)
+        run: tests/test-hermes-analytics.sh
+
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |
           FAIL=0
@@ -630,6 +639,72 @@ jobs:
             echo "::error::Found a hardcoded plugin install path in QML — resolve it via PluginService.getPluginPath()/Qt.resolvedUrl() instead" >&2
             exit 1
           fi
+
+      - name: QML expanded-card nesting (detail sections must stay collapse-gated)
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          # Provider detail sections (Claude / 9Router / pi / Hermes telemetry)
+          # must live inside the card's `visible: card.expanded` container. A
+          # section that lands one brace too early also renders on the collapsed
+          # card — a regression qmllint cannot see, because the file stays
+          # syntactically valid either way.
+          source = Path('AiOverviewControlWidget.qml').read_text().splitlines()
+
+          depth = 0
+          expanded_open_depth = None
+          expanded_start = None
+          expanded_end = None
+          sections = []
+
+          for number, line in enumerate(source, 1):
+              stripped = line.strip()
+
+              if expanded_start is not None and expanded_end is None and depth == expanded_open_depth:
+                  expanded_end = number - 1
+
+              if stripped.startswith('visible: card.expanded') and expanded_start is None:
+                  expanded_open_depth = depth - 1
+                  expanded_start = number
+
+              match = re.search(r'visible:\s*card\.provider\.provider\s*===\s*"([^"]+)"', stripped)
+              if match:
+                  sections.append((match.group(1), number, depth))
+
+              for char in line:
+                  if char == '{':
+                      depth += 1
+                  elif char == '}':
+                      depth -= 1
+
+          errors = []
+          if expanded_start is None:
+              errors.append('Could not locate the `visible: card.expanded` container in the card')
+          if not sections:
+              errors.append('Could not locate any provider detail section')
+          if expanded_end is None:
+              expanded_end = len(source)
+
+          for provider, number, _ in sections:
+              if not (expanded_start < number < expanded_end):
+                  errors.append(
+                      f'{provider} detail section (line {number}) is outside the expanded '
+                      f'container (lines {expanded_start}-{expanded_end}) and would render '
+                      f'on the collapsed card'
+                  )
+
+          if len({section_depth for _, _, section_depth in sections}) > 1:
+              detail = ', '.join(f'{p}@{d}' for p, _, d in sections)
+              errors.append(f'Provider detail sections are nested at different depths: {detail}')
+
+          print(f'Expanded container: lines {expanded_start}-{expanded_end}; '
+                f'{len(sections)} detail section(s) collapse-gated: '
+                + ', '.join(provider for provider, _, _ in sections))
+          if errors:
+              sys.exit('\n'.join(f'::error::{error}' for error in errors))
+          PY
 
       - name: QML provider-script references resolve
         run: |

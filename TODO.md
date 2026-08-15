@@ -35,6 +35,8 @@ What remains is correctness-of-new-features, consistency, and i18n polish.
 - [ ] **Mistral** — surface `is_default_key` flag and rate-limit headers when a quota endpoint exists. `M · ★★`
 - [ ] **BytePlus/Ark** — surface `remaining_tokens` per model when the API exposes per-model quotas. `M · ★★`
 - [ ] **Codex** — record credit-balance history alongside rate-limit snapshots. `M · ★★`
+- [ ] **Hermes** — surface real quota/spend for the provider half if [Nous Portal](https://portal.nousresearch.com) publishes a read-only usage endpoint; today only the local agent half (`~/.hermes/state.db`) is measurable. `M · ★★`
+- [ ] **Hermes** — resolve per-model pricing so the telemetry card can chart cost instead of tokens (`estimated_cost_usd` is frequently `0` because Hermes prices upstream). `M · ★`
 
 ## Telemetry & History
 

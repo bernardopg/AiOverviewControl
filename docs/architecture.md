@@ -15,6 +15,7 @@ providers/get-copilot-usage       Authenticated GitHub Copilot quota bridge
 providers/get-antigravity-usage   Local Antigravity session quota bridge
 providers/get-9router-analytics   9Router local telemetry blob (expanded card)
 providers/get-pi-analytics        pi coding-agent local session telemetry blob (expanded card)
+providers/get-hermes-analytics    Hermes agent local state telemetry blob (expanded card)
 providers/get-provider-wrapper    Single-provider wrapper
 providers/get-*-usage             Canonical provider entrypoints
 scripts/package-release           Release archive build and validation
@@ -23,8 +24,8 @@ scripts/package-release           Release archive build and validation
 Most API-backed and informational providers expose a normalized JSON
 `get-<id>-usage` entrypoint through `get-provider-wrapper`. The specialized
 Claude helper emits `KEY=VALUE` analytics for the dispatcher to normalize, and
-`pi` uses an inline dispatcher envelope plus `get-pi-analytics`; neither follows
-the generic stub contract.
+`pi` and `hermes` use inline dispatcher envelopes plus `get-pi-analytics` /
+`get-hermes-analytics`; none of them follows the generic stub contract.
 
 ## Runtime flow
 
@@ -35,6 +36,7 @@ the generic stub contract.
 5. QML normalizes the JSON array, isolates errors, updates stale timestamps, and renders cards.
 6. Claude details run in a separate process so analytics failure cannot block other providers.
 7. `pi` follows the same isolation principle via a lighter mechanism: its dispatcher-side envelope (`fetch_pi_native`, inline in `get-provider-usage`) only ever reads a cached snapshot and never scans session files itself; the expanded card's own process (`get-pi-analytics`) does the actual scan on the normal refresh cycle.
+8. `hermes` splits the same way, but its collapsed-card envelope (`fetch_hermes_native`) queries `~/.hermes/state.db` directly instead of a cache: the aggregates are indexed SQLite sums that complete in milliseconds, so first paint carries real numbers without waiting for the analytics process.
 
 ## Provider contract
 
@@ -93,6 +95,21 @@ Every account request captures HTTP status and validates the response schema. Pa
 
 `get-pi-analytics` scans `~/.pi/agent/sessions/**/*.jsonl` (recursively, `find -L` — the sessions directory may be a symlink to a synced folder, and plain `find` silently returns nothing in that case). Each session file is aggregated once (cwd from its `{type:"session"}` header, tokens/cost from `{type:"message"}` lines with a `usage` payload) and the whole file's totals are bucketed to its local start day — sessions are not split across midnight, matching the existing `~/.pi/agent/extensions/session-breakdown.ts` TUI tool's convention. Provider/model come directly off each message; a `{type:"model_change"}` fallback exists for older/partial formats. Results are cached at `${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/pi-analytics-cache.json` with a 120s TTL (matches the default `refreshInterval`), so the full scan only runs once per window regardless of poll frequency; the envelope function only ever reads that cache, never triggering a scan itself.
 
+## Hermes protocol
+
+`hermes` ([NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)) is the only **dual-nature** entry: an agent harness that is simultaneously a provider front (it routes its own spend through Nous Portal, OpenRouter, and friends). The dashboard therefore tags it `Agent · Provider`, and the two natures come from different files under `$HERMES_HOME` (default `~/.hermes`):
+
+| Nature | Source | Rendered as |
+| --- | --- | --- |
+| Agent harness | `state.db` — `sessions` joined to `session_model_usage` | Today/Week/Month tokens + cost, 7-day chart, top models, top projects, session sources, session/message/API-call counters |
+| Provider front | `config.yaml` (`model.default`, `model.provider`) and `auth.json` (`active_provider`) | Card identity line (`<billing provider> · <default model>`), login method, "Open console" → [Nous Portal](https://portal.nousresearch.com) |
+
+Coverage is Analytics-only: Hermes exposes no local quota API, and cost columns are frequently `0` because pricing resolution happens upstream — tokens and API calls carry the real signal, so the expanded chart plots tokens rather than cost.
+
+All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode, and the adapter must never take a write lock on a database the agent is actively using. Usage rows bucket to each session's **local start day** (`date(started_at,'unixepoch','localtime')`), matching the pi adapter's convention — sessions spanning midnight are not split.
+
+`providers/get-hermes-analytics` caches its snapshot at `${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/hermes-analytics-cache.json` with a 120s TTL (matches the default `refreshInterval`). Counters are queried independently rather than as one combined `SELECT`, so an older Hermes schema missing a table degrades that single counter instead of zeroing all of them. A missing `state.db` returns a provider error, and a missing `sqlite3` binary returns a runtime error — never a crash or an empty card.
+
 ## Settings keys
 
 | Key | Default | Purpose |
@@ -135,6 +152,7 @@ Legacy settings unknown to the current code are ignored.
 - Cards: collapsed preview, expanded windows, identity, credits, source, and timestamps.
 - Claude details: token/cost history and model distribution.
 - pi details: token/cost history, 7-day chart, top models, top projects (same expanded-card slot pattern as 9Router).
+- Hermes details: identity pills (default model, billing provider, session/message/API-call counters, version), token/cost tiles, 7-day token chart, top models, top projects, and session-source badges.
 
 ## Validation
 
@@ -147,4 +165,6 @@ qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewCont
 ./providers/get-provider-health "codex,claude,copilot,pi" | jq .
 ./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .
 ./providers/get-pi-analytics | jq .
+./providers/get-hermes-analytics | jq .
+bash tests/test-hermes-analytics.sh
 ```
