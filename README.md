@@ -12,7 +12,7 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](./LICENSE)
-[![Providers](https://img.shields.io/badge/providers-35-7C4DFF)](./docs/providers.md)
+[![Providers](https://img.shields.io/badge/providers-36-7C4DFF)](./docs/providers.md)
 [![Languages](https://img.shields.io/badge/UI%20languages-5-00BFA5)](./docs/i18n-crowdin.md)
 
 [Install](#installation) · [Screenshots](#screenshots) · [Providers](./docs/providers.md) ·
@@ -48,7 +48,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 
 | | |
 | --- | --- |
-| 📊 **Unified dashboard** | 35 AI providers and developer tools in one place. |
+| 📊 **Unified dashboard** | 36 AI providers and developer tools in one place. |
 | 🛰️ **Fleet overview** | Cross-provider rollup in the hero — quota-only average load, hottest provider, how many are near their cap, and the soonest reset. |
 | ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
 | 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
@@ -86,7 +86,7 @@ Provider cards use one of these honest coverage levels:
 | --- | --- |
 | **Quota** | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM). |
 | **Balance** | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek). |
-| **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, pi). |
+| **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, pi, Hermes). |
 | **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, MiniMax, Qwen, xAI, and more). Some configured-status cards, such as NVIDIA, cannot validate the key because the provider's catalog is public. |
 | **Local runtime** | Reports local state rather than account quota (Ollama models, Vertex AI authentication). |
 | **Informational** | Links official usage when no read-only API exists (Kiro, Cursor, Warp, and more). |
@@ -101,6 +101,7 @@ Notable integrations:
 | Antigravity | Gemini and Claude/OpenAI quota families with reset times from Cloud Code Assist; optional per-model diagnostics and automatic multi-account separation. |
 | 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
 | pi | Local session JSONL telemetry (`~/.pi/agent/sessions`) — cost, tokens, top models, top projects; no quota API (pi has no rate limits). |
+| Hermes | Dual-nature entry: agent-harness telemetry from `~/.hermes/state.db` (sessions, tokens per model/project, sources, API calls) plus provider identity (active billing provider, default model) from `~/.hermes/config.yaml` / `auth.json`. Provider-side billing stays on the [Nous Portal](https://portal.nousresearch.com). |
 | OpenRouter | Key limits, spend, balance, and 30-day model activity. |
 | Kimi (Moonshot) | Open Platform balance (`GET /v1/users/me/balance`, USD/CNY) — or **Kimi Code** subscription quota (`GET /coding/v1/usages`, weekly + 5h windows) when a `sk-kimi-` / `KIMI_CODING_API_KEY` is set. |
 | DeepSeek | Official account balance API. |
@@ -119,7 +120,7 @@ The full matrix, credentials, and upstream references are documented in
 
 - DankMaterialShell running on Quickshell.
 - `bash`, `jq`, and `curl`.
-- Provider-specific CLIs or credentials only for providers you enable. Antigravity needs `secret-tool` for keyring sessions or `sqlite3` for IDE state databases.
+- Provider-specific CLIs or credentials only for providers you enable. Antigravity needs `secret-tool` for keyring sessions or `sqlite3` for IDE state databases; Hermes and 9Router need `sqlite3` for their local usage databases.
 - Quota notifications additionally need `notify-send` and `flock`.
 
 Recommended baseline for the default provider set:
@@ -284,6 +285,7 @@ providers/get-copilot-usage       GitHub Copilot quota bridge
 providers/get-antigravity-usage   Antigravity Cloud Code Assist quota bridge
 providers/get-9router-analytics   9Router local telemetry blob
 providers/get-pi-analytics        pi local session telemetry blob
+providers/get-hermes-analytics    Hermes local state telemetry blob
 providers/get-*-usage             Canonical single-provider entrypoints
 scripts/package-release           Release archive build and validation
 ```

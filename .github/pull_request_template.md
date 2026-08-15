@@ -18,7 +18,7 @@
 
 ## Checklist
 
-- [ ] `plugin.json` `.version`, the settings hero pill, and `CHANGELOG.md` are consistent (only if this is a release-bearing change)
+- [ ] `plugin.json` `.version` and `CHANGELOG.md` are consistent (only if this is a release-bearing change; both version pills read the manifest at runtime)
 - [ ] New/changed provider scripts are executable and emit valid JSON
 - [ ] `i18n/en.json` keys have translations in every locale (or the strings are user-neutral)
 - [ ] CI is green

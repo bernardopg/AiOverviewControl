@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# Emit local Hermes agent telemetry as one JSON object for the dashboard card:
+#   {
+#     days:        [7 trailing days, oldest→today: {date, weekday, tokens, cost}],
+#     topModels:   [up to 6, 7-day window, sorted by tokens desc: {model, tokens, cost}],
+#     topProjects: [up to 5, 7-day window, sorted by tokens desc: {cwd, tokens}],
+#     today / week / month: {tokens, cost, calls},
+#     meta: {version, activeProvider, defaultModel, sessions, messages,
+#            sources: [{source, sessions}]}
+#   }
+# Source of truth: ~/.hermes/state.db (SQLite, read-only access — the gateway
+# keeps it live in WAL mode). Usage rows come from session_model_usage joined
+# to sessions, bucketed to each session's local start day (mirrors the pi
+# adapter's convention; sessions spanning midnight are not split).
+# The provider side of Hermes (Nous Portal / routed billing providers) is
+# surfaced separately through the config/auth metadata below — Hermes is both
+# an agent harness and a provider front, so the card labels both roles.
+
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+STATE_DB="$HERMES_HOME/state.db"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+CACHE_FILE="$CACHE_DIR/hermes-analytics-cache.json"
+CACHE_TTL=120 # seconds — matches the widget's default refreshInterval
+
+TODAY=$(date +%Y-%m-%d)
+MONTH_START=$(date +%Y-%m-01)
+WEEK_EPOCH=$(date -d '6 days ago 00:00' +%s 2>/dev/null || date -v-6d +%s 2>/dev/null || echo 0)
+
+# --- TTL cache: skip the SQLite pass if a fresh snapshot already exists ---
+if [ -f "$CACHE_FILE" ]; then
+  cache_ts=$(jq -r '.cached_at // 0' "$CACHE_FILE" 2>/dev/null || echo 0)
+  now_ts=$(date +%s)
+  age=$((now_ts - cache_ts))
+  if [ "$age" -ge 0 ] && [ "$age" -lt "$CACHE_TTL" ] \
+    && jq -e '.data | type == "object"' "$CACHE_FILE" >/dev/null 2>&1; then
+    jq -c '.data' "$CACHE_FILE"
+    exit 0
+  fi
+fi
+
+if [ ! -f "$STATE_DB" ]; then
+  echo '{"error":"hermes state database not found (~/.hermes/state.db)"}'
+  exit 0
+fi
+
+if ! command -v sqlite3 >/dev/null 2>&1; then
+  echo '{"error":"sqlite3 is required to read hermes state"}'
+  exit 0
+fi
+
+# --- per-day, per-model usage rows (TSV: date, model, tokens, cost, calls) ---
+# This is the load-bearing query: if it fails the database is locked, corrupt,
+# or predates the usage ledger, and reporting zeros would be a silent lie.
+if ! usage_rows="$(sqlite3 -readonly -separator $'\t' "$STATE_DB" "
+  SELECT date(s.started_at, 'unixepoch', 'localtime'),
+         u.model,
+         SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens),
+         SUM(COALESCE(NULLIF(u.actual_cost_usd, 0), u.estimated_cost_usd)),
+         SUM(u.api_call_count)
+  FROM session_model_usage u
+  JOIN sessions s ON s.id = u.session_id
+  GROUP BY 1, 2
+  ORDER BY 1;
+" 2>/dev/null)"; then
+  echo '{"error":"hermes state database could not be read (locked, corrupt, or unsupported schema)"}'
+  exit 0
+fi
+
+# --- top projects over the trailing 7-day window (repo root, else cwd) ---
+project_rows="$(sqlite3 -readonly -separator $'\t' "$STATE_DB" "
+  SELECT COALESCE(NULLIF(s.git_repo_root, ''), NULLIF(s.cwd, ''), ''),
+         SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens)
+  FROM session_model_usage u
+  JOIN sessions s ON s.id = u.session_id
+  WHERE CAST(s.started_at AS INTEGER) >= CAST('$WEEK_EPOCH' AS INTEGER)
+  GROUP BY 1
+  HAVING COALESCE(NULLIF(s.git_repo_root, ''), NULLIF(s.cwd, ''), '') != ''
+  ORDER BY 2 DESC
+  LIMIT 5;
+" 2>/dev/null)"
+
+# --- fleet counters and per-source session counts ---
+# Queried separately on purpose: an older Hermes schema without one of the
+# tables must not zero the other counter (a single combined SELECT fails as a
+# whole and would silently report 0 sessions AND 0 messages).
+sessions_total="$(sqlite3 -readonly "$STATE_DB" "SELECT COUNT(*) FROM sessions;" 2>/dev/null | head -n 1)"
+messages_total="$(sqlite3 -readonly "$STATE_DB" "SELECT COUNT(*) FROM messages;" 2>/dev/null | head -n 1)"
+source_rows="$(sqlite3 -readonly -separator $'\t' "$STATE_DB" "
+  SELECT source, COUNT(*) FROM sessions GROUP BY source ORDER BY 2 DESC LIMIT 6;
+" 2>/dev/null)"
+
+case "$sessions_total" in ''|*[!0-9]*) sessions_total=0 ;; esac
+case "$messages_total" in ''|*[!0-9]*) messages_total=0 ;; esac
+
+# --- identity metadata: configured default model/provider + active billing ---
+default_model=""
+model_provider=""
+if [ -f "$HERMES_HOME/config.yaml" ]; then
+  default_model=$(awk '/^model:/{f=1; next} f && /^[^ \t]/{f=0} f && /^[ \t]+default:/{sub(/^[ \t]+default:[ \t]*/, ""); gsub(/["'"'"']/, ""); print; exit}' "$HERMES_HOME/config.yaml" 2>/dev/null)
+  model_provider=$(awk '/^model:/{f=1; next} f && /^[^ \t]/{f=0} f && /^[ \t]+provider:/{sub(/^[ \t]+provider:[ \t]*/, ""); gsub(/["'"'"']/, ""); print; exit}' "$HERMES_HOME/config.yaml" 2>/dev/null)
+fi
+active_provider=""
+[ -f "$HERMES_HOME/auth.json" ] \
+  && active_provider=$(jq -r '.active_provider // ""' "$HERMES_HOME/auth.json" 2>/dev/null)
+hermes_version=""
+command -v hermes >/dev/null 2>&1 \
+  && hermes_version=$(timeout 5 hermes version 2>/dev/null | head -n 1)
+
+result="$(jq -cn \
+  --arg usage "$usage_rows" \
+  --arg projects "$project_rows" \
+  --arg sources "$source_rows" \
+  --arg today "$TODAY" \
+  --arg month_start "$MONTH_START" \
+  --arg version "$hermes_version" \
+  --arg active_provider "$active_provider" \
+  --arg default_model "$default_model" \
+  --arg model_provider "$model_provider" \
+  --argjson sessions_total "${sessions_total:-0}" \
+  --argjson messages_total "${messages_total:-0}" '
+  # ---- parse each TSV block independently (no arity-based guessing) ----
+  def tsv($block):
+    ($block | split("\n") | map(select(length > 0)) | map(split("\t")));
+  (tsv($usage)) as $usage_tsv      # date model tokens cost calls
+  | (tsv($projects)) as $projects  # cwd tokens
+  | (tsv($sources)) as $sources    # source sessions
+  | ($usage_tsv | map({
+      date: .[0], model: .[1],
+      tokens: (.[2] | tonumber? // 0),
+      cost: (.[3] | tonumber? // 0),
+      calls: (.[4] | tonumber? // 0)
+    })) as $rows
+  | ($today | strptime("%Y-%m-%d") | mktime) as $today_epoch
+  # ---- trailing 7 days ending today (not Mon-Sun aligned) ----
+  | ([ range(6; -1; -1) as $offset
+      | (($today_epoch - $offset * 86400) | strftime("%Y-%m-%d")) as $d
+      | (($today_epoch - $offset * 86400) | strftime("%a")) as $wd
+      | ([$rows[] | select(.date == $d)]) as $day_rows
+      | { date: $d, weekday: $wd,
+          tokens: ([$day_rows[].tokens] | add // 0),
+          cost: ([$day_rows[].cost] | add // 0) }
+    ]) as $days
+  | ([$days[].date]) as $week_dates
+  | ([$rows[] | select(.date as $d | $week_dates | index($d))]) as $week_rows
+  | ([$rows[] | select(.date == $today)]) as $today_rows
+  | ([$rows[] | select(.date >= $month_start)]) as $month_rows
+  | def total($rs):
+      reduce $rs[] as $r ({tokens: 0, cost: 0, calls: 0};
+        .tokens += $r.tokens | .cost += $r.cost | .calls += ($r.calls // 0));
+  (total($today_rows)) as $today_total
+  | (total($week_rows)) as $week_total
+  | (total($month_rows)) as $month_total
+  # ---- top models over the week, by tokens ----
+  | ([$week_rows[] | {model, tokens, cost}]
+      | group_by(.model)
+      | map({ model: .[0].model,
+              tokens: (map(.tokens) | add // 0),
+              cost: (map(.cost) | add // 0) })
+      | sort_by(-.tokens) | .[0:6]) as $top_models
+  | {
+      days: $days,
+      topModels: $top_models,
+      topProjects: ($projects | map({
+        cwd: .[0],
+        tokens: (.[1] | tonumber? // 0)
+      }) | sort_by(-.tokens) | .[0:5]),
+      today: $today_total,
+      week: $week_total,
+      month: $month_total,
+      meta: {
+        version: $version,
+        activeProvider: $active_provider,
+        defaultModel: $default_model,
+        modelProvider: $model_provider,
+        sessions: $sessions_total,
+        messages: $messages_total,
+        sources: ($sources | map({source: .[0], sessions: (.[1] | tonumber? // 0)}))
+      }
+    }
+' 2>/dev/null)"
+
+if ! jq -e . >/dev/null 2>&1 <<<"$result"; then
+  echo '{"error":"failed to aggregate hermes state"}'
+  exit 0
+fi
+
+mkdir -p "$CACHE_DIR" 2>/dev/null || true
+jq -n --argjson data "$result" '{cached_at: (now | floor), data: $data}' >"$CACHE_FILE" 2>/dev/null || true
+
+printf '%s' "$result"

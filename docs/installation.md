@@ -53,7 +53,7 @@ command -v jq
 command -v curl
 ```
 
-Only enabled providers need their provider-specific CLI or credentials. Antigravity needs `secret-tool` for keyring sessions or `sqlite3` for IDE state databases. Desktop quota notifications need `notify-send` and `flock`.
+Only enabled providers need their provider-specific CLI or credentials. Antigravity needs `secret-tool` for keyring sessions or `sqlite3` for IDE state databases. Hermes and 9Router read local SQLite databases, so they also need `sqlite3` (`~/.hermes/state.db` is opened read-only while the Hermes gateway keeps using it). Desktop quota notifications need `notify-send` and `flock`.
 
 ## Initial authentication
 

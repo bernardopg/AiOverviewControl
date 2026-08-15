@@ -1,6 +1,6 @@
 # Providers
 
-`providers/get-provider-usage` dispatches every selected provider independently and returns one normalized JSON object per provider. Most providers also expose a normalized `providers/get-<id>-usage` entrypoint, and every provider is covered by `providers/get-provider-health`. Claude's specialized helper emits `KEY=VALUE` data for the dispatcher to normalize; `pi` uses an inline dispatcher envelope plus `providers/get-pi-analytics` rather than a generic usage entrypoint.
+`providers/get-provider-usage` dispatches every selected provider independently and returns one normalized JSON object per provider. Most providers also expose a normalized `providers/get-<id>-usage` entrypoint, and every provider is covered by `providers/get-provider-health`. Claude's specialized helper emits `KEY=VALUE` data for the dispatcher to normalize; `pi` uses an inline dispatcher envelope plus `providers/get-pi-analytics`, and `hermes` computes its dispatcher envelope straight from `~/.hermes/state.db` (indexed, milliseconds) with `providers/get-hermes-analytics` feeding the expanded telemetry card.
 
 This document is the authoritative reference for adapter authors. It records, for every provider:
 
@@ -23,7 +23,7 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 | --- | --- | --- |
 | **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID) |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek` |
-| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local) |
+| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local) |
 | **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp` |
@@ -236,6 +236,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>—</td>
 <td>—</td>
 <td>local store</td>
+</tr>
+<tr>
+<td><code>hermes</code></td>
+<td>Local analytics</td>
+<td>local SQLite state (<code>~/.hermes/state.db</code>)</td>
+<td>✅ local sessions/tokens/cost per model and project — the agent side; provider billing (Nous Portal / routed providers) stays on the portal</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td><a href="https://github.com/NousResearch/hermes-agent">NousResearch/hermes-agent</a></td>
 </tr>
 <tr>
 <td><code>openrouter</code></td>

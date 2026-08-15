@@ -24,6 +24,7 @@ This document records the upstream surface used by each adapter. It was reviewed
 | --- | --- | --- |
 | Cloudflare | [GraphQL Analytics API](https://developers.cloudflare.com/analytics/graphql-api/) — `aiInferenceAdaptiveGroups` dataset | 7-day and latest-day requests/neurons when `CLOUDFLARE_ACCOUNT_ID` is set. Explicitly **not** a billing measure per Cloudflare's docs; graceful fallback to the token-verified note card. The dedicated Workers AI analytics tutorial was removed in 2025 — verify the node/fields via GraphQL introspection before relying on them. |
 | pi | Provider-owned local JSONL under `~/.pi/agent/sessions` | Local cost, tokens, models, and projects via `get-pi-analytics`; no quota API and no network request. |
+| Hermes | Provider-owned local SQLite under `$HERMES_HOME` (default `~/.hermes`): `state.db` (`sessions`, `session_model_usage`), plus `config.yaml` / `auth.json` for identity | Local sessions, tokens, API calls, models, projects, and session sources via `get-hermes-analytics`; billing provider and default model for the card identity. Read-only access (the gateway holds the database in WAL mode); no quota API and no network request. Upstream: [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent). |
 
 ## Verified authentication or runtime surfaces
 

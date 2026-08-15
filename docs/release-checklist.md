@@ -6,19 +6,20 @@ the tag push is the last action.
 
 ## 1. Version bump
 
-- [ ] `plugin.json` → `version` (release workflow rejects a tag that differs).
-- [ ] `AiOverviewControlSettings.qml` → hero version pill (`v1.x.y`).
-- [ ] Confirm both literals match. `providers/get-codex-usage` reads `plugin.json` dynamically for `clientInfo.version` and needs no separate bump:
+- [ ] `plugin.json` → `version` (release workflow rejects a tag that differs). This is the **only** place a release version is written: the Settings hero pill and the popout header pill both read `plugin.json` at runtime, and `providers/get-codex-usage` reads it for `clientInfo.version`.
+- [ ] Confirm the QML still sources the version dynamically (CI enforces both greps):
 
   ```bash
   VERSION="$(jq -r .version plugin.json)"
-  grep -qF "text: \"v${VERSION}\"" AiOverviewControlSettings.qml
+  printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+  grep -qF 'text: "v" + root.pluginVersion' AiOverviewControlSettings.qml
+  grep -qF '"/plugin.json"' AiOverviewControlWidget.qml
   ```
 
 ## 2. Changelog
 
-- [ ] Move `[Unreleased]` content into a new `## 1.x.y - YYYY-MM-DD` section (release workflow requires the entry).
-- [ ] Leave an empty `## [Unreleased]` heading on top.
+- [ ] Move `Unreleased` content into a new `## 1.x.y - YYYY-MM-DD` section (release workflow requires the entry).
+- [ ] Leave an empty `## Unreleased` heading on top.
 
 ## 3. Local validation (core CI-equivalent checks)
 
@@ -26,8 +27,7 @@ the tag push is the last action.
 jq --exit-status . plugin.json >/dev/null
 VERSION="$(jq -r .version plugin.json)"
 printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
-grep -qF "## ${VERSION}" CHANGELOG.md || grep -qF "## [${VERSION}]" CHANGELOG.md
-find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
+grep -qF "## ${VERSION}" CHANGELOG.md || grep -qF "## [${VERSION}]" CHANGELOG.mdfind providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
 shellcheck -S warning providers/* tests/*.sh scripts/package-release
@@ -36,6 +36,7 @@ for f in i18n/*.json; do jq -e . "$f" >/dev/null; done
 ./providers/get-provider-health "codex,claude,copilot" | jq .
 ./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage | jq .
 ./providers/get-usage-history | jq .
+bash tests/test-hermes-analytics.sh
 scripts/package-release
 ```
 
@@ -54,6 +55,8 @@ not describe the local smoke commands above as a substitute for a green CI run.
 - [ ] Reload the plugin and open the popout:
       `qs -p ~/.config/quickshell/dms ipc call plugins reload aiOverviewControl`
 - [ ] Hero ring renders; provider cards expand; Claude card shows analytics.
+- [ ] Local-telemetry cards render their expanded sections (pi, 9Router, Hermes) or hide them cleanly when the tool is not installed.
+- [ ] Version pill shows the freshly bumped version in both the popout header and Settings (both read `plugin.json`).
 - [ ] Settings opens without QML errors and health chips populate.
 
 ## 5. Commit, tag, push

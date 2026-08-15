@@ -132,6 +132,9 @@ PluginComponent {
     // when called from the file's own execution context, not from a declarative binding
     // that may be evaluated before the component URL context is established.
     property string _pluginDir: ""
+    // Version for the popout header pill; read from plugin.json so releases
+    // only ever bump the manifest.
+    property string pluginVersion: ""
     property string providerUsageScript: _pluginDir + "/providers/get-provider-usage"
     property string claudeUsageScript: _pluginDir + "/providers/get-claude-usage"
     property string copilotUsageScript: _pluginDir + "/providers/get-copilot-usage"
@@ -143,14 +146,18 @@ PluginComponent {
     property string piAnalyticsScript: _pluginDir + "/providers/get-pi-analytics"
     property var piStats: null
     property string piStatsBuffer: ""
+    property string hermesAnalyticsScript: _pluginDir + "/providers/get-hermes-analytics"
+    property var hermesStats: null
+    property string hermesStatsBuffer: ""
+    // Hosted model providers first; the trailing group collects local and
+    // non-provider tooling (self-hosted inference, gateways/routers, agent
+    // harness analytics) so the picker keeps them visually separated.
     readonly property var availableProviderOptions: [
         "codex",
         "claude",
         "copilot",
-        "pi",
         "antigravity",
         "gemini",
-        "9router",
         "openrouter",
         "deepseek",
         "kimi",
@@ -163,7 +170,6 @@ PluginComponent {
         "cloudflare",
         "vertexai",
         "byteplus",
-        "ollama",
         "together",
         "groq",
         "cohere",
@@ -178,7 +184,11 @@ PluginComponent {
         "opencode",
         "kiro",
         "warp",
-        "amp"
+        "amp",
+        "ollama",
+        "9router",
+        "pi",
+        "hermes"
     ]
 
     ListModel {
@@ -520,6 +530,7 @@ PluginComponent {
             claude: "Claude",
             copilot: "Copilot",
             pi: "pi",
+            hermes: "Hermes",
             antigravity: "Antigravity",
             cursor: "Cursor",
             gemini: "Gemini",
@@ -781,6 +792,7 @@ PluginComponent {
         if (providerId === "codex") return Theme.success;
         if (providerId === "copilot") return Theme.primary;
         if (providerId === "pi") return Theme.success;
+        if (providerId === "hermes") return Theme.primary;
         if (providerId === "antigravity") return Theme.primary;
         if (providerId === "gemini") return Theme.secondary;
         if (providerId === "openrouter") return Theme.primary;
@@ -803,6 +815,65 @@ PluginComponent {
         if (providerId === "xai" || providerId === "grok") return Theme.primary;
         if (providerId === "ai21") return Theme.secondary;
         return Theme.secondary;
+    }
+
+    // Provider taxonomy for cards, hero and pickers. Most entries are plain
+    // hosted model providers ("provider", the silent default). Local tooling
+    // gets explicit kinds: "agent" for coding-agent harness analytics (pi —
+    // no quota API of its own), "gateway" for routers that front other
+    // providers (9Router), "local" for self-hosted inference (Ollama). A
+    // Hermes-style entry that is both an agent manager and a provider can
+    // combine roles ("agent,provider") and renders as "Agent · Provider".
+    function providerKinds(providerId) {
+        const kinds = {
+            pi: "agent",
+            hermes: "agent,provider",
+            "9router": "gateway",
+            ollama: "local"
+        };
+        const value = kinds[normalizeProviderId(providerId)];
+        return value ? value.split(",") : ["provider"];
+    }
+
+    function isPlainProvider(providerId) {
+        const kinds = providerKinds(providerId);
+        return kinds.length === 1 && kinds[0] === "provider";
+    }
+
+    function providerKindLabel(kind) {
+        if (kind === "agent") return t("kind.agent", "Agent");
+        if (kind === "gateway") return t("kind.gateway", "Gateway");
+        if (kind === "local") return t("kind.local", "Local");
+        return t("kind.provider", "Provider");
+    }
+
+    function providerKindsLabel(providerId) {
+        return providerKinds(providerId).map(providerKindLabel).join(" · ");
+    }
+
+    function providerKindIcon(kind) {
+        if (kind === "agent") return "smart_toy";
+        if (kind === "gateway") return "alt_route";
+        if (kind === "local") return "dns";
+        return "cloud";
+    }
+
+    function providerKindIconFor(providerId) {
+        const kinds = providerKinds(providerId);
+        for (let i = 0; i < kinds.length; i++) {
+            if (kinds[i] !== "provider") return providerKindIcon(kinds[i]);
+        }
+        return providerKindIcon("provider");
+    }
+
+    function providerKindAccentFor(providerId) {
+        const kinds = providerKinds(providerId);
+        for (let i = 0; i < kinds.length; i++) {
+            if (kinds[i] === "agent") return Theme.secondary;
+            if (kinds[i] === "gateway") return Theme.primary;
+            if (kinds[i] === "local") return Theme.success;
+        }
+        return Theme.surfaceVariantText;
     }
 
     function windowsForProvider(provider) {
@@ -1064,6 +1135,7 @@ PluginComponent {
             codex: "https://chatgpt.com/codex/settings/usage",
             copilot: "https://github.com/settings/copilot/features",
             pi: "",
+            hermes: "https://portal.nousresearch.com",
             antigravity: "",
             gemini: "https://aistudio.google.com/usage",
             openrouter: "https://openrouter.ai/activity",
@@ -1260,6 +1332,25 @@ PluginComponent {
         // timestamp made jitter look like a new quota window every refresh.
         Quickshell.execDetached(["bash", notifyAlertScript, "--migrate"]);
         detectBinary();
+    }
+
+    // Manifest reader backing the popout version pill. The path binding
+    // re-evaluates once _pluginDir is resolved above, so the pill appears as
+    // soon as plugin.json has been read.
+    FileView {
+        id: pluginManifestView
+        path: root._pluginDir.length > 0 ? root._pluginDir + "/plugin.json" : ""
+        printErrors: false
+        onLoaded: {
+            try {
+                const manifest = JSON.parse(text());
+                if (manifest && manifest.version) {
+                    root.pluginVersion = String(manifest.version);
+                }
+            } catch (error) {
+                // Manifest unreadable: the header simply hides the version pill.
+            }
+        }
     }
 
     Process {
@@ -1494,6 +1585,11 @@ PluginComponent {
             piStatsProcess.running = true;
             piStatsTimeout.restart();
         }
+        if (root.selectedProviders.indexOf("hermes") >= 0 && !hermesStatsProcess.running) {
+            hermesStatsBuffer = "";
+            hermesStatsProcess.running = true;
+            hermesStatsTimeout.restart();
+        }
     }
 
     Process {
@@ -1562,6 +1658,41 @@ PluginComponent {
             if (piStatsProcess.running) {
                 piStatsProcess.running = false;
                 piStatsBuffer = "";
+            }
+        }
+    }
+
+    Process {
+        id: hermesStatsProcess
+        command: ["bash", root.hermesAnalyticsScript]
+        stdout: SplitParser {
+            splitMarker: ""
+            onRead: data => root.hermesStatsBuffer += data
+        }
+        onExited: code => {
+            hermesStatsTimeout.stop();
+            if (code !== 0 || root.hermesStatsBuffer.length === 0) {
+                root.hermesStatsBuffer = "";
+                return;
+            }
+            try {
+                const parsed = JSON.parse(root.hermesStatsBuffer);
+                root.hermesStats = (parsed && !parsed.error) ? parsed : null;
+            } catch (error) {
+                // Keep the previous snapshot; the section simply stays as-is.
+            }
+            root.hermesStatsBuffer = "";
+        }
+    }
+
+    Timer {
+        id: hermesStatsTimeout
+        interval: root.fetchTimeoutMs
+        repeat: false
+        onTriggered: {
+            if (hermesStatsProcess.running) {
+                hermesStatsProcess.running = false;
+                hermesStatsBuffer = "";
             }
         }
     }
@@ -2466,7 +2597,7 @@ PluginComponent {
             id: acctCol
             anchors {
                 left: parent.left; right: parent.right; top: parent.top
-                leftMargin: Theme.spacingM + 5; rightMargin: Theme.spacingM; topMargin: Theme.spacingM
+                leftMargin: Theme.spacingL + 5; rightMargin: Theme.spacingM; topMargin: Theme.spacingM
             }
             spacing: Theme.spacingS
 
@@ -2589,7 +2720,9 @@ PluginComponent {
         }
         implicitHeight: cardColumn.implicitHeight + (card.dense ? Theme.spacingS : (card.compact ? Theme.spacingM : Theme.spacingL)) * 2
         clip: true
-        scale: hovered ? 1.006 : 1.0
+        // No hover scale on purpose: cards sit flush against the Flickable's
+        // clip edge, so any scale-up gets chopped on the left. Hover feedback
+        // stays on the background, border and gradient changes below.
 
         Rectangle {
             anchors.fill: parent
@@ -2611,20 +2744,27 @@ PluginComponent {
             radius: width / 2
             visible: expanded || card.hovered || card.activeFocus
             color: Theme.withAlpha(card.accentColor, expanded ? 0.95 : 0.55)
-            Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            // Height tracks the card's animated implicitHeight directly. An
+            // extra Behavior here would stack on the card's own height
+            // animation, making the bar lag and drift off-center while the
+            // card expands or collapses.
             Behavior on opacity { NumberAnimation { duration: 160 } }
         }
 
         Behavior on color { ColorAnimation { duration: 180 } }
         Behavior on border.color { ColorAnimation { duration: 180 } }
-        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         Behavior on implicitHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
         Column {
             id: cardColumn
             z: 2
-            anchors.fill: parent
-            anchors.margins: card.dense ? Theme.spacingS : (card.compact ? Theme.spacingS : Theme.spacingM)
+            anchors {
+                fill: parent
+                margins: card.dense ? Theme.spacingS : (card.compact ? Theme.spacingS : Theme.spacingM)
+                // The left accent bar (4px inset + 3px wide) needs clearance
+                // so the title block never visually hugs it on hover/expand.
+                leftMargin: (card.dense ? Theme.spacingS : (card.compact ? Theme.spacingS : Theme.spacingM)) + Theme.spacingM
+            }
             spacing: expanded ? (card.dense ? Theme.spacingS : Theme.spacingM) : Theme.spacingS
 
             RowLayout {
@@ -2700,6 +2840,16 @@ PluginComponent {
                             label: root.providerSourceLabel(card.provider)
                             iconName: "sync_alt"
                             accentColor: Theme.primary
+                        }
+
+                        BadgePill {
+                            // Distinguishes non-provider entries (agent
+                            // analytics, gateways, self-hosted inference) so
+                            // local tooling never reads as one more cloud API.
+                            visible: !root.isPlainProvider(card.provider.provider)
+                            label: root.providerKindsLabel(card.provider.provider)
+                            iconName: root.providerKindIconFor(card.provider.provider)
+                            accentColor: root.providerKindAccentFor(card.provider.provider)
                         }
 
                         BadgePill {
@@ -3660,6 +3810,342 @@ PluginComponent {
                         }
                     }
                 }
+
+                StyledRect {
+                    visible: card.provider.provider === "hermes" && root.hermesStats !== null
+                    width: parent.width
+                    radius: Theme.cornerRadius + 2
+                    color: Theme.withAlpha(Theme.primary, 0.08)
+                    border.width: 1
+                    border.color: Theme.withAlpha(Theme.primary, 0.22)
+                    implicitHeight: hermesCol.implicitHeight + Theme.spacingL * 2
+
+                    Column {
+                        id: hermesCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingL
+                        spacing: Theme.spacingL
+
+                        readonly property var stats: root.hermesStats || ({})
+                        readonly property var meta: stats.meta || ({})
+                        readonly property var hToday: stats.today || ({})
+                        readonly property var hWeek: stats.week || ({})
+                        readonly property var hMonth: stats.month || ({})
+                        readonly property var hDays: stats.days || []
+                        readonly property var hModels: stats.topModels || []
+                        readonly property var hProjects: stats.topProjects || []
+                        readonly property var hSources: meta.sources || []
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: t("card.hermes_details", "Hermes telemetry")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeLarge
+                                font.weight: Font.Bold
+                            }
+
+                            StyledText {
+                                text: t("card.hermes_month_total", "{cost} this month", { cost: root.formatCost(Number(hermesCol.hMonth.cost || 0)) })
+                                color: Theme.primary
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+                        }
+
+                        // Identity row: the two natures of Hermes — the agent
+                        // harness (default model) and the provider it routes
+                        // through (active billing provider).
+                        Flow {
+                            width: parent.width
+                            spacing: Theme.spacingXS
+
+                            InfoPill {
+                                visible: String(hermesCol.meta.defaultModel || "").length > 0
+                                label: t("card.hermes_default_model", "Model")
+                                value: String(hermesCol.meta.defaultModel || "")
+                                iconName: "tune"
+                                accentColor: Theme.primary
+                            }
+                            InfoPill {
+                                visible: String(hermesCol.meta.activeProvider || "").length > 0
+                                label: t("card.hermes_active_provider", "Billing")
+                                value: String(hermesCol.meta.activeProvider || "")
+                                iconName: "account_balance"
+                                accentColor: Theme.secondary
+                            }
+                            InfoPill {
+                                label: t("card.hermes_sessions", "Sessions")
+                                value: String(hermesCol.meta.sessions || 0)
+                                iconName: "forum"
+                                accentColor: Theme.surfaceVariantText
+                            }
+                            InfoPill {
+                                label: t("card.hermes_messages", "Messages")
+                                value: String(hermesCol.meta.messages || 0)
+                                iconName: "chat"
+                                accentColor: Theme.surfaceVariantText
+                            }
+                            InfoPill {
+                                visible: Number(hermesCol.hWeek.calls || 0) > 0
+                                label: t("card.hermes_api_calls", "API calls (7d)")
+                                value: String(hermesCol.hWeek.calls || 0)
+                                iconName: "api"
+                                accentColor: Theme.surfaceVariantText
+                            }
+                        }
+
+                        StyledText {
+                            visible: String(hermesCol.meta.version || "").length > 0
+                            width: parent.width
+                            text: String(hermesCol.meta.version || "")
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall - 1
+                            elide: Text.ElideRight
+                        }
+
+                        GridLayout {
+                            width: parent.width
+                            columns: card.width < 520 ? 1 : 3
+                            columnSpacing: Theme.spacingM
+                            rowSpacing: Theme.spacingM
+
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.hermes_today", "Today")
+                                value: `${root.formatCost(Number(hermesCol.hToday.cost || 0))} · ${root.formatTokens(Number(hermesCol.hToday.tokens || 0))} tok`
+                                accentColor: Theme.primary
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.week", "Week")
+                                value: `${root.formatCost(Number(hermesCol.hWeek.cost || 0))} · ${root.formatTokens(Number(hermesCol.hWeek.tokens || 0))} tok`
+                                accentColor: Theme.primary
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.month", "Month")
+                                value: `${root.formatCost(Number(hermesCol.hMonth.cost || 0))} · ${root.formatTokens(Number(hermesCol.hMonth.tokens || 0))} tok`
+                                accentColor: Theme.primary
+                            }
+                        }
+
+                        // 7-day token chart, trailing window (today is the last
+                        // bar). Hermes costs are often unpriced locally, so the
+                        // bars carry tokens; hover still shows both.
+                        Row {
+                            id: hermesBars
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            readonly property real maxTokens: {
+                                let top = 0;
+                                for (let i = 0; i < hermesCol.hDays.length; i++) {
+                                    top = Math.max(top, Number(hermesCol.hDays[i].tokens || 0));
+                                }
+                                return top > 0 ? top : 1;
+                            }
+
+                            Repeater {
+                                model: hermesCol.hDays
+
+                                Column {
+                                    id: hermesDayColumn
+                                    required property var modelData
+                                    required property int index
+                                    width: (hermesBars.width - Theme.spacingS * 6) / 7
+                                    spacing: 7
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 66
+                                        radius: Theme.cornerRadius - 2
+                                        color: Theme.surfaceContainer
+                                        border.width: hermesDayHover.containsMouse ? 1 : 0
+                                        border.color: Theme.withAlpha(index === 6 ? Theme.warning : Theme.primary, 0.5)
+                                        clip: true
+
+                                        Rectangle {
+                                            anchors.bottom: parent.bottom
+                                            width: parent.width
+                                            height: Math.max(3, (Number(hermesDayColumn.modelData.tokens || 0) / hermesBars.maxTokens) * parent.height)
+                                            color: index === 6 ? Theme.warning : Theme.withAlpha(Theme.primary, hermesDayHover.containsMouse ? 0.75 : 0.55)
+
+                                            Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                            Behavior on color { ColorAnimation { duration: 120 } }
+                                        }
+
+                                        Rectangle {
+                                            visible: hermesDayHover.containsMouse
+                                            anchors.fill: parent
+                                            radius: parent.radius
+                                            color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
+
+                                            Column {
+                                                anchors.centerIn: parent
+                                                spacing: 1
+
+                                                StyledText {
+                                                    anchors.horizontalCenter: parent.horizontalCenter
+                                                    text: root.formatTokens(Number(hermesDayColumn.modelData.tokens || 0))
+                                                    color: Theme.surfaceText
+                                                    font.pixelSize: Theme.fontSizeSmall
+                                                    font.weight: Font.Bold
+                                                }
+
+                                                StyledText {
+                                                    anchors.horizontalCenter: parent.horizontalCenter
+                                                    text: root.formatCost(Number(hermesDayColumn.modelData.cost || 0))
+                                                    color: Theme.surfaceVariantText
+                                                    font.pixelSize: Theme.fontSizeSmall - 1
+                                                }
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: hermesDayHover
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.NoButton
+                                        }
+                                    }
+
+                                    StyledText {
+                                        width: parent.width
+                                        text: String(hermesDayColumn.modelData.weekday || "")
+                                        horizontalAlignment: Text.AlignHCenter
+                                        color: hermesDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: hermesCol.hModels.length > 0
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: t("card.hermes_models_week", "Top models (7 days)")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: hermesCol.hModels
+
+                                UsageBar {
+                                    required property var modelData
+                                    width: parent.width
+                                    label: String(modelData.model || "")
+                                    percent: Number(hermesCol.hWeek.tokens || 0) > 0 ? (Number(modelData.tokens || 0) / Number(hermesCol.hWeek.tokens)) * 100 : 0
+                                    aside: `${root.formatTokens(Number(modelData.tokens || 0))} tok · ${root.formatCost(Number(modelData.cost || 0))}`
+                                    accentColor: Theme.primary
+                                }
+                            }
+                        }
+
+                        Column {
+                            visible: hermesCol.hProjects.length > 0
+                            width: parent.width
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                width: parent.width
+                                text: t("card.top_projects", "Top projects this week")
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: hermesCol.hProjects
+
+                                Column {
+                                    required property var modelData
+                                    required property int index
+                                    width: parent.width
+                                    spacing: 3
+
+                                    RowLayout {
+                                        width: parent.width
+                                        spacing: Theme.spacingS
+
+                                        StyledText {
+                                            text: root.projectDisplayName(String(modelData.cwd || ""))
+                                            color: Theme.surfaceText
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.weight: Font.DemiBold
+                                        }
+
+                                        StyledText {
+                                            Layout.fillWidth: true
+                                            text: root.compactPath(String(modelData.cwd || ""))
+                                            color: Theme.withAlpha(Theme.surfaceVariantText, 0.7)
+                                            font.pixelSize: Theme.fontSizeSmall - 2
+                                            elide: Text.ElideLeft
+                                        }
+
+                                        StyledText {
+                                            text: `${root.formatTokens(Number(modelData.tokens || 0))} tok`
+                                            color: Theme.surfaceVariantText
+                                            font.pixelSize: Theme.fontSizeSmall - 1
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 5
+                                        radius: 2.5
+                                        color: Theme.withAlpha(Theme.surfaceText, 0.06)
+
+                                        Rectangle {
+                                            readonly property real topTokens: hermesCol.hProjects.length > 0 ? Math.max(1, Number(hermesCol.hProjects[0].tokens || 0)) : 1
+                                            width: Math.max(3, (Number(modelData.tokens || 0) / topTokens) * parent.width)
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.withAlpha(Theme.primary, index === 0 ? 0.85 : 0.45)
+
+                                            Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Flow {
+                            visible: hermesCol.hSources.length > 0
+                            width: parent.width
+                            spacing: Theme.spacingXS
+
+                            StyledText {
+                                text: t("card.hermes_sources", "Session sources") + ":"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                                font.weight: Font.DemiBold
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Repeater {
+                                model: hermesCol.hSources
+
+                                BadgePill {
+                                    required property var modelData
+                                    label: `${String(modelData.source || "?")} · ${modelData.sessions}`
+                                    iconName: "forum"
+                                    accentColor: Theme.surfaceVariantText
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Row {
@@ -3781,6 +4267,9 @@ PluginComponent {
                     description: ""
                     currentValue: root.pendingProviderId
                     options: root.availableProviderOptions
+                    // Kind icons keep hosted providers visually separate from
+                    // local tooling (gateway / agent analytics / self-hosted).
+                    optionIcons: root.availableProviderOptions.map(function(id) { return root.providerKindIconFor(id); })
                     dropdownWidth: 220
                     enableFuzzySearch: true
                     onValueChanged: function(value) {
@@ -3816,6 +4305,28 @@ PluginComponent {
             headerActions: Component {
                 Row {
                     spacing: Theme.spacingS
+
+                    Rectangle {
+                        // Manifest version pill: reads plugin.json at runtime,
+                        // so it stays correct across store and manual installs.
+                        visible: root.pluginVersion.length > 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: popoutVersionLabel.implicitWidth + Theme.spacingS * 2
+                        implicitHeight: 26
+                        radius: 13
+                        color: Theme.withAlpha(Theme.surfaceVariantText, 0.08)
+                        border.width: 1
+                        border.color: Theme.withAlpha(Theme.surfaceVariantText, 0.18)
+
+                        StyledText {
+                            id: popoutVersionLabel
+                            anchors.centerIn: parent
+                            text: "v" + root.pluginVersion
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall - 1
+                            font.weight: Font.DemiBold
+                        }
+                    }
 
                     SurfaceButton {
                         iconName: "refresh"
@@ -4000,6 +4511,13 @@ PluginComponent {
                                                 label: root.providerData ? root.providerSourceLabel(root.providerData) : t("status.local_helpers", "local adapters")
                                                 iconName: "sync_alt"
                                                 accentColor: Theme.primary
+                                            }
+
+                                            BadgePill {
+                                                visible: !!root.providerData && !root.isPlainProvider(root.providerData.provider)
+                                                label: root.providerKindsLabel(root.providerData.provider)
+                                                iconName: root.providerKindIconFor(root.providerData.provider)
+                                                accentColor: root.providerKindAccentFor(root.providerData.provider)
                                             }
 
                                             BadgePill {

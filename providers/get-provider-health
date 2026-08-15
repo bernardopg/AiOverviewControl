@@ -51,6 +51,7 @@ status_for() {
     kilo) has_any_env KILO_API_KEY || { status="missing"; detail="KILO_API_KEY"; } ;;
     ai21) has_any_env AI21_API_KEY || { status="missing"; detail="AI21_API_KEY"; } ;;
     pi) command -v pi >/dev/null 2>&1 || [ -d "$HOME/.pi/agent/sessions" ] || { status="missing"; detail="pi CLI or ~/.pi/agent/sessions"; } ;;
+    hermes) [ -f "${HERMES_HOME:-$HOME/.hermes}/state.db" ] || command -v hermes >/dev/null 2>&1 || { status="missing"; detail="hermes CLI or ~/.hermes/state.db"; } ;;
     perplexity|cursor|cline|opencode|kiro|warp|amp)
       status="info"
       detail="No public read-only quota API"

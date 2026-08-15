@@ -49,7 +49,7 @@ inventados. Nunca.
 
 | | |
 | --- | --- |
-| 📊 **Dashboard unificado** | 35 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
+| 📊 **Dashboard unificado** | 36 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
 | 🛰️ **Visão geral da frota** | Rollup cross-provider no hero — carga média só de cotas mensuráveis, provedor mais quente, quantos estão perto do limite e o próximo reset. |
 | ⏱️ **Janelas oficiais do Codex** | Janelas de rate-limit direto do `codex app-server`. |
 | 🤖 **Analytics profundo do Claude** | Cota mais analytics local de tokens, sessões, modelos, projetos e custo. |
@@ -102,6 +102,7 @@ Integrações medidas notáveis:
 | Antigravity | Famílias de cota Gemini e Claude/OpenAI, com reset via Cloud Code Assist; detalhes por modelo são opcionais e contas locais múltiplas ficam separadas. |
 | 9Router | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado. |
 | pi | Telemetria JSONL local de sessões (`~/.pi/agent/sessions`) — custo, tokens, modelos e projetos; não há API de cota. |
+| Hermes | Entrada de natureza dupla: telemetria do harness de agente via `~/.hermes/state.db` (sessões, tokens por modelo/projeto, origens, chamadas de API) mais identidade de provider (cobrança ativa, modelo padrão) de `~/.hermes/config.yaml` / `auth.json`. O faturamento do lado provider permanece no [Nous Portal](https://portal.nousresearch.com). |
 | OpenRouter | Limites de chave, gasto, saldo e atividade de modelos em 30 dias. |
 | Kimi (Moonshot) | Saldo da Open Platform ou cota da assinatura Kimi Code (janelas semanal e de 5h), conforme o tipo de chave. |
 | DeepSeek | API oficial de saldo da conta. |
@@ -118,7 +119,7 @@ A matriz completa, credenciais e referências upstream estão documentadas em
 
 - DankMaterialShell rodando sobre Quickshell.
 - `bash`, `jq` e `curl`.
-- CLIs ou credenciais específicas apenas para os provedores habilitados. O Antigravity precisa de `secret-tool` para sessões do keyring ou `sqlite3` para bancos de estado da IDE.
+- CLIs ou credenciais específicas apenas para os provedores habilitados. O Antigravity precisa de `secret-tool` para sessões do keyring ou `sqlite3` para bancos de estado da IDE; Hermes e 9Router precisam de `sqlite3` para seus bancos locais de uso.
 - As notificações de cota também precisam de `notify-send` e `flock`.
 
 Linha de base recomendada para o conjunto padrão de provedores:
@@ -270,6 +271,7 @@ providers/get-copilot-usage       Ponte de cota do GitHub Copilot
 providers/get-antigravity-usage   Ponte de cota do Cloud Code Assist do Antigravity
 providers/get-9router-analytics   Telemetria local detalhada do 9Router
 providers/get-pi-analytics        Telemetria local detalhada de sessões do pi
+providers/get-hermes-analytics    Telemetria local do estado do Hermes
 providers/get-*-usage             Entrypoints canônicos de provedor único
 scripts/package-release           Build e validação dos arquivos de release
 ```
