@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.11.0 - 2026-08-17
+
+### DankBar usage-window selection
+
+- Added `barWindowOverrides` — a per-provider setting that chooses which quota window the DankBar pill displays ([#17](https://github.com/bernardopg/AiOverviewControl/issues/17)). Providers with more than one window (Claude's 5 hour and 7 day, Codex weekly) no longer force the primary window into the bar: `claude:secondary` shows the 7-day percentage instead, and `highest` follows the most-constrained window.
+- The override changes only what the bar shows. Dashboard cards keep every window, and the hero, fleet rollup, sorting, history, sparklines, and notifications continue to use the primary window.
+- `top` and `auto` pill modes rank and filter by the displayed number, so the most-critical provider in the bar is coherent with the percentage shown next to it.
+- A chosen slot absent from the provider's payload (for example a weekly-only Codex account with no `secondary`) falls back to the primary window — an override can never blank the bar. Provider aliases (`z.ai` → `zai`, `agy` → `antigravity`, ...) normalize to the same canonical IDs used by notification thresholds.
+- Settings exposes one dropdown per tracked provider under Pill mode; restoring `primary` removes the entry so the stored CSV stays minimal. Keys shipped in all five locales (`en`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE`) with parity enforced by CI.
+
+### Fixes
+
+- The provider alias table used by notification thresholds (and now by the DankBar window override) learned `z.ai` → `zai`, matching the dispatcher's documented alias. Previously a `z.ai:90` entry in per-provider notification thresholds was silently ignored.
+
 ## 1.10.0 - 2026-08-14
 
 ### Hermes agent provider (dual-nature)

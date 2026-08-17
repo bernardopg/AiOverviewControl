@@ -13,6 +13,7 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `densityMode` | `comfortable`, `compact` | `comfortable` | Compact cards hide the preview bar; expanded details remain available. |
 | `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: measurable providers, an explicit compact subset, or the most-used provider. |
 | `pillProviders` | comma-separated IDs | provider selection | Strict provider subset used by `custom` pill mode. The settings UI exposes this as provider chips and never falls back to every tracked provider. |
+| `barWindowOverrides` | `provider:slot,...` | empty | Per-provider DankBar usage window, for example `claude:secondary`. Slot is `primary` (default), `secondary`, `tertiary`, or `highest` (most-constrained). Only the DankBar pill honors it — dashboard cards, notifications, and history keep the primary window. Providers whose payload lacks the chosen slot fall back to the primary window. |
 | `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
 | `providerLogoColor` | QML color string | current DMS primary color | Monochrome tint used for provider logos and notification icons. |
 | `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |

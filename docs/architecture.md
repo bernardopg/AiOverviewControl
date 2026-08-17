@@ -119,6 +119,7 @@ All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode,
 | `showErrorProviders` | `true` | Keep provider failures visible. |
 | `pillMode` | `auto` | Automatic, custom, or highest-usage (`top`) DankBar provider list. |
 | `pillProviders` | selection | Strict custom DankBar provider subset; independent from the tracked provider list. |
+| `barWindowOverrides` | empty | Per-provider DankBar usage window (`provider:slot`, e.g. `claude:secondary`); slot is `primary`/`secondary`/`tertiary`/`highest`, with graceful fallback to the primary window when the slot is absent from the payload. Only the DankBar reads it — cards, hero, notifications, and history keep the primary window. |
 | `densityMode` | `comfortable` | Comfortable or compact card layout. |
 | `languageOverride` | `auto` | Plugin locale override. |
 | `quotaNotifications` | `true` | Enable desktop quota notifications. |
@@ -145,7 +146,7 @@ Legacy settings unknown to the current code are ignored.
 
 ## UI structure
 
-- DankBar pill: selected measurable providers.
+- DankBar pill: selected measurable providers. Per provider, `barWindowOverrides` selects which usage window the pill displays (`primary` by default, or `secondary`/`tertiary`/`highest`); the ranking used by `top` and `auto` pill modes follows the same displayed number.
 - Overview: active/error counts and local backend status.
 - Provider manager: add and remove providers without editing settings files.
 - Filter: shown when more than eight cards are visible.

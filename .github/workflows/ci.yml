@@ -736,6 +736,26 @@ jobs:
               sys.exit('\n'.join(f'::error::{e}' for e in errors))
           PY
 
+      - name: Bar-window setting parity (issue #17)
+        run: |
+          # barWindowOverrides must exist on both sides: the widget reads it
+          # (pluginData.barWindowOverrides -> pillPercentFor) and Settings
+          # persists it. A rename on one side would silently orphan the
+          # setting — the dropdown would write a key nobody renders.
+          grep -qF 'pluginData.barWindowOverrides' AiOverviewControlWidget.qml || {
+            echo "::error::Widget does not read barWindowOverrides (pluginData binding missing)" >&2
+            exit 1
+          }
+          grep -qF 'pillPercentFor' AiOverviewControlWidget.qml || {
+            echo "::error::Widget does not resolve the bar window (pillPercentFor missing)" >&2
+            exit 1
+          }
+          grep -qF 'saveValue("barWindowOverrides"' AiOverviewControlSettings.qml || {
+            echo "::error::Settings does not persist barWindowOverrides" >&2
+            exit 1
+          }
+          echo "barWindowOverrides parity: OK (widget reads, settings writes)"
+
   # ─── crowdin ─────────────────────────────────────────────────────────────────
   crowdin:
     name: Crowdin config
