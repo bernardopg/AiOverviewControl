@@ -28,6 +28,11 @@ PluginComponent {
     property bool showErrorProviders: String(pluginData.showErrorProviders ?? "true") === "true"
     property string pillMode: (pluginData.pillMode || "auto")
     property string pillProviders: (pluginData.pillProviders || providerSelection).trim()
+    // Per-provider DankBar window selection (issue #17): "claude:secondary"
+    // shows the 7-day window in the bar while the dashboard keeps every
+    // window. Only the bar reads this; sorting, notifications, history, and
+    // cards keep the primary window.
+    property string barWindowOverrides: (pluginData.barWindowOverrides || "").trim()
     property string densityMode: pluginData.densityMode || "comfortable"
     property string providerFilter: ""
     property string providerStatusFilter: "all"
@@ -274,13 +279,37 @@ PluginComponent {
         return result;
     }
 
+    // Parsed "id:slot" pairs. IDs run through the same alias table as
+    // notification thresholds (z.ai → zai, agy → antigravity, ...) so an
+    // override survives however the user spelled the provider. Unknown or
+    // empty slots are discarded so a typo can never blank the bar.
+    readonly property var barWindowOverrideMap: {
+        const raw = String(barWindowOverrides || "").trim();
+        const map = {};
+        if (raw.length === 0) return map;
+        const pairs = raw.split(",");
+        for (let i = 0; i < pairs.length; i++) {
+            const kv = pairs[i].split(":");
+            if (kv.length !== 2) continue;
+            const id = notificationProviderId(kv[0].trim());
+            const slot = kv[1].trim().toLowerCase();
+            if (id.length === 0) continue;
+            if (slot === "primary" || slot === "secondary" || slot === "tertiary" || slot === "highest") {
+                map[id] = slot;
+            }
+        }
+        return map;
+    }
+
     readonly property var pillDisplayProviders: {
         if (pillMode === "top") {
-            // Single most-critical provider: highest primary usage wins.
+            // Single most-critical provider: highest displayed usage wins.
+            // pillPercentFor honors barWindowOverrides, so "top" ranks by the
+            // exact number the user sees in the bar.
             let best = null;
             let bestPercent = -1;
             for (let i = 0; i < successfulProviders.length; i++) {
-                const percent = providerPercent(successfulProviders[i]);
+                const percent = pillPercentFor(successfulProviders[i]);
                 if (percent > bestPercent) {
                     bestPercent = percent;
                     best = successfulProviders[i];
@@ -309,14 +338,14 @@ PluginComponent {
         // auto: show all with usedPercent > 0, else all successful
         const active = [];
         for (let i = 0; i < successfulProviders.length; i++) {
-            if (providerPercent(successfulProviders[i]) > 0) {
+            if (pillPercentFor(successfulProviders[i]) > 0) {
                 active.push(successfulProviders[i]);
             }
         }
         return active.length > 0 ? active : successfulProviders;
     }
     readonly property var pillPrimaryProvider: pillDisplayProviders.length > 0 ? pillDisplayProviders[0] : null
-    readonly property real pillPrimaryPercent: pillPrimaryProvider ? providerPercent(pillPrimaryProvider) : 0
+    readonly property real pillPrimaryPercent: pillPrimaryProvider ? pillPercentFor(pillPrimaryProvider) : 0
     readonly property color pillAccent: pillPrimaryProvider ? providerAccent(pillPrimaryProvider.provider) : Theme.surfaceVariantText
 
     readonly property var providerData: {
@@ -582,7 +611,7 @@ PluginComponent {
     function notificationProviderId(providerId) {
         const aliases = {
             agy: "antigravity", moonshot: "kimi", zhipu: "glm",
-            dashscope: "qwen", alibaba: "qwen", nim: "nvidia",
+            "z.ai": "zai", dashscope: "qwen", alibaba: "qwen", nim: "nvidia",
             vertex: "vertexai", ark: "byteplus", modelark: "byteplus",
             grok: "xai"
         };
@@ -900,6 +929,45 @@ PluginComponent {
         const usage = provider && provider.usage ? provider.usage : null;
         if (!usage) return null;
         return usage.primary || usage.secondary || usage.tertiary || null;
+    }
+
+    function barWindowChoiceFor(providerId) {
+        const slot = barWindowOverrideMap[notificationProviderId(providerId)];
+        return slot !== undefined ? slot : "primary";
+    }
+
+    // The window the DankBar shows for this provider: the configured
+    // barWindowOverrides slot, or "highest" = the most-constrained window.
+    // Payload shapes vary per account (e.g. Codex weekly-only has a null
+    // secondary), so a chosen slot that is absent falls back to the primary
+    // window — an override must never blank or zero the bar.
+    function pillWindowFor(provider) {
+        const usage = provider && provider.usage ? provider.usage : null;
+        if (!usage) return null;
+        const slot = barWindowChoiceFor(provider.provider);
+        if (slot === "highest") {
+            let best = null;
+            const candidates = [usage.primary, usage.secondary, usage.tertiary];
+            for (let i = 0; i < candidates.length; i++) {
+                const window = candidates[i];
+                if (!window) continue;
+                if (!best || Number(window.usedPercent || 0) > Number(best.usedPercent || 0)) {
+                    best = window;
+                }
+            }
+            return best || primaryUsageWindow(provider);
+        }
+        if (slot !== "primary" && usage[slot]) return usage[slot];
+        return primaryUsageWindow(provider);
+    }
+
+    // Bar-display percent for a provider — the only percentage call the
+    // DankBar pills should use. Cards, hero, fleet rollup, notifications and
+    // history keep providerPercent()/primaryUsageWindow().
+    function pillPercentFor(provider) {
+        const windowData = pillWindowFor(provider);
+        if (!windowData) return 0;
+        return Number(windowData.usedPercent || 0);
     }
 
     // Providers exposing more than one signed-in account (Antigravity surfaces
@@ -2331,7 +2399,7 @@ PluginComponent {
                         id: pillEntry
                         required property var modelData
                         required property int index
-                        readonly property color usageColor: root.getUsageColor(root.providerPercent(modelData))
+                        readonly property color usageColor: root.getUsageColor(root.pillPercentFor(modelData))
                         spacing: 4
 
                         StyledText {
@@ -2359,7 +2427,7 @@ PluginComponent {
                         }
 
                         StyledText {
-                            text: `${Math.round(root.providerPercent(pillEntry.modelData))}%`
+                            text: `${Math.round(root.pillPercentFor(pillEntry.modelData))}%`
                             color: pillEntry.usageColor
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.Bold
@@ -2416,7 +2484,7 @@ PluginComponent {
                     }
 
                     StyledText {
-                        text: `${Math.round(root.providerPercent(modelData))}%`
+                        text: `${Math.round(root.pillPercentFor(modelData))}%`
                         color: root.providerAccent(modelData.provider)
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
