@@ -29,7 +29,7 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 
 > 🎬 Prefer higher quality? Watch the [MP4 demo](./docs/assets/demo.mp4).
 
-The pill lives in your DankBar and shows live usage at a glance:
+The pill lives in your DankBar and shows live usage at a glance. Providers with multiple quota windows (Claude's 5 hour and 7 day, for example) can show any window in the bar — pick it per provider, or let `highest` follow the most-constrained one:
 
 ![DankBar pill](./docs/assets/bar-pill.png)
 
@@ -55,7 +55,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 | 🐙 **Copilot quotas** | Premium request, Chat, and Completions snapshots. |
 | 🗂️ **Rich provider cards** | Usage windows, reset times, identity, credits, sparklines, trends, and console links. |
 | 🛡️ **Failure isolation** | One timeout or invalid credential never hides healthy providers. |
-| 🎛️ **Flexible layout** | Compact/comfortable density, status filters, pinned providers, and `auto`/`custom`/`top` pill modes. |
+| 🎛️ **Flexible layout** | Compact/comfortable density, status filters, pinned providers, `auto`/`custom`/`top` pill modes, and a per-provider DankBar usage-window choice. |
 | 🔔 **Quota notifications** | Branded DMS desktop alerts with global/per-provider thresholds; one toast per quota window, upgraded in place when quota is exhausted. |
 | 🌍 **5 UI languages** | English, Português (BR), 简体中文, Español, and Deutsch. |
 | 🔒 **Privacy first** | Local adapters, no paid endpoints just to test keys, secrets never displayed. |
@@ -175,6 +175,7 @@ Settings are stored by DMS and survive plugin upgrades.
 | Dashboard density | `comfortable`, `compact` | `comfortable` |
 | Pill mode | `auto`, `custom`, `top` | `auto` |
 | Custom pill providers | comma-separated tracked-provider IDs | tracked providers |
+| DankBar usage window | `provider:slot` pairs, slot `primary`, `secondary`, `tertiary`, or `highest` (e.g. `claude:secondary`) | primary window |
 | Pinned providers | comma-separated provider IDs | empty |
 | Provider logo color | any QML color string | current DMS primary color |
 | Refresh interval | 1, 2, 5, 15, or 30 minutes | 2 minutes |

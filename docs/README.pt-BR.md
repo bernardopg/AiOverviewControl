@@ -29,7 +29,7 @@ billing, autenticação e telemetria local de uso de IA — direto na sua DankBa
 
 > 🎬 Prefere mais qualidade? Assista ao [demo em MP4](./assets/demo.mp4).
 
-A pílula fica na DankBar e mostra o uso ao vivo:
+A pílula fica na DankBar e mostra o uso ao vivo. Provedores com múltiplas janelas de cota (as de 5 horas e 7 dias do Claude, por exemplo) podem exibir qualquer janela na barra — escolha por provedor, ou deixe `highest` seguir a mais apertada:
 
 ![Pílula na DankBar](./assets/bar-pill.png)
 
@@ -174,6 +174,7 @@ As configurações são armazenadas pelo DMS e sobrevivem a upgrades do plugin.
 | Densidade do dashboard | `comfortable`, `compact` | `comfortable` |
 | Modo da pílula | `auto`, `custom`, `top` | `auto` |
 | Provedores da pílula customizada | IDs de provedores monitorados separados por vírgula | provedores monitorados |
+| Janela de uso no DankBar | pares `provedor:janela`, com janela `primary`, `secondary`, `tertiary` ou `highest` (ex.: `claude:secondary`) | janela primária |
 | Provedores fixados | IDs separados por vírgula | vazio |
 | Cor dos logos | qualquer string de cor aceita pelo QML | cor primária atual do DMS |
 | Intervalo de atualização | 1, 2, 5, 15 ou 30 minutos | 2 minutos |
