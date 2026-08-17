@@ -114,6 +114,8 @@
   "settings.history_retention": "Retención del historial de uso",
   "settings.history_retention_desc": "Instantáneas conservadas por recorte del historial local (sparklines y tendencias).",
   "settings.informational_providers": "Proveedores informativos",
+  "settings.bar_window.description": "Los proveedores con más de una ventana de cuota (p. ej., 5 horas y 7 días de Claude) siempre muestran la ventana primaria en DankBar. Elige otra ventana por proveedor — el panel sigue mostrando todas. \"highest\" sigue la ventana más ajustada; los proveedores sin la ventana elegida vuelven a la primaria.",
+  "settings.bar_window.label": "Ventana de uso en DankBar",
   "settings.informational_providers_desc": "Estos proveedores no exponen una API pública de cuota de solo lectura. Sus tarjetas remiten a la superficie de uso oficial.",
   "settings.language.description": "Idioma de la interfaz del plugin. Auto sigue la configuración regional del sistema.",
   "settings.language.label": "Idioma",

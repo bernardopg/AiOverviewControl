@@ -114,6 +114,8 @@
   "settings.history_retention": "Usage history retention",
   "settings.history_retention_desc": "Snapshots kept per trim of the local usage history (sparklines and trends).",
   "settings.informational_providers": "Informational providers",
+  "settings.bar_window.description": "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) always show the primary window in the DankBar. Choose a different window per provider — the dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.",
+  "settings.bar_window.label": "DankBar usage window",
   "settings.informational_providers_desc": "These providers expose no public read-only quota API. Their cards point to the official usage surface.",
   "settings.language.description": "UI language for this plugin. Auto follows system locale.",
   "settings.language.label": "Language",

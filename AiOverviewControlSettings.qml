@@ -70,6 +70,50 @@ PluginSettings {
         pinnedIds = result;
         saveValue("pinnedProviders", result.join(","));
     }
+
+    // Per-provider DankBar window overrides (issue #17). Mirrors the widget's
+    // barWindowOverrideMap parsing: same slot vocabulary. Only entries that
+    // differ from "primary" are persisted, so restoring the default removes
+    // the pair and the CSV stays small.
+    function barWindowOverrideMap() {
+        const map = {};
+        const raw = String(loadValue("barWindowOverrides", "") || "").trim();
+        if (raw.length === 0) return map;
+        const pairs = raw.split(",");
+        for (let i = 0; i < pairs.length; i++) {
+            const kv = pairs[i].split(":");
+            if (kv.length !== 2) continue;
+            const id = kv[0].trim().toLowerCase();
+            const slot = kv[1].trim().toLowerCase();
+            if (id.length === 0) continue;
+            if (slot === "primary" || slot === "secondary" || slot === "tertiary" || slot === "highest") {
+                map[id] = slot;
+            }
+        }
+        return map;
+    }
+
+    function barChoiceFor(id) {
+        const slot = barWindowOverrideMap()[id];
+        return slot !== undefined ? slot : "primary";
+    }
+
+    function setBarChoice(id, slot) {
+        if (!isSelected(id)) return;
+        const map = barWindowOverrideMap();
+        if (slot === "primary") delete map[id];
+        else map[id] = slot;
+        const pairs = [];
+        for (const key in map) pairs.push(key + ":" + map[key]);
+        saveValue("barWindowOverrides", pairs.join(","));
+    }
+
+    function providerDisplayName(id) {
+        for (let i = 0; i < allProviders.length; i++) {
+            if (allProviders[i].id === id) return allProviders[i].name;
+        }
+        return id;
+    }
     // Resolved imperatively in Component.onCompleted — Qt.resolvedUrl is only reliable
     // when called from the file's own execution context, not from a declarative binding.
     // Store installs place the plugin under its manifest id (e.g. "aiOverviewControl"),
@@ -581,6 +625,55 @@ PluginSettings {
                             onClicked: root.togglePillProvider(pillProviderChip.modelData.id)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Per-provider DankBar window selection (issue #17). The tracked-provider
+    // list is never empty (normalizeProviderSelection guarantees one entry),
+    // so the block is always rendered.
+    StyledRect {
+        width: parent.width
+        radius: Theme.cornerRadius
+        color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, 0.18)
+        implicitHeight: barWindowColumn.implicitHeight + Theme.spacingM * 2
+
+        Column {
+            id: barWindowColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingM
+            spacing: Theme.spacingS
+
+            StyledText {
+                text: t("settings.bar_window.label", "DankBar usage window")
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+            }
+
+            StyledText {
+                width: parent.width
+                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) always show the primary window in the DankBar. Choose a different window per provider — the dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
+                wrapMode: Text.WordWrap
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall
+            }
+
+            Repeater {
+                model: root.selectedIds
+
+                DankDropdown {
+                    required property string modelData
+                    width: parent.width
+                    text: root.providerDisplayName(modelData)
+                    currentValue: root.barChoiceFor(modelData)
+                    options: ["primary", "secondary", "tertiary", "highest"]
+                    optionIcons: ["looks_one", "looks_two", "looks_3", "trending_up"]
+                    dropdownWidth: 200
+                    onValueChanged: function(value) { root.setBarChoice(modelData, value); }
                 }
             }
         }

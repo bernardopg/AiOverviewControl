@@ -114,6 +114,8 @@
   "settings.history_retention": "Retenção do histórico de uso",
   "settings.history_retention_desc": "Snapshots mantidos por corte no histórico local (sparklines e tendências).",
   "settings.informational_providers": "Provedores informativos",
+  "settings.bar_window.description": "Provedores com mais de uma janela de cota (ex.: 5 horas e 7 dias do Claude) sempre mostram a janela primária no DankBar. Escolha outra janela por provedor — o painel continua exibindo todas. \"Highest\" segue a janela mais apertada; provedores sem a janela escolhida voltam à primária.",
+  "settings.bar_window.label": "Janela de uso no DankBar",
   "settings.informational_providers_desc": "Estes provedores não expõem API pública somente leitura para cotas. Os cartões apontam para a tela oficial de uso.",
   "settings.language.description": "Idioma da interface deste plugin. Automático segue o idioma do sistema.",
   "settings.language.label": "Idioma",

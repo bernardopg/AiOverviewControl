@@ -114,6 +114,8 @@
   "settings.history_retention": "Aufbewahrung des Nutzungsverlaufs",
   "settings.history_retention_desc": "Snapshots, die pro Kürzung des lokalen Verlaufs erhalten bleiben (Sparklines und Trends).",
   "settings.informational_providers": "Informative Anbieter",
+  "settings.bar_window.description": "Anbieter mit mehr als einem Kontingentfenster (z. B. Claudes 5-Stunden- und 7-Tage-Fenster) zeigen in der DankBar immer das primäre Fenster. Wähle pro Anbieter ein anderes Fenster — das Dashboard zeigt weiterhin alle Fenster. \"highest\" folgt dem knappsten Fenster; Anbieter ohne das gewählte Fenster fallen auf das primäre zurück.",
+  "settings.bar_window.label": "DankBar-Nutzungsfenster",
   "settings.informational_providers_desc": "Diese Anbieter bieten keine öffentliche, schreibgeschützte Kontingent-API. Ihre Karten verweisen auf die offizielle Nutzungsoberfläche.",
   "settings.language.description": "Sprache der Plugin-Oberfläche. Auto folgt der Systemsprache.",
   "settings.language.label": "Sprache",

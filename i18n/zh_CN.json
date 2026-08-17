@@ -114,6 +114,8 @@
   "settings.history_retention": "用量历史保留",
   "settings.history_retention_desc": "本地用量历史每次裁剪保留的快照数（迷你图和趋势）。",
   "settings.informational_providers": "信息型提供商",
+  "settings.bar_window.description": "拥有多个配额窗口的服务商（如 Claude 的 5 小时和 7 天）在 DankBar 中始终显示主窗口。可为每个服务商选择其他窗口——仪表板仍会显示所有窗口。\"highest\" 跟随最紧张的窗口；没有所选窗口的服务商会回退到主窗口。",
+  "settings.bar_window.label": "DankBar 用量窗口",
   "settings.informational_providers_desc": "这些提供商没有公开的只读配额 API，卡片会指向官方用量页面。",
   "settings.language.description": "此插件的界面语言。自动模式跟随系统区域设置。",
   "settings.language.label": "语言",
