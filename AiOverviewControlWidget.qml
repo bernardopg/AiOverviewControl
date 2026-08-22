@@ -30,8 +30,9 @@ PluginComponent {
     property string pillProviders: (pluginData.pillProviders || providerSelection).trim()
     // Per-provider DankBar window selection (issue #17): "claude:secondary"
     // shows the 7-day window in the bar while the dashboard keeps every
-    // window. Only the bar reads this; sorting, notifications, history, and
-    // cards keep the primary window.
+    // window. Sorting, history, and cards keep the primary window. Since
+    // 1.12.0 notifications follow this too by default, via the "displayed"
+    // notifyWindowScope.
     property string barWindowOverrides: (pluginData.barWindowOverrides || "").trim()
     property string densityMode: pluginData.densityMode || "comfortable"
     property string providerFilter: ""

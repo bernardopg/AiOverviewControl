@@ -29,7 +29,7 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 
 > 🎬 Prefer higher quality? Watch the [MP4 demo](./docs/assets/demo.mp4).
 
-The pill lives in your DankBar and shows live usage at a glance. Providers with multiple quota windows (Claude's 5 hour and 7 day, for example) can show any window in the bar — pick it per provider, or let `highest` follow the most-constrained one:
+The pill lives in your DankBar and shows live usage at a glance. Providers with multiple quota windows (Claude's 5 hour and 7 day, for example) can show any window in the bar — pick it per provider, or let `highest` follow the most-constrained one. Hover the pill to see which window the number came from and when it resets:
 
 ![DankBar pill](./docs/assets/bar-pill.png)
 

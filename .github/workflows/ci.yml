@@ -709,41 +709,61 @@ jobs:
               sys.exit('\n'.join(f'::error::{error}' for error in errors))
           PY
 
-      - name: QML Flow children must not use anchors
+      - name: QML positioner children must not use forbidden anchors
         run: |
           python3 - <<'PY'
           import re, sys
           from pathlib import Path
 
-          # Qt disables a Flow entirely ("Flow will not function") as soon as one
-          # of its *direct* children sets an anchor, silently collapsing the
-          # layout at runtime. qmllint cannot see it because the file stays
-          # valid, so this walks brace depth to flag anchors exactly one level
-          # inside a Flow. Anchors deeper down (inside a nested Row/Column/Item)
-          # are legitimate and must not trip the gate.
+          # Qt disables a positioner entirely ("Row will not function") as soon
+          # as one of its *direct* children sets an anchor the positioner owns,
+          # silently collapsing the layout at runtime. qmllint cannot see it
+          # because the file stays valid. This walks brace depth and only flags
+          # anchors exactly one level inside a positioner; anchors deeper down
+          # (inside a nested Item) are legitimate.
+          #
+          # Row owns x, Column owns y, Flow and Grid own both.
+          CROSS = {'fill', 'centerIn'}
+          FORBIDDEN = {
+              'Row': CROSS | {'left', 'right', 'horizontalCenter'},
+              'Column': CROSS | {'top', 'bottom', 'verticalCenter'},
+              'Flow': CROSS | {'left', 'right', 'horizontalCenter',
+                               'top', 'bottom', 'verticalCenter'},
+              'Grid': CROSS | {'left', 'right', 'horizontalCenter',
+                               'top', 'bottom', 'verticalCenter'},
+          }
+          opener = re.compile(r'^\s*(?:\w+\s*:\s*)?(' + '|'.join(FORBIDDEN) + r')\s*\{')
+          anchor = re.compile(r'^\s*anchors\.(\w+)')
+
           errors = []
           scanned = 0
           for qml in sorted(Path('.').rglob('*.qml')):
               lines = qml.read_text().splitlines()
               for index, line in enumerate(lines):
-                  if not re.match(r'^\s*(?:\w+\s*:\s*)?Flow\s*\{', line):
+                  match = opener.match(line)
+                  if not match:
                       continue
+                  kind = match.group(1)
                   scanned += 1
                   depth = 0
                   for offset in range(index, len(lines)):
                       current = lines[offset]
-                      # depth 1 == inside the Flow itself; a direct child's body
-                      # opens depth 2, so its property lines are read at depth 2.
-                      if depth == 2 and re.match(r'^\s*anchors\.', current):
-                          errors.append(
-                              f'{qml}:{offset + 1}: direct child of the Flow opened at '
-                              f'line {index + 1} sets {current.strip().split(":")[0]}'
-                          )
+                      # depth 1 == inside the positioner itself; a direct
+                      # child's body opens depth 2, so its property lines are
+                      # read at depth 2.
+                      if depth == 2:
+                          found = anchor.match(current)
+                          if found and found.group(1) in FORBIDDEN[kind]:
+                              errors.append(
+                                  f'{qml}:{offset + 1}: direct child of the {kind} opened at '
+                                  f'line {index + 1} sets anchors.{found.group(1)} '
+                                  f'— {kind} will not function'
+                              )
                       depth += current.count('{') - current.count('}')
                       if depth <= 0 and offset > index:
                           break
 
-          print(f'Checked {scanned} Flow block(s).')
+          print(f'Checked {scanned} positioner block(s).')
           if errors:
               sys.exit('\n'.join(f'::error::{e}' for e in errors))
           PY

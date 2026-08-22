@@ -2,9 +2,11 @@
 
 ## Unreleased
 
+## 1.12.0 - 2026-08-22
+
 ### Claude provider config directory override
 
-- The Claude adapter now honors `CLAUDE_CONFIG_DIR` when resolving where Claude Code keeps its local state, falling back to `$HOME/.claude` when the variable is unset — matching Claude Code's own resolution order. Contribution by [@goulartdev](https://github.com/goulartdev) in [#18](https://github.com/bernardopg/AiOverviewControl/pull/18).
+- The Claude adapter now honors `CLAUDE_CONFIG_DIR` when resolving where Claude Code keeps its local state, falling back to `$HOME/.claude` when the variable is unset — matching Claude Code's own resolution order. Both the adapter and the health check follow the same order, so a non-default config directory no longer reports the provider as missing. Contributed by [@goulartdev](https://github.com/goulartdev) ([#18](https://github.com/bernardopg/AiOverviewControl/pull/18)).
 
 ### Multi-window quota notifications
 
@@ -41,6 +43,15 @@
 - New CI gate: a direct child of a `Flow` that sets `anchors.*` fails the QML job. `qmllint` cannot see this class of bug because the file stays syntactically valid; the check walks brace depth and only flags anchors exactly one level inside a `Flow`, so legitimate anchors on nested items still pass. Verified to catch the Hermes regression above.
 - Three i18n keys with no call site (`card.provider`, `card.provider_description`, `settings.health.pending`) removed from all five locales.
 - The v1.6.0 audit report is closed. Every P0/P1 finding was re-verified against the current tree — Codex `rateLimitResetCredits`, versions read from `plugin.json`, Cloudflare `String!`, Fireworks `/quotas`, AI21 auth probe, `pipefail` in `get-claude-usage`, 9Router cached tokens, `PillProgressRing` clamp, dispatch coverage as a CI hard gate, and the documentation rewrites are all in place. The report was never tracked by git, so nothing shipped with it.
+
+### Documentation
+
+- `configuration.md`, `architecture.md`, and both READMEs document `notifyWindowScope`, `pillTooltip`, the export script, and reset-to-defaults. The `barWindowOverrides` rows no longer claim that notifications always keep the primary window — they follow the bar's window by default as of this release.
+- `troubleshooting.md` gains "A quota window never alerts" (the `displayed` vs `all` scope, and where discarded threshold entries are now reported) and "Exporting the usage history", including the export script's exit codes.
+
+### Thanks
+
+- Thanks to [@goulartdev](https://github.com/goulartdev) for his contribution to this release.
 
 ## 1.11.0 - 2026-08-17
 
