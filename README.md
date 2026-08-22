@@ -56,7 +56,8 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 | 🗂️ **Rich provider cards** | Usage windows, reset times, identity, credits, sparklines, trends, and console links. |
 | 🛡️ **Failure isolation** | One timeout or invalid credential never hides healthy providers. |
 | 🎛️ **Flexible layout** | Compact/comfortable density, status filters, pinned providers, `auto`/`custom`/`top` pill modes, and a per-provider DankBar usage-window choice. |
-| 🔔 **Quota notifications** | Branded DMS desktop alerts with global/per-provider thresholds; one toast per quota window, upgraded in place when quota is exhausted. |
+| 🔔 **Quota notifications** | Branded DMS desktop alerts with global/per-provider thresholds; one toast per quota window, upgraded in place when quota is exhausted. Alerts can follow the window the DankBar shows, every window, or the primary one. |
+| 📄 **History export** | Dump the local usage history to CSV or JSONL from Settings, or from `providers/export-usage-history`. |
 | 🌍 **5 UI languages** | English, Português (BR), 简体中文, Español, and Deutsch. |
 | 🔒 **Privacy first** | Local adapters, no paid endpoints just to test keys, secrets never displayed. |
 
@@ -176,6 +177,7 @@ Settings are stored by DMS and survive plugin upgrades.
 | Pill mode | `auto`, `custom`, `top` | `auto` |
 | Custom pill providers | comma-separated tracked-provider IDs | tracked providers |
 | DankBar usage window | `provider:slot` pairs, slot `primary`, `secondary`, `tertiary`, or `highest` (e.g. `claude:secondary`) | primary window |
+| DankBar pill tooltip | enabled or disabled | enabled |
 | Pinned providers | comma-separated provider IDs | empty |
 | Provider logo color | any QML color string | current DMS primary color |
 | Refresh interval | 1, 2, 5, 15, or 30 minutes | 2 minutes |
@@ -184,9 +186,14 @@ Settings are stored by DMS and survive plugin upgrades.
 | Individual Antigravity models | enabled or disabled | disabled |
 | Quota notifications | enabled or disabled | enabled |
 | Global notification threshold | 75%, 85%, or 95% | 85% |
-| Per-provider thresholds | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`) | empty |
+| Per-provider thresholds | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`), validated inline | empty |
+| Windows that raise alerts | `displayed` (follows the DankBar window), `all`, or `primary` | `displayed` |
 | Re-alert interval | once per window, 1h, 6h, or 24h (updates the existing alert) | once per window |
 | History retention | 500, 2,000, or 10,000 snapshots | 2,000 |
+
+Settings also offers **Export usage history** (CSV or JSONL) and a two-step
+**Reset plugin settings**, which restores every option above without touching
+the recorded history.
 
 The default provider selection is:
 
@@ -221,7 +228,9 @@ variable matrix and health-check behavior.
   `~/.cache/AiOverviewControl/usage-history.jsonl` and trimmed according to the
   configured retention. The history writer records only real non-zero quota/spend
   pressure; informational, local-runtime, balance-only, and analytics-only `0%`
-  placeholders are skipped so sparklines remain meaningful.
+  placeholders are skipped so sparklines remain meaningful. Because the store is
+  trimmed, `providers/export-usage-history csv|jsonl` (also a button in
+  Settings) is the way to keep long-term data.
 - Claude analytics run separately so local history or OAuth failures cannot
   block the main provider collection.
 
@@ -263,6 +272,7 @@ qmllint \
   "codex,claude,copilot,pi" \
   ./providers/get-copilot-usage | jq .
 ./providers/get-usage-history | jq .
+./providers/export-usage-history csv /tmp
 ```
 
 GitHub Actions additionally validates workflow syntax, locale key parity,
@@ -280,6 +290,7 @@ AiOverviewControlI18n.qml         Locale loading and interpolation
 ProviderLogo.qml                  Local provider-logo resolution and fallback icons
 providers/get-provider-usage      Multi-provider dispatcher and history writer
 providers/get-provider-health     Local prerequisite checks
+providers/export-usage-history    Usage-history export to CSV or JSONL
 providers/get-codex-usage         Codex app-server protocol bridge
 providers/get-claude-usage        Claude quota and local analytics bridge
 providers/get-copilot-usage       GitHub Copilot quota bridge

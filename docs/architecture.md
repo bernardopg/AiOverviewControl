@@ -125,10 +125,12 @@ All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode,
 | `quotaNotifications` | `true` | Enable desktop quota notifications. |
 | `notifyThreshold` | `85` | Global quota notification threshold. |
 | `notifyThresholds` | empty | Per-provider `id:percent` notification overrides. |
+| `notifyWindowScope` | `displayed` | Quota windows evaluated by `checkNotifications()`: `displayed` (the window the DankBar shows, per `barWindowOverrides`), `all` (every window in the payload), or `primary`. |
 | `notifyCooldownMinutes` | `0` | Minimum minutes between in-place notification updates; `0` means once per quota window. |
 | `historyRetention` | `2000` | Maximum local usage-history snapshots. |
 | `pinnedProviders` | empty | Provider IDs sorted before unpinned cards. |
 | `providerLogoColor` | current DMS primary color | Monochrome tint for provider logos and notification icons. |
+| `pillTooltip` | `true` | Show the hover tooltip describing the DankBar pill's provider, window, percentage, and reset. |
 | `showClaudeProjects` | `true` | Show Claude local project analytics. |
 | `showAntigravityModelDetails` | `false` | Replace Antigravity family rows with per-model rows in expanded cards. |
 

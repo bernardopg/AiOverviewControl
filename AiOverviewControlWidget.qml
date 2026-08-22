@@ -54,6 +54,10 @@ PluginComponent {
         const parsed = parseInt(pluginData.notifyThreshold || "85");
         return Number.isFinite(parsed) && parsed > 0 && parsed <= 100 ? parsed : 85;
     }
+    // Hovering the DankBar pill spells out the window behind the number —
+    // with barWindowOverrides the percentage is not necessarily the primary
+    // window, so "31%" alone is ambiguous.
+    property bool pillTooltipEnabled: String(pluginData.pillTooltip ?? "true") === "true"
     property bool showClaudeProjects: String(pluginData.showClaudeProjects ?? "true") === "true"
     // Antigravity normally groups quotas exactly as its own Models screen:
     // Gemini and Claude/OpenAI. Per-model rows remain available for advanced
@@ -80,6 +84,15 @@ PluginComponent {
     function thresholdFor(providerId) {
         const override = notifyThresholdOverrides[normalizeProviderId(providerId)];
         return override !== undefined ? override : notifyThreshold;
+    }
+    // Which quota windows raise notifications.
+    //   displayed — the window the DankBar shows (barWindowOverrides). Equal to
+    //               "primary" until an override is set, so this is a safe default.
+    //   all       — every window the provider reports (5h *and* 7d, ...).
+    //   primary   — the pre-1.12 behaviour, primary window only.
+    readonly property string notifyWindowScope: {
+        const raw = String(pluginData.notifyWindowScope || "displayed").trim().toLowerCase();
+        return (raw === "all" || raw === "primary") ? raw : "displayed";
     }
     // Minutes between repeats of the same alert; 0 = once per quota window.
     readonly property int notifyCooldownSecs: {
@@ -970,6 +983,93 @@ PluginComponent {
         return Number(windowData.usedPercent || 0);
     }
 
+    // One line describing exactly what the DankBar is showing: provider,
+    // which quota window the number came from, the percentage, and the reset.
+    // DankTooltip renders a single elided line, so the reset is only appended
+    // when the pill tracks one provider.
+    function pillTooltipText() {
+        const entries = [];
+        const withReset = pillDisplayProviders.length === 1;
+        for (let i = 0; i < pillDisplayProviders.length; i++) {
+            const provider = pillDisplayProviders[i];
+            const windowData = pillWindowFor(provider);
+            if (!windowData) continue;
+            const segment = [providerName(provider.provider)];
+            const label = windowData.resetDescription || getWindowLabel(windowData.windowMinutes);
+            if (label && String(label).length > 0) segment.push(label);
+            segment.push(`${Math.round(Number(windowData.usedPercent || 0))}%`);
+            if (withReset) {
+                const reset = formatTimeUntil(windowData.resetsAt);
+                if (reset.length > 0) segment.push(t("notify.resets_in", "resets in {time}", { time: reset }));
+            }
+            entries.push(segment.join(" · "));
+        }
+        return entries.join("   •   ");
+    }
+
+    // BasePill keeps its MouseArea at z:-1, below the plugin's pill content,
+    // so reading its hover state is enough — no extra MouseArea that could
+    // swallow the bar's own click, ripple, or hover highlight.
+    function pillHostFor(item) {
+        let node = item ? item.parent : null;
+        for (let depth = 0; node && depth < 8; depth++) {
+            if (node.isMouseHovered !== undefined) return node;
+            node = node.parent;
+        }
+        return null;
+    }
+
+    function showPillTooltip(anchorItem) {
+        if (!pillTooltipEnabled || !anchorItem) return;
+        const text = pillTooltipText();
+        if (text.length === 0) return;
+        pillTooltipLoader.active = true;
+        const tooltip = pillTooltipLoader.item;
+        if (!tooltip) return;
+        const currentScreen = parentScreen || Screen;
+        if (!currentScreen) return;
+        const edge = (axis && axis.edge) ? axis.edge : "top";
+        const offset = barThickness + barSpacing + Theme.spacingXS;
+        const center = anchorItem.mapToItem(null, anchorItem.width / 2, anchorItem.height / 2);
+        if (edge === "left" || edge === "right") {
+            const x = edge === "left" ? offset : (currentScreen.width - offset);
+            tooltip.show(text, x, center.y, currentScreen, edge === "left", edge === "right");
+            return;
+        }
+        // The tooltip is its own layer-shell window in screen coordinates, so
+        // a bottom bar has to be measured from the bottom of the screen.
+        tooltip.text = text;
+        const y = edge === "bottom"
+            ? Math.max(Theme.spacingS, currentScreen.height - offset - tooltip.implicitHeight)
+            : offset;
+        tooltip.show(text, center.x, y, currentScreen, false, false);
+    }
+
+    function hidePillTooltip() {
+        if (pillTooltipLoader.item) pillTooltipLoader.item.hide();
+        pillTooltipLoader.active = false;
+    }
+
+    // Quota windows checkNotifications() evaluates for one provider, per the
+    // notifyWindowScope setting. Sorting, history, cards and the hero keep
+    // using primaryUsageWindow() regardless.
+    function notifyWindowsFor(provider) {
+        const usage = provider && provider.usage ? provider.usage : null;
+        if (!usage) return [];
+        if (notifyWindowScope === "all") {
+            const every = [];
+            const candidates = [usage.primary, usage.secondary, usage.tertiary];
+            for (let i = 0; i < candidates.length; i++) {
+                if (candidates[i]) every.push(candidates[i]);
+            }
+            return every;
+        }
+        const single = notifyWindowScope === "primary"
+            ? primaryUsageWindow(provider)
+            : pillWindowFor(provider);
+        return single ? [single] : [];
+    }
+
     // Providers exposing more than one signed-in account (Antigravity surfaces
     // every local IDE / Google session) carry an `accounts` array.
     function accountsForProvider(provider) {
@@ -1293,64 +1393,74 @@ PluginComponent {
         const now = Date.now();
         for (let i = 0; i < successfulProviders.length; i++) {
             const provider = successfulProviders[i];
-            const windowData = primaryUsageWindow(provider);
-            if (!windowData) continue;
-            const percent = Number(windowData.usedPercent || 0);
             const threshold = thresholdFor(provider.provider);
-            // One stable key per provider quota window. In particular, do not
-            // include the threshold or an unbucketed reset time: changing a
-            // setting or a provider's timestamp jitter must not create a
-            // fresh toast on every refresh.
-            const dedupeKey = notificationWindowKey(provider.provider, windowData);
-            if (percent < threshold - 5) {
-                // Re-arm only after a meaningful fall. The hysteresis avoids
-                // a noisy alert/clear loop around the selected threshold and
-                // also makes static (no reset timestamp) windows usable.
-                delete seen[dedupeKey];
-                Quickshell.execDetached(["bash", notifyAlertScript, "--clear", dedupeKey]);
-                continue;
+            const windows = notifyWindowsFor(provider);
+            // notifyWindowScope "all" can hand back two windows that hash to
+            // the same identity (e.g. both without windowMinutes or a reset
+            // stamp). Alerting twice on one key would fight over the same
+            // dedupe entry, so the first occurrence wins.
+            const handled = {};
+            for (let w = 0; w < windows.length; w++) {
+                const windowData = windows[w];
+                if (!windowData) continue;
+                const percent = Number(windowData.usedPercent || 0);
+                // One stable key per provider quota window. In particular, do not
+                // include the threshold or an unbucketed reset time: changing a
+                // setting or a provider's timestamp jitter must not create a
+                // fresh toast on every refresh.
+                const dedupeKey = notificationWindowKey(provider.provider, windowData);
+                if (handled[dedupeKey]) continue;
+                handled[dedupeKey] = true;
+                if (percent < threshold - 5) {
+                    // Re-arm only after a meaningful fall. The hysteresis avoids
+                    // a noisy alert/clear loop around the selected threshold and
+                    // also makes static (no reset timestamp) windows usable.
+                    delete seen[dedupeKey];
+                    Quickshell.execDetached(["bash", notifyAlertScript, "--clear", dedupeKey]);
+                    continue;
+                }
+                if (percent < threshold) continue;
+
+                const pct = Math.round(percent);
+                const exhausted = percent >= 100;
+                const severity = exhausted ? 2 : 1;
+                const previous = seen[dedupeKey];
+                const cooldownElapsed = previous
+                    && notifyCooldownSecs < 999999999
+                    && now - previous.lastAttemptMs >= notifyCooldownSecs * 1000;
+                // Dispatch on the crossing, when it becomes exhausted, or for an
+                // explicitly requested reminder. The helper repeats this check
+                // atomically across bars/reloads and updates, rather than stacks,
+                // the DMS notification when an escalation is needed.
+                if (previous && severity <= previous.severity && !cooldownElapsed) continue;
+                seen[dedupeKey] = { severity: Math.max(severity, previous ? previous.severity : 0), lastAttemptMs: now };
+
+                const reset = formatTimeUntil(windowData.resetsAt);
+                const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
+
+                const title = exhausted
+                    ? t("notify.title_exhausted", "{provider} quota reached", { provider: providerName(provider.provider) })
+                    : t("notify.title", "{provider} usage is high ({percent}%)", { provider: providerName(provider.provider), percent: pct });
+                const bodyParts = [exhausted
+                    ? t("notify.body_exhausted", "No quota remains in the {window} window.", { window: windowLabel })
+                    : t("notify.body", "{window} quota · {percent}% used", { window: windowLabel, percent: pct })];
+                if (reset.length > 0) bodyParts.push(t("notify.resets_in", "resets in {time}", { time: reset }));
+
+                // The helper persists state on disk (flock-guarded), so duplicate
+                // widget instances, plugin reloads and shell restarts cannot
+                // re-fire inside the cooldown window. At 100%, it replaces the
+                // prior provider toast with a critical, branded update.
+                Quickshell.execDetached([
+                    "bash", notifyAlertScript,
+                    dedupeKey,
+                    String(notifyCooldownSecs),
+                    exhausted ? "critical" : "normal",
+                    notificationIconPath(provider.provider),
+                    providerLogoColor.toString(),
+                    title,
+                    bodyParts.join(" · ")
+                ]);
             }
-            if (percent < threshold) continue;
-
-            const pct = Math.round(percent);
-            const exhausted = percent >= 100;
-            const severity = exhausted ? 2 : 1;
-            const previous = seen[dedupeKey];
-            const cooldownElapsed = previous
-                && notifyCooldownSecs < 999999999
-                && now - previous.lastAttemptMs >= notifyCooldownSecs * 1000;
-            // Dispatch on the crossing, when it becomes exhausted, or for an
-            // explicitly requested reminder. The helper repeats this check
-            // atomically across bars/reloads and updates, rather than stacks,
-            // the DMS notification when an escalation is needed.
-            if (previous && severity <= previous.severity && !cooldownElapsed) continue;
-            seen[dedupeKey] = { severity: Math.max(severity, previous ? previous.severity : 0), lastAttemptMs: now };
-
-            const reset = formatTimeUntil(windowData.resetsAt);
-            const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
-
-            const title = exhausted
-                ? t("notify.title_exhausted", "{provider} quota reached", { provider: providerName(provider.provider) })
-                : t("notify.title", "{provider} usage is high ({percent}%)", { provider: providerName(provider.provider), percent: pct });
-            const bodyParts = [exhausted
-                ? t("notify.body_exhausted", "No quota remains in the {window} window.", { window: windowLabel })
-                : t("notify.body", "{window} quota · {percent}% used", { window: windowLabel, percent: pct })];
-            if (reset.length > 0) bodyParts.push(t("notify.resets_in", "resets in {time}", { time: reset }));
-
-            // The helper persists state on disk (flock-guarded), so duplicate
-            // widget instances, plugin reloads and shell restarts cannot
-            // re-fire inside the cooldown window. At 100%, it replaces the
-            // prior provider toast with a critical, branded update.
-            Quickshell.execDetached([
-                "bash", notifyAlertScript,
-                dedupeKey,
-                String(notifyCooldownSecs),
-                exhausted ? "critical" : "normal",
-                notificationIconPath(provider.provider),
-                providerLogoColor.toString(),
-                title,
-                bodyParts.join(" · ")
-            ]);
         }
         notifiedMap = seen;
     }
@@ -2367,9 +2477,26 @@ PluginComponent {
         }
     }
 
+    // Lazily built so a session that never hovers the bar never creates the
+    // extra layer-shell surface.
+    Loader {
+        id: pillTooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
+    }
+
     horizontalBarPill: Component {
         Row {
+            id: horizontalPillContent
             spacing: Theme.spacingS
+
+            readonly property var pillHost: root.pillHostFor(horizontalPillContent)
+            readonly property bool pillHovered: pillHost ? pillHost.isMouseHovered : false
+            onPillHoveredChanged: {
+                if (pillHovered) root.showPillTooltip(horizontalPillContent);
+                else root.hidePillTooltip();
+            }
+            Component.onDestruction: root.hidePillTooltip()
 
             Rectangle {
                 width: 26
@@ -2450,7 +2577,16 @@ PluginComponent {
 
     verticalBarPill: Component {
         Column {
+            id: verticalPillContent
             spacing: Theme.spacingXS
+
+            readonly property var pillHost: root.pillHostFor(verticalPillContent)
+            readonly property bool pillHovered: pillHost ? pillHost.isMouseHovered : false
+            onPillHoveredChanged: {
+                if (pillHovered) root.showPillTooltip(verticalPillContent);
+                else root.hidePillTooltip();
+            }
+            Component.onDestruction: root.hidePillTooltip()
 
             Rectangle {
                 width: 24
@@ -4198,7 +4334,12 @@ PluginComponent {
                                 color: Theme.surfaceVariantText
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
-                                anchors.verticalCenter: parent.verticalCenter
+                                // Flow positions its children itself and disables
+                                // itself entirely if one of them uses anchors, so
+                                // the label is centred against the BadgePill row
+                                // height instead.
+                                height: 28
+                                verticalAlignment: Text.AlignVCenter
                             }
 
                             Repeater {

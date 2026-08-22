@@ -14,15 +14,41 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: measurable providers, an explicit compact subset, or the most-used provider. |
 | `pillProviders` | comma-separated IDs | provider selection | Strict provider subset used by `custom` pill mode. The settings UI exposes this as provider chips and never falls back to every tracked provider. |
 | `barWindowOverrides` | `provider:slot,...` | empty | Per-provider DankBar usage window, for example `claude:secondary`. Slot is `primary` (default), `secondary`, `tertiary`, or `highest` (most-constrained). Only the DankBar pill honors it — dashboard cards, notifications, and history keep the primary window. Providers whose payload lacks the chosen slot fall back to the primary window. |
+| `pillTooltip` | `true` / `false` | `true` | Hovering the DankBar pill shows the provider, the quota window the percentage came from, and the reset. With one provider in the pill it also appends `resets in ...`. |
 | `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
 | `providerLogoColor` | QML color string | current DMS primary color | Monochrome tint used for provider logos and notification icons. |
 | `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |
 | `notifyThreshold` | 1–100 | 85 | Global notification threshold. |
-| `notifyThresholds` | `provider:percent,...` | empty | Per-provider threshold overrides, for example `codex:75,claude:90`. |
+| `notifyThresholds` | `provider:percent,...` | empty | Per-provider threshold overrides, for example `codex:75,claude:90`. Settings validates the CSV inline: malformed pairs, unknown or duplicated providers, providers that are not tracked, and percentages outside 1–100 are reported as you type. |
+| `notifyWindowScope` | `displayed`, `all`, `primary` | `displayed` | Which quota windows raise alerts. `displayed` follows `barWindowOverrides` — identical to `primary` until an override is set. `all` also alerts on Claude's 7 day, Codex's weekly, and every other secondary window. `primary` restores the pre-1.12 primary-only behaviour. Each window keeps its own dedupe key, so one provider can alert on both of its windows without either replacing the other. |
 | `notifyCooldownMinutes` | non-negative integer | 0 | Minutes between repeat alerts; `0` means once per quota window. |
 | `historyRetention` | integer >= 50 | 2000 | Maximum history snapshots kept locally. |
 | `showClaudeProjects` | `true` / `false` | `true` | Shows Claude local project analytics. |
 | `showAntigravityModelDetails` | `true` / `false` | `false` | In expanded Antigravity cards, replaces concise Gemini / Claude & OpenAI family rows with individual model rows. |
+
+## Exporting usage history
+
+The local store (`${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/usage-history.jsonl`)
+is trimmed to `historyRetention` snapshots, so long-term data needs a copy.
+Settings offers **Export usage history** with two formats, and the same script
+is runnable directly:
+
+```bash
+./providers/export-usage-history csv     # spreadsheet-friendly
+./providers/export-usage-history jsonl   # raw store
+./providers/export-usage-history csv ~/some/directory
+```
+
+It prints the absolute path of the file it wrote on stdout and writes it
+`0600`. The destination defaults to the XDG download directory, then
+`~/Downloads`, then `$HOME`.
+
+## Resetting
+
+**Reset plugin settings** in Settings restores every key in this table to its
+default, including tracked providers, pins, notification thresholds, and
+DankBar overrides. It is a two-step confirmation and never touches the
+recorded usage history.
 
 ## Antigravity display
 

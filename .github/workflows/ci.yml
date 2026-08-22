@@ -511,6 +511,9 @@ jobs:
       - name: Integration test — Hermes local telemetry (fixture database)
         run: tests/test-hermes-analytics.sh
 
+      - name: Integration test — usage-history export (CSV/JSONL round-trip)
+        run: tests/test-history-export.sh
+
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |
           FAIL=0
@@ -706,6 +709,45 @@ jobs:
               sys.exit('\n'.join(f'::error::{error}' for error in errors))
           PY
 
+      - name: QML Flow children must not use anchors
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          # Qt disables a Flow entirely ("Flow will not function") as soon as one
+          # of its *direct* children sets an anchor, silently collapsing the
+          # layout at runtime. qmllint cannot see it because the file stays
+          # valid, so this walks brace depth to flag anchors exactly one level
+          # inside a Flow. Anchors deeper down (inside a nested Row/Column/Item)
+          # are legitimate and must not trip the gate.
+          errors = []
+          scanned = 0
+          for qml in sorted(Path('.').rglob('*.qml')):
+              lines = qml.read_text().splitlines()
+              for index, line in enumerate(lines):
+                  if not re.match(r'^\s*(?:\w+\s*:\s*)?Flow\s*\{', line):
+                      continue
+                  scanned += 1
+                  depth = 0
+                  for offset in range(index, len(lines)):
+                      current = lines[offset]
+                      # depth 1 == inside the Flow itself; a direct child's body
+                      # opens depth 2, so its property lines are read at depth 2.
+                      if depth == 2 and re.match(r'^\s*anchors\.', current):
+                          errors.append(
+                              f'{qml}:{offset + 1}: direct child of the Flow opened at '
+                              f'line {index + 1} sets {current.strip().split(":")[0]}'
+                          )
+                      depth += current.count('{') - current.count('}')
+                      if depth <= 0 and offset > index:
+                          break
+
+          print(f'Checked {scanned} Flow block(s).')
+          if errors:
+              sys.exit('\n'.join(f'::error::{e}' for e in errors))
+          PY
+
       - name: QML provider-script references resolve
         run: |
           python3 - <<'PY'
@@ -755,6 +797,40 @@ jobs:
             exit 1
           }
           echo "barWindowOverrides parity: OK (widget reads, settings writes)"
+
+      - name: Settings-key parity (widget reads what Settings writes)
+        run: |
+          # Same contract as the barWindowOverrides gate above, generalised:
+          # every key Settings persists must be consumed on the runtime side,
+          # or the control writes a value nobody renders.
+          python3 - <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          settings = Path('AiOverviewControlSettings.qml').read_text()
+          widget = Path('AiOverviewControlWidget.qml').read_text()
+          i18n = Path('AiOverviewControlI18n.qml').read_text()
+
+          written = set(re.findall(r'saveValue\("([^"]+)"', settings))
+          # settingDefaults enumerates the same keys for reset-to-defaults;
+          # a key added there but never saved elsewhere still has to be read.
+          block = settings.split('readonly property var settingDefaults: ({', 1)
+          if len(block) > 1:
+              written |= set(re.findall(r'^\s*(\w+):', block[1].split('})', 1)[0], re.M))
+
+          # The widget reads settings as pluginData.<key>; the I18n singleton
+          # predates the widget's pluginData and reads its one key directly
+          # through PluginService.loadPluginData.
+          read = set(re.findall(r'pluginData\.(\w+)', widget))
+          read |= set(re.findall(r'loadPluginData\(\s*\w+\s*,\s*"(\w+)"', i18n))
+
+          orphans = sorted(written - read)
+          if orphans:
+              sys.exit('\n'.join(
+                  f'::error::Settings persists "{key}" but no runtime QML reads it'
+                  for key in orphans))
+          print(f'Settings-key parity OK \u2014 {len(written)} key(s) written, all consumed.')
+          PY
 
   # ─── crowdin ─────────────────────────────────────────────────────────────────
   crowdin:
