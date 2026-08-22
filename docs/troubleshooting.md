@@ -47,7 +47,7 @@ claude auth status
 ./providers/get-claude-usage
 ```
 
-Claude analytics require readable JSONL files under `~/.claude/projects`. Quota windows are best-effort and may be absent when Claude Code changes its private OAuth behavior.
+Claude analytics require readable JSONL files under `~/.claude/projects` (or `$CLAUDE_CONFIG_DIR/projects` when `CLAUDE_CONFIG_DIR` is set). Quota windows are best-effort and may be absent when Claude Code changes its private OAuth behavior.
 
 ## Copilot
 

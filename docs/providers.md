@@ -62,11 +62,11 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <tr>
 <td><code>claude</code></td>
 <td>Quota + local analytics</td>
-<td>local <code>~/.claude</code></td>
+<td>local <code>~/.claude</code> (or <code>$CLAUDE_CONFIG_DIR</code>)</td>
 <td>✅ 5h / 7d / weekly per-model (<code>limits[]</code>)</td>
 <td>✅ Pro / Max</td>
 <td>✅</td>
-<td><code>claude</code> OAuth</td>
+<td><code>claude</code> OAuth, optional <code>CLAUDE_CONFIG_DIR</code></td>
 <td><code>~/.claude</code></td>
 <td>local analytics</td>
 </tr>

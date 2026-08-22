@@ -16,7 +16,7 @@ status_for() {
 
   case "$provider" in
     codex) command -v codex >/dev/null 2>&1 || { status="missing"; detail="codex CLI"; } ;;
-    claude) command -v claude >/dev/null 2>&1 || [ -d "$HOME/.claude" ] || { status="missing"; detail="claude CLI or ~/.claude"; } ;;
+    claude) command -v claude >/dev/null 2>&1 || [ -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" ] || { status="missing"; detail="claude CLI, ~/.claude or CLAUDE_CONFIG_DIR"; } ;;
     copilot) command -v gh >/dev/null 2>&1 || has_any_env COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN || { status="missing"; detail="gh CLI or GitHub token"; } ;;
     gemini) command -v gemini >/dev/null 2>&1 || has_any_env GEMINI_API_KEY GOOGLE_API_KEY GOOGLE_GENERATIVE_AI_API_KEY || { status="missing"; detail="gemini CLI or API key"; } ;;
     antigravity|agy)

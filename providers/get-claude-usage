@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLAUDE_DIR="${HOME}/.claude"
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 CREDENTIALS="${CLAUDE_DIR}/.credentials.json"
 STATS_CACHE="${CLAUDE_DIR}/stats-cache.json"
 PROJECTS_DIR="${CLAUDE_DIR}/projects"

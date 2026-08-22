@@ -55,6 +55,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST` |
 | Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`) |
+| Claude Code | optional `CLAUDE_CONFIG_DIR` (defaults to `~/.claude`) |
 | NVIDIA | `NVIDIA_API_KEY` |
 | Cloudflare | `CLOUDFLARE_AI_TOKEN` or `CLOUDFLARE_API_TOKEN`; optional `CLOUDFLARE_ACCOUNT_ID` |
 | Vertex AI | optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` |
