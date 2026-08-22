@@ -122,6 +122,34 @@ bash "$PLUGIN/providers/send-quota-alert" \
 
 Adjust `PLUGIN` for a plugin-store install as described at the top of this page.
 
+## A quota window never alerts
+
+By default only the window the DankBar shows for that provider raises alerts
+(`notifyWindowScope` = `displayed`, which equals the primary window until a
+`barWindowOverrides` slot is set). To be alerted on Claude's 5 hour *and*
+7 day windows, or Codex's weekly alongside its session window, set **Windows
+that raise alerts** to `all` in Settings.
+
+If a per-provider threshold seems ignored, check the inline validation under
+**Per-provider threshold overrides** — entries with an unknown provider ID, a
+provider that is not tracked, or a percentage outside 1–100 are discarded at
+runtime and are now reported there as you type.
+
+## Exporting the usage history
+
+The local store is trimmed to the configured retention, so keep a copy before
+it rotates:
+
+```bash
+PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
+"$PLUGIN/providers/export-usage-history" csv     # spreadsheet-friendly
+"$PLUGIN/providers/export-usage-history" jsonl   # raw store
+```
+
+The script prints the file it wrote. Exit code `3` means no snapshot has been
+recorded yet (or none is readable), and `4` means the destination directory
+could not be written. Settings exposes the same two formats as buttons.
+
 ## QML validation
 
 ```bash

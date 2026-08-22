@@ -15,7 +15,13 @@ PluginSettings {
     property var selectedIds: normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"))
     property var pinnedIds: normalizeCsvList(loadValue("pinnedProviders", ""))
     property var pillIds: normalizePillSelection(loadValue("pillProviders", selectedIds.join(",")))
-    property color providerLogoColor: loadValue("providerLogoColor", Theme.primary.toString())
+    // Stored empty means "follow the theme accent" — the same contract the
+    // widget uses, so an empty value must never reach the color property.
+    property color providerLogoColor: {
+        root.settingsEpoch;
+        const saved = String(loadValue("providerLogoColor", "") || "").trim();
+        return saved.length > 0 ? saved : Theme.primary;
+    }
 
     function normalizeCsvList(value) {
         const parts = String(value || "").split(",");
@@ -53,7 +59,7 @@ PluginSettings {
     function openProviderLogoColorPicker() {
         const modal = PopoutService.colorPickerModal;
         if (!modal) return;
-        modal.selectedColor = loadValue("providerLogoColor", Theme.primary.toString());
+        modal.selectedColor = root.providerLogoColor;
         modal.pickerTitle = t("settings.logo_color", "Provider logo color");
         modal.onColorSelectedCallback = function(selectedColor) {
             root.providerLogoColor = selectedColor;
@@ -113,6 +119,101 @@ PluginSettings {
             if (allProviders[i].id === id) return allProviders[i].name;
         }
         return id;
+    }
+
+    // Same alias table the widget applies before looking up a threshold, so
+    // validation accepts every spelling the runtime accepts.
+    readonly property var providerAliases: ({
+        agy: "antigravity", moonshot: "kimi", zhipu: "glm",
+        "z.ai": "zai", dashscope: "qwen", alibaba: "qwen", nim: "nvidia",
+        vertex: "vertexai", ark: "byteplus", modelark: "byteplus",
+        grok: "xai"
+    })
+
+    // Inline validation for the per-provider threshold CSV. The widget's
+    // parser drops malformed pairs silently, so without this the only symptom
+    // of a typo is a notification that never arrives.
+    function notifyThresholdIssues(value) {
+        const raw = String(value || "").trim();
+        if (raw.length === 0) return [];
+        const known = {};
+        for (let i = 0; i < allProviders.length; i++) known[allProviders[i].id] = true;
+        const issues = [];
+        const seen = {};
+        const pairs = raw.split(",");
+        for (let i = 0; i < pairs.length; i++) {
+            const entry = pairs[i].trim();
+            if (entry.length === 0) {
+                issues.push(t("settings.notify.overrides_error_empty", "Empty entry — remove the stray comma."));
+                continue;
+            }
+            const kv = entry.split(":");
+            if (kv.length !== 2 || kv[0].trim().length === 0 || kv[1].trim().length === 0) {
+                issues.push(t("settings.notify.overrides_error_pair", "“{entry}” is not a provider:percent pair.", { entry: entry }));
+                continue;
+            }
+            const spelled = kv[0].trim().toLowerCase();
+            const id = providerAliases[spelled] || spelled;
+            const percentText = kv[1].trim();
+            const percent = parseInt(percentText);
+            if (!known[id]) {
+                issues.push(t("settings.notify.overrides_error_provider", "Unknown provider “{id}”.", { id: kv[0].trim() }));
+            } else if (seen[id]) {
+                issues.push(t("settings.notify.overrides_error_duplicate", "“{id}” is listed more than once — the last value wins.", { id: id }));
+            } else {
+                seen[id] = true;
+                if (!isSelected(id)) {
+                    issues.push(t("settings.notify.overrides_error_untracked", "“{id}” is not a tracked provider, so it never alerts.", { id: id }));
+                }
+            }
+            if (!/^[0-9]+$/.test(percentText) || !Number.isFinite(percent) || percent < 1 || percent > 100) {
+                issues.push(t("settings.notify.overrides_error_percent", "“{value}” is not a whole percentage between 1 and 100.", { value: percentText }));
+            }
+        }
+        return issues;
+    }
+
+    // Bumped by resetToDefaults() so every control re-reads its stored value.
+    // Settings widgets evaluate loadValue() once at construction, so without
+    // this the panel would keep showing the pre-reset state until reopened.
+    property int settingsEpoch: 0
+
+    // Every key this plugin persists, with the same default the widget assumes
+    // when the key is absent. Keep in sync with the widget's pluginData reads.
+    readonly property var settingDefaults: ({
+        providerSelection: "codex,claude,copilot",
+        pinnedProviders: "",
+        pillProviders: "codex,claude,copilot",
+        pillMode: "auto",
+        barWindowOverrides: "",
+        densityMode: "comfortable",
+        languageOverride: "auto",
+        refreshInterval: "120000",
+        showErrorProviders: "true",
+        showClaudeProjects: "true",
+        showAntigravityModelDetails: "false",
+        pillTooltip: "true",
+        quotaNotifications: "true",
+        notifyThreshold: "85",
+        notifyCooldownMinutes: "0",
+        notifyThresholds: "",
+        notifyWindowScope: "displayed",
+        historyRetention: "2000",
+        providerLogoColor: ""
+    })
+
+    function resetToDefaults() {
+        for (const key in settingDefaults) {
+            saveValue(key, settingDefaults[key]);
+        }
+        selectedIds = normalizeProviderSelection(settingDefaults.providerSelection);
+        pinnedIds = [];
+        pillIds = selectedIds.slice();
+        providerLogoColor = Theme.primary.toString();
+        // providerLogoColor defaults to "", which the widget reads as "follow
+        // the theme accent"; the local property mirrors that for the swatch.
+        settingsEpoch++;
+        runHealth();
     }
     // Resolved imperatively in Component.onCompleted — Qt.resolvedUrl is only reliable
     // when called from the file's own execution context, not from a declarative binding.
@@ -297,6 +398,8 @@ PluginSettings {
         }
         const url = Qt.resolvedUrl("providers/get-provider-health").toString();
         healthScript = url.startsWith("file://") ? url.substring(7) : url;
+        const exportUrl = Qt.resolvedUrl("providers/export-usage-history").toString();
+        exportScript = exportUrl.startsWith("file://") ? exportUrl.substring(7) : exportUrl;
         runHealth();
     }
 
@@ -313,6 +416,43 @@ PluginSettings {
                 }
             } catch (error) {
                 // Manifest unreadable: the hero simply hides the version pill.
+            }
+        }
+    }
+
+    // Usage-history export. The script prints the file it wrote on stdout and
+    // a short reason on stderr, so both outcomes have something to show.
+    property string exportScript: ""
+    property string exportBuffer: ""
+    property string exportErrorBuffer: ""
+    property string exportResultPath: ""
+    property string exportErrorText: ""
+
+    function exportHistory(format) {
+        if (exportProcess.running || exportScript.length === 0) return;
+        exportBuffer = "";
+        exportErrorBuffer = "";
+        exportResultPath = "";
+        exportErrorText = "";
+        exportProcess.command = ["bash", exportScript, format];
+        exportProcess.running = true;
+    }
+
+    Process {
+        id: exportProcess
+        running: false
+        stdout: SplitParser { splitMarker: ""; onRead: data => root.exportBuffer += data }
+        stderr: SplitParser { splitMarker: ""; onRead: data => root.exportErrorBuffer += data }
+        onExited: code => {
+            if (code === 0) {
+                root.exportResultPath = root.exportBuffer.trim();
+                root.exportErrorText = "";
+            } else {
+                root.exportResultPath = "";
+                const reason = root.exportErrorBuffer.trim();
+                root.exportErrorText = reason.length > 0
+                    ? reason
+                    : t("settings.history_export_failed", "Export failed.");
             }
         }
     }
@@ -502,7 +642,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.language.label", "Language")
         description: t("settings.language.description", "UI language for this plugin. Auto follows system locale.")
-        currentValue: loadValue("languageOverride", "auto")
+        currentValue: { root.settingsEpoch; return loadValue("languageOverride", "auto"); }
         options: ["auto", "en_US", "pt_BR", "zh_CN", "es_ES", "de_DE"]
         optionIcons: ["language", "translate", "translate", "translate", "translate", "translate"]
         dropdownWidth: 220
@@ -513,7 +653,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.density.label", "Dashboard density")
         description: t("settings.density.description", "Comfortable keeps full previews. Compact reduces card height and visual detail.")
-        currentValue: loadValue("densityMode", "comfortable")
+        currentValue: { root.settingsEpoch; return loadValue("densityMode", "comfortable"); }
         options: ["comfortable", "compact"]
         optionIcons: ["view_agenda", "density_small"]
         dropdownWidth: 220
@@ -525,7 +665,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.pill_mode.label", "Pill mode")
         description: t("settings.pill_mode.description", "Auto shows providers with measurable usage. Custom uses the list below.")
-        currentValue: loadValue("pillMode", "auto")
+        currentValue: { root.settingsEpoch; return loadValue("pillMode", "auto"); }
         options: ["auto", "custom", "top"]
         optionIcons: ["auto_awesome", "tune", "trending_up"]
         dropdownWidth: 180
@@ -630,6 +770,14 @@ PluginSettings {
         }
     }
 
+    DankToggle {
+        width: parent.width
+        text: t("settings.pill_tooltip", "DankBar pill tooltip")
+        description: t("settings.pill_tooltip_desc", "Hovering the bar pill spells out the provider, which quota window the percentage came from, and when it resets.")
+        checked: { root.settingsEpoch; return loadValue("pillTooltip", "true") === "true"; }
+        onToggled: function(checked) { saveValue("pillTooltip", checked ? "true" : "false"); }
+    }
+
     // Per-provider DankBar window selection (issue #17). The tracked-provider
     // list is never empty (normalizeProviderSelection guarantees one entry),
     // so the block is always rendered.
@@ -669,7 +817,7 @@ PluginSettings {
                     required property string modelData
                     width: parent.width
                     text: root.providerDisplayName(modelData)
-                    currentValue: root.barChoiceFor(modelData)
+                    currentValue: { root.settingsEpoch; return root.barChoiceFor(modelData); }
                     options: ["primary", "secondary", "tertiary", "highest"]
                     optionIcons: ["looks_one", "looks_two", "looks_3", "trending_up"]
                     dropdownWidth: 200
@@ -683,7 +831,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.refresh_interval", "Refresh interval")
         description: t("settings.refresh_description", "How often the plugin queries selected local adapters and provider APIs.")
-        currentValue: loadValue("refreshInterval", "120000")
+        currentValue: { root.settingsEpoch; return loadValue("refreshInterval", "120000"); }
         options: ["60000", "120000", "300000", "900000", "1800000"]
         optionIcons: ["timer", "timer", "timer_off", "timer_off", "timer_off"]
         dropdownWidth: 200
@@ -694,7 +842,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.show_errors", "Show providers with errors")
         description: t("settings.show_errors_desc", "Keep authentication and configuration failures visible in the dashboard.")
-        checked: loadValue("showErrorProviders", "true") === "true"
+        checked: { root.settingsEpoch; return loadValue("showErrorProviders", "true") === "true"; }
         onToggled: function(checked) { saveValue("showErrorProviders", checked ? "true" : "false"); }
     }
 
@@ -768,7 +916,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.show_projects", "Show Claude projects")
         description: t("settings.show_projects_desc", "List the week's top projects inside the Claude card.")
-        checked: loadValue("showClaudeProjects", "true") === "true"
+        checked: { root.settingsEpoch; return loadValue("showClaudeProjects", "true") === "true"; }
         onToggled: function(checked) { saveValue("showClaudeProjects", checked ? "true" : "false"); }
     }
 
@@ -776,7 +924,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.antigravity_model_details", "Show individual Antigravity models")
         description: t("settings.antigravity_model_details_desc", "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.")
-        checked: loadValue("showAntigravityModelDetails", "false") === "true"
+        checked: { root.settingsEpoch; return loadValue("showAntigravityModelDetails", "false") === "true"; }
         onToggled: function(checked) { saveValue("showAntigravityModelDetails", checked ? "true" : "false"); }
     }
 
@@ -785,7 +933,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.notify.label", "Quota notifications")
         description: t("settings.notify.description", "Alert once when a provider crosses the threshold, then update the same notification if its quota is exhausted.")
-        checked: loadValue("quotaNotifications", "true") === "true"
+        checked: { root.settingsEpoch; return loadValue("quotaNotifications", "true") === "true"; }
         onToggled: function(checked) { saveValue("quotaNotifications", checked ? "true" : "false"); }
     }
 
@@ -794,7 +942,7 @@ PluginSettings {
         width: parent.width
         text: t("settings.notify.threshold", "Notification threshold")
         description: t("settings.notify.threshold_desc", "Usage percent that triggers a notification.")
-        currentValue: loadValue("notifyThreshold", "85")
+        currentValue: { root.settingsEpoch; return loadValue("notifyThreshold", "85"); }
         options: ["75", "85", "95"]
         optionIcons: ["notifications", "notifications_active", "notification_important"]
         dropdownWidth: 160
@@ -804,9 +952,21 @@ PluginSettings {
     DankDropdown {
         visible: notifyToggle.checked
         width: parent.width
+        text: t("settings.notify.window_scope", "Windows that raise alerts")
+        description: t("settings.notify.window_scope_desc", "“displayed” alerts on whatever window the DankBar shows for each provider — identical to “primary” until you override a provider above. “all” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
+        currentValue: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
+        options: ["displayed", "all", "primary"]
+        optionIcons: ["align_horizontal_left", "select_all", "looks_one"]
+        dropdownWidth: 200
+        onValueChanged: function(value) { saveValue("notifyWindowScope", value); }
+    }
+
+    DankDropdown {
+        visible: notifyToggle.checked
+        width: parent.width
         text: t("settings.notify.cooldown", "Re-alert interval")
         description: t("settings.notify.cooldown_desc", "0 alerts once per quota window. Other values update the same notification after that many minutes while usage stays high.")
-        currentValue: loadValue("notifyCooldownMinutes", "0")
+        currentValue: { root.settingsEpoch; return loadValue("notifyCooldownMinutes", "0"); }
         options: ["0", "60", "360", "1440"]
         optionIcons: ["notifications_off", "schedule", "schedule", "schedule"]
         dropdownWidth: 160
@@ -835,10 +995,38 @@ PluginSettings {
         }
 
         DankTextField {
+            id: thresholdOverridesField
             width: parent.width
             placeholderText: "claude:90,codex:75"
-            text: loadValue("notifyThresholds", "")
+            text: { root.settingsEpoch; return loadValue("notifyThresholds", ""); }
             onEditingFinished: saveValue("notifyThresholds", text.trim())
+        }
+
+        // Live — bound to the field rather than to the saved value, so a typo
+        // is flagged while typing instead of after the entry is dropped.
+        Repeater {
+            model: root.notifyThresholdIssues(thresholdOverridesField.text)
+
+            Row {
+                required property string modelData
+                width: parent.width
+                spacing: Theme.spacingXS
+
+                DankIcon {
+                    name: "error_outline"
+                    size: 14
+                    color: Theme.error
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                StyledText {
+                    width: parent.width - 14 - Theme.spacingXS
+                    text: parent.modelData
+                    wrapMode: Text.WordWrap
+                    color: Theme.error
+                    font.pixelSize: Theme.fontSizeSmall - 1
+                }
+            }
         }
     }
 
@@ -846,11 +1034,82 @@ PluginSettings {
         width: parent.width
         text: t("settings.history_retention", "Usage history retention")
         description: t("settings.history_retention_desc", "Snapshots kept per trim of the local usage history (sparklines and trends).")
-        currentValue: loadValue("historyRetention", "2000")
+        currentValue: { root.settingsEpoch; return loadValue("historyRetention", "2000"); }
         options: ["500", "2000", "10000"]
         optionIcons: ["history", "history", "history"]
         dropdownWidth: 160
         onValueChanged: function(value) { saveValue("historyRetention", value); }
+    }
+
+    // Usage history export. The store is an append-only JSONL cache the plugin
+    // trims on its own, so a copy is the only way to keep long-term data.
+    StyledRect {
+        width: parent.width
+        radius: Theme.cornerRadius
+        color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, 0.18)
+        implicitHeight: exportColumn.implicitHeight + Theme.spacingM * 2
+
+        Column {
+            id: exportColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingM
+            spacing: Theme.spacingS
+
+            StyledText {
+                text: t("settings.history_export", "Export usage history")
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+            }
+
+            StyledText {
+                width: parent.width
+                text: t("settings.history_export_desc", "Writes every recorded snapshot to your downloads folder. CSV opens in a spreadsheet; JSONL is the raw store.")
+                wrapMode: Text.WordWrap
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall
+            }
+
+            Row {
+                spacing: Theme.spacingS
+
+                DankButton {
+                    text: "CSV"
+                    iconName: "table_view"
+                    enabled: !exportProcess.running
+                    onClicked: root.exportHistory("csv")
+                }
+
+                DankButton {
+                    text: "JSONL"
+                    iconName: "data_object"
+                    backgroundColor: Theme.surfaceContainerHighest
+                    textColor: Theme.surfaceText
+                    enabled: !exportProcess.running
+                    onClicked: root.exportHistory("jsonl")
+                }
+            }
+
+            StyledText {
+                width: parent.width
+                visible: root.exportResultPath.length > 0
+                text: t("settings.history_export_done", "Saved to {path}", { path: root.exportResultPath })
+                wrapMode: Text.WrapAnywhere
+                color: Theme.success
+                font.pixelSize: Theme.fontSizeSmall - 1
+            }
+
+            StyledText {
+                width: parent.width
+                visible: root.exportErrorText.length > 0
+                text: root.exportErrorText
+                wrapMode: Text.WordWrap
+                color: Theme.error
+                font.pixelSize: Theme.fontSizeSmall - 1
+            }
+        }
     }
 
     ProviderSection {
@@ -886,7 +1145,7 @@ PluginSettings {
             StyledText { width:parent.width; text:root.selectedIds.join(", "); wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall }
             DankTextField {
                 width: parent.width
-                text: loadValue("providerSelection", "codex,claude,copilot")
+                text: { root.settingsEpoch; return loadValue("providerSelection", "codex,claude,copilot"); }
                 placeholderText: "codex,claude,copilot,openrouter"
                 onEditingFinished: {
                     const normalized = root.normalizeProviderSelection(text);
@@ -919,6 +1178,7 @@ PluginSettings {
                     { label:t("settings.test_pi", "Test pi session analytics adapter"), cmd:root._pluginDir + "/providers/get-pi-analytics | jq ." },
                     { label:t("settings.test_hermes", "Test Hermes telemetry adapter"), cmd:root._pluginDir + "/providers/get-hermes-analytics | jq ." },
                     { label:t("settings.test_health", "Check provider prerequisites"), cmd:root._pluginDir + "/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
+                    { label:t("settings.test_export", "Export usage history to CSV"), cmd:root._pluginDir + "/providers/export-usage-history csv" },
                     { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi gh gcloud ollama" },
                     { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint " + root._pluginDir + "/AiOverviewControlWidget.qml " + root._pluginDir + "/AiOverviewControlSettings.qml" }
                 ]
@@ -973,6 +1233,85 @@ PluginSettings {
                                 copiedReset.restart();
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // Reset-to-defaults. Two-step rather than modal: PluginSettings has no
+    // confirmation dialog of its own, and this wipes provider selection,
+    // pins, thresholds, and bar overrides in one click.
+    StyledRect {
+        id: resetCard
+        property bool armed: false
+
+        width: parent.width
+        radius: Theme.cornerRadius
+        color: Theme.withAlpha(Theme.error, resetCard.armed ? 0.1 : 0.05)
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.error, resetCard.armed ? 0.36 : 0.16)
+        implicitHeight: resetColumn.implicitHeight + Theme.spacingM * 2
+
+        Timer {
+            id: resetDisarm
+            interval: 5000
+            onTriggered: resetCard.armed = false
+        }
+
+        Column {
+            id: resetColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingM
+            spacing: Theme.spacingS
+
+            StyledText {
+                text: t("settings.reset", "Reset plugin settings")
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+            }
+
+            StyledText {
+                width: parent.width
+                text: resetCard.armed
+                    ? t("settings.reset_confirm_desc", "This restores every option on this page, including tracked providers, pins, notification thresholds, and DankBar overrides. Recorded usage history is kept.")
+                    : t("settings.reset_desc", "Restore every option on this page to its default. Recorded usage history is kept.")
+                wrapMode: Text.WordWrap
+                color: resetCard.armed ? Theme.error : Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall
+            }
+
+            Row {
+                spacing: Theme.spacingS
+
+                DankButton {
+                    text: resetCard.armed
+                        ? t("settings.reset_confirm", "Confirm reset")
+                        : t("settings.reset_action", "Reset to defaults")
+                    iconName: resetCard.armed ? "restart_alt" : "settings_backup_restore"
+                    backgroundColor: resetCard.armed ? Theme.error : Theme.surfaceContainerHighest
+                    textColor: resetCard.armed ? Theme.background : Theme.surfaceText
+                    onClicked: {
+                        if (!resetCard.armed) {
+                            resetCard.armed = true;
+                            resetDisarm.restart();
+                            return;
+                        }
+                        resetDisarm.stop();
+                        resetCard.armed = false;
+                        root.resetToDefaults();
+                    }
+                }
+
+                DankButton {
+                    visible: resetCard.armed
+                    text: t("settings.reset_cancel", "Cancel")
+                    backgroundColor: Theme.surfaceContainerHighest
+                    textColor: Theme.surfaceText
+                    onClicked: {
+                        resetDisarm.stop();
+                        resetCard.armed = false;
                     }
                 }
             }

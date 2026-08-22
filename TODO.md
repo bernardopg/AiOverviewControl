@@ -9,26 +9,27 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ---
 
-## ⚡ Next up — post-1.8.0 (prioritized)
+## ⚡ Next up (prioritized)
 
-Grounded in the v1.6.0 audit (`AUDIT-REPORT.md`) — its 6 critical data bugs are
-all resolved as of 1.8.0 (Codex credits, hardcoded versions, Cloudflare
-`String!`, Together credits endpoint, dead `SectionFrame`, `" req"` strings).
-What remains is correctness-of-new-features, consistency, and i18n polish.
+The v1.6.0 audit is **closed**: every P0/P1 finding was verified fixed in the
+current tree (Codex `rateLimitResetCredits`, dynamic versions from
+`plugin.json`, Cloudflare `String!`, Together credits, dead `SectionFrame`,
+Fireworks `/quotas`, AI21 auth probe, `pipefail` in `get-claude-usage`,
+9Router cached tokens, `PillProgressRing` clamp, dispatch coverage as a CI
+hard gate, and the docs rewrites). The report itself was never tracked by git
+— it is `.gitignore`d — so nothing shipped with it and no carry-over remains.
 
-- [ ] **Kimi Code `/usages` live schema verification** — the parser added in 1.8.0 handles two payload shapes from community sources (`Golden0Voyager/kimi-code-usage`), not an official spec. Validate against a real `sk-kimi-` key, pin the actual field names, and trim the defensive dual-shape jq once the live shape is confirmed. `M · ★★★`
-- [ ] **Simultaneous Kimi cards** — key-routing means a user with BOTH an Open Platform `sk-xxx` balance key and a Kimi Code `sk-kimi-` subscription key sees only one. Emit two cards (balance + coding) when both creds exist. `M · ★★`
-- [ ] **Notification click action** — open the popout focused on the offending provider. `M · ★★★` _(moved up from Dashboard-UX)_
-- [ ] **Multi-window quota notifications** — `checkNotifications()` only evaluates the primary window; extend it to every quota window (or at least the window chosen for the DankBar via `barWindowOverrides`, shipped in 1.11.0). Users who watch the 7-day window want alerts on it too. `M · ★★★`
-- [ ] **DankBar pill tooltip** — hovering the pill could show "Claude · 7 day · 31% · resets in 2d" so the displayed window (see `barWindowOverrides`, 1.11.0) is self-evident. `S · ★★`
+- [ ] **Kimi Code `/usages` live schema verification** — the parser added in 1.8.0 handles two payload shapes from community sources (`Golden0Voyager/kimi-code-usage`), not an official spec. Validate against a real `sk-kimi-` key, pin the actual field names, and trim the defensive dual-shape jq once the live shape is confirmed. **Blocked:** needs a paid Kimi Code subscription key. `M · ★★★`
+- [ ] **Simultaneous Kimi cards** — key-routing means a user with BOTH an Open Platform `sk-xxx` balance key and a Kimi Code `sk-kimi-` subscription key sees only one. Emit two cards (balance + coding) when both creds exist. **Blocked** on the same missing credentials. `M · ★★`
+- [ ] **Notification click action** — open the popout focused on the offending provider (`focusedProviderId` already exists). **Blocked on a design decision:** `notify-send` only reports an invoked action from a process that stays alive for the notification's lifetime, so the fire-and-forget `send-quota-alert` would have to keep one background process per armed alert, or be rewritten onto `gdbus` `Notify` + an `ActionInvoked` monitor. Routing the click back into the right widget instance also needs an IPC target that multi-monitor bars can share without duplicate `IpcHandler` registrations. `L · ★★★`
+- [x] ~~**Multi-window quota notifications**~~ — done: `notifyWindowScope` (`displayed` / `all` / `primary`), `checkNotifications()` iterates `notifyWindowsFor()`.
+- [x] ~~**DankBar pill tooltip**~~ — done: hovering the pill reads "Claude · 7 day · 31% · resets in 2d", gated by the `pillTooltip` setting.
 - [x] ~~**Icon reconciliation** (audit 2.16)~~ — done in 1.8.1: `ProviderLogo.defaultIcon` is the single source; widget `iconForProvider()` and settings `fallbackIcon` overrides removed.
 - [x] ~~**Finish UI i18n**~~ — done in 1.8.1: `"5h"` (2.9), pill `ERR`/`N/A` (2.11) localized; 3 dead keys removed (2.20). Non-issues: `notify.body` is live (not dead); the `String.replace` `$`-bug (2.19) is already avoided via function-replacement `() => value`. **Skipped (WONTFIX):** `formatTier()` names (2.10) — `Max 20x`/`Pro`/`Free` are brand plan names, not UI chrome.
-- [ ] **QML smoke test** — headless instantiate the three QML files with stub data to catch binding-loop / undefined-property regressions before a tag ships. Highest-leverage safety net for third-party distribution. `L · ★★`
-- [ ] **Refresh or retire `AUDIT-REPORT.md`** — it targets 1.6.0 and is mostly resolved; re-baseline to 1.8.0 or fold the open items here and delete the 41KB report. `S · ★`
+- [ ] **QML smoke test** — headless instantiate the three QML files with stub data to catch binding-loop / undefined-property regressions before a tag ships. Highest-leverage safety net for third-party distribution. Needs a Quickshell runtime with the `qs.*` modules in CI, which is why Qt5 `qmllint` is still the hard gate. `L · ★★`
 
 ## Dashboard — UX
 
-- [ ] **Notification click action** — open the popout focused on the offending provider. `M · ★★★`
 - [ ] **Drag-to-reorder pinned providers** in the dashboard (beyond star pin). `L · ★`
 
 ## Providers — Data & Auth
@@ -42,7 +43,8 @@ What remains is correctness-of-new-features, consistency, and i18n polish.
 
 ## Telemetry & History
 
-- [ ] **History export** — button to dump `usage-history.jsonl` (or CSV) from Settings. `S · ★`
+- [x] ~~**History export**~~ — done: `providers/export-usage-history csv|jsonl` plus CSV/JSONL buttons in Settings.
+- [ ] **History retention trim feedback** — the trim is silent; Settings could report how many snapshots the store currently holds next to the retention dropdown. `S · ★`
 
 ## Claude Analytics
 
@@ -50,12 +52,13 @@ What remains is correctness-of-new-features, consistency, and i18n polish.
 
 ## Settings
 
-- [ ] **Threshold validation/feedback** — validate the per-provider `notifyThresholds` CSV inline and show parse errors. `S · ★★`
-- [ ] **Reset-to-defaults** action for plugin settings. `S · ★`
+- [x] ~~**Threshold validation/feedback**~~ — done: `notifyThresholdIssues()` flags malformed pairs, unknown/duplicate/untracked providers, and out-of-range percentages while typing.
+- [x] ~~**Reset-to-defaults**~~ — done: two-step confirm restores every key in `settingDefaults`; `settingsEpoch` forces the controls to re-read.
 
 ## Quality / CI
 
 - [ ] **QML smoke test** — headless instantiate of the three QML files with stub data to catch binding-loop / undefined-property regressions. `L · ★★`
+- [ ] **Flow/anchor lint** — a direct child of `Flow` that sets `anchors.*` silently disables the whole `Flow` at runtime; Qt5 `qmllint` cannot see it. A small AST/brace-depth check in CI (like the existing expanded-card nesting gate) would catch the next one. `S · ★★`
 
 ## Packaging / Marketplace
 

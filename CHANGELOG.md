@@ -2,9 +2,56 @@
 
 ## Unreleased
 
+## 1.12.0 - 2026-08-22
+
 ### Claude provider config directory override
 
-- The Claude adapter now honors `CLAUDE_CONFIG_DIR` when resolving where Claude Code keeps its local state, falling back to `$HOME/.claude` when the variable is unset — matching Claude Code's own resolution order.
+- The Claude adapter now honors `CLAUDE_CONFIG_DIR` when resolving where Claude Code keeps its local state, falling back to `$HOME/.claude` when the variable is unset — matching Claude Code's own resolution order. Both the adapter and the health check follow the same order, so a non-default config directory no longer reports the provider as missing. Contributed by [@goulartdev](https://github.com/goulartdev) ([#18](https://github.com/bernardopg/AiOverviewControl/pull/18)).
+
+### Multi-window quota notifications
+
+- Added `notifyWindowScope`. Until now `checkNotifications()` only ever evaluated the primary window, so a user watching Claude's 7 day window in the DankBar (`barWindowOverrides`, 1.11.0) still got alerts for the 5 hour one.
+  - `displayed` (new default) alerts on whatever window the DankBar shows for each provider. With no override configured this is byte-for-byte the previous behaviour, so existing installs see no change until they opt in.
+  - `all` alerts on every window the provider reports — Claude's 5 hour *and* 7 day, Codex's weekly, and so on.
+  - `primary` pins the pre-1.12 behaviour.
+- Each window keeps its own dedupe key (`provider:kind:minutes:bucket`), so two windows of the same provider alert independently instead of overwriting each other, and the disk-backed cooldown in `send-quota-alert` still applies per window. Windows that hash to the same identity — possible under `all` when a payload reports two windows with neither a duration nor a reset — are collapsed to the first, so one key can never be fought over inside a single pass.
+- Sorting, the hero, the fleet rollup, history, and sparklines are untouched: they still read the primary window.
+
+### DankBar pill tooltip
+
+- Hovering the pill now reads, for example, `Claude · 7 day · 31% · resets in 2d`. With `barWindowOverrides` the bar percentage is not necessarily the primary window, so the number alone was ambiguous; the tooltip names the window it came from. With several providers in the pill each is listed without the reset, which would not fit on one line.
+- Implemented by reading `BasePill.isMouseHovered` rather than layering another `MouseArea` over the pill, so the bar's own click, ripple, and hover highlight are untouched. The tooltip window is created lazily on first hover and positioned against the bar edge (top, bottom, left, or right). New `pillTooltip` setting, enabled by default.
+
+### Usage history export
+
+- New `providers/export-usage-history csv|jsonl [directory]` writes the local history store to a timestamped `0600` file and prints its path. CSV carries `timestamp_iso,timestamp_epoch,provider,percent` with the percentage rounded to two decimals; JSONL is the raw store with unparsable lines dropped. The destination defaults to the XDG download directory, then `~/Downloads`, then `$HOME`.
+- Settings exposes it as **Export usage history** with CSV and JSONL buttons, reporting the written path or the script's own reason for failing (no history yet, unwritable destination).
+- The store is trimmed to `historyRetention` snapshots, so this is the only way to keep long-term data.
+
+### Settings
+
+- **Per-provider threshold validation.** `notifyThresholds` entries that the widget silently discards are now reported while typing: malformed pairs, unknown provider IDs (aliases such as `z.ai` and `agy` are accepted, matching the runtime), duplicates, providers that are not tracked, and percentages outside 1–100. Previously the only symptom of a typo was an alert that never arrived.
+- **Reset to defaults.** A two-step confirm restores every persisted key, including tracked providers, pins, thresholds, and DankBar overrides; recorded usage history is kept. A `settingsEpoch` counter forces every control to re-read its stored value, since settings widgets evaluate `loadValue()` once at construction.
+- The provider-logo swatch now treats an empty stored color as "follow the theme accent", the same contract the widget already used, instead of assigning an invalid color.
+
+### Fixes
+
+- The Hermes "Session sources" label set `anchors.verticalCenter` while being a direct child of a `Flow`. Qt responds by disabling the whole `Flow` (`Flow will not function`), so the source badges were not being laid out. The label is now centred against the badge height instead.
+
+### Quality
+
+- New CI gate: a direct child of a `Flow` that sets `anchors.*` fails the QML job. `qmllint` cannot see this class of bug because the file stays syntactically valid; the check walks brace depth and only flags anchors exactly one level inside a `Flow`, so legitimate anchors on nested items still pass. Verified to catch the Hermes regression above.
+- Three i18n keys with no call site (`card.provider`, `card.provider_description`, `settings.health.pending`) removed from all five locales.
+- The v1.6.0 audit report is closed. Every P0/P1 finding was re-verified against the current tree — Codex `rateLimitResetCredits`, versions read from `plugin.json`, Cloudflare `String!`, Fireworks `/quotas`, AI21 auth probe, `pipefail` in `get-claude-usage`, 9Router cached tokens, `PillProgressRing` clamp, dispatch coverage as a CI hard gate, and the documentation rewrites are all in place. The report was never tracked by git, so nothing shipped with it.
+
+### Documentation
+
+- `configuration.md`, `architecture.md`, and both READMEs document `notifyWindowScope`, `pillTooltip`, the export script, and reset-to-defaults. The `barWindowOverrides` rows no longer claim that notifications always keep the primary window — they follow the bar's window by default as of this release.
+- `troubleshooting.md` gains "A quota window never alerts" (the `displayed` vs `all` scope, and where discarded threshold entries are now reported) and "Exporting the usage history", including the export script's exit codes.
+
+### Thanks
+
+- Thanks to [@goulartdev](https://github.com/goulartdev) for his contribution to this release.
 
 ## 1.11.0 - 2026-08-17
 

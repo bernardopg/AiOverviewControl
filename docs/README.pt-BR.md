@@ -29,7 +29,7 @@ billing, autenticação e telemetria local de uso de IA — direto na sua DankBa
 
 > 🎬 Prefere mais qualidade? Assista ao [demo em MP4](./assets/demo.mp4).
 
-A pílula fica na DankBar e mostra o uso ao vivo. Provedores com múltiplas janelas de cota (as de 5 horas e 7 dias do Claude, por exemplo) podem exibir qualquer janela na barra — escolha por provedor, ou deixe `highest` seguir a mais apertada:
+A pílula fica na DankBar e mostra o uso ao vivo. Provedores com múltiplas janelas de cota (as de 5 horas e 7 dias do Claude, por exemplo) podem exibir qualquer janela na barra — escolha por provedor, ou deixe `highest` seguir a mais apertada. Passe o mouse sobre a pílula para ver de qual janela veio o número e quando ela reseta:
 
 ![Pílula na DankBar](./assets/bar-pill.png)
 
@@ -57,7 +57,8 @@ inventados. Nunca.
 | 🗂️ **Cartões ricos** | Janelas de uso, horários de reset, identidade, créditos, sparklines, tendências e links para o console. |
 | 🛡️ **Falhas isoladas** | Um timeout ou credencial inválida nunca esconde provedores saudáveis. |
 | 🎛️ **Layout flexível** | Densidade compacta/confortável, filtros por status, provedores fixados e pílula `auto`/`custom`/`top`. |
-| 🔔 **Notificações de cota** | Alertas do DMS com a marca do provedor, limiares globais/por provedor e atualização no mesmo toast quando a cota esgota. |
+| 🔔 **Notificações de cota** | Alertas do DMS com a marca do provedor, limiares globais/por provedor e atualização no mesmo toast quando a cota esgota. Os alertas podem seguir a janela exibida na barra, todas as janelas ou apenas a primária. |
+| 📄 **Exportação de histórico** | Salve o histórico local de uso em CSV ou JSONL pelas Configurações ou por `providers/export-usage-history`. |
 | 🌍 **5 idiomas de UI** | English, Português (BR), 简体中文, Español e Deutsch. |
 | 🔒 **Privacidade em primeiro lugar** | Adaptadores locais, nenhuma chamada paga só para testar chave, segredos nunca exibidos. |
 
@@ -175,6 +176,7 @@ As configurações são armazenadas pelo DMS e sobrevivem a upgrades do plugin.
 | Modo da pílula | `auto`, `custom`, `top` | `auto` |
 | Provedores da pílula customizada | IDs de provedores monitorados separados por vírgula | provedores monitorados |
 | Janela de uso no DankBar | pares `provedor:janela`, com janela `primary`, `secondary`, `tertiary` ou `highest` (ex.: `claude:secondary`) | janela primária |
+| Tooltip da pílula no DankBar | ativado ou desativado | ativado |
 | Provedores fixados | IDs separados por vírgula | vazio |
 | Cor dos logos | qualquer string de cor aceita pelo QML | cor primária atual do DMS |
 | Intervalo de atualização | 1, 2, 5, 15 ou 30 minutos | 2 minutos |
@@ -183,9 +185,14 @@ As configurações são armazenadas pelo DMS e sobrevivem a upgrades do plugin.
 | Modelos individuais do Antigravity | habilitado ou desabilitado | desabilitado |
 | Notificações de cota | habilitado ou desabilitado | habilitado |
 | Limiar global de notificação | 75%, 85% ou 95% | 85% |
-| Limiares por provedor | pares `provedor:percentual` separados por vírgula (ex.: `claude:90,codex:75`) | vazio |
+| Limiares por provedor | pares `provedor:percentual` separados por vírgula (ex.: `claude:90,codex:75`), validados na hora | vazio |
+| Janelas que geram alertas | `displayed` (segue a janela do DankBar), `all` ou `primary` | `displayed` |
 | Intervalo de repetição | uma vez por janela, 1h, 6h ou 24h (atualiza o alerta existente) | uma vez por janela |
 | Retenção de histórico | 500, 2.000 ou 10.000 snapshots | 2.000 |
+
+As Configurações também oferecem **Exportar histórico de uso** (CSV ou JSONL) e
+um **Redefinir configurações do plugin** em dois passos, que restaura todas as
+opções acima sem tocar no histórico registrado.
 
 A seleção padrão de provedores é:
 
@@ -210,7 +217,9 @@ ambiente e o comportamento do health-check.
   horário de atualização, sem inventar campos indisponíveis.
 - Snapshots de uso são armazenados localmente em
   `~/.cache/AiOverviewControl/usage-history.jsonl` e podados conforme a
-  retenção configurada.
+  retenção configurada. Como o arquivo é podado,
+  `providers/export-usage-history csv|jsonl` (também um botão nas
+  Configurações) é a forma de guardar dados de longo prazo.
 - O analytics do Claude roda separadamente, para que falhas de histórico local
   ou de OAuth não bloqueiem a coleta principal.
 
@@ -249,6 +258,7 @@ qmllint \
   "codex,claude,copilot,pi" \
   ./providers/get-copilot-usage | jq .
 ./providers/get-usage-history | jq .
+./providers/export-usage-history csv /tmp
 ```
 
 O GitHub Actions também valida sintaxe dos workflows, paridade de chaves de
@@ -266,6 +276,7 @@ AiOverviewControlI18n.qml         Carregamento de locales e interpolação
 ProviderLogo.qml                  Resolução e fallback dos logos locais de provedores
 providers/get-provider-usage      Dispatcher multi-provedor e escritor de histórico
 providers/get-provider-health     Verificações locais de pré-requisitos
+providers/export-usage-history    Exportação do histórico de uso em CSV ou JSONL
 providers/get-codex-usage         Ponte do protocolo codex app-server
 providers/get-claude-usage        Ponte de cota e analytics local do Claude
 providers/get-copilot-usage       Ponte de cota do GitHub Copilot

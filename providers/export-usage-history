@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+# Dumps the local usage-history store to a timestamped file the user can keep.
+#
+# Usage: export-usage-history [csv|jsonl] [destination-directory]
+#
+# Prints the absolute path of the written file on stdout (and nothing else), so
+# the caller can show it verbatim. Exits non-zero with a short reason on stderr
+# when there is nothing to export.
+
+format="${1:-csv}"
+case "$format" in
+  csv | jsonl) ;;
+  *)
+    echo "unsupported format: ${format} (expected csv or jsonl)" >&2
+    exit 2
+    ;;
+esac
+
+HISTORY_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/usage-history.jsonl"
+if [ ! -s "$HISTORY_FILE" ]; then
+  echo "no usage history recorded yet" >&2
+  exit 3
+fi
+
+# Destination: explicit argument, then the XDG download directory, then $HOME.
+# user-dirs.dirs is sourced in a subshell so its assignments cannot leak into
+# this script's environment.
+resolve_download_dir() {
+  local configured=""
+  local dirs_file="${XDG_CONFIG_HOME:-$HOME/.config}/user-dirs.dirs"
+  if [ -r "$dirs_file" ]; then
+    configured="$(
+      # shellcheck disable=SC1090
+      . "$dirs_file" >/dev/null 2>&1
+      printf '%s' "${XDG_DOWNLOAD_DIR:-}"
+    )"
+  fi
+  configured="${configured:-${XDG_DOWNLOAD_DIR:-}}"
+  if [ -n "$configured" ]; then
+    printf '%s' "$configured"
+    return
+  fi
+  if [ -d "${HOME}/Downloads" ]; then
+    printf '%s' "${HOME}/Downloads"
+    return
+  fi
+  printf '%s' "$HOME"
+}
+
+target_dir="${2:-$(resolve_download_dir)}"
+mkdir -p "$target_dir" 2>/dev/null || {
+  echo "cannot create destination: ${target_dir}" >&2
+  exit 4
+}
+
+stamp="$(date +%Y%m%d-%H%M%S)"
+out_file="${target_dir}/aioverviewcontrol-usage-${stamp}.${format}"
+tmp="$(mktemp "${target_dir}/.aioverviewcontrol-export.XXXXXX")" || {
+  echo "cannot write to destination: ${target_dir}" >&2
+  exit 4
+}
+trap 'rm -f "$tmp"' EXIT
+
+# Read line-by-line as raw text and parse each with `fromjson?`: a truncated
+# or interleaved append (two writers, a crash mid-line) would otherwise abort
+# the whole export with a jq parse error instead of dropping one record.
+if [ "$format" = "jsonl" ]; then
+  jq -cR 'fromjson? | select(type == "object")' "$HISTORY_FILE" >"$tmp"
+else
+  {
+    printf 'timestamp_iso,timestamp_epoch,provider,percent\n'
+    jq -rR '
+      fromjson?
+      | select(type == "object")
+      | [
+          ((.ts // 0) | if . > 0 then (todate) else "" end),
+          (.ts // 0),
+          (.provider // ""),
+          (((.pct // 0) * 100 | round) / 100)
+        ]
+      | @csv
+    ' "$HISTORY_FILE"
+  } >"$tmp"
+fi
+
+if [ ! -s "$tmp" ]; then
+  echo "usage history contains no readable snapshots" >&2
+  exit 3
+fi
+
+mv "$tmp" "$out_file"
+trap - EXIT
+chmod 600 "$out_file"
+printf '%s\n' "$out_file"
