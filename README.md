@@ -96,7 +96,7 @@ Notable integrations:
 | Provider | Data source |
 | --- | --- |
 | Codex | Official `codex app-server` account and rate-limit methods. |
-| Claude Code | OAuth quota plus local `~/.claude/projects` analytics. |
+| Claude Code | OAuth quota plus local `~/.claude/projects` analytics (or `$CLAUDE_CONFIG_DIR/projects` when that env var is set). |
 | GitHub Copilot | Authenticated GitHub/Copilot quota snapshot. |
 | Antigravity | Gemini and Claude/OpenAI quota families with reset times from Cloud Code Assist; optional per-model diagnostics and automatic multi-account separation. |
 | 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Claude provider config directory override
+
+- The Claude adapter now honors `CLAUDE_CONFIG_DIR` when resolving where Claude Code keeps its local state, falling back to `$HOME/.claude` when the variable is unset — matching Claude Code's own resolution order.
+
 ## 1.11.0 - 2026-08-17
 
 ### DankBar usage-window selection
