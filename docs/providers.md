@@ -160,6 +160,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><a href="https://platform.minimax.io/docs/api-reference">platform.minimax.io/docs</a></td>
 </tr>
 <tr>
+<td><code>commandcode</code></td>
+<td>Quota</td>
+<td>✅ <code>GET /provider/v1/models</code></td>
+<td>✅ <code>/alpha/billing/credits</code> (5h + weekly)</td>
+<td>✅ Go / GOAT / Pro / Max / Team Pro / Provider API</td>
+<td>✅ USD credit balance + per-window USD usage</td>
+<td><code>COMMAND_CODE_API_KEY</code></td>
+<td><a href="https://commandcode.ai/billing">commandcode.ai/billing</a></td>
+<td><a href="https://commandcode.ai/docs/provider">Provider API docs</a></td>
+</tr>
+<tr>
 <td><code>kimi</code></td>
 <td>Balance / Quota</td>
 <td>✅ <code>GET /v1/models</code></td>
@@ -532,6 +543,20 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Dashboard** | [platform.minimax.io](https://platform.minimax.io): keys `/user-center/basic-information/interface-key`, balance `/user-center/payment/balance`, Token Plan `/user-center/payment/token-plan`. |
 | **Changelog** | **2026-06-01 MiniMax-M3** (1M ctx, adaptive thinking, coding SOTA). 2026-03-18 M2.7/M2.7-highspeed. 2026-02 M2.5. 2025-12-22 M2.1. 2025-10-27 M2 + Hailuo-2.3. Token Plan replaced Coding Plan (broader coverage, separate Subscription Key). |
 | **Adapter** | `fetch_minimax_native` — `/v1/models` validation. |
+
+### Command Code
+
+| | |
+| --- | --- |
+| **API base** | `https://api.commandcode.ai/provider/v1` (OpenAI/Anthropic-compatible); quota `https://api.commandcode.ai/alpha/billing/credits` (Bearer, no cookies). |
+| **Env var** | `COMMAND_CODE_API_KEY` — same Provider API key used for `/provider/v1/models`, `/alpha/whoami`, `/alpha/billing/credits`. |
+| **Auth** | `Authorization: Bearer ***` |
+| **Quota / balance** | `/alpha/billing/credits` returns `windowLimits.fiveHour` (5h USD used/cap, Unix-ms `resetAt`), `windowLimits.weekly` (7-day USD used/cap, Unix-ms `resetAt`), and `credits.monthlyCredits` (remaining USD this billing cycle). `/alpha/billing/subscriptions` exposes `planId` (e.g. `individual-goat`) and `currentPeriodEnd`. |
+| **Plans** | **Go** $1 / $10 credit &middot; **GOAT** $10 / $70 credit, 5h $14 / weekly $35 &middot; **Pro** $20 / $80 credit, 5h $16 / weekly $40 &middot; **Max 10×** $100 / $150 credit, 5h $45 / weekly $90 &middot; **Max 20×** $200 / $300 credit, 5h $90 / weekly $180 &middot; **Team Pro** $40 / $40 credit, 5h $12 / weekly $24 &middot; **Provider API** $15 + pay-as-you-go. |
+| **Billing** | Per-token, no markup on the Provider plan. Credits roll over and never expire. Window caps are USD ceilings — model deals (e.g. `minimax-m3` 2×, `google/gemini-3.7-flash` 50% off, `mimo-v2.5-pro` 99% off) apply automatically. |
+| **Stability** | The `/alpha/` namespace is **experimental** — no documented versioned contract, can change without notice. Adapter degrades to the documented `/provider/v1/models` endpoint on alpha failure and emits a clearly-labeled "quota endpoint unavailable" note; it never fabricates a percentage. |
+| **Dashboard** | [commandcode.ai/billing](https://commandcode.ai/billing) — billing, plan, and credit top-ups. |
+| **Adapter** | `fetch_commandcode_native` — `/alpha/billing/credits` + `/alpha/whoami` + `/alpha/billing/subscriptions`, with documented-endpoint fallback. |
 
 ### Kimi (Moonshot AI)
 
