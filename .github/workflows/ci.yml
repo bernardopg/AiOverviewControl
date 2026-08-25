@@ -272,6 +272,15 @@ jobs:
           selectable = set(re.findall(r'\{ id:"([^"]+)"', provider_block))
           missing_selectable = sorted(selectable - canonical)
           hidden_canonical = sorted(canonical - selectable)
+
+          # health coverage: every selectable provider needs a case in
+          # get-provider-health, or Settings reports "unknown provider".
+          health_src = Path('providers/get-provider-health').read_text()
+          health_tokens = set()
+          for m in re.finditer(r'^\s+([\w.|/-]+)\)', health_src, re.M):
+              health_tokens.update(t.strip() for t in m.group(1).split('|'))
+          missing_health = sorted(selectable - health_tokens)
+
           errors = []
 
           if missing_dispatch:
@@ -282,6 +291,8 @@ jobs:
               errors.append(f'Selectable providers with no canonical dispatch: {missing_selectable}')
           if hidden_canonical:
               errors.append(f'Canonical dispatch cases absent from settings: {hidden_canonical}')
+          if missing_health:
+              errors.append(f'Selectable providers with no health-check case: {missing_health}')
 
           print(f'Coverage: {len(selectable)} selectable providers, {len(stubs)} stubs, '
                 f'{len(dispatched)} dispatch entries ({len(canonical)} canonical).')

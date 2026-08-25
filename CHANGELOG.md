@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.13.1 - 2026-08-25
+
+### Command Code follow-ups
+
+- The Settings readiness check now recognizes Command Code: `get-provider-health` gained a `commandcode|cmd|cmdcode` case, so the health chip reports **ready** with `COMMAND_CODE_API_KEY` set and **missing** with a pointed hint otherwise (previously "unknown provider"). Follow-up to [#21](https://github.com/bernardopg/AiOverviewControl/pull/21).
+- `ProviderLogo.qml` fallback-icon map includes `commandcode` (terminal icon), shown if the SVG ever fails to load.
+- CI provider-dispatch coverage now also asserts every selectable provider has a `get-provider-health` case, so a provider missing its readiness check fails the build instead of shipping as "unknown".
+
 ## 1.13.0 - 2026-08-25
 
 ### Command Code provider
