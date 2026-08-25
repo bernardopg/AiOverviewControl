@@ -7,6 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+HDR_LOG="$TMP/headers.log"
 mkdir -p "$TMP/bin"
 
 # Fake curl that mimics real curl behavior:
@@ -34,6 +35,7 @@ for ((i = 0; i < ${#args[@]}; i++)); do
   case "${args[$i]}" in
     -o) out="${args[$((i + 1))]}" ;;
     -w) write_code=1 ;;
+    -H) printf '%s\n' "${args[$((i + 1))]}" >> "${HDR_LOG:-/dev/null}" ;;
     http*) url="${args[$i]}" ;;
   esac
 done
@@ -65,7 +67,7 @@ make_stub '  *alpha/billing/credits*)      [ -n "$out" ] && cp "'"$ROOT"'/tests/
   *alpha/billing/subscriptions*)[ -n "$out" ] && cp "'"$ROOT"'/tests/fixtures/commandcode-subscriptions.json" "$out" ;;
   *alpha/whoami*)               [ -n "$out" ] && cp "'"$ROOT"'/tests/fixtures/commandcode-whoami.json"       "$out" ;;'
 
-run() { PATH="$TMP/bin:$PATH" "$@" "$ROOT/providers/get-provider-usage" commandcode 2>/dev/null; }
+run() { PATH="$TMP/bin:$PATH" HDR_LOG="$HDR_LOG" "$@" "$ROOT/providers/get-provider-usage" commandcode 2>/dev/null; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
 out="$(run env -u COMMAND_CODE_API_KEY COMMAND_CODE_API_KEY=user_test)"
@@ -79,6 +81,9 @@ out="$(run env -u COMMAND_CODE_API_KEY COMMAND_CODE_API_KEY=user_test)"
 # shellcheck disable=SC2016
 [ "$(jq -r '.[0].credits.remaining'                 <<<"$out")" = '$32.50' ]                       || fail "monthly USD credits"
 [ "$(jq -r '.[0].usage.identity.accountEmail'       <<<"$out")" = "Test User (test@example.com)" ] || fail "identity from whoami"
+# The real API key must reach every endpoint — guards against placeholder
+# headers (a literal "Bearer ***" once slipped through and 401'd every call).
+[ "$(grep -c '^Authorization: Bearer user_test$' "$HDR_LOG")" -ge 3 ]                                || fail "auth header forwarded to alpha endpoints"
 
 # 2. No key set.
 out="$(run env -u COMMAND_CODE_API_KEY)"
@@ -87,7 +92,9 @@ out="$(run env -u COMMAND_CODE_API_KEY)"
 # 3. Alpha billing 404 → fallback to /provider/v1/models.
 # shellcheck disable=SC2016
 make_stub '  *provider/v1/models*)         [ -n "$out" ] && cp "'"$ROOT"'/tests/fixtures/commandcode-models.json"       "$out" ;;'
+: > "$HDR_LOG"
 out="$(run env -u COMMAND_CODE_API_KEY COMMAND_CODE_API_KEY=user_test)"
 [ "$(jq -r '.[0].source' <<<"$out")" = "commandcode-models" ] || fail "fallback source"
+grep -q '^Authorization: Bearer user_test$' "$HDR_LOG" || fail "auth header forwarded to models fallback"
 
 echo "OK: test-commandcode"

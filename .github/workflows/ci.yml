@@ -505,6 +505,9 @@ jobs:
       - name: Integration test — Kimi Code routing and quota fixture
         run: tests/test-kimi-code.sh
 
+      - name: Integration test — Command Code quota windows and fallback
+        run: tests/test-commandcode.sh
+
       - name: Integration test — quota notification deduplication
         run: tests/test-quota-alert.sh
 

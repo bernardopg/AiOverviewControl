@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Command Code provider
+
+- New **Command Code** (commandcode.ai) provider surfaces the live 5-hour and weekly usage windows plus the monthly USD credit balance via the same Provider API key used for the CLI (`COMMAND_CODE_API_KEY`). The `/alpha/billing/` endpoints are experimental, so the adapter degrades to the documented `/provider/v1/models` auth-only check on alpha failure — never a fabricated percentage. Contributed by [@Luna161](https://github.com/Luna161) ([#20](https://github.com/bernardopg/AiOverviewControl/issues/20), [#21](https://github.com/bernardopg/AiOverviewControl/pull/21)).
+
 ## 1.12.0 - 2026-08-22
 
 ### Claude provider config directory override
