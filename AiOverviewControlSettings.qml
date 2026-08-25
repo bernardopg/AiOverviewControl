@@ -269,6 +269,7 @@ PluginSettings {
         { id:"deepseek", name:"DeepSeek", icon:"search", mode:"telemetry", requirement:"API key", envVar:"DEEPSEEK_API_KEY", note:"Official account balance" },
         { id:"kimi", name:"Kimi", icon:"language", mode:"telemetry", requirement:"API key", envVar:"MOONSHOT_API_KEY", note:"Account balance (USD/CNY), or Kimi Code subscription quota with a sk-kimi- key / KIMI_CODING_API_KEY" },
         { id:"minimax", name:"MiniMax", icon:"bar_chart", mode:"telemetry", requirement:"API key", envVar:"MINIMAX_API_KEY", note:"Official models API authentication check" },
+        { id:"commandcode", name:"Command Code", icon:"terminal", mode:"telemetry", requirement:"API key", envVar:"COMMAND_CODE_API_KEY", note:"Provider API key — same key used for the CLI and the Provider API. Reads /alpha/billing/credits for 5h/weekly/monthly quota; falls back to /provider/v1/models on alpha failure." },
         { id:"glm", name:"GLM", icon:"memory", mode:"telemetry", requirement:"API key", envVar:"GLM_API_KEY", note:"China (Zhipu) quota windows and plan; falls back to models authentication" },
         { id:"zai", name:"Z.ai", icon:"bubble_chart", mode:"telemetry", requirement:"API key", envVar:"ZAI_API_KEY", note:"Official quota windows and plan; falls back to models authentication" },
         { id:"mistral", name:"Mistral", icon:"wind_power", mode:"telemetry", requirement:"API key", envVar:"MISTRAL_API_KEY", note:"Official models API authentication check" },

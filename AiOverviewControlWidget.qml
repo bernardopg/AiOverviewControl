@@ -184,6 +184,7 @@ PluginComponent {
         "glm",
         "zai",
         "minimax",
+        "commandcode",
         "qwen",
         "nvidia",
         "cloudflare",
@@ -587,6 +588,9 @@ PluginComponent {
             zhipu: "GLM",
             zai: "Z.ai",
             minimax: "MiniMax",
+            commandcode: "Command Code",
+            cmd: "Command Code",
+            cmdcode: "Command Code",
             qwen: "Qwen",
             dashscope: "Qwen",
             alibaba: "Qwen",
@@ -845,6 +849,7 @@ PluginComponent {
         if (providerId === "mistral") return Theme.warning;
         if (providerId === "glm" || providerId === "zhipu" || providerId === "zai") return Theme.primary;
         if (providerId === "minimax") return Theme.success;
+        if (providerId === "commandcode" || providerId === "cmd" || providerId === "cmdcode") return Theme.primary;
         if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return Theme.warning;
         if (providerId === "nvidia" || providerId === "nim") return Theme.success;
         if (providerId === "cloudflare") return Theme.warning;
@@ -1316,6 +1321,9 @@ PluginComponent {
             zhipu: "https://open.bigmodel.cn/usercenter/financial",
             zai: "https://z.ai/manage-apikey/billing",
             minimax: "https://platform.minimax.io/user-center/payment/balance",
+            commandcode: "https://commandcode.ai/billing",
+            cmd: "https://commandcode.ai/billing",
+            cmdcode: "https://commandcode.ai/billing",
             qwen: "https://dashscope.console.aliyun.com",
             dashscope: "https://dashscope.console.aliyun.com",
             alibaba: "https://dashscope.console.aliyun.com",

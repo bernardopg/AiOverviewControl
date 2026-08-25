@@ -12,7 +12,7 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](./LICENSE)
-[![Providers](https://img.shields.io/badge/providers-36-7C4DFF)](./docs/providers.md)
+[![Providers](https://img.shields.io/badge/providers-37-7C4DFF)](./docs/providers.md)
 [![Languages](https://img.shields.io/badge/UI%20languages-5-00BFA5)](./docs/i18n-crowdin.md)
 
 [Install](#installation) · [Screenshots](#screenshots) · [Providers](./docs/providers.md) ·
@@ -48,7 +48,7 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 
 | | |
 | --- | --- |
-| 📊 **Unified dashboard** | 36 AI providers and developer tools in one place. |
+| 📊 **Unified dashboard** | 37 AI providers and developer tools in one place. |
 | 🛰️ **Fleet overview** | Cross-provider rollup in the hero — quota-only average load, hottest provider, how many are near their cap, and the soonest reset. |
 | ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
 | 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
@@ -109,6 +109,7 @@ Notable integrations:
 | Together | Read-only API-key validation; usage and billing remain in the Together console. |
 | Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
 | Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check. |
+| Command Code | Live 5h/weekly/monthly usage via `/alpha/billing/credits`. |
 | xAI, MiniMax, Qwen, Mistral | Read-only `/models` (or `/api-key`) validation — zero token consumption. |
 | NVIDIA | Configured-key status only; its public model catalog cannot validate the key. |
 | Ollama | Installed and running models from `/api/tags` and `/api/ps`. |
