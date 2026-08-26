@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.13.3 - 2026-08-26
+
+### Hermetic test suites
+
+- The Command Code, Kimi Code, and Antigravity suites drive the real `get-provider-usage` dispatcher against fixtures but did not sandbox `XDG_CACHE_HOME`, so every local run appended fixture snapshots to the real `~/.cache/AiOverviewControl/usage-history.jsonl` — a Command Code free account that never touched the service showed a constant 30% line (the fixture's 4.20/14), alongside Kimi 75.38% and Antigravity 80% fixture values. All three suites now export a sandboxed cache directory, matching the isolation `test-history-export.sh` and `test-quota-alert.sh` already had. CI runners were unaffected (clean `$HOME`); the pollution only hit local dev machines.
+- Local-verification documentation (EN and pt-BR) now states the hermetic contract: fixture-backed dispatcher runs never write to the user's history store.
+- Local agent-tool directories (`.commandcode/`, `.opencode/`) are ignored, matching `.codex` and `.claude`.
+
 ## 1.13.2 - 2026-08-26
 
 ### Command Code credential discovery
