@@ -110,7 +110,7 @@ Integrações medidas notáveis:
 | Together | Validação somente leitura da chave; uso e billing permanecem no console da Together. |
 | Cloudflare | Verificação de token e analytics opcional do Workers AI via GraphQL. |
 | Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — uso real por janela, timestamps de reset e plano da assinatura. Faz fallback para verificação apenas de autenticação via `/models`. |
-| Command Code | Uso ao vivo das janelas de 5h/semanal/mensal via `/alpha/billing/credits`. |
+| Command Code | Uso ao vivo das janelas de 5h/semanal/mensal via `/alpha/billing/credits`; usa `COMMAND_CODE_API_KEY` ou o `apiKey` protegido salvo por `cmd login` em `~/.commandcode/auth.json`. |
 | xAI, MiniMax, Qwen, Mistral | Validação somente leitura via `/models` (ou `/api-key`) — consumo zero de tokens. |
 | NVIDIA | Apenas status da chave configurada; o catálogo público de modelos não permite validar a chave. |
 | Ollama | Modelos instalados e em execução via `/api/tags` e `/api/ps`. |

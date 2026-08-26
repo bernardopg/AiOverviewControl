@@ -1473,14 +1473,27 @@ fetch_minimax_native() {
   json_error minimax minimax-api "${http_status:-1}" provider "MiniMax API key invalid (HTTP ${http_status:-0}). Balance visible at platform.minimax.io only."
 }
 
+commandcode_api_key() {
+  # `cmd login` persists the same Provider API key in this 0600 CLI-owned
+  # file. Prefer an explicit environment value, but let graphical DMS sessions
+  # use the installed CLI's login without requiring shell startup files.
+  local auth_file="${HOME}/.commandcode/auth.json"
+  if [ -n "${COMMAND_CODE_API_KEY:-}" ]; then
+    printf '%s' "$COMMAND_CODE_API_KEY"
+  elif [ -r "$auth_file" ]; then
+    jq -r 'if (.apiKey | type) == "string" then .apiKey else empty end' "$auth_file" 2>/dev/null || true
+  fi
+}
+
 fetch_commandcode_native() {
   # Command Code (commandcode.ai) — coding-agent subscription quota. The same
   # Provider API key drives inference (/provider/v1/models) and quota
   # introspection (/alpha/billing/credits). The /alpha/ namespace is
   # experimental, so on failure we degrade to /provider/v1/models (auth-only).
-  local key="${COMMAND_CODE_API_KEY:-}"
+  local key
+  key="$(commandcode_api_key)"
   if [ -z "$key" ]; then
-    json_error commandcode commandcode-api 2 provider "COMMAND_CODE_API_KEY is not set. Get your key at commandcode.ai/studio"
+    json_error commandcode commandcode-api 2 provider "Command Code credentials are unavailable. Set COMMAND_CODE_API_KEY in DMS's graphical session or sign in with cmd login."
     return 0
   fi
 

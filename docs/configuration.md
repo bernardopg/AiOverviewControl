@@ -58,7 +58,14 @@ One detected account stays in the normal provider-card layout. When two or more 
 
 ## Environment variables
 
-Environment variables must be present in the process that starts DMS. Shell-only exports may not reach a graphical session.
+Environment variables must be present in the process that starts DMS. Shell-only exports (including `~/.zshenv`) may not reach a graphical session. For a systemd-managed DMS session, either run `cmd login` for Command Code (the plugin safely reads its CLI-owned `~/.commandcode/auth.json` fallback), or import an already-exported key and restart DMS:
+
+```bash
+systemctl --user import-environment COMMAND_CODE_API_KEY
+systemctl --user restart dms.service
+```
+
+For a durable environment-variable setup, configure your display manager or user-service environment rather than relying on an interactive shell.
 
 ## Provider readiness labels
 
@@ -77,7 +84,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | DeepSeek | `DEEPSEEK_API_KEY` |
 | Kimi | Balance: `MOONSHOT_API_KEY` or `KIMI_API_KEY` (optional `MOONSHOT_API_BASE`). Kimi Code subscription quota: `KIMI_CODING_API_KEY` (or a `sk-kimi-` prefixed `KIMI_API_KEY`; optional `KIMI_BASE_URL`) |
 | MiniMax | `MINIMAX_API_KEY` |
-| Command Code | `COMMAND_CODE_API_KEY` |
+| Command Code | `COMMAND_CODE_API_KEY`, or the `apiKey` saved by `cmd login` in `~/.commandcode/auth.json` |
 | GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST`; requires the `ollama` CLI in PATH |

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.13.2 - 2026-08-26
+
+### Command Code credential discovery
+
+- Command Code now uses the API key saved by `cmd login` in the CLI-owned, protected `~/.commandcode/auth.json` when `COMMAND_CODE_API_KEY` is unavailable to DMS. An explicit DMS environment variable still takes precedence. This makes npm-installed Command Code work in graphical/systemd sessions that do not inherit shell startup files such as `~/.zshenv`.
+- The readiness check recognizes both credential sources, and the provider, configuration, troubleshooting, and Brazilian Portuguese documentation explain the fallback and the correct graphical-session setup. The adapter continues to show only the monthly credit value when Command Code returns null 5-hour or weekly limits; it never fabricates a percentage.
+
+### Documentation and history export
+
+- Refreshed provider/operator guidance and clarified the usage-history export contract. CSV and JSONL exports now consistently reject a history file containing no readable snapshots rather than producing an empty export.
+
 ## 1.13.1 - 2026-08-25
 
 ### Command Code follow-ups

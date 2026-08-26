@@ -61,7 +61,14 @@ The adapter uses the GitHub-authenticated Copilot quota snapshot. If the regiona
 
 ## Environment variable is present in a terminal but missing in settings
 
-DMS may have been started before the variable was exported. Put the variable in the graphical-session environment, restart DMS, and run the health helper again. The helper reports names only, never secret values.
+DMS may have been started before the variable was exported. A shell-only export — including one in `~/.zshenv` — is not inherited by an existing systemd-managed graphical session. Import it from a terminal where it is already set, restart DMS, and run the health helper again:
+
+```bash
+systemctl --user import-environment COMMAND_CODE_API_KEY
+systemctl --user restart dms.service
+```
+
+For Command Code specifically, `cmd login` is usually preferable: the plugin reads the CLI's protected `~/.commandcode/auth.json` credential when `COMMAND_CODE_API_KEY` is absent from DMS. The helper reports credential source names only, never secret values.
 
 ## Provider shows zero percent
 

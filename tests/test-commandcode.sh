@@ -85,11 +85,27 @@ out="$(run env -u COMMAND_CODE_API_KEY COMMAND_CODE_API_KEY=user_test)"
 # headers (a literal "Bearer ***" once slipped through and 401'd every call).
 [ "$(grep -c '^Authorization: Bearer user_test$' "$HDR_LOG")" -ge 3 ]                                || fail "auth header forwarded to alpha endpoints"
 
-# 2. No key set.
-out="$(run env -u COMMAND_CODE_API_KEY)"
+# 2. A `cmd login` credential is a safe fallback for graphical sessions, which
+# normally do not source a user's shell startup file. It must also be reported
+# as ready by the settings health helper.
+CLI_HOME="$TMP/cli-home"
+mkdir -p "$CLI_HOME/.commandcode"
+printf '%s\n' '{"apiKey":"cli_test"}' > "$CLI_HOME/.commandcode/auth.json"
+chmod 600 "$CLI_HOME/.commandcode/auth.json"
+: > "$HDR_LOG"
+out="$(run env -u COMMAND_CODE_API_KEY HOME="$CLI_HOME")"
+[ "$(jq -r '.[0].source' <<<"$out")" = "commandcode-alpha" ] || fail "CLI auth source"
+grep -q '^Authorization: Bearer cli_test$' "$HDR_LOG" || fail "CLI auth header"
+health="$(env -u COMMAND_CODE_API_KEY HOME="$CLI_HOME" "$ROOT/providers/get-provider-health" commandcode 2>/dev/null)"
+[ "$(jq -r '.[0].status' <<<"$health")" = "ready" ] || fail "CLI auth health"
+
+# 3. No supported credential source.
+EMPTY_HOME="$TMP/empty-home"
+mkdir -p "$EMPTY_HOME"
+out="$(run env -u COMMAND_CODE_API_KEY HOME="$EMPTY_HOME")"
 [ "$(jq -r '.[0].error.kind' <<<"$out")" = "provider" ] || fail "no-key error kind"
 
-# 3. Alpha billing 404 → fallback to /provider/v1/models.
+# 4. Alpha billing 404 → fallback to /provider/v1/models.
 # shellcheck disable=SC2016
 make_stub '  *provider/v1/models*)         [ -n "$out" ] && cp "'"$ROOT"'/tests/fixtures/commandcode-models.json"       "$out" ;;'
 : > "$HDR_LOG"

@@ -109,7 +109,7 @@ Notable integrations:
 | Together | Read-only API-key validation; usage and billing remain in the Together console. |
 | Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
 | Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check. |
-| Command Code | Live 5h/weekly/monthly usage via `/alpha/billing/credits`. |
+| Command Code | Live 5h/weekly/monthly usage via `/alpha/billing/credits`; uses `COMMAND_CODE_API_KEY` or the protected `apiKey` saved by `cmd login` in `~/.commandcode/auth.json`. |
 | xAI, MiniMax, Qwen, Mistral | Read-only `/models` (or `/api-key`) validation — zero token consumption. |
 | NVIDIA | Configured-key status only; its public model catalog cannot validate the key. |
 | Ollama | Installed and running models from `/api/tags` and `/api/ps`. |

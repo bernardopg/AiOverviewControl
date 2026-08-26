@@ -184,7 +184,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ <code>/alpha/billing/credits</code> (5h + weekly)</td>
 <td>✅ Go / GOAT / Pro / Max / Team Pro / Provider API</td>
 <td>✅ USD credit balance + per-window USD usage</td>
-<td><code>COMMAND_CODE_API_KEY</code></td>
+<td><code>COMMAND_CODE_API_KEY</code> or CLI <code>~/.commandcode/auth.json</code></td>
 <td><a href="https://commandcode.ai/billing">commandcode.ai/billing</a></td>
 <td><a href="https://commandcode.ai/docs/provider">Provider API docs</a></td>
 </tr>
@@ -592,7 +592,7 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | | |
 | --- | --- |
 | **API base** | `https://api.commandcode.ai/provider/v1` (OpenAI/Anthropic-compatible); quota `https://api.commandcode.ai/alpha/billing/credits` (Bearer, no cookies). |
-| **Env var** | `COMMAND_CODE_API_KEY` — same Provider API key used for `/provider/v1/models`, `/alpha/whoami`, `/alpha/billing/credits`. |
+| **Credentials** | `COMMAND_CODE_API_KEY` (preferred when available to DMS), or the `apiKey` in CLI-owned `~/.commandcode/auth.json` after `cmd login`. Both are the same Provider API key used for `/provider/v1/models`, `/alpha/whoami`, `/alpha/billing/credits`. |
 | **Auth** | `Authorization: Bearer ***` |
 | **Quota / balance** | `/alpha/billing/credits` returns `windowLimits.fiveHour` (5h USD used/cap, Unix-ms `resetAt`), `windowLimits.weekly` (7-day USD used/cap, Unix-ms `resetAt`), and `credits.monthlyCredits` (remaining USD this billing cycle). `/alpha/billing/subscriptions` exposes `planId` (e.g. `individual-goat`) and `currentPeriodEnd`. |
 | **Plans** | **Go** $1 / $10 credit &middot; **GOAT** $10 / $70 credit, 5h $14 / weekly $35 &middot; **Pro** $20 / $80 credit, 5h $16 / weekly $40 &middot; **Max 10×** $100 / $150 credit, 5h $45 / weekly $90 &middot; **Max 20×** $200 / $300 credit, 5h $90 / weekly $180 &middot; **Team Pro** $40 / $40 credit, 5h $12 / weekly $24 &middot; **Provider API** $15 + pay-as-you-go. |
