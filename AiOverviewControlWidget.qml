@@ -613,7 +613,7 @@ PluginComponent {
             grok: "xAI",
             perplexity: "Perplexity",
             cline: "Cline",
-            opencode: "OpenCode",
+            opencode: "OpenCode Go",
             kilo: "Kilo",
             kiro: "Kiro",
             amp: "Amp",
@@ -850,6 +850,7 @@ PluginComponent {
         if (providerId === "glm" || providerId === "zhipu" || providerId === "zai") return Theme.primary;
         if (providerId === "minimax") return Theme.success;
         if (providerId === "commandcode" || providerId === "cmd" || providerId === "cmdcode") return Theme.primary;
+        if (providerId === "opencode") return Theme.secondary;
         if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return Theme.warning;
         if (providerId === "nvidia" || providerId === "nim") return Theme.success;
         if (providerId === "cloudflare") return Theme.warning;

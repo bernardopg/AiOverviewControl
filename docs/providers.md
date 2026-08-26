@@ -13,7 +13,7 @@ This document is the authoritative reference for adapter authors. It records, fo
 - the **current flagship model(s)** and recent **changelog** highlights,
 - and the **official documentation source** used.
 
-Reviewed 2026-08-25. Provider APIs change; re-check the linked sources before changing an adapter.
+Reviewed 2026-08-26. Provider APIs change; re-check the linked sources before changing an adapter.
 
 ## Coverage levels
 
@@ -21,12 +21,12 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID) |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `opencode` |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek` |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local) |
 | **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
-| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp` |
+| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `kiro`, `warp`, `amp` |
 
 ## Provider kinds
 
@@ -187,6 +187,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>COMMAND_CODE_API_KEY</code> or CLI <code>~/.commandcode/auth.json</code></td>
 <td><a href="https://commandcode.ai/billing">commandcode.ai/billing</a></td>
 <td><a href="https://commandcode.ai/docs/provider">Provider API docs</a></td>
+</tr>
+<tr>
+<td><code>opencode</code></td>
+<td>Quota</td>
+<td>✅ <code>GET /zen/go/v1/models</code></td>
+<td>✅ <code>/zen/go/v1/usage</code> (5h + weekly + monthly)</td>
+<td>✅ OpenCode Go $10/mo</td>
+<td>—</td>
+<td><code>OPENCODE_API_KEY</code> or CLI <code>~/.local/share/opencode/auth.json</code></td>
+<td><a href="https://opencode.ai/zen">opencode.ai/zen</a></td>
+<td><a href="https://opencode.ai/docs/go">opencode.ai/docs/go</a></td>
 </tr>
 <tr>
 <td><code>kimi</code></td>
@@ -432,17 +443,6 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><a href="https://cline.bot">cline.bot</a></td>
 </tr>
 <tr>
-<td><code>opencode</code></td>
-<td>Informational</td>
-<td>❌</td>
-<td>❌</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-<td>upstream providers</td>
-<td><a href="https://opencode.ai">opencode.ai</a></td>
-</tr>
-<tr>
 <td><code>warp</code></td>
 <td>Informational</td>
 <td>❌</td>
@@ -600,6 +600,20 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Stability** | The `/alpha/` namespace is **experimental** — no documented versioned contract, can change without notice. Adapter degrades to the documented `/provider/v1/models` endpoint on alpha failure and emits a clearly-labeled "quota endpoint unavailable" note; it never fabricates a percentage. |
 | **Dashboard** | [commandcode.ai/billing](https://commandcode.ai/billing) — billing, plan, and credit top-ups. |
 | **Adapter** | `fetch_commandcode_native` — `/alpha/billing/credits` + `/alpha/whoami` + `/alpha/billing/subscriptions`, with documented-endpoint fallback. |
+
+### OpenCode Go
+
+| | |
+| --- | --- |
+| **API base** | `https://opencode.ai/zen/go/v1` — OpenCode Zen's Go-plan quota surface, alongside the OpenAI-compatible `/zen/v1` inference API. |
+| **Credentials** | `OPENCODE_API_KEY` (preferred when available to DMS), or the `key` in CLI-owned `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json` (saved by `opencode auth login`). The adapter follows this XDG path on Linux, the plugin's supported platform. The same key created in OpenCode Studio/Zen drives both inference and quota introspection. |
+| **Auth** | `Authorization: Bearer ***` |
+| **Quota / balance** | `/zen/go/v1/usage` returns `rollingUsage` (5h window), `weeklyUsage`, and `monthlyUsage`, each `{status, resetInSec, usagePercent}` — percentages are computed server-side, so the adapter never derives them from raw byte/token counts. The adapter accepts a quota response only when all three windows have valid percentage/reset values; otherwise it falls back to auth-only status. `resetInSec` is seconds-from-now, converted to an absolute ISO 8601 timestamp. `useBalance: true` is rendered as **balance fallback enabled**; the endpoint does not return the balance amount, so none is invented. |
+| **Plans** | **OpenCode Go** $10/mo — $12 of usage per 5-hour window, $30 weekly, $60 monthly. |
+| **Billing** | Flat monthly subscription; no PAYG surfaced through this endpoint. |
+| **Stability** | The `/zen/go/` namespace shipped alongside the Go plan (opencode PR #16513) and has no documented versioned contract. Adapter degrades to `/zen/go/v1/models` (auth-only) on failure and emits a clearly-labeled "quota endpoint unavailable" note; it never fabricates a percentage. A missing/invalid key returns `401 AuthError`; a valid key without a Go subscription returns `403 EntitlementError` — both surface as hard errors, not soft notes. |
+| **Dashboard** | [opencode.ai/zen](https://opencode.ai/zen) — Zen usage and Go plan management. |
+| **Adapter** | `fetch_opencode_native` — `/zen/go/v1/usage`, with `/zen/go/v1/models` fallback. |
 
 ### Kimi (Moonshot AI)
 
