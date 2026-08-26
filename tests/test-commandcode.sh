@@ -8,6 +8,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 HDR_LOG="$TMP/headers.log"
+# get-provider-usage appends history snapshots to
+# $XDG_CACHE_HOME/AiOverviewControl/usage-history.jsonl. Sandbox it so the
+# fixture-backed runs below never pollute the developer's real chart data.
+export XDG_CACHE_HOME="$TMP/cache"
 mkdir -p "$TMP/bin"
 
 # Fake curl that mimics real curl behavior:

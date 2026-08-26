@@ -150,6 +150,7 @@ Legacy settings unknown to the current code are ignored.
 - Temporary files live in one per-run directory and are removed on exit.
 - Informational, local-runtime, balance-only, and analytics-only providers may return a valid `usage` object with a truthful `0%` placeholder; those placeholders are rendered but not written to history.
 - `usage-history.jsonl` records only non-zero quota/spend pressure, so sparklines and trends are not polluted by flat informational cards.
+- Fixture-backed test suites export a sandboxed `XDG_CACHE_HOME` before invoking the real dispatcher, so they never append snapshots to a real history store.
 - The dashboard marks data stale after two refresh intervals.
 - Process command arrays are snapshotted before execution to avoid reactive mutation.
 

@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
+# Sandbox the history writer so fixture-backed dispatcher runs never append
+# snapshots to the developer's real usage-history.jsonl (see record_history
+# in providers/get-provider-usage).
+export XDG_CACHE_HOME="$TMP_ROOT/cache"
 
 FAKE_BIN="$TMP_ROOT/bin"
 CONFIG_HOME="$TMP_ROOT/.config"

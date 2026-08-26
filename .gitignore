@@ -7,6 +7,8 @@
 
 .codex
 .claude
+.commandcode/
+.opencode/
 CLAUDE.md
 .serena/
 .headroom/

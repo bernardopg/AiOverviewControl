@@ -233,7 +233,9 @@ ambiente e o comportamento do health-check.
   retenção configurada. O escritor de histórico registra apenas pressão real
   não-zero de cota/gasto; placeholders `0%` informativos, de runtime local,
   somente-saldo e somente-analytics são ignorados para que as sparklines
-  permaneçam significativas. Como o arquivo é podado,
+  permaneçam significativas. Suítes de teste baseadas em fixtures exportam um
+  `XDG_CACHE_HOME` isolado antes de invocar o dispatcher real, então nunca
+  gravam snapshots de fixture no seu histórico real. Como o arquivo é podado,
   `providers/export-usage-history csv|jsonl` (também um botão nas
   Configurações) é a forma de guardar dados de longo prazo.
 - O analytics do Claude roda separadamente, para que falhas de histórico local

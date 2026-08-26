@@ -66,6 +66,12 @@ bash tests/test-hermes-analytics.sh     # Hermes telemetry (fixture database)
 bash tests/test-history-export.sh       # usage-history export round-trip
 ```
 
+Every suite that runs the real dispatcher (`get-provider-usage`) exports a
+sandboxed `XDG_CACHE_HOME`, so fixture-backed snapshots are never appended to
+your real `~/.cache/AiOverviewControl/usage-history.jsonl` — otherwise running
+the suites locally would draw fixture values (for example Command Code's
+constant 30%) into the dashboard sparklines.
+
 CI runs all six suites on every push (see `.github/workflows/ci.yml`).
 
 ## Review policy
