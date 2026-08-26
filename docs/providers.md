@@ -13,7 +13,7 @@ This document is the authoritative reference for adapter authors. It records, fo
 - the **current flagship model(s)** and recent **changelog** highlights,
 - and the **official documentation source** used.
 
-Reviewed 2026-08-13. Provider APIs change; re-check the linked sources before changing an adapter.
+Reviewed 2026-08-25. Provider APIs change; re-check the linked sources before changing an adapter.
 
 ## Coverage levels
 
@@ -27,6 +27,24 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 | **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp` |
+
+## Provider kinds
+
+Since 1.11.0 every provider also carries one or more **kinds** (independent from
+the coverage level above). The kind drives the card's badge, icon, and accent
+color:
+
+| Kind | Providers | Meaning |
+| --- | --- | --- |
+| `provider` | everything else (default) | Standard API/account provider. |
+| `agent` | `pi` | Local coding-agent harness; telemetry only, no account quota. |
+| `agent,provider` | `hermes` | Dual nature: agent harness **and** provider front; the card renders as "Agent · Provider". |
+| `gateway` | `9router` | Router that aggregates other providers behind one endpoint. |
+| `local` | `ollama` | Local runtime, no cloud account. |
+
+Coverage level (what data can be truthfully reported) and kind (what the thing
+is) are orthogonal: for example `hermes` is Analytics coverage with kinds
+`agent,provider`.
 
 ## Coverage matrix
 
@@ -77,7 +95,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ premium (AI credits since 2026-06) + overage; chat/completions shown only when not unlimited</td>
 <td>✅ Free / Pro / Pro+ / Education / Business / Enterprise</td>
 <td>—</td>
-<td><code>GH_TOKEN</code></td>
+<td><code>COPILOT_GITHUB_TOKEN</code>, <code>GH_TOKEN</code>, or <code>GITHUB_TOKEN</code> (the <code>gh</code> CLI token is tried first)</td>
 <td><a href="https://github.com/settings/copilot">github.com/settings/copilot</a></td>
 <td><a href="https://docs.github.com/copilot">GitHub Copilot</a></td>
 </tr>
@@ -133,7 +151,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ per-window % + reset timestamp</td>
 <td>✅ GLM Coding Plan $18–$160/mo</td>
 <td>✅ per token</td>
-<td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code></td>
+<td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code> (<code>ZHIPU_API_KEY</code> also accepted; precedence depends on the adapter — see <a href="#glm--zai-zhipu-ai">GLM / Z.ai</a>)</td>
 <td><a href="https://z.ai/manage-apikey/billing">z.ai/manage-apikey</a></td>
 <td><a href="https://docs.z.ai/">docs.z.ai</a> / <a href="https://open.bigmodel.cn/dev/api">open.bigmodel.cn</a></td>
 </tr>
@@ -449,6 +467,31 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tbody>
 </table>
 
+## Local fallbacks and aliases
+
+**OpenRouter → 9Router local fallback.** When `OPENROUTER_API_KEY` is unset,
+the dispatcher serves the card from the local 9Router store instead
+(`fetch_9router_native openrouter openrouter soft`); the account label reads
+"openrouter via 9router (local)" so locally routed data is never mistaken for
+upstream OpenRouter API quota. With the variable set, the real
+`/api/v1/key` snapshot is used.
+
+**Aliases.** The dispatcher (`get-provider-usage`) and health checker
+(`get-provider-health`) accept these case-insensitive aliases:
+
+| Canonical | Aliases |
+| --- | --- |
+| `commandcode` | `cmd`, `cmdcode` |
+| `antigravity` | `agy` |
+| `kimi` | `moonshot` |
+| `glm` | `zhipu` |
+| `zai` | `z.ai` |
+| `nvidia` | `nim` |
+| `vertexai` | `vertex` |
+| `byteplus` | `ark`, `modelark` |
+| `qwen` | `dashscope`, `alibaba` |
+| `xai` | `grok` |
+
 ## Provider reference
 
 Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM/Z.ai, NVIDIA, MiniMax, Kimi, Qwen, xAI, Kilo, Kiro). All HTTP probes below are read-only and consume **no tokens**.
@@ -504,7 +547,7 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | | |
 | --- | --- |
 | **API base** | Global `https://api.z.ai/api/paas/v4`; Coding-Plan `https://api.z.ai/api/coding/paas/v4`; China `https://open.bigmodel.cn/api/paas/v4`. Fully OpenAI-compatible. |
-| **Env var** | `ZAI_API_KEY` (fallbacks `GLM_API_KEY`, `ZHIPU_API_KEY`). |
+| **Env var** | Per adapter: `fetch_zai_native` (global card) uses `ZAI_API_KEY` → `GLM_API_KEY` → `ZHIPU_API_KEY`; `fetch_glm_native` (China console card) uses `GLM_API_KEY` → `ZHIPU_API_KEY` → `ZAI_API_KEY`. Any one key drives both cards. |
 | **Auth** | `Authorization: Bearer <key>`. |
 | **Key check** | `GET /api/monitor/usage/quota/limit` → `200` with `success: true` and `data.limits[]`; `401`/`403` on bad key. Zero tokens. Falls back to `GET /paas/v4/models` when quota endpoint is unavailable. |
 | **Quota / balance** | ✅ `/api/monitor/usage/quota/limit` returns `data.limits[]` — each limit has `type` (`TIME_LIMIT` or `TOKENS_LIMIT`), `percentage` (0–100), `nextResetTime` (epoch ms), `remaining`, `unit`, and `number`. Live cross-check against the Z.ai Usage page confirms the period unit table used by the adapter: `unit=4` → 5-hour session window, `unit=6` → weekly quota, `unit=5` → monthly web/search/reader quota, `unit=3` → total token allotment (no reset window). Also returns `data.level` (plan tier, e.g. `lite`). |
@@ -633,6 +676,15 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Dashboard** | [app.kiro.dev/settings/account](https://app.kiro.dev/settings/account). Docs: [kiro.dev/docs/billing](https://kiro.dev/docs/billing/). Pricing: [kiro.dev/pricing](https://kiro.dev/pricing/). |
 | **Changelog** | 2026-06-17 CLI v2.8 (CLI v3 early access). 2026-06-12 CLI v2.7 (`/goal` loops, queue steering). 2026-06-10 **Pro Max** tier. 2026-05-29 **Claude Opus 4.8** (2.2×, 1M ctx). 2026-05-26 HIPAA eligible. CLI v2.6/v2.7 transcript export, persistent prefs. |
 | **Adapter** | Informational card only (`json_note_usage kiro-local`). Links to [app.kiro.dev](https://app.kiro.dev). No scriptable surface. |
+
+## Utility scripts
+
+Beyond the per-provider adapters, `providers/` ships four utilities:
+
+- `get-usage-history` — prints the local usage history written by the dispatcher (`~/.cache/AiOverviewControl/usage-history.jsonl`), trimmed by `AIOC_HISTORY_MAX`.
+- `export-usage-history` — copies that history to CSV or JSONL (see [configuration](configuration.md#exporting-usage-history)).
+- `get-provider-wrapper` — shared single-provider wrapper behind the `get-<id>-usage` entrypoints.
+- `send-quota-alert` — deduplicated desktop notification sender used by quota alerts (`flock` + `notify-send`).
 
 ## Direct tests
 

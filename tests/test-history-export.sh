@@ -53,6 +53,25 @@ grep -q '"2025-06-15T15:06:40Z",1750000000,"claude",54' "$csv" || {
 # Float noise from percentage math is rounded to two decimals.
 grep -q '"codex",19.1$' "$csv" || { echo "CSV percent was not rounded" >&2; exit 1; }
 
+# ── unreadable history ──────────────────────────────────────────────────────
+printf 'not json at all\n' > "$HISTORY_DIR/usage-history.jsonl"
+for format in csv jsonl; do
+  status=0
+  export_history "$format" "$TMP/out" >/dev/null 2>&1 || status=$?
+  [ "$status" -eq 3 ] || {
+    echo "expected exit 3 for unreadable $format history, got $status" >&2
+    exit 1
+  }
+done
+
+# Restore valid data for the remaining format and destination checks.
+cat > "$HISTORY_DIR/usage-history.jsonl" <<'JSONL'
+{"ts":1750000000,"provider":"claude","pct":54}
+{"ts":1750000060,"provider":"codex","pct":19.099999999999994}
+not json at all
+{"ts":1750000120,"provider":"claude","pct":100}
+JSONL
+
 # ── JSONL ───────────────────────────────────────────────────────────────────
 jsonl="$(export_history jsonl "$TMP/out")"
 [ "$(wc -l < "$jsonl")" -eq 3 ] || { echo "expected 3 JSONL lines" >&2; exit 1; }

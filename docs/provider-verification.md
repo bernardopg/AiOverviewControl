@@ -1,6 +1,6 @@
 # Provider verification
 
-This document records the upstream surface used by each adapter. It was reviewed on 2026-08-13. Provider APIs change; re-check these links before changing an adapter. See `docs/providers.md` for the full per-provider reference (plans, billing, flagship models, changelog).
+This document records the upstream surface used by each adapter. It was reviewed on 2026-08-25. Provider APIs change; re-check these links before changing an adapter. See `docs/providers.md` for the full per-provider reference (plans, billing, flagship models, changelog).
 
 ## Verified quota, balance, or billing surfaces
 
@@ -49,6 +49,23 @@ This document records the upstream surface used by each adapter. It was reviewed
 ## No documented read-only quota endpoint
 
 AI21, Perplexity, Cursor, Cline, OpenCode, Kiro, Warp, and Amp do not currently provide a public, stable, read-only quota endpoint suitable for this widget. Kiro additionally has **no public API at all** (subscription-only IDE/CLI/Web with SSO login). The plugin therefore reports configured/authenticated status where possible or displays an informational card. It does not scrape dashboards or claim synthetic percentages.
+
+## Local verification
+
+The surfaces above are exercised locally by the fixture-backed suites in
+`tests/` and by the offline readiness checker:
+
+```bash
+./providers/get-provider-health "codex,claude,copilot" | jq .
+bash tests/test-commandcode.sh          # Command Code windows and fallback
+bash tests/test-kimi-code.sh            # Kimi Code routing and quota fixture
+bash tests/test-antigravity-live.sh     # Antigravity live-request safeguards
+bash tests/test-quota-alert.sh          # quota notification deduplication
+bash tests/test-hermes-analytics.sh     # Hermes telemetry (fixture database)
+bash tests/test-history-export.sh       # usage-history export round-trip
+```
+
+CI runs all six suites on every push (see `.github/workflows/ci.yml`).
 
 ## Review policy
 

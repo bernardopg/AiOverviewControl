@@ -27,7 +27,8 @@ the tag push is the last action.
 jq --exit-status . plugin.json >/dev/null
 VERSION="$(jq -r .version plugin.json)"
 printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
-grep -qF "## ${VERSION}" CHANGELOG.md || grep -qF "## [${VERSION}]" CHANGELOG.mdfind providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
+grep -qF "## ${VERSION}" CHANGELOG.md || grep -qF "## [${VERSION}]" CHANGELOG.md
+find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
 shellcheck -S warning providers/* tests/*.sh scripts/package-release
@@ -36,7 +37,7 @@ for f in i18n/*.json; do jq -e . "$f" >/dev/null; done
 ./providers/get-provider-health "codex,claude,copilot" | jq .
 ./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage | jq .
 ./providers/get-usage-history | jq .
-bash tests/test-hermes-analytics.sh
+for test in tests/*.sh; do bash "$test"; done
 scripts/package-release
 ```
 

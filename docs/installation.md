@@ -1,5 +1,18 @@
 # Installation
 
+## Install from the DMS plugin store
+
+The simplest path: install **AiOverviewControl** through DMS's built-in plugin store. Store installs land under the manifest id — note the lowercase leading `a`:
+
+```text
+~/.config/DankMaterialShell/plugins/aiOverviewControl
+```
+
+Manual installs (the two methods below) use the `AiOverviewControl`
+display-name casing instead. Linux paths are case-sensitive, so when following
+[troubleshooting](./troubleshooting.md), adjust its `PLUGIN=` line to whichever
+directory `ls ~/.config/DankMaterialShell/plugins` actually shows.
+
 ## Install from a checkout
 
 ```bash
@@ -17,8 +30,8 @@ dms restart
 Download one release archive and the release's `.sha256` file from the project's GitHub Releases page. The checksum file contains entries for both archive formats, so filter it to the file you actually downloaded:
 
 ```bash
-ARCHIVE=AiOverviewControl-v1.9.1.tar.gz
-CHECKSUM=AiOverviewControl-v1.9.1.sha256
+ARCHIVE=AiOverviewControl-vX.Y.Z.tar.gz
+CHECKSUM=AiOverviewControl-vX.Y.Z.sha256
 grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
 
 PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
@@ -28,11 +41,11 @@ chmod +x "$PLUGIN"/providers/get-*
 dms restart
 ```
 
-Replace `v1.9.1` with the version you downloaded. For a `.zip` release, verify and unpack through a temporary directory so the archive's top-level `AiOverviewControl-vX.Y.Z` directory is not nested inside the plugin directory:
+Replace `vX.Y.Z` with the version you downloaded. For a `.zip` release, verify and unpack through a temporary directory so the archive's top-level `AiOverviewControl-vX.Y.Z` directory is not nested inside the plugin directory:
 
 ```bash
-ARCHIVE=AiOverviewControl-v1.9.1.zip
-CHECKSUM=AiOverviewControl-v1.9.1.sha256
+ARCHIVE=AiOverviewControl-vX.Y.Z.zip
+CHECKSUM=AiOverviewControl-vX.Y.Z.sha256
 grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
 
 PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
@@ -46,6 +59,8 @@ dms restart
 ```
 
 ## Core dependencies
+
+No hard minimum DMS/Quickshell version is enforced by the plugin; use a current DMS build with plugin and DankBar support, since newer widget features assume it.
 
 ```bash
 command -v bash

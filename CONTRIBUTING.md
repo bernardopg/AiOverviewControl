@@ -82,7 +82,7 @@ Two caveats that cost real debugging time:
 | CHANGELOG has the `plugin.json` version | `VERSION="$(jq -r .version plugin.json)"; grep -qF "## $VERSION" CHANGELOG.md \|\| grep -qF "## [$VERSION]" CHANGELOG.md` |
 | **QML lint (hard gate)** | `qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml` |
 | Shell syntax | `find providers -maxdepth 1 -type f -print0 \| xargs -0 bash -n; for test in tests/*.sh; do bash -n "$test"; done; bash -n scripts/package-release` |
-| Shell lint | `shellcheck providers/* tests/*.sh scripts/package-release` |
+| Shell lint | `shellcheck -S warning providers/* tests/*.sh scripts/package-release` |
 | Release package | `scripts/package-release` |
 
 Parity is strict: every key in `en.json` must exist in `pt_BR`, `zh_CN`,

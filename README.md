@@ -262,6 +262,7 @@ for file in i18n/*.json; do jq -e . "$file" >/dev/null; done
 find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
+for test in tests/*.sh; do bash "$test"; done
 shellcheck -S warning providers/* tests/*.sh scripts/package-release
 qmllint \
   AiOverviewControlWidget.qml \

@@ -14,7 +14,7 @@ Security fixes are applied to the latest release and the `main` branch.
 
 Please do not report security vulnerabilities in public issues, discussions, or pull requests.
 
-Use GitHub's private vulnerability reporting for this repository when available. If private reporting is not available, open a minimal public issue asking for a private security contact without including exploit details, tokens, logs with secrets, or proof-of-concept payloads.
+Use GitHub's **private vulnerability reporting** for this repository (Security tab → "Report a vulnerability") as the primary channel. If private reporting is unavailable for some reason, contact the maintainer directly on GitHub ([@bernardopg](https://github.com/bernardopg)) asking to coordinate privately — do not include exploit details, tokens, logs with secrets, or proof-of-concept payloads in any public communication.
 
 Useful details for a private report:
 
@@ -23,4 +23,4 @@ Useful details for a private report:
 - Clear reproduction steps.
 - Impact assessment and any known workaround.
 
-I will acknowledge valid reports as soon as possible and coordinate fixes through a private advisory when appropriate.
+Valid reports are acknowledged within 7 days and coordinated through a private security advisory when appropriate.

@@ -204,6 +204,13 @@
 
 ## 1.6.0 - 2026-07-02
 
+> Note: there is no **1.5.0** entry — that version was never released. Its
+> content (the Antigravity provider, [#7](https://github.com/bernardopg/AiOverviewControl/pull/7)
+> by [@arqueon](https://github.com/arqueon), with an auth-header interpolation
+> fix and model-family alignment landed during review) shipped as part of this
+> 1.6.0 release under "Earlier provider additions" and "Antigravity UX and
+> quota accuracy".
+
 ### Earlier provider additions
 - **Claude: model-scoped weekly limits (Claude 5 rollout).** `get-claude-usage` now parses the canonical `limits[]` array from the OAuth usage endpoint (`session`, `weekly_all`, `weekly_scoped`) and surfaces the per-model weekly window (e.g. the weekly Fable allowance) as the card's tertiary window and as a dedicated "Week · Model" bar in the Claude details panel, with fallback to the legacy flat `five_hour`/`seven_day` objects. Extra-usage credit state (`monthly_limit`, `used_credits`, currency, utilization) is exported too.
 - **Copilot: plan-aware account label.** The adapter decodes `access_type_sku` (e.g. `free_educational_quota` → "Education") and `copilot_plan`, showing "login · Plan" on the card, and labels the primary window "Premium requests · AI credits" on accounts migrated to GitHub's usage-based billing (`token_based_billing`, effective 2026-06-01).

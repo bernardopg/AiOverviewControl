@@ -18,11 +18,11 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
 | `providerLogoColor` | QML color string | current DMS primary color | Monochrome tint used for provider logos and notification icons. |
 | `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |
-| `notifyThreshold` | 1–100 | 85 | Global notification threshold. |
+| `notifyThreshold` | 75, 85, or 95 | 85 | Global notification threshold. Per-provider `notifyThresholds` overrides accept any value from 1–100. |
 | `notifyThresholds` | `provider:percent,...` | empty | Per-provider threshold overrides, for example `codex:75,claude:90`. Settings validates the CSV inline: malformed pairs, unknown or duplicated providers, providers that are not tracked, and percentages outside 1–100 are reported as you type. |
 | `notifyWindowScope` | `displayed`, `all`, `primary` | `displayed` | Which quota windows raise alerts. `displayed` follows `barWindowOverrides` — identical to `primary` until an override is set. `all` also alerts on Claude's 7 day, Codex's weekly, and every other secondary window. `primary` restores the pre-1.12 primary-only behaviour. Each window keeps its own dedupe key, so one provider can alert on both of its windows without either replacing the other. |
-| `notifyCooldownMinutes` | non-negative integer | 0 | Minutes between repeat alerts; `0` means once per quota window. |
-| `historyRetention` | integer >= 50 | 2000 | Maximum history snapshots kept locally. |
+| `notifyCooldownMinutes` | 0, 60, 360, or 1440 | 0 | Minutes between repeat alerts; `0` means once per quota window. |
+| `historyRetention` | 500, 2000, or 10000 | 2000 | Maximum history snapshots kept locally. |
 | `showClaudeProjects` | `true` / `false` | `true` | Shows Claude local project analytics. |
 | `showAntigravityModelDetails` | `true` / `false` | `false` | In expanded Antigravity cards, replaces concise Gemini / Claude & OpenAI family rows with individual model rows. |
 
@@ -80,12 +80,12 @@ The settings health check describes whether the plugin can run an adapter in the
 | Command Code | `COMMAND_CODE_API_KEY` |
 | GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
 | Mistral | `MISTRAL_API_KEY` |
-| Ollama | optional `OLLAMA_HOST` |
+| Ollama | optional `OLLAMA_HOST`; requires the `ollama` CLI in PATH |
 | Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`) |
 | Claude Code | optional `CLAUDE_CONFIG_DIR` (defaults to `~/.claude`) |
 | NVIDIA | `NVIDIA_API_KEY` |
 | Cloudflare | `CLOUDFLARE_AI_TOKEN` or `CLOUDFLARE_API_TOKEN`; optional `CLOUDFLARE_ACCOUNT_ID` |
-| Vertex AI | optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` |
+| Vertex AI | requires `gcloud auth print-access-token` to succeed at collection time; the readiness chip checks only that the `gcloud` CLI is in `PATH`. Optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` enrich the reported identity |
 | BytePlus | `BYTEPLUS_API_KEY` or `ARK_API_KEY` |
 | Qwen | `DASHSCOPE_API_KEY` or `QWEN_API_KEY`; optional `DASHSCOPE_WORKSPACE_ID` |
 | Together | `TOGETHER_API_KEY` |

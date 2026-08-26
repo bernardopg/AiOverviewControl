@@ -12,7 +12,7 @@ billing, autenticação e telemetria local de uso de IA — direto na sua DankBa
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![Licença](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](../LICENSE)
-[![Provedores](https://img.shields.io/badge/provedores-35-7C4DFF)](./providers.md)
+[![Provedores](https://img.shields.io/badge/provedores-37-7C4DFF)](./providers.md)
 [![Idiomas](https://img.shields.io/badge/idiomas%20de%20UI-5-00BFA5)](./i18n-crowdin.md)
 
 [Instalação](#instalação) · [Screenshots](#screenshots) · [Provedores](./providers.md) ·
@@ -49,15 +49,15 @@ inventados. Nunca.
 
 | | |
 | --- | --- |
-| 📊 **Dashboard unificado** | 36 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
+| 📊 **Dashboard unificado** | 37 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
 | 🛰️ **Visão geral da frota** | Rollup cross-provider no hero — carga média só de cotas mensuráveis, provedor mais quente, quantos estão perto do limite e o próximo reset. |
 | ⏱️ **Janelas oficiais do Codex** | Janelas de rate-limit direto do `codex app-server`. |
 | 🤖 **Analytics profundo do Claude** | Cota mais analytics local de tokens, sessões, modelos, projetos e custo. |
 | 🐙 **Cotas do Copilot** | Snapshots de Premium requests, Chat e Completions. |
 | 🗂️ **Cartões ricos** | Janelas de uso, horários de reset, identidade, créditos, sparklines, tendências e links para o console. |
 | 🛡️ **Falhas isoladas** | Um timeout ou credencial inválida nunca esconde provedores saudáveis. |
-| 🎛️ **Layout flexível** | Densidade compacta/confortável, filtros por status, provedores fixados e pílula `auto`/`custom`/`top`. |
-| 🔔 **Notificações de cota** | Alertas do DMS com a marca do provedor, limiares globais/por provedor e atualização no mesmo toast quando a cota esgota. Os alertas podem seguir a janela exibida na barra, todas as janelas ou apenas a primária. |
+| 🎛️ **Layout flexível** | Densidade compacta/confortável, filtros por status, provedores fixados, pílula `auto`/`custom`/`top` e escolha de janela de uso por provedor na DankBar. |
+| 🔔 **Notificações de cota** | Alertas do DMS com a marca do provedor, limiares globais/por provedor, um toast por janela de cota, atualizado no mesmo toast quando a cota esgota. Os alertas podem seguir a janela exibida na barra, todas as janelas ou apenas a primária. |
 | 📄 **Exportação de histórico** | Salve o histórico local de uso em CSV ou JSONL pelas Configurações ou por `providers/export-usage-history`. |
 | 🌍 **5 idiomas de UI** | English, Português (BR), 简体中文, Español e Deutsch. |
 | 🔒 **Privacidade em primeiro lugar** | Adaptadores locais, nenhuma chamada paga só para testar chave, segredos nunca exibidos. |
@@ -86,31 +86,34 @@ Os cartões usam um de seis níveis honestos de cobertura:
 
 | Cobertura | Significado |
 | --- | --- |
-| **Cota** | Retorna janelas reais de limite ou gasto e o percentual usado. |
-| **Saldo** | Retorna saldo pré-pago ou créditos restantes em moeda real. |
-| **Analytics** | Lê contadores de consumo, arquivos ou bancos de dados pertencentes ao provedor. |
-| **Autenticação** | Verifica credenciais sem dados estáveis de cota. Alguns cartões de status configurado, como NVIDIA, não conseguem validar a chave porque o catálogo do provedor é público. |
-| **Runtime local** | Mostra estado local, como modelos do Ollama ou autenticação do Vertex AI. |
-| **Informativo** | Aponta para o uso oficial quando não existe API somente leitura. |
+| **Cota** | Retorna janelas reais de limite ou gasto e o percentual usado (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM). |
+| **Saldo** | Retorna saldo pré-pago ou créditos restantes em moeda real (Kimi, DeepSeek). |
+| **Analytics** | Lê contadores de consumo ou dados locais pertencentes ao provedor (Cloudflare GraphQL, 9Router, Claude, pi, Hermes). |
+| **Autenticação** | Verifica credenciais via endpoint somente leitura sem dados estáveis de cota (Gemini, Mistral, MiniMax, Qwen, xAI e outros). Alguns cartões de status configurado, como NVIDIA, não conseguem validar a chave porque o catálogo do provedor é público. |
+| **Runtime local** | Mostra estado local em vez de cota de conta (modelos do Ollama, autenticação do Vertex AI). |
+| **Informativo** | Aponta para o uso oficial quando não existe API somente leitura (Kiro, Cursor, Warp e outros). |
 
 Integrações medidas notáveis:
 
 | Provedor | Fonte de dados |
 | --- | --- |
 | Codex | Métodos oficiais de conta e rate-limit do `codex app-server`. |
-| Claude Code | Cota OAuth mais analytics local de `~/.claude/projects`. |
+| Claude Code | Cota OAuth mais analytics local de `~/.claude/projects` (ou `$CLAUDE_CONFIG_DIR/projects` quando essa variável de ambiente estiver definida). |
 | GitHub Copilot | Snapshot autenticado de cota GitHub/Copilot. |
-| Antigravity | Famílias de cota Gemini e Claude/OpenAI, com reset via Cloud Code Assist; detalhes por modelo são opcionais e contas locais múltiplas ficam separadas. |
+| Antigravity | Famílias de cota Gemini e Claude/OpenAI com resets do Cloud Code Assist; diagnósticos opcionais por modelo e separação automática de múltiplas contas. |
 | 9Router | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado. |
-| pi | Telemetria JSONL local de sessões (`~/.pi/agent/sessions`) — custo, tokens, modelos e projetos; não há API de cota. |
+| pi | Telemetria JSONL local de sessões (`~/.pi/agent/sessions`) — custo, tokens, top modelos, top projetos; não há API de cota (o pi não tem rate limits). |
 | Hermes | Entrada de natureza dupla: telemetria do harness de agente via `~/.hermes/state.db` (sessões, tokens por modelo/projeto, origens, chamadas de API) mais identidade de provider (cobrança ativa, modelo padrão) de `~/.hermes/config.yaml` / `auth.json`. O faturamento do lado provider permanece no [Nous Portal](https://portal.nousresearch.com). |
 | OpenRouter | Limites de chave, gasto, saldo e atividade de modelos em 30 dias. |
-| Kimi (Moonshot) | Saldo da Open Platform ou cota da assinatura Kimi Code (janelas semanal e de 5h), conforme o tipo de chave. |
+| Kimi (Moonshot) | Saldo da Open Platform (`GET /v1/users/me/balance`, USD/CNY) — ou cota da assinatura **Kimi Code** (`GET /coding/v1/usages`, janelas semanal e de 5h) quando uma chave `sk-kimi-` / `KIMI_CODING_API_KEY` está definida. |
 | DeepSeek | API oficial de saldo da conta. |
 | Together | Validação somente leitura da chave; uso e billing permanecem no console da Together. |
-| Ollama | Modelos instalados e em execução via `/api/tags` e `/api/ps`. |
 | Cloudflare | Verificação de token e analytics opcional do Workers AI via GraphQL. |
-| Z.ai, GLM | `/api/monitor/usage/quota/limit` — uso real por janela, resets e plano da assinatura. |
+| Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — uso real por janela, timestamps de reset e plano da assinatura. Faz fallback para verificação apenas de autenticação via `/models`. |
+| Command Code | Uso ao vivo das janelas de 5h/semanal/mensal via `/alpha/billing/credits`. |
+| xAI, MiniMax, Qwen, Mistral | Validação somente leitura via `/models` (ou `/api-key`) — consumo zero de tokens. |
+| NVIDIA | Apenas status da chave configurada; o catálogo público de modelos não permite validar a chave. |
+| Ollama | Modelos instalados e em execução via `/api/tags` e `/api/ps`. |
 
 A matriz completa, credenciais e referências upstream estão documentadas em
 [Provedores](./providers.md) e
@@ -207,6 +210,16 @@ ambiente e o comportamento do health-check.
 
 ## Comportamento do dashboard
 
+- O hero mostra uma **visão geral da frota** quando dois ou mais provedores
+  resolvem: a carga média nas janelas de cota mensuráveis, o provedor mais
+  quente, quantos estão em ou acima de 80% e o reset mais próximo da frota.
+  Cartões de saldo, analytics, runtime local e informativos ficam
+  intencionalmente fora do denominador da média, para que seus placeholders
+  honestos de `0%` não diluam a pressão real de cota. Pico, contagem em risco
+  e reset ainda varrem todos os cartões vivos.
+- A visão geral é **navegável**: clique no provedor de pico do rollup da frota,
+  ou nas barras de uso do hero, para expandir e rolar direto até o cartão
+  daquele provedor.
 - Cartões são ordenados com fixados primeiro, depois por maior uso mensurável,
   com provedores em falha por último.
 - Cartões suportam foco por teclado, além de Enter/Espaço (expandir), Delete
@@ -217,7 +230,10 @@ ambiente e o comportamento do health-check.
   horário de atualização, sem inventar campos indisponíveis.
 - Snapshots de uso são armazenados localmente em
   `~/.cache/AiOverviewControl/usage-history.jsonl` e podados conforme a
-  retenção configurada. Como o arquivo é podado,
+  retenção configurada. O escritor de histórico registra apenas pressão real
+  não-zero de cota/gasto; placeholders `0%` informativos, de runtime local,
+  somente-saldo e somente-analytics são ignorados para que as sparklines
+  permaneçam significativas. Como o arquivo é podado,
   `providers/export-usage-history csv|jsonl` (também um botão nas
   Configurações) é a forma de guardar dados de longo prazo.
 - O analytics do Claude roda separadamente, para que falhas de histórico local
@@ -241,12 +257,17 @@ ambiente e o comportamento do health-check.
 <summary>Execute as mesmas verificações principais usadas pelo CI</summary>
 <br>
 
+O lint de QML é um **gate obrigatório** no CI (`qmllint` do Qt5, verificação
+de sintaxe — sem ruído de resolução de import `qs.*` para filtrar). Um arquivo
+QML malformado derruba o build.
+
 ```bash
 jq -e . plugin.json >/dev/null
 for file in i18n/*.json; do jq -e . "$file" >/dev/null; done
 find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
+for test in tests/*.sh; do bash "$test"; done
 shellcheck -S warning providers/* tests/*.sh scripts/package-release
 qmllint \
   AiOverviewControlWidget.qml \

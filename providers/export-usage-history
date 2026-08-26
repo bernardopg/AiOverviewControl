@@ -62,36 +62,36 @@ tmp="$(mktemp "${target_dir}/.aioverviewcontrol-export.XXXXXX")" || {
   echo "cannot write to destination: ${target_dir}" >&2
   exit 4
 }
-trap 'rm -f "$tmp"' EXIT
+trap 'rm -f "$tmp" "${csv_tmp:-}"' EXIT
 
 # Read line-by-line as raw text and parse each with `fromjson?`: a truncated
 # or interleaved append (two writers, a crash mid-line) would otherwise abort
 # the whole export with a jq parse error instead of dropping one record.
-if [ "$format" = "jsonl" ]; then
-  jq -cR 'fromjson? | select(type == "object")' "$HISTORY_FILE" >"$tmp"
-else
-  {
-    printf 'timestamp_iso,timestamp_epoch,provider,percent\n'
-    jq -rR '
-      fromjson?
-      | select(type == "object")
-      | [
-          ((.ts // 0) | if . > 0 then (todate) else "" end),
-          (.ts // 0),
-          (.provider // ""),
-          (((.pct // 0) * 100 | round) / 100)
-        ]
-      | @csv
-    ' "$HISTORY_FILE"
-  } >"$tmp"
-fi
-
+jq -cR 'fromjson? | select(type == "object")' "$HISTORY_FILE" >"$tmp"
 if [ ! -s "$tmp" ]; then
   echo "usage history contains no readable snapshots" >&2
   exit 3
 fi
 
-mv "$tmp" "$out_file"
+if [ "$format" = "csv" ]; then
+  csv_tmp="${tmp}.csv"
+  {
+    printf 'timestamp_iso,timestamp_epoch,provider,percent\n'
+    jq -r '
+      [
+        ((.ts // 0) | if . > 0 then (todate) else "" end),
+        (.ts // 0),
+        (.provider // ""),
+        (((.pct // 0) * 100 | round) / 100)
+      ]
+      | @csv
+    ' "$tmp"
+  } >"$csv_tmp"
+  mv "$csv_tmp" "$out_file"
+else
+  mv "$tmp" "$out_file"
+fi
+
 trap - EXIT
 chmod 600 "$out_file"
 printf '%s\n' "$out_file"

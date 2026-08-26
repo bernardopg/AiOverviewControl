@@ -57,55 +57,18 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 
 ## Quality / CI
 
-- [ ] **QML smoke test** — headless instantiate of the three QML files with stub data to catch binding-loop / undefined-property regressions. `L · ★★`
-- [ ] **Flow/anchor lint** — a direct child of `Flow` that sets `anchors.*` silently disables the whole `Flow` at runtime; Qt5 `qmllint` cannot see it. A small AST/brace-depth check in CI (like the existing expanded-card nesting gate) would catch the next one. `S · ★★`
+- [x] ~~**Flow/anchor lint**~~ — done in 1.12.0: CI gate fails any direct child of `Flow` that sets `anchors.*` (verified to catch the Hermes regression).
 
 ## Packaging / Marketplace
 
 - [ ] **Plugin marketplace metadata** — add when the DMS plugin registry format is finalized. `M · ★★`
-- [ ] **Install/update docs for tagged releases** — point users at the release zip/sha256 flow. `S · ★`
+- [x] ~~**Install/update docs for tagged releases**~~ — done: `docs/installation.md` documents the full release zip/sha256 download, checksum verification, and upgrade flow.
 
 ---
 
-## ✅ Recently shipped — v1.5.0 (2026-06-28)
-
-- **Antigravity provider (Quota coverage)** — surfaces real per-model quota and reset windows from the Google Cloud Code Assist endpoint (`v1internal:fetchAvailableModels` on `cloudcode-pa.googleapis.com`), the same protocol used by Antigravity IDE and the official `gemini-cli`. Quotas are grouped into current model families: Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.5 Flash, Gemini 3.1 Pro, and GPT-OSS 120B. Dual credential discovery prefers the signed-in `agy` CLI profile via Linux Secret Service, then falls back to the IDE `state.vscdb` for desktop builds. The bearer token is fed to `curl` via stdin and never appears in process arguments or logs. Provider count: 33 → 34. Contribution by [@arqueon](https://github.com/arqueon) in [#7](https://github.com/bernardopg/AiOverviewControl/pull/7), with an auth-header interpolation fix and model-family alignment landed during review.
-
-## ✅ Recently shipped — v1.4.12 (2026-06-26)
-
-- **Provider tracking audit** — fixed Z.ai/GLM weekly-vs-daily unit decoding, GLM `ZAI_API_KEY` fallback, OpenRouter→9Router local fallback labeling, Codex subscription-credit display, stable two-decimal currency formatting, quota-only history snapshots, and quota-only fleet average load.
-
-## ✅ Recently shipped — v1.4.11 (2026-06-24)
-
-- **Navigable hero overview** — click the fleet rollup's peak provider or the hero usage bars to expand + scroll to that provider's card (`focusProvider(id)`). Folds in the "make hero window bars interactive" item.
-
-## ✅ Recently shipped — v1.4.10 (2026-06-24)
-
-- **QML lint hard gate** — CI installs Qt5 `qmllint` and runs it as a required step (syntax verification, no `qs.*` import noise). New `CONTRIBUTING.md` documents the `modelData`/singleton-freeze gotchas (folds in the "guard modelData gotcha" item via the contributor note).
-- **Guided hero empty/error state** — contextual hint (loading / all-errored / no-data) fills the hero's window-bar slot instead of leaving it blank.
-
-## ✅ Recently shipped — v1.4.9 (2026-06-24)
-
-- **Aggregate cross-provider view** — hero fleet overview (avg load ring, peak provider, at-risk count ≥80%, soonest reset) shown when ≥2 providers resolve. Summarizes quota pressure in comparable % units instead of faking a cross-provider monetary total.
-
-## ✅ Recently shipped — v1.4.8 (2026-06-24)
-
-Quick-win cleanup pass:
-- Removed dead `barText` + `providerEngineLabel` properties (orphaned by the v1.4.5 hero rework).
-- Fixed i18n keys: dropped orphan `card.engine`, added missing `card.resets_in` across all 5 bundles (parity preserved).
-- Rounded the `MetricTile` left accent bar (contained indicator, no corner bleed).
-- Silenced dispatch-coverage CI noise: parser now handles dotted aliases (`z.ai`) and canonical-vs-alias distinction; reports 0 missing.
-
-Dropped: "Refresh screenshots" quick-win (descoped).
-
-## ✅ Recently shipped — v1.4.5 (2026-06-19)
-
-UI polish pass (see `CHANGELOG.md` for detail):
-- Popout scrollbar gutter (no content overlap).
-- Inactive provider cards recede; active/hover/expanded stands out.
-- Left accent stripe → contained rounded active indicator.
-- Account/Login/Credits boxes → inline `InfoPill`s.
-- Hero ring → per-window usage bars (label · value · reset); labels prefer `resetDescription`.
+Historical shipped notes for v1.4.x and v1.5.0 were folded into
+`CHANGELOG.md` (see its entries; note v1.5.0 was never released as such — its
+content shipped in 1.6.0).
 
 ## ✅ Done (earlier releases)
 

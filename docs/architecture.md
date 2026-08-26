@@ -7,8 +7,11 @@ AiOverviewControlWidget.qml       Runtime orchestration and dashboard
 AiOverviewControlSettings.qml     Settings, provider selection, health UI
 AiOverviewControlI18n.qml         Locale loading and interpolation
 ProviderLogo.qml                  Local provider-logo resolution and fallback icons
-providers/get-provider-usage      Multi-provider dispatcher
+providers/get-provider-usage      Multi-provider dispatcher and history writer
 providers/get-provider-health     Prerequisite checks for settings
+providers/get-usage-history       Local usage history reader
+providers/export-usage-history    Usage history export (CSV/JSONL)
+providers/send-quota-alert        Deduplicated quota notification sender
 providers/get-codex-usage         Codex app-server protocol bridge
 providers/get-claude-usage        Claude local analytics and quota bridge
 providers/get-copilot-usage       Authenticated GitHub Copilot quota bridge
@@ -22,10 +25,14 @@ scripts/package-release           Release archive build and validation
 ```
 
 Most API-backed and informational providers expose a normalized JSON
-`get-<id>-usage` entrypoint through `get-provider-wrapper`. The specialized
-Claude helper emits `KEY=VALUE` analytics for the dispatcher to normalize, and
-`pi` and `hermes` use inline dispatcher envelopes plus `get-pi-analytics` /
-`get-hermes-analytics`; none of them follows the generic stub contract.
+`get-<id>-usage` entrypoint that delegates through `get-provider-wrapper`. The
+specialized Claude helper emits `KEY=VALUE` analytics for the dispatcher to
+normalize, and `pi` and `hermes` use inline dispatcher envelopes plus
+`get-pi-analytics` / `get-hermes-analytics`. Note that the "stub" shape
+describes only the entrypoint file: several adapters implement their real logic
+as native envelopes inside `get-provider-usage` (for example `commandcode`,
+`ollama`, and Antigravity), while the thin `get-<id>-usage` files remain the
+stable contract surface.
 
 ## Runtime flow
 
@@ -151,7 +158,7 @@ Legacy settings unknown to the current code are ignored.
 - DankBar pill: selected measurable providers. Per provider, `barWindowOverrides` selects which usage window the pill displays (`primary` by default, or `secondary`/`tertiary`/`highest`); the ranking used by `top` and `auto` pill modes follows the same displayed number.
 - Overview: active/error counts and local backend status.
 - Provider manager: add and remove providers without editing settings files.
-- Filter: shown when more than eight cards are visible.
+- Filter: shown when more than five cards are visible. Status chips (All / Live / Issues, with counts) appear whenever any provider is configured.
 - Cards: collapsed preview, expanded windows, identity, credits, source, and timestamps.
 - Claude details: token/cost history and model distribution.
 - pi details: token/cost history, 7-day chart, top models, top projects (same expanded-card slot pattern as 9Router).
@@ -163,11 +170,11 @@ Legacy settings unknown to the current code are ignored.
 find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
-shellcheck providers/* tests/*.sh scripts/package-release
+shellcheck -S warning providers/* tests/*.sh scripts/package-release
 qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml
 ./providers/get-provider-health "codex,claude,copilot,pi" | jq .
 ./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .
 ./providers/get-pi-analytics | jq .
 ./providers/get-hermes-analytics | jq .
-bash tests/test-hermes-analytics.sh
+for test in tests/*.sh; do bash "$test"; done
 ```
