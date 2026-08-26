@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### OpenCode Go provider
+
+- New **OpenCode Go** (opencode.ai) provider surfaces the live 5-hour, weekly, and monthly usage windows via OpenCode Zen's `/zen/go/v1/usage`, authenticated with `OPENCODE_API_KEY` or the CLI credential in `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json`. The endpoint is young, so malformed or unavailable quota data degrades to the documented `/zen/go/v1/models` auth-only check — never a fabricated percentage. `useBalance: true` is shown as **balance fallback enabled**; the endpoint does not expose an amount, so none is claimed. `opencode` moves from the informational tier (no quota API) to a full telemetry provider, and `get-provider-health` gained a matching `opencode` case.
+
 ## 1.13.3 - 2026-08-26
 
 ### Hermetic test suites

@@ -290,7 +290,7 @@ PluginSettings {
         { id:"perplexity", name:"Perplexity", icon:"auto_awesome", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },
         { id:"cursor", name:"Cursor", icon:"mouse", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },
         { id:"cline", name:"Cline", icon:"code_blocks", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },
-        { id:"opencode", name:"OpenCode", icon:"open_in_new", mode:"informational", requirement:"none", envVar:"", note:"Usage belongs to configured upstream providers" },
+        { id:"opencode", name:"OpenCode Go", icon:"open_in_new", mode:"telemetry", requirement:"API key or CLI login", envVar:"OPENCODE_API_KEY", note:"Uses OPENCODE_API_KEY or the credential saved by `opencode auth login` to ~/.local/share/opencode/auth.json. Reads OpenCode Zen's /zen/go/v1/usage for live 5h/weekly/monthly quota; shows when balance fallback is enabled; falls back to /zen/go/v1/models on failure." },
         { id:"kiro", name:"Kiro", icon:"tune", mode:"informational", requirement:"none", envVar:"", note:"Subscription-only IDE; no public API" },
         { id:"warp", name:"Warp", icon:"speed", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },
         { id:"amp", name:"Amp", icon:"bolt", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" }

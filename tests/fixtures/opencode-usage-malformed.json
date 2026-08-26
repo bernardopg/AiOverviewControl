@@ -1,0 +1,5 @@
+{
+  "useBalance": false,
+  "rollingUsage": { "status": "ok", "resetInSec": 9000, "usagePercent": 42 },
+  "weeklyUsage": { "status": "ok", "resetInSec": 302400, "usagePercent": 18 }
+}

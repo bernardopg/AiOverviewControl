@@ -1,0 +1,1 @@
+{ "object": "list", "data": [{"id": "claude-sonnet-5", "object": "model", "created": 1, "owned_by": "opencode", "name": "Claude Sonnet 5", "context_length": 1000000}] }
