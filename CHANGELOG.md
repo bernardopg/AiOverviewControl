@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.15.0 - 2026-09-08
+
 ### Local harness telemetry for Codex and OpenCode
 
 - New `providers/get-local-analytics` reads usage metadata (never prompts or responses) from Codex rollout sessions and the OpenCode SQLite store, feeding the same expanded telemetry card that pi and Hermes use: 7-day token chart, top models, top projects, and per-window input/output/cache/reasoning/session breakdowns. Codex `token_count` events carry cumulative counters, so only positive deltas are summed and repeated snapshots are not double-counted; a counter reset restarts from zero rather than going negative.
