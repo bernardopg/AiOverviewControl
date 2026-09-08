@@ -92,11 +92,11 @@ jq -e 'any(.meta.sources[]; .source == "cli" and .sessions == 1)' <<<"$out" >/de
 [ "$(jq -r '.meta.sessions' <<<"$out")" = "3" ] || fail "meta session count"
 
 # --- 3. cache round-trip: the snapshot written for call #2 serves call #3 ---
-[ -f "$CACHE/AiOverviewControl/hermes-analytics-cache.json" ] || fail "cache file written"
-first_ts="$(jq -r '.cached_at' "$CACHE/AiOverviewControl/hermes-analytics-cache.json")"
+[ -f "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json" ] || fail "cache file written"
+first_ts="$(jq -r '.cached_at' "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json")"
 out2="$(run_env bash "$ROOT/providers/get-hermes-analytics")"
 [ "$out2" = "$out" ] || fail "cached output identical"
-[ "$(jq -r '.cached_at' "$CACHE/AiOverviewControl/hermes-analytics-cache.json")" = "$first_ts" ] \
+[ "$(jq -r '.cached_at' "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json")" = "$first_ts" ] \
   || fail "TTL cache reused (cached_at unchanged)"
 
 # --- 4. missing database -> provider error, clean exit ---

@@ -56,6 +56,8 @@ for required in \
   AiOverviewControlI18n.qml ProviderLogo.qml \
   assets/provider-logos/SOURCES.md \
   providers/get-provider-usage providers/get-provider-health \
+  providers/get-local-analytics providers/local-cost-common \
+  scripts/local-analytics.jq \
   providers/send-quota-alert i18n/en.json; do
   if [ ! -f "$PACKAGE/$required" ]; then
     printf 'Release archive is missing %s\n' "$required" >&2
