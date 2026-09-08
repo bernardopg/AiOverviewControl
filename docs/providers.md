@@ -718,6 +718,43 @@ telemetry panel built from `~/.codex/sessions/**/*.jsonl` (and
 | **Bucketing** | Rows are bucketed by the event's own local calendar day (via `TZ`), unlike pi/Hermes which bucket a whole session to its start day. |
 | **Adapter** | `providers/get-local-analytics codex`, cached 120s. |
 
+### Codex backend launch discipline
+
+Every `codex app-server` startup runs a marketplace refresh round; when an
+upgrade keeps being interrupted, each round leaves git temp directories under
+`~/.codex/.tmp/` that Codex itself does not clean up (upstream issues:
+[openai/codex#30620](https://github.com/openai/codex/issues/30620),
+[#36093](https://github.com/openai/codex/issues/36093)). A quota poll must
+therefore launch as few backends as possible:
+
+- **Daemon/proxy mode.** When the Codex CLI supports it (standalone-installer
+  installs), `get-codex-usage` runs `codex app-server daemon start` (idempotent)
+  and speaks each poll through `codex app-server proxy`, so steady-state usage
+  never starts a backend at all. npm/brew/distro installs without the daemon
+  subcommand fall back to spawning a backend per refresh.
+- **`CODEX_APP_SERVER_MODE=spawn`** forces the spawn path and skips the daemon
+  probe.
+- **Single-flight.** A `flock` on
+  `~/.cache/AiOverviewControl/codex-usage.lock` serializes launches; an
+  invocation arriving while another refresh runs serves the cached snapshot,
+  or waits up to `CODEX_LOCK_WAIT` seconds (default 8) before returning a
+  structured error.
+- **Freshness gate.** A cached snapshot younger than `CODEX_FRESH_TTL` seconds
+  (default 60) is answered directly — widget reload bursts no longer spawn
+  anything.
+- **Graceful teardown.** The backend exits on its own when stdin closes; the
+  adapter waits briefly for that self-exit before falling back to
+  SIGTERM/SIGKILL, so startup work in flight is not orphaned mid-clone.
+
+To reclaim disk from already-leaked staging clones (safe when no Codex session
+is running):
+
+```bash
+find ~/.codex/.tmp/marketplaces/.staging -mindepth 1 -maxdepth 1 \
+  -type d -name 'marketplace-upgrade-*' -exec rm -rf {} +
+find ~/.codex/.tmp -mindepth 1 -maxdepth 1 -type d -name 'git-*' -exec rm -rf {} +
+```
+
 ## Utility scripts
 
 Beyond the per-provider adapters, `providers/` ships these utilities:

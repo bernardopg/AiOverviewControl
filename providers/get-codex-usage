@@ -19,6 +19,14 @@ tmp_error="$(mktemp)"
 cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
 cache_file="${cache_dir}/codex-usage.json"
 cache_ttl=900
+# Quota data may be up to this many seconds old before a refresh is worth
+# launching an app-server for. The widget polls slower than this, so the gate
+# only absorbs bursts: popout open, settings open, and IPC reloads all fire
+# within moments of each other, and each used to spawn its own backend.
+fresh_ttl="${CODEX_FRESH_TTL:-60}"
+# How long a caller waits when another invocation already holds the refresh
+# lock before giving up with a structured error.
+lock_wait="${CODEX_LOCK_WAIT:-8}"
 trap 'rm -f "$tmp_out" "$tmp_error"' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,19 +36,57 @@ account=null
 limits=null
 limit_error=null
 
+cache_is_valid() {
+  [ -f "$cache_file" ] \
+    && jq -e '.cached_at and (.data.usage | type == "object")' "$cache_file" >/dev/null 2>&1
+}
+
+serve_cache() {
+  jq -c '.data | .source = "codex-app-server-cache"' "$cache_file"
+  exit 0
+}
+
+# A fresh cache answers without launching any backend at all.
+if cache_is_valid; then
+  cached_at="$(jq -r '.cached_at' "$cache_file")"
+  cached_at="${cached_at%%.*}"   # tolerate float timestamps from other writers
+  cache_age=$(( $(date +%s) - cached_at ))
+  if [ "$cache_age" -ge 0 ] && [ "$cache_age" -le "$fresh_ttl" ]; then
+    serve_cache
+  fi
+fi
+
+# Single-flight the backend launch. Every short-lived app-server startup runs
+# a marketplace refresh round; concurrent or overlapping invocations turn one
+# poll into several such rounds (issue #25). A caller that arrives while a
+# refresh is already running serves the most recent snapshot instead of
+# starting a second backend.
+lock_fd=9
+if command -v flock >/dev/null 2>&1 && mkdir -p "$cache_dir" 2>/dev/null; then
+  eval "exec ${lock_fd}>\"\$cache_dir/codex-usage.lock\""
+  if ! flock -n "$lock_fd"; then
+    cache_is_valid && serve_cache
+    if ! flock -w "$lock_wait" "$lock_fd"; then
+      fail_json 4 "Another Codex usage refresh is in progress; retry shortly."
+      exit 0
+    fi
+  fi
+fi
+
 run_app_server() {
   local line id
   local account_seen=0
   local limits_seen=0
   local deadline=$((SECONDS + 8))
+  local self_exited=0
 
   : >"$tmp_out"
   : >"$tmp_error"
 
   # `exec` keeps the coproc from forking an extra subshell, so
-  # $CODEX_APP_SERVER_PID is the app-server itself and the kill below can
+  # $CODEX_APP_SERVER_PID is the backend itself and the kill below can
   # actually reach it.
-  coproc CODEX_APP_SERVER { exec codex app-server 2>"$tmp_error"; }
+  coproc CODEX_APP_SERVER { exec "$@" 2>"$tmp_error"; }
   local server_pid="$CODEX_APP_SERVER_PID"
   local read_fd="${CODEX_APP_SERVER[0]}"
   local write_fd="${CODEX_APP_SERVER[1]}"
@@ -65,8 +111,22 @@ run_app_server() {
     fi
   done
 
-  exec {write_fd}>&-
-  if kill -0 "$server_pid" 2>/dev/null; then
+  # The backend exits by itself once stdin closes. Waiting briefly for that
+  # natural exit — instead of signalling immediately — gives any startup work
+  # still in flight (a marketplace refresh, for instance) a moment to finish
+  # or abort cleanly, and avoids orphaning its children mid-flight. Bash 5.3
+  # reaps an exited coprocess on its own and invalidates its descriptors, so
+  # the closes below must tolerate already-closed fds.
+  exec {write_fd}>&- 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+      self_exited=1
+      break
+    fi
+    sleep 0.1
+  done
+
+  if [ "$self_exited" -eq 0 ] && kill -0 "$server_pid" 2>/dev/null; then
     kill "$server_pid" 2>/dev/null || true
     # An app-server that ignores SIGTERM used to be reaped by the previous
     # `timeout --kill-after=2s`; without this fallback it outlives the helper
@@ -78,11 +138,35 @@ run_app_server() {
     kill -9 "$server_pid" 2>/dev/null || true
   fi
   wait "$server_pid" 2>/dev/null || true
-  exec {read_fd}<&-
+  exec {read_fd}<&- 2>/dev/null || true
 }
 
+# Daemon mode keeps one long-lived app-server per session and forwards each
+# poll through `codex app-server proxy`, so steady-state usage never starts a
+# backend (and never pays its startup marketplace refresh). `daemon start` is
+# idempotent but only exists for standalone-installer Codex; anything else —
+# npm, brew, distro packages — falls back to spawning a backend per refresh.
+backend_mode="spawn"
+if [ "${CODEX_APP_SERVER_MODE:-auto}" != "spawn" ]; then
+  # </dev/null keeps the probe from inheriting a caller's stdin, and the
+  # timeout bounds an unusual slow daemon start.
+  if timeout 10 codex app-server daemon start >/dev/null 2>&1 </dev/null; then
+    backend_mode="proxy"
+  fi
+fi
+
 for attempt in 1 2; do
-  run_app_server
+  # A proxy that reached nothing is retried against a direct spawn instead of
+  # a second doomed proxy connection.
+  if [ "$attempt" -eq 2 ] && [ "$backend_mode" = "proxy" ] && [ ! -s "$tmp_out" ]; then
+    backend_mode="spawn"
+  fi
+
+  if [ "$backend_mode" = "proxy" ]; then
+    run_app_server codex app-server proxy
+  else
+    run_app_server codex app-server
+  fi
 
   account="$(jq -cs '[.[] | select(.id == 1)][0].result.account // null' "$tmp_out" 2>/dev/null || printf 'null')"
   limits="$(jq -cs '[.[] | select(.id == 2)][0].result // null' "$tmp_out" 2>/dev/null || printf 'null')"
@@ -103,12 +187,12 @@ if [ "$limits" = "null" ] || ! printf '%s' "$limits" | jq -e '.rateLimits' >/dev
   if [ "$account" = "null" ]; then
     fail_json 2 "Codex CLI is not authenticated. Run: codex login"
   else
-    if [ -f "$cache_file" ] && jq -e '.cached_at and (.data.usage | type == "object")' "$cache_file" >/dev/null 2>&1; then
+    if cache_is_valid; then
       cached_at="$(jq -r '.cached_at' "$cache_file")"
+      cached_at="${cached_at%%.*}"
       cache_age=$(( $(date +%s) - cached_at ))
       if [ "$cache_age" -ge 0 ] && [ "$cache_age" -le "$cache_ttl" ]; then
-        jq -c '.data | .source = "codex-app-server-cache"' "$cache_file"
-        exit 0
+        serve_cache
       fi
     fi
 

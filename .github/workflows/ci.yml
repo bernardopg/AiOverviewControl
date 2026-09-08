@@ -398,7 +398,10 @@ jobs:
           sleep 0.1
           SH
           chmod +x "$FAKE_BIN/codex"
-          OUT="$(PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
+          # Each scenario gets its own cache dir: the adapter serves snapshots
+          # younger than CODEX_FRESH_TTL from cache without launching the
+          # backend, so a shared dir would leak one fixture into the next.
+          OUT="$(XDG_CACHE_HOME="$(mktemp -d)" PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
           echo "$OUT" | jq --exit-status '
             length == 1 and .[0].provider == "codex" and
             .[0].usage.primary.usedPercent == 25 and
@@ -409,6 +412,7 @@ jobs:
           ' >/dev/null
 
           WEEKLY_OUT="$(CODEX_FIXTURE=codex-app-server-weekly-only.jsonl \
+            XDG_CACHE_HOME="$(mktemp -d)" \
             PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
           echo "$WEEKLY_OUT" | jq --exit-status '
             length == 1 and .[0].provider == "codex" and
@@ -429,6 +433,12 @@ jobs:
           ' >/dev/null
           [ "$(cat "$RETRY_DIR/attempt")" = "2" ]
 
+          # The adapter answers a fresh snapshot from cache without touching
+          # the backend, so age it past CODEX_FRESH_TTL to exercise the
+          # backend-failing path: two attempts, then the cached fallback.
+          CACHE_FILE="$RETRY_DIR/cache/AiOverviewControl/codex-usage.json"
+          jq '.cached_at = ((now | floor) - 120)' "$CACHE_FILE" > "$CACHE_FILE.tmp" \
+            && mv "$CACHE_FILE.tmp" "$CACHE_FILE"
           CACHED_OUT="$(CODEX_ATTEMPT_FILE="$RETRY_DIR/cache-attempt" \
             CODEX_ALWAYS_FAIL=1 XDG_CACHE_HOME="$RETRY_DIR/cache" \
             PATH="$FAKE_BIN:$PATH" providers/get-provider-usage "codex" "")"
