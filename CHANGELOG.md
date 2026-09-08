@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Codex usage polls no longer spawn overlapping app-servers (#25)
+
+- Every `get-codex-usage` invocation used to launch a fresh `codex
+  app-server` — and every such startup runs a Codex marketplace refresh whose
+  leftover git temp directories accumulate on disk (issue #25). The adapter
+  now single-flights launches with a lock, serves snapshots younger than 60s
+  from cache without launching anything, and prefers the long-lived
+  `codex app-server daemon` (via `app-server proxy`) on installs that have it,
+  falling back to a direct spawn elsewhere. `CODEX_APP_SERVER_MODE=spawn`,
+  `CODEX_FRESH_TTL` and `CODEX_LOCK_WAIT` tune the behavior.
+- The adapter also lets the backend exit by itself on stdin close before
+  escalating to SIGTERM/SIGKILL, so a marketplace refresh caught mid-clone is
+  not orphaned by the poll that started it.
+
 ## 1.15.0 - 2026-09-08
 
 ### Local harness telemetry for Codex and OpenCode
