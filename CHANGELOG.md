@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.15.1 - 2026-09-08
+
 ### Codex usage polls no longer spawn overlapping app-servers (#25)
 
 - Every `get-codex-usage` invocation used to launch a fresh `codex
