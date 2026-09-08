@@ -49,6 +49,7 @@ serve_cache() {
 # A fresh cache answers without launching any backend at all.
 if cache_is_valid; then
   cached_at="$(jq -r '.cached_at' "$cache_file")"
+  cached_at="${cached_at%%.*}"   # tolerate float timestamps from other writers
   cache_age=$(( $(date +%s) - cached_at ))
   if [ "$cache_age" -ge 0 ] && [ "$cache_age" -le "$fresh_ttl" ]; then
     serve_cache
@@ -147,7 +148,9 @@ run_app_server() {
 # npm, brew, distro packages — falls back to spawning a backend per refresh.
 backend_mode="spawn"
 if [ "${CODEX_APP_SERVER_MODE:-auto}" != "spawn" ]; then
-  if codex app-server daemon start >/dev/null 2>&1; then
+  # </dev/null keeps the probe from inheriting a caller's stdin, and the
+  # timeout bounds an unusual slow daemon start.
+  if timeout 10 codex app-server daemon start >/dev/null 2>&1 </dev/null; then
     backend_mode="proxy"
   fi
 fi
@@ -186,6 +189,7 @@ if [ "$limits" = "null" ] || ! printf '%s' "$limits" | jq -e '.rateLimits' >/dev
   else
     if cache_is_valid; then
       cached_at="$(jq -r '.cached_at' "$cache_file")"
+      cached_at="${cached_at%%.*}"
       cache_age=$(( $(date +%s) - cached_at ))
       if [ "$cache_age" -ge 0 ] && [ "$cache_age" -le "$cache_ttl" ]; then
         serve_cache
