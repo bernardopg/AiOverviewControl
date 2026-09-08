@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Local harness telemetry for Codex and OpenCode
+
+- New `providers/get-local-analytics` reads usage metadata (never prompts or responses) from Codex rollout sessions and the OpenCode SQLite store, feeding the same expanded telemetry card that pi and Hermes use: 7-day token chart, top models, top projects, and per-window input/output/cache/reasoning/session breakdowns. Codex `token_count` events carry cumulative counters, so only positive deltas are summed and repeated snapshots are not double-counted; a counter reset restarts from zero rather than going negative.
+- `opencode` now reports from the local database by default, so the card works for the free and third-party models used through OpenCode without an OpenCode Zen subscription. The previous Zen quota path is unchanged and still used when no local database exists or `OPENCODE_USAGE_SOURCE=api` is set; `get-provider-health` follows the same rule instead of always demanding an API key.
+- Both scans are cached for 120s like the pi and Hermes adapters — a Codex scan spawns one `jq` per session file and took ~5s, far too much to repeat on every widget poll.
+
+### Unknown costs are no longer displayed as $0
+
+- Hermes rows with `cost_status = 'unknown'` were summed as if measured, mixing placeholder estimates (one row alone claimed ~$180k) into the displayed spend. Unknown rows now make the affected window unknown, `included` rows count as a true 0, and a window is only totalled when every row in it has a known cost. Ledgers predating `cost_status` fall back to positive values only, since a default 0 cannot establish that a request was free.
+- pi sessions that report a 0 cost alongside non-zero tokens (unpriced or custom models) are treated as unknown rather than free.
+- Weekday labels under the 7-day charts came from `jq`'s locale-dependent `strftime("%a")`, so two cards could disagree on the same day (`qua` next to `Wed`). The widget now derives the label from the row's ISO date, making every chart agree regardless of the locale each adapter ran under.
+- `get-local-analytics` records the source path it scanned in its cache, so a snapshot is never replayed for a different `CODEX_HOME` / `OPENCODE_DATA_DIR`, and a source that has disappeared reports an error instead of stale telemetry.
+- `formatCost` renders unknown as `—` and sub-cent amounts as `<$0.01` instead of `$0.00`, so "no data" and "no charge" are visually distinct. The telemetry cards carry a note stating that local costs may be estimates and that `$0` is not proof of free usage, and the 7-day chart now scales by tokens so it stays meaningful when costs are unknown.
+
 ## 1.14.0 - 2026-08-26
 
 ### OpenCode Go provider

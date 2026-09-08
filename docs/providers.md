@@ -21,9 +21,9 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `opencode` |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `opencode` (Zen mode) |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek` |
-| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local) |
+| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota) |
 | **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax`, `xai`, `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `kiro`, `warp`, `amp` |
@@ -601,7 +601,20 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Dashboard** | [commandcode.ai/billing](https://commandcode.ai/billing) — billing, plan, and credit top-ups. |
 | **Adapter** | `fetch_commandcode_native` — `/alpha/billing/credits` + `/alpha/whoami` + `/alpha/billing/subscriptions`, with documented-endpoint fallback. |
 
-### OpenCode Go
+### OpenCode
+
+Two independent modes. The **local** mode is the default whenever an OpenCode
+database exists, because OpenCode is commonly driven against third-party and
+free-tier providers with no Zen subscription — the Zen quota endpoint would
+only report an entitlement error there. Set `OPENCODE_USAGE_SOURCE=api` to
+force the Zen path.
+
+| | |
+| --- | --- |
+| **Local source** | `${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db` (SQLite, read-only). Assistant messages carry `providerID`, `modelID`, `tokens` and `cost`; only usage metadata is read, never message content. Costs come from whatever OpenCode recorded — a missing cost makes the window unknown (`—`) rather than `$0`. |
+| **Local adapter** | `fetch_opencode_native` (local branch) + `providers/get-local-analytics opencode`, cached 120s. |
+
+#### OpenCode Go (Zen quota mode)
 
 | | |
 | --- | --- |
@@ -613,7 +626,7 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Billing** | Flat monthly subscription; no PAYG surfaced through this endpoint. |
 | **Stability** | The `/zen/go/` namespace shipped alongside the Go plan (opencode PR #16513) and has no documented versioned contract. Adapter degrades to `/zen/go/v1/models` (auth-only) on failure and emits a clearly-labeled "quota endpoint unavailable" note; it never fabricates a percentage. A missing/invalid key returns `401 AuthError`; a valid key without a Go subscription returns `403 EntitlementError` — both surface as hard errors, not soft notes. |
 | **Dashboard** | [opencode.ai/zen](https://opencode.ai/zen) — Zen usage and Go plan management. |
-| **Adapter** | `fetch_opencode_native` — `/zen/go/v1/usage`, with `/zen/go/v1/models` fallback. |
+| **Adapter** | `fetch_opencode_native` (API branch) — `/zen/go/v1/usage`, with `/zen/go/v1/models` fallback. |
 
 ### Kimi (Moonshot AI)
 
@@ -691,10 +704,26 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Changelog** | 2026-06-17 CLI v2.8 (CLI v3 early access). 2026-06-12 CLI v2.7 (`/goal` loops, queue steering). 2026-06-10 **Pro Max** tier. 2026-05-29 **Claude Opus 4.8** (2.2×, 1M ctx). 2026-05-26 HIPAA eligible. CLI v2.6/v2.7 transcript export, persistent prefs. |
 | **Adapter** | Informational card only (`json_note_usage kiro-local`). Links to [app.kiro.dev](https://app.kiro.dev). No scriptable surface. |
 
+### Codex local telemetry
+
+Alongside the `app-server` quota windows, the Codex card shows a local
+telemetry panel built from `~/.codex/sessions/**/*.jsonl` (and
+`archived_sessions/`), honouring `CODEX_HOME`.
+
+| | |
+| --- | --- |
+| **Source** | `event_msg` / `token_count` events. Only usage counters, `cwd`, and the model name are read — never prompt or response content. |
+| **Cumulative counters** | `total_token_usage` is cumulative for the session and is re-emitted unchanged on turns that add no tokens. The adapter sums **positive deltas** between consecutive snapshots, so repeated values are not double-counted and a counter reset (a new total lower than the previous one) restarts from zero instead of producing a negative row. `last_token_usage` is deliberately unused: it is also repeated. |
+| **Cost** | Codex sessions record no cost, so every window reports cost as unknown (`—`). Consumption against a Plus/Pro subscription is not a dollar charge, and none is invented. |
+| **Bucketing** | Rows are bucketed by the event's own local calendar day (via `TZ`), unlike pi/Hermes which bucket a whole session to its start day. |
+| **Adapter** | `providers/get-local-analytics codex`, cached 120s. |
+
 ## Utility scripts
 
-Beyond the per-provider adapters, `providers/` ships four utilities:
+Beyond the per-provider adapters, `providers/` ships these utilities:
 
+- `get-local-analytics <codex|opencode>` — local harness telemetry (7-day chart, top models, top projects, per-window token breakdown), cached 120s. Shares its windowing with `scripts/local-analytics.jq`.
+- `local-cost-common` — sourced helper building the Hermes cost SQL, so the summary and analytics adapters cannot drift on which ledger rows count as a known cost.
 - `get-usage-history` — prints the local usage history written by the dispatcher (`~/.cache/AiOverviewControl/usage-history.jsonl`), trimmed by `AIOC_HISTORY_MAX`.
 - `export-usage-history` — copies that history to CSV or JSONL (see [configuration](configuration.md#exporting-usage-history)).
 - `get-provider-wrapper` — shared single-provider wrapper behind the `get-<id>-usage` entrypoints.

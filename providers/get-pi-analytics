@@ -20,7 +20,7 @@ set -uo pipefail
 
 SESSIONS_DIR="${HOME}/.pi/agent/sessions"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
-CACHE_FILE="$CACHE_DIR/pi-analytics-cache.json"
+CACHE_FILE="$CACHE_DIR/pi-analytics-v2-cache.json"
 CACHE_TTL=120 # seconds — matches the widget's default refreshInterval
 
 TODAY=$(date +%Y-%m-%d)
@@ -79,7 +79,7 @@ while IFS= read -r -d '' f; do
           | ( $u.totalTokens // (($u.input // 0) + ($u.output // 0) + ($u.cacheRead // 0) + ($u.cacheWrite // 0)) ) as $tok
           | ( if ($u.cost | type) == "object" then ($u.cost.total // 0)
               elif ($u.cost | type) == "number" then $u.cost
-              else 0 end ) as $cost
+              else null end | if . == 0 and $tok > 0 then null else . end ) as $cost
           # provider/model live directly on the message in current session
           # format; fall back to the last model_change seen in this file for
           # older/partial formats (mirrors extractProviderModelAndUsage).
@@ -87,9 +87,9 @@ while IFS= read -r -d '' f; do
           | ( ($obj.message.model // ((.curModel // "unknown/unknown") | split("/")[1])) ) as $mod
           | ($prov + "/" + $mod) as $model
           | .tokens += $tok
-          | .cost += $cost
+          | .cost = (if .cost == null or $cost == null then null else .cost + $cost end)
           | .byModel[$model].tokens = ((.byModel[$model].tokens // 0) + $tok)
-          | .byModel[$model].cost = ((.byModel[$model].cost // 0) + $cost)
+          | .byModel[$model].cost = (if $cost == null or (.byModel[$model] | has("cost")) and .byModel[$model].cost == null then null else (.byModel[$model].cost // 0) + $cost end)
         else . end
     ) | del(.curModel)
   ' <"$f" 2>/dev/null)"
@@ -106,22 +106,23 @@ result="$(jq -s --arg today "$TODAY" --arg month_start "$MONTH_START" '
       | (($today_epoch - $offset * 86400) | strftime("%a")) as $wd
       | ([$rows[] | select(.date == $d)]) as $day_rows
       | { date: $d, weekday: $wd,
-          cost: ([$day_rows[].cost] | add // 0),
+          cost: (if any($day_rows[]; .cost == null) then null else ([$day_rows[].cost] | add // 0) end),
           tokens: ([$day_rows[].tokens] | add // 0) }
     ]) as $days
   | ([$days[].date]) as $week_dates
   | ([$rows[] | select(.date as $d | $week_dates | index($d))]) as $week_rows
   | ([$rows[] | select(.date == $today)]) as $today_rows
   | ([$rows[] | select(.date >= $month_start)]) as $month_rows
-  | (reduce $today_rows[] as $r ({cost: 0, tokens: 0}; .cost += $r.cost | .tokens += $r.tokens)) as $today_total
-  | (reduce $week_rows[]  as $r ({cost: 0, tokens: 0}; .cost += $r.cost | .tokens += $r.tokens)) as $week_total
-  | (reduce $month_rows[] as $r ({cost: 0, tokens: 0}; .cost += $r.cost | .tokens += $r.tokens)) as $month_total
+  | def total: {cost: (if any(.[]; .cost == null) then null else (map(.cost) | add // 0) end), tokens: (map(.tokens) | add // 0)};
+    ($today_rows | total) as $today_total
+  | ($week_rows | total) as $week_total
+  | ($month_rows | total) as $month_total
   | ([$week_rows[].byModel // {} | to_entries[]]
       | group_by(.key)
       | map({ model: .[0].key,
               tokens: (map(.value.tokens) | add),
-              cost: (map(.value.cost) | add) })
-      | sort_by(-.cost) | .[0:6]) as $top_models
+              cost: (if any(.[]; .value.cost == null) then null else (map(.value.cost) | add) end) })
+      | sort_by(-(.cost // 0), -.tokens) | .[0:6]) as $top_models
   | ([$week_rows[] | select(.cwd != null) | {cwd, tokens}]
       | group_by(.cwd)
       | map({ cwd: .[0].cwd, tokens: (map(.tokens) | add) })

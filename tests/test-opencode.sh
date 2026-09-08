@@ -12,6 +12,7 @@ HDR_LOG="$TMP/headers.log"
 # The dispatcher appends non-zero quota snapshots; keep fixtures out of the
 # developer's real history store, regardless of the calling environment.
 export XDG_CACHE_HOME="$TMP/cache"
+export OPENCODE_USAGE_SOURCE=api
 mkdir -p "$TMP/bin"
 
 # Fake curl that mimics real curl behavior:

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Read only usage metadata; never export prompts, responses or credentials.
+provider="${1:?expected codex or opencode}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+rows="$(mktemp)"
+trap 'rm -f "$rows" "$rows.array"' EXIT
+fail() { jq -cn --arg error "$1" '{error:$error}'; exit 0; }
+
+# TTL cache matching get-pi-analytics / get-hermes-analytics: a Codex scan
+# spawns one jq per session file and costs seconds, far too much to repeat on
+# every widget poll.
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+cache_file="$cache_dir/local-analytics-$provider-cache.json"
+cache_ttl=120
+# The source path is part of the cache identity: a snapshot taken from one
+# CODEX_HOME/OPENCODE_DATA_DIR must never be replayed for another, and a
+# source that has disappeared must surface as an error rather than as stale
+# telemetry.
+case "$provider" in
+  opencode) source_path="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db"; [ -f "$source_path" ] || fail 'OpenCode local database not found' ;;
+  codex) source_path="${CODEX_HOME:-$HOME/.codex}"; [ -d "$source_path/sessions" ] || fail 'Codex local sessions not found' ;;
+  *) fail 'Unsupported local analytics provider' ;;
+esac
+if [ -f "$cache_file" ] && [ "$(jq -r '.source // ""' "$cache_file" 2>/dev/null)" = "$source_path" ]; then
+  cached_at="$(jq -r '.cached_at // 0' "$cache_file" 2>/dev/null || echo 0)"
+  age=$(( $(date +%s) - cached_at ))
+  if [ "$age" -ge 0 ] && [ "$age" -lt "$cache_ttl" ] \
+    && jq -e '.data | type == "object"' "$cache_file" >/dev/null 2>&1; then
+    jq -c '.data' "$cache_file"
+    exit 0
+  fi
+fi
+case "$provider" in
+  opencode)
+    db="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db"
+    [ -f "$db" ] || fail 'OpenCode local database not found'
+    command -v sqlite3 >/dev/null || fail 'sqlite3 is required for OpenCode telemetry'
+    # Message IDs are unique; reasoning is a subset of output, cache is separate
+    # from input in OpenCode. Prefer its total when present.
+    sqlite3 -readonly -cmd '.timeout 1500' -json "$db" "
+      SELECT m.id, m.session_id AS session, s.directory AS cwd,
+        date(m.time_created / 1000, 'unixepoch', 'localtime') AS date,
+        COALESCE(json_extract(m.data, '$.providerID'), 'unknown') || '/' ||
+        COALESCE(json_extract(m.data, '$.modelID'), 'unknown') AS model,
+        COALESCE(json_extract(m.data, '$.tokens.total'),
+          COALESCE(json_extract(m.data, '$.tokens.input'), 0) +
+          COALESCE(json_extract(m.data, '$.tokens.output'), 0) +
+          COALESCE(json_extract(m.data, '$.tokens.cache.read'), 0) +
+          COALESCE(json_extract(m.data, '$.tokens.cache.write'), 0)) AS tokens,
+        json_extract(m.data, '$.tokens.input') AS input,
+        json_extract(m.data, '$.tokens.output') AS output,
+        json_extract(m.data, '$.tokens.cache.read') AS cacheRead,
+        json_extract(m.data, '$.tokens.reasoning') AS reasoning,
+        CASE WHEN json_type(m.data, '$.cost') IN ('integer','real')
+          AND json_extract(m.data, '$.cost') >= 0 THEN json_extract(m.data, '$.cost') END AS cost,
+        1 AS calls
+      FROM message m JOIN session s ON s.id = m.session_id
+      WHERE json_valid(m.data) AND json_extract(m.data, '$.role') = 'assistant'
+        AND json_type(m.data, '$.tokens') = 'object'
+        AND m.time_created >= unixepoch('now', '-32 days') * 1000;
+    " >"$rows" 2>/dev/null || fail 'OpenCode database could not be read (locked, corrupt or unsupported schema)'
+    # sqlite3 emits no bytes for an empty result set.
+    [ -s "$rows" ] || printf '[]' >"$rows"
+    ;;
+  codex)
+    home="${CODEX_HOME:-$HOME/.codex}"
+    [ -d "$home/sessions" ] || fail 'Codex local sessions not found'
+    while IFS= read -r -d '' file; do
+      # Cumulative counters repeat in token_count events. Use positive deltas,
+      # not the sum of total_token_usage or repeated last_token_usage values.
+      jq -Rnc --arg session "$file" '
+        reduce inputs as $line ({model:"unknown", provider:"openai", cwd:null, prev:{}, rows:[]};
+          ($line | fromjson? // {}) as $e
+          | if $e.type == "session_meta" then
+              .cwd = ($e.payload.cwd // .cwd) | .provider = ($e.payload.model_provider // .provider)
+            elif $e.type == "turn_context" then .model = ($e.payload.model // .model)
+            elif $e.type == "event_msg" and $e.payload.type == "token_count"
+              and ($e.payload.info.total_token_usage | type) == "object" then
+              $e.payload.info.total_token_usage as $u
+              | .prev as $p
+              | (if ($u.total_tokens // 0) < ($p.total_tokens // 0) then {} else $p end) as $base
+              | def delta($k): [0, (($u[$k] // 0) - ($base[$k] // 0))] | max;
+              (delta("total_tokens")) as $tokens
+              | .prev = $u
+              | if $tokens > 0 then .rows += [{session:$session, cwd:.cwd,
+                  model:(.provider + "/" + .model), timestamp:$e.timestamp,
+                  tokens:$tokens, input:delta("input_tokens"), output:delta("output_tokens"),
+                  cacheRead:delta("cached_input_tokens"), reasoning:delta("reasoning_output_tokens"),
+                  calls:1, cost:null}] else . end
+            else . end)
+        | .rows[]
+      ' <"$file" >>"$rows" 2>/dev/null || fail 'Failed to read Codex session metadata'
+    done < <(find -L "$home/sessions" "$home/archived_sessions" -name '*.jsonl' -mtime -32 -print0 2>/dev/null || true)
+    # jq localtime honours TZ, unlike slicing UTC timestamps at midnight.
+    jq -sc 'map(. + {date: (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 | localtime | strftime("%Y-%m-%d"))})' "$rows" >"$rows.array" || fail 'Invalid Codex usage timestamp'
+    mv "$rows.array" "$rows"
+    ;;
+  *) fail 'Unsupported local analytics provider' ;;
+esac
+result="$(jq -c --arg today "$(date +%F)" --arg month "$(date +%Y-%m-01)" \
+  -f "$script_dir/../scripts/local-analytics.jq" "$rows")"
+jq -e 'has("today")' >/dev/null 2>&1 <<<"$result" || fail "Failed to aggregate $provider usage"
+
+mkdir -p "$cache_dir" 2>/dev/null || true
+jq -cn --argjson data "$result" --arg source "$source_path" \
+  '{cached_at:(now | floor), source:$source, data:$data}' >"$cache_file" 2>/dev/null || true
+printf '%s' "$result"

@@ -1165,10 +1165,26 @@ PluginComponent {
     }
 
     function formatCost(usd) {
-        const value = Number(usd || 0);
+        if (usd === null || usd === undefined || !Number.isFinite(Number(usd))) return "—";
+        const value = Number(usd);
+        if (value > 0 && value < 0.01) return "<$0.01";
         if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
         if (value >= 100) return `$${Math.round(value)}`;
         return `$${value.toFixed(2)}`;
+    }
+
+    // jq's strftime("%a") follows the shell locale of whichever adapter produced
+    // the row, so adapters can disagree on the same weekday. Derive the label
+    // from the ISO date instead, and fall back to the adapter string only when
+    // the date is unusable.
+    function weekdayLabel(dayData) {
+        const raw = dayData && dayData.date ? String(dayData.date) : "";
+        const parts = raw.split("-");
+        if (parts.length === 3) {
+            const parsed = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            if (!isNaN(parsed.getTime())) return Qt.formatDate(parsed, "ddd");
+        }
+        return dayData && dayData.weekday ? String(dayData.weekday) : "";
     }
 
     function formatTier(tier) {
@@ -1773,12 +1789,51 @@ PluginComponent {
             piStatsProcess.running = true;
             piStatsTimeout.restart();
         }
+        if (root.selectedProviders.indexOf("codex") >= 0) codexReader.refresh();
+        if (root.selectedProviders.indexOf("opencode") >= 0) opencodeReader.refresh();
         if (root.selectedProviders.indexOf("hermes") >= 0 && !hermesStatsProcess.running) {
             hermesStatsBuffer = "";
             hermesStatsProcess.running = true;
             hermesStatsTimeout.restart();
         }
     }
+
+    component LocalAnalyticsReader: Item {
+        id: localReader
+        required property string providerId
+        property var data: null
+        property string buffer: ""
+        visible: false
+        function refresh() {
+            if (readerProcess.running) return;
+            buffer = "";
+            readerProcess.running = true;
+            readerTimeout.restart();
+        }
+        Process {
+            id: readerProcess
+            command: ["bash", root._pluginDir + "/providers/get-local-analytics", localReader.providerId]
+            stdout: SplitParser {
+                splitMarker: ""
+                onRead: chunk => localReader.buffer += chunk
+            }
+            onExited: code => {
+                readerTimeout.stop();
+                try {
+                    const parsed = code === 0 ? JSON.parse(localReader.buffer) : null;
+                    localReader.data = parsed && !parsed.error ? parsed : null;
+                } catch (error) { localReader.data = null; }
+                localReader.buffer = "";
+            }
+        }
+        Timer {
+            id: readerTimeout
+            interval: root.fetchTimeoutMs
+            onTriggered: { readerProcess.running = false; localReader.buffer = ""; localReader.data = null; }
+        }
+    }
+    LocalAnalyticsReader { id: codexReader; providerId: "codex" }
+    LocalAnalyticsReader { id: opencodeReader; providerId: "opencode" }
 
     Process {
         id: nineStatsProcess
@@ -3702,7 +3757,7 @@ PluginComponent {
 
                                     StyledText {
                                         width: parent.width
-                                        text: String(nineDayColumn.modelData.weekday || "")
+                                        text: root.weekdayLabel(nineDayColumn.modelData)
                                         horizontalAlignment: Text.AlignHCenter
                                         color: nineDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
                                         font.pixelSize: Theme.fontSizeSmall
@@ -3769,7 +3824,7 @@ PluginComponent {
                 }
 
                 StyledRect {
-                    visible: card.provider.provider === "pi" && root.piStats !== null
+                    visible: (card.provider.provider === "pi" && root.piStats !== null) || (card.provider.provider === "codex" && codexReader.data !== null) || (card.provider.provider === "opencode" && opencodeReader.data !== null)
                     width: parent.width
                     radius: Theme.cornerRadius + 2
                     color: Theme.withAlpha(Theme.success, 0.08)
@@ -3783,7 +3838,7 @@ PluginComponent {
                         anchors.margins: Theme.spacingL
                         spacing: Theme.spacingL
 
-                        readonly property var stats: root.piStats || ({})
+                        readonly property var stats: (card.provider.provider === "codex" ? codexReader.data : card.provider.provider === "opencode" ? opencodeReader.data : root.piStats) || ({})
                         readonly property var piToday: stats.today || ({})
                         readonly property var piWeek: stats.week || ({})
                         readonly property var piMonth: stats.month || ({})
@@ -3797,14 +3852,14 @@ PluginComponent {
 
                             StyledText {
                                 Layout.fillWidth: true
-                                text: t("card.pi_details", "pi telemetry")
+                                text: card.provider.provider === "pi" ? t("card.pi_details", "pi telemetry") : root.providerName(card.provider.provider) + " · " + t("card.local_telemetry", "Local telemetry")
                                 color: Theme.surfaceText
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Bold
                             }
 
                             StyledText {
-                                text: t("card.pi_month_total", "{cost} this month", { cost: root.formatCost(Number(piCol.piMonth.cost || 0)) })
+                                text: t("card.pi_month_total", "{cost} this month", { cost: root.formatCost(piCol.piMonth.cost) })
                                 color: Theme.success
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
@@ -3820,24 +3875,42 @@ PluginComponent {
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.pi_today", "Today")
-                                value: `${root.formatCost(Number(piCol.piToday.cost || 0))} · ${root.formatTokens(Number(piCol.piToday.tokens || 0))} tok`
+                                value: `${root.formatCost(piCol.piToday.cost)} · ${root.formatTokens(Number(piCol.piToday.tokens || 0))} tok`
                                 accentColor: Theme.success
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.week", "Week")
-                                value: `${root.formatCost(Number(piCol.piWeek.cost || 0))} · ${root.formatTokens(Number(piCol.piWeek.tokens || 0))} tok`
+                                value: `${root.formatCost(piCol.piWeek.cost)} · ${root.formatTokens(Number(piCol.piWeek.tokens || 0))} tok`
                                 accentColor: Theme.success
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.month", "Month")
-                                value: `${root.formatCost(Number(piCol.piMonth.cost || 0))} · ${root.formatTokens(Number(piCol.piMonth.tokens || 0))} tok`
+                                value: `${root.formatCost(piCol.piMonth.cost)} · ${root.formatTokens(Number(piCol.piMonth.tokens || 0))} tok`
                                 accentColor: Theme.success
                             }
                         }
 
-                        // 7-day cost chart, trailing window (today is the last bar).
+                        StyledText {
+                            width: parent.width
+                            text: t("card.local_cost_note", "Local costs may be estimates, not invoices. — means unavailable or incomplete; $0 is not proof of free usage.")
+                            wrapMode: Text.WordWrap
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
+                        GridLayout {
+                            width: parent.width
+                            columns: 3
+                            visible: card.provider.provider !== "pi"
+                            MetricTile { Layout.fillWidth: true; label: t("card.local_input", "Input (7d)"); value: root.formatTokens(piCol.piWeek.input); accentColor: Theme.success }
+                            MetricTile { Layout.fillWidth: true; label: t("card.local_output", "Output (7d)"); value: root.formatTokens(piCol.piWeek.output); accentColor: Theme.success }
+                            MetricTile { Layout.fillWidth: true; label: t("card.local_cache", "Cache read (7d)"); value: root.formatTokens(piCol.piWeek.cacheRead); accentColor: Theme.success }
+                            MetricTile { Layout.fillWidth: true; label: t("card.local_reasoning", "Reasoning (7d)"); value: root.formatTokens(piCol.piWeek.reasoning); accentColor: Theme.success }
+                            MetricTile { Layout.fillWidth: true; label: t("card.local_calls", "Usage events (7d)"); value: String(piCol.piWeek.calls || 0); accentColor: Theme.success }
+                            MetricTile { Layout.fillWidth: true; label: t("card.local_sessions", "Sessions (7d)"); value: String(piCol.piWeek.sessions || 0); accentColor: Theme.success }
+                        }
+                        // Token activity remains useful when no cost is available.
                         Row {
                             id: piBars
                             width: parent.width
@@ -3846,7 +3919,7 @@ PluginComponent {
                             readonly property real maxCost: {
                                 let top = 0;
                                 for (let i = 0; i < piCol.piDays.length; i++) {
-                                    top = Math.max(top, Number(piCol.piDays[i].cost || 0));
+                                    top = Math.max(top, Number(piCol.piDays[i].tokens || 0));
                                 }
                                 return top > 0 ? top : 1;
                             }
@@ -3873,7 +3946,7 @@ PluginComponent {
                                         Rectangle {
                                             anchors.bottom: parent.bottom
                                             width: parent.width
-                                            height: Math.max(3, (Number(piDayColumn.modelData.cost || 0) / piBars.maxCost) * parent.height)
+                                            height: Math.max(3, (Number(piDayColumn.modelData.tokens || 0) / piBars.maxCost) * parent.height)
                                             color: index === 6 ? Theme.warning : Theme.withAlpha(Theme.success, piDayHover.containsMouse ? 0.75 : 0.55)
 
                                             Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -3892,7 +3965,7 @@ PluginComponent {
 
                                                 StyledText {
                                                     anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: root.formatCost(Number(piDayColumn.modelData.cost || 0))
+                                                    text: root.formatCost(piDayColumn.modelData.cost)
                                                     color: Theme.surfaceText
                                                     font.pixelSize: Theme.fontSizeSmall
                                                     font.weight: Font.Bold
@@ -3917,7 +3990,7 @@ PluginComponent {
 
                                     StyledText {
                                         width: parent.width
-                                        text: String(piDayColumn.modelData.weekday || "")
+                                        text: root.weekdayLabel(piDayColumn.modelData)
                                         horizontalAlignment: Text.AlignHCenter
                                         color: piDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
                                         font.pixelSize: Theme.fontSizeSmall
@@ -3948,7 +4021,7 @@ PluginComponent {
                                     width: parent.width
                                     label: String(modelData.model || "")
                                     percent: Number(piCol.piWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(piCol.piWeek.cost)) * 100 : 0
-                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${root.formatTokens(Number(modelData.tokens || 0))}`
+                                    aside: `${root.formatCost(modelData.cost)} · ${root.formatTokens(Number(modelData.tokens || 0))}`
                                     accentColor: Theme.success
                                 }
                             }
@@ -4040,6 +4113,13 @@ PluginComponent {
                         anchors.margins: Theme.spacingL
                         spacing: Theme.spacingL
 
+                        StyledText {
+                            width: parent.width
+                            text: t("card.local_cost_note", "Local costs may be estimates, not invoices. — means unavailable or incomplete; $0 is not proof of free usage.")
+                            wrapMode: Text.WordWrap
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
                         readonly property var stats: root.hermesStats || ({})
                         readonly property var meta: stats.meta || ({})
                         readonly property var hToday: stats.today || ({})
@@ -4063,7 +4143,7 @@ PluginComponent {
                             }
 
                             StyledText {
-                                text: t("card.hermes_month_total", "{cost} this month", { cost: root.formatCost(Number(hermesCol.hMonth.cost || 0)) })
+                                text: t("card.hermes_month_total", "{cost} this month", { cost: root.formatCost(hermesCol.hMonth.cost) })
                                 color: Theme.primary
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
@@ -4130,19 +4210,19 @@ PluginComponent {
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.hermes_today", "Today")
-                                value: `${root.formatCost(Number(hermesCol.hToday.cost || 0))} · ${root.formatTokens(Number(hermesCol.hToday.tokens || 0))} tok`
+                                value: `${root.formatCost(hermesCol.hToday.cost)} · ${root.formatTokens(Number(hermesCol.hToday.tokens || 0))} tok`
                                 accentColor: Theme.primary
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.week", "Week")
-                                value: `${root.formatCost(Number(hermesCol.hWeek.cost || 0))} · ${root.formatTokens(Number(hermesCol.hWeek.tokens || 0))} tok`
+                                value: `${root.formatCost(hermesCol.hWeek.cost)} · ${root.formatTokens(Number(hermesCol.hWeek.tokens || 0))} tok`
                                 accentColor: Theme.primary
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.month", "Month")
-                                value: `${root.formatCost(Number(hermesCol.hMonth.cost || 0))} · ${root.formatTokens(Number(hermesCol.hMonth.tokens || 0))} tok`
+                                value: `${root.formatCost(hermesCol.hMonth.cost)} · ${root.formatTokens(Number(hermesCol.hMonth.tokens || 0))} tok`
                                 accentColor: Theme.primary
                             }
                         }
@@ -4212,7 +4292,7 @@ PluginComponent {
 
                                                 StyledText {
                                                     anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: root.formatCost(Number(hermesDayColumn.modelData.cost || 0))
+                                                    text: root.formatCost(hermesDayColumn.modelData.cost)
                                                     color: Theme.surfaceVariantText
                                                     font.pixelSize: Theme.fontSizeSmall - 1
                                                 }
@@ -4229,7 +4309,7 @@ PluginComponent {
 
                                     StyledText {
                                         width: parent.width
-                                        text: String(hermesDayColumn.modelData.weekday || "")
+                                        text: root.weekdayLabel(hermesDayColumn.modelData)
                                         horizontalAlignment: Text.AlignHCenter
                                         color: hermesDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
                                         font.pixelSize: Theme.fontSizeSmall
@@ -4260,7 +4340,7 @@ PluginComponent {
                                     width: parent.width
                                     label: String(modelData.model || "")
                                     percent: Number(hermesCol.hWeek.tokens || 0) > 0 ? (Number(modelData.tokens || 0) / Number(hermesCol.hWeek.tokens)) * 100 : 0
-                                    aside: `${root.formatTokens(Number(modelData.tokens || 0))} tok · ${root.formatCost(Number(modelData.cost || 0))}`
+                                    aside: `${root.formatTokens(Number(modelData.tokens || 0))} tok · ${root.formatCost(modelData.cost)}`
                                     accentColor: Theme.primary
                                 }
                             }

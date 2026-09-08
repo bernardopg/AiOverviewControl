@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# SQL expression shared by the Hermes summary and analytics adapters.
+hermes_cost_expression() {
+  local db="$1"
+  if sqlite3 -readonly "$db" 'PRAGMA table_info(session_model_usage);' 2>/dev/null | grep -q '|cost_status|'; then
+    printf '%s' "CASE WHEN u.cost_status = 'unknown' THEN NULL
+      WHEN u.cost_status = 'included' THEN 0
+      WHEN u.actual_cost_usd > 0 THEN u.actual_cost_usd
+      WHEN u.cost_status = 'estimated' THEN u.estimated_cost_usd
+      ELSE NULL END"
+  else
+    # Old ledgers have no status: a positive value is usable, but default zeros
+    # cannot establish that a request was free.
+    printf '%s' 'COALESCE(NULLIF(u.actual_cost_usd, 0), NULLIF(u.estimated_cost_usd, 0))'
+  fi
+}
+hermes_cost_sum() {
+  local expression
+  expression="$(hermes_cost_expression "$1")"
+  printf 'CASE WHEN COUNT(*) = COUNT(%s) THEN COALESCE(SUM(%s), 0) ELSE NULL END' "$expression" "$expression"
+}

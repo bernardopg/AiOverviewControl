@@ -213,14 +213,14 @@ fetch_pi_native() {
     return 0
   fi
 
-  local cache_file="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/pi-analytics-cache.json"
+  local cache_file="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/pi-analytics-v2-cache.json"
   if [ ! -f "$cache_file" ] || ! jq -e '.data | type == "object"' "$cache_file" >/dev/null 2>&1; then
     json_note_usage pi pi-local "pi coding agent" "local" "Local session analytics — expand card for details" "~/.pi/agent/sessions"
     return 0
   fi
 
   jq -c '
-    def money($v): ("$" + ((($v // 0) * 100 | round) / 100 | tostring));
+    def money($v): if $v == null then "—" elif $v > 0 and $v < 0.01 then "<$0.01" else ("$" + (($v * 100 | round) / 100 | tostring)) end;
     def compact($v):
       (($v // 0)) as $n
       | if $n >= 1000000000 then (((($n / 100000000) | round) / 10) | tostring) + "B"
@@ -277,6 +277,10 @@ fetch_hermes_native() {
     return 0
   fi
 
+  # shellcheck source=providers/local-cost-common
+  source "$SCRIPT_DIR/local-cost-common"
+  local cost_sum
+  cost_sum="$(hermes_cost_sum "$state_db")"
   local today_key week_epoch today_row week_row
   today_key=$(date +%Y-%m-%d)
   week_epoch=$(date -d '6 days ago 00:00' +%s 2>/dev/null || date -v-6d +%s 2>/dev/null || echo 0)
@@ -288,7 +292,7 @@ fetch_hermes_native() {
   # card that silently hides a broken database.
   if ! today_row="$(sqlite3 -readonly -separator $'\t' "$state_db" "
     SELECT SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens),
-           SUM(COALESCE(NULLIF(u.actual_cost_usd, 0), u.estimated_cost_usd)),
+           $cost_sum,
            SUM(u.api_call_count)
     FROM session_model_usage u
     JOIN sessions s ON s.id = u.session_id
@@ -300,7 +304,7 @@ fetch_hermes_native() {
   fi
   if ! week_row="$(sqlite3 -readonly -separator $'\t' "$state_db" "
     SELECT SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens),
-           SUM(COALESCE(NULLIF(u.actual_cost_usd, 0), u.estimated_cost_usd)),
+           $cost_sum,
            SUM(u.api_call_count)
     FROM session_model_usage u
     JOIN sessions s ON s.id = u.session_id
@@ -333,7 +337,8 @@ fetch_hermes_native() {
     --arg week "$week_row" \
     '
     def num($s; $i): ($s | split("\n")[0] | split("\t")[$i] | tonumber? // 0);
-    def money($v): ("$" + (((($v // 0) * 100) | round) / 100 | tostring));
+    def money($v): if $v == null then "—" elif $v > 0 and $v < 0.01 then "<$0.01" else ("$" + ((($v * 100) | round) / 100 | tostring)) end;
+    def cost($s): ($s | split("\n")[0] | split("\t")[1] | tonumber? // null);
     def compact($v):
       (($v // 0)) as $n
       | if $n >= 1000000000 then (((($n / 100000000) | round) / 10) | tostring) + "B"
@@ -353,14 +358,14 @@ fetch_hermes_native() {
           windowMinutes: null,
           resetsAt: null,
           resetDescription: "Today",
-          displayValue: (money(num($today; 1)) + " · " + compact(num($today; 0)) + " tok")
+          displayValue: (money(cost($today)) + " · " + compact(num($today; 0)) + " tok")
         },
         secondary: {
           usedPercent: 0,
           windowMinutes: null,
           resetsAt: null,
           resetDescription: "Week",
-          displayValue: (money(num($week; 1)) + " · " + compact(num($week; 0)) + " tok")
+          displayValue: (money(cost($week)) + " · " + compact(num($week; 0)) + " tok")
         },
         tertiary: null,
         updatedAt: (now | todateiso8601)
@@ -1623,6 +1628,43 @@ opencode_api_key() {
 }
 
 fetch_opencode_native() {
+  local local_db="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db"
+  if [ -f "$local_db" ] && [ "${OPENCODE_USAGE_SOURCE:-local}" != api ]; then
+    local stats
+    stats="$(bash "$SCRIPT_DIR/get-local-analytics" opencode)"
+    if ! printf '%s' "$stats" | jq -e 'has("today") and (has("error") | not)' >/dev/null; then
+      json_error opencode opencode-local 1 provider "OpenCode local database could not be read."
+      return 0
+    fi
+    printf '%s' "$stats" | jq -c '
+      def compact($v):
+        (($v // 0)) as $n
+        | if $n >= 1000000000 then (((($n / 100000000) | round) / 10) | tostring) + "B"
+          elif $n >= 1000000 then (((($n / 100000) | round) / 10) | tostring) + "M"
+          elif $n >= 1000 then (((($n / 100) | round) / 10) | tostring) + "K"
+          else (($n | round) | tostring)
+          end;
+      # A window whose cost is unknown shows tokens alone rather than an
+      # invented $0 — most local runs are free-tier or third-party models.
+      def money($v):
+        if $v == null then null
+        elif $v > 0 and $v < 0.01 then "<$0.01"
+        else ("$" + (($v * 100 | round) / 100 | tostring)) end;
+      def window($w; $label):
+        {usedPercent:0, windowMinutes:null, resetsAt:null, resetDescription:$label,
+         displayValue: ((money($w.cost) | if . == null then "" else . + " \u00b7 " end)
+           + compact($w.tokens) + " tok")};
+      . as $d | {
+        provider:"opencode", source:"opencode-local",
+        usage:{identity:{providerID:"opencode", accountEmail:"OpenCode", loginMethod:"local"},
+          accountEmail:"OpenCode", loginMethod:"local",
+          primary: window($d.today; "Today"),
+          secondary: window($d.week; "Week"),
+          updatedAt:(now | todateiso8601)},
+        credits:{remaining:"Local harness telemetry"}}
+    '
+    return 0
+  fi
   # OpenCode Go (opencode.ai) — coding-agent subscription quota via OpenCode
   # Zen. /zen/go/v1/usage returns percent-already-computed 5h/weekly/monthly
   # windows. The endpoint is young (opencode PR #16513), so on failure we
