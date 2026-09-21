@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.16.1 - 2026-09-21
+
 ### Antigravity `agy` sessions and complete quota windows (#30)
 
 - Antigravity now discovers the file-backed OAuth session written by `agy` at `~/.gemini/antigravity-cli/antigravity-oauth-token` (plus its XDG-compatible path) when a desktop keyring session is unavailable. Health detection validates the saved refresh token and still requires `sqlite3` for IDE-state discovery.
