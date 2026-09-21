@@ -88,7 +88,7 @@ case "$url" in
         ;;
     esac
     ;;
-  */v1internal:fetchAvailableModels)
+  */v1internal:retrieveUserQuotaSummary|*/v1internal:fetchAvailableModels)
     count=0
     [ ! -f "$FAKE_FETCH_COUNT_FILE" ] || count="$(cat "$FAKE_FETCH_COUNT_FILE")"
     count=$((count + 1))
@@ -104,8 +104,28 @@ case "$url" in
         write_body '{"unexpected":true}'
         printf '200'
         ;;
-      *)
+      malformed_summary)
+        write_body '{"groups":[{"displayName":"Gemini Models","buckets":[{"bucketId":"gemini-5h","window":"5h"}]}]}'
+        printf '200'
+        ;;
+      models)
         write_body '{"models":{"gemini-pro":{"displayName":"Gemini Pro","quotaInfo":{"remainingFraction":0.2,"resetTime":"2026-07-20T00:00:00Z"}}}}'
+        printf '200'
+        ;;
+      fallback)
+        case "$url" in
+          */v1internal:retrieveUserQuotaSummary)
+            write_body '{"error":{"message":"not supported"}}'
+            printf '404'
+            ;;
+          *)
+            write_body '{"models":{"gemini-pro":{"displayName":"Gemini Pro","quotaInfo":{"remainingFraction":0.2,"resetTime":"2026-07-20T00:00:00Z"}}}}'
+            printf '200'
+            ;;
+        esac
+        ;;
+      *)
+        write_body '{"groups":[{"displayName":"Gemini Models","buckets":[{"bucketId":"gemini-5h","displayName":"5 hour limit","window":"5h","remainingFraction":0.8,"resetTime":"2026-07-20T05:00:00Z"},{"bucketId":"gemini-weekly","displayName":"Weekly limit","window":"weekly","remainingFraction":0.3,"resetTime":"2026-07-27T00:00:00Z"}]},{"displayName":"Claude and GPT Models","buckets":[{"bucketId":"3p-5h","displayName":"5 hour limit","window":"5-hour","remainingFraction":0.1,"resetTime":"2026-07-20T05:00:00Z"},{"bucketId":"3p-weekly","displayName":"Weekly limit","window":"7d","remainingFraction":0.6,"resetTime":"2026-07-27T00:00:00Z"},{"bucketId":"future-limit","displayName":"Future limit","window":"monthly","remainingFraction":0.05}]}]}'
         printf '200'
         ;;
     esac
@@ -158,7 +178,7 @@ rm -f "$FAKE_FETCH_COUNT_FILE"
 RATE_LIMITED="$(FAKE_FETCH_MODE=rate ANTIGRAVITY_STATE_DB="$DB" run_adapter)"
 printf '%s' "$RATE_LIMITED" | jq -e '
   .[0].error.code == 429
-  and .[0].accountErrors[0].stage == "fetchAvailableModels"
+  and (.[0].accountErrors[0].stage | test("retrieveUserQuotaSummary|fetchAvailableModels"))
 ' >/dev/null
 
 : > "$FAKE_CURL_LOG"
@@ -166,8 +186,22 @@ rm -f "$FAKE_FETCH_COUNT_FILE"
 SCHEMA_CHANGED="$(FAKE_FETCH_MODE=schema ANTIGRAVITY_STATE_DB="$DB" run_adapter)"
 printf '%s' "$SCHEMA_CHANGED" | jq -e '
   .[0].error.code == 1
-  and (.[0].error.message | contains("models object is missing"))
+  and (.[0].error.message | contains("no readable quota windows"))
 ' >/dev/null
+
+# A deployment without quota-summary support falls back to the previous
+# fetchAvailableModels path instead of blanking an otherwise valid account.
+rm -f "$FAKE_FETCH_COUNT_FILE"
+FALLBACK="$(FAKE_FETCH_MODE=fallback ANTIGRAVITY_STATE_DB="$DB" run_adapter)"
+printf '%s' "$FALLBACK" | jq -e '
+  .[0].error == null
+  and .[0].usage.primary.name == "Gemini Models"
+  and .[0].usage.primary.usedPercent == 80
+' >/dev/null
+[ "$(cat "$FAKE_FETCH_COUNT_FILE")" = "2" ]
+grep -Fq 'v1internal:retrieveUserQuotaSummary' "$FAKE_CURL_LOG"
+grep -Fq 'v1internal:fetchAvailableModels' "$FAKE_CURL_LOG"
+grep -Fq 'project-1' "$FAKE_CURL_LOG"
 
 : > "$FAKE_CURL_LOG"
 rm -f "$FAKE_FETCH_COUNT_FILE"
@@ -177,9 +211,52 @@ printf '%s' "$PARTIAL" | jq -e '
   and .[0].error == null
   and (.[0].accounts | length) == 1
   and .[0].accounts[0].email == "one@example.invalid"
+  and (.[0].accounts[0].windows | length) == 4
+  and ([.[0].accounts[0].windows[].name] | index("Gemini Models (5h)")) != null
+  and ([.[0].accounts[0].windows[].name] | index("Claude & OpenAI Models (Weekly)")) != null
+  and ([.[0].accounts[0].windows[].name] | index("Claude & OpenAI Models (monthly)")) == null
+  and .[0].usage.primary.name == "Claude & OpenAI Models (5h)"
+  and .[0].usage.primary.usedPercent == 90
   and (.[0].accountErrors | length) == 1
   and .[0].accountErrors[0].email == "two@example.invalid"
   and .[0].accountErrors[0].code == 429
+  and (.[0].accountErrors[0].stage | test("retrieveUserQuotaSummary|fetchAvailableModels"))
+' >/dev/null
+
+# Verify agy CLI token file fallback when secret-tool and IDE DB are not present
+CLI_TOKEN_DIR="$TMP_ROOT/.gemini/antigravity-cli"
+mkdir -p "$CLI_TOKEN_DIR"
+cat > "$CLI_TOKEN_DIR/antigravity-oauth-token" <<EOF
+{"token":{"access_token":"access-three","refresh_token":"$REFRESH_TWO"}}
+EOF
+rm -f "$DB" "$FAKE_BIN/sqlite3"
+cat > "$FAKE_BIN/secret-tool" <<'SH'
+#!/usr/bin/env bash
+exit 1
+SH
+chmod +x "$FAKE_BIN/secret-tool"
+FILE_FALLBACK="$(HOME="$TMP_ROOT" run_adapter)"
+printf '%s' "$FILE_FALLBACK" | jq -e '
+  .[0].provider == "antigravity"
+  and .[0].error == null
+  and (.[0].accounts | length) == 1
+  and .[0].accounts[0].install == "CLI file"
+  and .[0].accounts[0].email == "two@example.invalid"
+  and (.[0].accounts[0].windows | length) == 4
+' >/dev/null
+
+# A summary-shaped response with no numeric quota must fail explicitly rather
+# than being clamped to a fabricated 100% used window.
+MALFORMED="$(FAKE_FETCH_MODE=malformed_summary HOME="$TMP_ROOT" run_adapter)"
+printf '%s' "$MALFORMED" | jq -e '
+  .[0].error.code == 1
+  and (.[0].error.message | contains("no readable quota windows"))
+' >/dev/null
+
+HEALTH_FALLBACK="$(HOME="$TMP_ROOT" PATH="$FAKE_BIN:$PATH" "$ROOT/providers/get-provider-health" antigravity)"
+printf '%s' "$HEALTH_FALLBACK" | jq -e '
+  .[0].provider == "antigravity"
+  and .[0].status == "ready"
 ' >/dev/null
 
 echo "Antigravity live safeguards: OK"

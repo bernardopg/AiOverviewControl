@@ -101,7 +101,7 @@ Integrações medidas notáveis:
 | Codex | Métodos oficiais de conta e rate-limit do `codex app-server`. |
 | Claude Code | Cota OAuth mais analytics local de `~/.claude/projects` (ou `$CLAUDE_CONFIG_DIR/projects` quando essa variável de ambiente estiver definida). |
 | GitHub Copilot | Snapshot autenticado de cota GitHub/Copilot. |
-| Antigravity | Famílias de cota Gemini e Claude/OpenAI com resets do Cloud Code Assist; diagnósticos opcionais por modelo e separação automática de múltiplas contas. |
+| Antigravity | Janelas de cota de 5 horas e semanais para Gemini e Claude/OpenAI via Cloud Code Assist; diagnósticos opcionais por modelo, separação automática de múltiplas contas e descoberta do arquivo de token do `agy`. |
 | 9Router | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado. |
 | pi | Telemetria JSONL local de sessões (`~/.pi/agent/sessions`) — custo, tokens, top modelos, top projetos; não há API de cota (o pi não tem rate limits). |
 | Hermes | Entrada de natureza dupla: telemetria do harness de agente via `~/.hermes/state.db` (sessões, tokens por modelo/projeto, origens, chamadas de API) mais identidade de provider (cobrança ativa, modelo padrão) de `~/.hermes/config.yaml` / `auth.json`. O faturamento do lado provider permanece no [Nous Portal](https://portal.nousresearch.com). |
@@ -126,7 +126,7 @@ A matriz completa, credenciais e referências upstream estão documentadas em
 
 - DankMaterialShell rodando sobre Quickshell.
 - `bash`, `jq` e `curl`.
-- CLIs ou credenciais específicas apenas para os provedores habilitados. O Antigravity precisa de `secret-tool` para sessões do keyring ou `sqlite3` para bancos de estado da IDE; Hermes e 9Router precisam de `sqlite3` para seus bancos locais de uso.
+- CLIs ou credenciais específicas apenas para os provedores habilitados. O Antigravity pode ler o arquivo de token do `agy` em `~/.gemini/antigravity-cli/antigravity-oauth-token`, uma sessão no keyring via `secret-tool` ou o banco de estado da IDE (esse caminho exige `sqlite3`); Hermes e 9Router precisam de `sqlite3` para seus bancos locais de uso.
 - As notificações de cota também precisam de `notify-send` e `flock`.
 
 Linha de base recomendada para o conjunto padrão de provedores:

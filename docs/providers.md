@@ -103,13 +103,13 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <tr>
 <td><code>antigravity</code></td>
 <td>Quota (Cloud Code Assist)</td>
-<td>✅ local Antigravity OAuth (keyring / IDE session, auto-refreshed)</td>
-<td>✅ Gemini / Claude &amp; OpenAI / unknown family quota + reset; optional per-model detail; per-account failures</td>
+<td>✅ local Antigravity OAuth (<code>agy</code> token file / keyring / IDE session, auto-refreshed)</td>
+<td>✅ Gemini / Claude &amp; OpenAI 5h + weekly quota windows and resets; available-models compatibility fallback; per-account failures</td>
 <td>✅ Antigravity plan</td>
 <td>—</td>
-<td><code>~/.config/Antigravity IDE</code></td>
+<td><code>~/.gemini/antigravity-cli/antigravity-oauth-token</code> or <code>~/.config/Antigravity IDE</code></td>
 <td>Antigravity IDE</td>
-<td><code>loadCodeAssist</code> + <code>v1internal:fetchAvailableModels</code> on <code>cloudcode-pa.googleapis.com</code> (multi-account)</td>
+<td><code>loadCodeAssist</code> + <code>v1internal:retrieveUserQuotaSummary</code> on <code>daily-cloudcode-pa.googleapis.com</code>; <code>fetchAvailableModels</code> compatibility fallback (multi-account)</td>
 </tr>
 <tr>
 <td><code>gemini</code></td>

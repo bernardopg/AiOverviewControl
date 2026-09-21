@@ -100,7 +100,7 @@ Notable integrations:
 | Codex | Official `codex app-server` account and rate-limit methods. |
 | Claude Code | OAuth quota plus local `~/.claude/projects` analytics (or `$CLAUDE_CONFIG_DIR/projects` when that env var is set). |
 | GitHub Copilot | Authenticated GitHub/Copilot quota snapshot. |
-| Antigravity | Gemini and Claude/OpenAI quota families with reset times from Cloud Code Assist; optional per-model diagnostics and automatic multi-account separation. |
+| Antigravity | Gemini and Claude/OpenAI 5-hour and weekly quota windows from Cloud Code Assist; optional per-model diagnostics, automatic multi-account separation, and `agy` CLI token-file discovery. |
 | 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
 | pi | Local session JSONL telemetry (`~/.pi/agent/sessions`) — cost, tokens, top models, top projects; no quota API (pi has no rate limits). |
 | Hermes | Dual-nature entry: agent-harness telemetry from `~/.hermes/state.db` (sessions, tokens per model/project, sources, API calls) plus provider identity (active billing provider, default model) from `~/.hermes/config.yaml` / `auth.json`. Provider-side billing stays on the [Nous Portal](https://portal.nousresearch.com). |
@@ -127,7 +127,7 @@ The full matrix, credentials, and upstream references are documented in
 
 - DankMaterialShell running on Quickshell.
 - `bash`, `jq`, and `curl`.
-- Provider-specific CLIs or credentials only for providers you enable. Antigravity needs `secret-tool` for keyring sessions or `sqlite3` for IDE state databases; Hermes and 9Router need `sqlite3` for their local usage databases.
+- Provider-specific CLIs or credentials only for providers you enable. Antigravity can read the `agy` CLI token file at `~/.gemini/antigravity-cli/antigravity-oauth-token`, a `secret-tool` keyring session, or an IDE state database (the database path requires `sqlite3`); Hermes and 9Router need `sqlite3` for their local usage databases.
 - Quota notifications additionally need `notify-send` and `flock`.
 
 Recommended baseline for the default provider set:

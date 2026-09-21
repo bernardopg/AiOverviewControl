@@ -533,33 +533,73 @@ antigravity_email_from_idtoken() {
 antigravity_account_json() {
   jq -c --arg install "$1" --arg email "$2" --arg login "$3" '
     def clamp: if type != "number" then 0 elif . < 0 then 0 elif . > 1 then 1 else . end;
+    def num: (tonumber? // null);
     def fam: (.displayName // .bucketId // "Model") | gsub("\\s*\\([^)]*\\)\\s*$"; "");
-    # Flatten buckets across groups; keep API order as a tie-break rank so the
-    # models Antigravity lists first (Gemini for a Google plan) lead on ties.
-    ([.groups[]?.buckets[]?] | to_entries
-      | map(.key as $i | {
-          name:(.value | fam),
-          rem:(.value.remainingFraction | clamp),
-          reset:(.value.resetTime // null),
-          desc:(.value.description // null),
-          idx:$i
-        })) as $rows
-    | ($rows
-        | group_by(.name)
-        | map({
-            name: .[0].name,
-            rem:  (map(.rem) | min),
-            reset:(map(.reset | select(. != null)) | sort | first // null),
-            desc: (map(.desc | select(. != null)) | first // null),
-            idx:  (map(.idx) | min)
-          })
-        | sort_by([.rem, .idx])) as $fams
-    | {
-        install: $install,
-        email: $email,
-        loginMethod: $login,
-        groupDescription: (.groups[0].description // .description // null),
-        windows: ($fams | map({
+    def group_label($g):
+      ($g.displayName // "Models") as $raw
+      | if ($raw | test("gemini"; "i")) then "Gemini Models"
+        elif ($raw | test("claude|openai|gpt|3p"; "i")) then "Claude & OpenAI Models"
+        else $raw end;
+    def group_rank($label):
+      if ($label | test("^Gemini"; "i")) then 0
+      elif ($label | test("^Claude|OpenAI|GPT"; "i")) then 1
+      else 2 end;
+    def window_kind:
+      ((.window // .displayName // .bucketId // "") | ascii_downcase) as $raw
+      | if ($raw | test("(^|[^a-z0-9])5[ -]?(h|hour)")) then
+          {id:"5h", label:"5h", minutes:300, rank:0}
+        elif ($raw | test("week|(^|[^a-z0-9])7[ -]?d")) then
+          {id:"weekly", label:"Weekly", minutes:10080, rank:1}
+        else null end;
+
+    ([.groups[]?.buckets[]? | select((window_kind) != null)] | length > 0) as $summary_shape
+    | (if $summary_shape then
+      [
+        .groups[]? as $g
+        | group_label($g) as $gl
+        | $g.buckets[]?
+        | (window_kind) as $kind
+        | select($kind != null)
+        | (.remainingFraction | num) as $remaining
+        | select($remaining != null)
+        | ($remaining | clamp) as $rem
+        | ($gl + " (" + $kind.label + ")") as $name
+        | {
+            name: $name,
+            group: $gl,
+            window: $kind.id,
+            windowMinutes: $kind.minutes,
+            usedPercent: (((1 - $rem) * 10000 | round) / 100),
+            resetsAt: (.resetTime // null),
+            resetDescription: $name,
+            description: (.description // null),
+            displayValue: null,
+            _groupRank: group_rank($gl),
+            _windowRank: $kind.rank
+          }
+      ]
+      | sort_by([._groupRank, ._windowRank])
+      | map(del(._groupRank, ._windowRank))
+    else
+      ([.groups[]?.buckets[]?] | to_entries
+        | map(.key as $i | {
+            name:(.value | fam),
+            rem:(.value.remainingFraction | clamp),
+            reset:(.value.resetTime // null),
+            desc:(.value.description // null),
+            idx:$i
+          })) as $rows
+      | ($rows
+          | group_by(.name)
+          | map({
+              name: .[0].name,
+              rem: (map(.rem) | min),
+              reset:(map(.reset | select(. != null)) | sort | first // null),
+              desc: (map(.desc | select(. != null)) | first // null),
+              idx: (map(.idx) | min)
+            })
+          | sort_by([.rem, .idx])) as $fams
+      | ($fams | map({
           name: .name,
           usedPercent: (((1 - .rem) * 10000 | round) / 100),
           windowMinutes: null,
@@ -567,7 +607,14 @@ antigravity_account_json() {
           resetDescription: .name,
           description: .desc,
           displayValue: (((1 - .rem) * 100 | round | tostring) + "% used")
-        })),
+        }))
+    end) as $windows
+    | {
+        install: $install,
+        email: $email,
+        loginMethod: $login,
+        groupDescription: (.groups[0].description // .description // null),
+        windows: $windows,
         updatedAt: (now | todateiso8601)
       }'
 }
@@ -638,9 +685,9 @@ antigravity_models_account_json() {
 }
 
 # AiOverviewControl follows the same sequence used by Antigravity: load the account's
-# Cloud Code Assist project first, then pass it to fetchAvailableModels.  An
-# empty request body is accepted by the service, but can select its generic
-# entitlement view instead of the subscription associated with the IDE.
+# Cloud Code Assist project first, then pass its string ID to the preferred quota
+# method (with fetchAvailableModels as compatibility fallback). An empty project
+# can select a generic entitlement view instead of the IDE subscription.
 # Print a compact JSON request body on success. On failure, print
 # "code<TAB>message" to stderr and return non-zero.
 antigravity_quota_request_body() {
@@ -673,11 +720,14 @@ antigravity_quota_request_body() {
     printf '%s\t%s\n' "${http_status:-1}" "$message" >&2
     return 1
   fi
-  project="$(jq -c '.cloudaicompanionProject // empty' "$tmp_body" 2>/dev/null || true)"
+  project="$(jq -r '
+    (.cloudaicompanionProject // empty)
+    | if type == "string" then . elif type == "object" then (.id // empty) else empty end
+  ' "$tmp_body" 2>/dev/null || true)"
   rm -f "$tmp_body"
 
   if [ -n "${project:-}" ] && [ "$project" != "null" ]; then
-    jq -cn --argjson project "$project" '{project:$project}'
+    jq -cn --arg project "$project" '{project:$project}'
   else
     printf '1\tAntigravity loadCodeAssist response schema changed: cloudaicompanionProject is missing; quota fetch was skipped to avoid a false 0%% result.\n' >&2
     return 1
@@ -704,18 +754,79 @@ antigravity_http_error_message() {
   esac
 }
 
+antigravity_append_group_account() {
+  local accounts_file="$1" body_file="$2" install="$3" email="$4" login="$5" parsed
+  parsed="$(antigravity_account_json "$install" "$email" "$login" < "$body_file")" || return 1
+  printf '%s' "$parsed" | jq -e '(.windows | type) == "array" and (.windows | length) > 0' >/dev/null 2>&1 || return 1
+  printf '%s\n' "$parsed" >> "$accounts_file"
+}
+
+antigravity_append_models_account() {
+  local accounts_file="$1" body_file="$2" install="$3" email="$4" login="$5" parsed
+  parsed="$(antigravity_models_account_json "$install" "$email" "$login" < "$body_file")" || return 1
+  printf '%s' "$parsed" | jq -e '(.windows | type) == "array" and (.windows | length) > 0' >/dev/null 2>&1 || return 1
+  printf '%s\n' "$parsed" >> "$accounts_file"
+}
+
+antigravity_fetch_account() {
+  local accounts_file="$1" errors_file="$2" body_file="$3" install="$4" email="$5" login="$6"
+  local access_token="$7" endpoint="$8" quota_body="$9" user_agent="${10}" preferred_method="${11}"
+  local method status curl_status=0 message="" final_stage="$preferred_method"
+  local -a methods=("$preferred_method")
+  [ "$preferred_method" = "v1internal:fetchAvailableModels" ] || methods+=("v1internal:fetchAvailableModels")
+
+  for method in "${methods[@]}"; do
+    final_stage="$method"
+    : > "$body_file"
+    curl_status=0
+    status="$(curl -sS --max-time 12 \
+        --config <(printf 'header = "Authorization: Bearer %s"\n' "$access_token") \
+        -o "$body_file" -w '%{http_code}' -X POST \
+        -H "Content-Type: application/json" \
+        -H "User-Agent: ${user_agent}" \
+        -H "X-Client-Name: antigravity" \
+        -H "X-Client-Version: 2.1.1" \
+        -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
+        -d "$quota_body" \
+        "$endpoint/$method" 2>/dev/null)" || curl_status=$?
+
+    if [ "$curl_status" -ne 0 ]; then
+      message="Antigravity $method request could not reach Google."
+      break
+    fi
+    if [ "$status" != "200" ]; then
+      message="$(antigravity_http_error_message "$method" "$status" "$body_file")"
+      case "$status" in 401|403|429) break ;; esac
+      continue
+    fi
+    if jq -e '(.groups | type) == "array"' "$body_file" >/dev/null 2>&1 \
+        && antigravity_append_group_account "$accounts_file" "$body_file" "$install" "$email" "$login"; then
+      return 0
+    fi
+    if jq -e '(.models | type) == "object"' "$body_file" >/dev/null 2>&1 \
+        && antigravity_append_models_account "$accounts_file" "$body_file" "$install" "$email" "$login"; then
+      return 0
+    fi
+    status=1
+    message="Antigravity $method response has no readable quota windows."
+  done
+
+  antigravity_append_account_error "$errors_file" "$install" "$email" "$final_stage" "${status:-1}" \
+    "${message:-Antigravity quota response schema changed.}"
+  return 1
+}
+
 fetch_antigravity_native() {
   local cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
   # Match the quota path used by 9Router and the Cloud Code Assist client.
   # The `daily` host accepts the request too, but may return a generic quota
   # view. Keep the base URL override for future Antigravity builds.
-  local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://cloudcode-pa.googleapis.com}"
-  local quota_method="${ANTIGRAVITY_QUOTA_METHOD:-v1internal:fetchAvailableModels}"
+  local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://daily-cloudcode-pa.googleapis.com}"
+  local quota_method="${ANTIGRAVITY_QUOTA_METHOD:-v1internal:retrieveUserQuotaSummary}"
   local response_file="${ANTIGRAVITY_RESPONSE_FILE:-}"
   local user_agent="${ANTIGRAVITY_USER_AGENT:-antigravity/ide/2.1.1 darwin/arm64}"
   local platform="${ANTIGRAVITY_PLATFORM:-3}"
   local accounts_file account_errors_file request_error_file tmp_body quota_body rt refreshed at id_token email install db
-  local http_status curl_status keyring_http_status keyring_curl_status
   local -a dbs=()
 
   accounts_file="$(mktemp)"
@@ -745,10 +856,15 @@ fetch_antigravity_native() {
     fi
     if jq -e '.groups | type == "array"' "$response_file" >/dev/null 2>&1; then
       # Legacy fixture support for retrieveUserQuotaSummary captures.
-      antigravity_account_json \
-        "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
-        "${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}" \
-        "fixture" < "$response_file" >> "$accounts_file"
+      if ! antigravity_append_group_account \
+          "$accounts_file" "$response_file" \
+          "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
+          "${ANTIGRAVITY_ACCOUNT_EMAIL:-Antigravity}" \
+          "fixture"; then
+        rm -f "$tmp_body" "$accounts_file" "$account_errors_file" "$request_error_file"
+        json_error antigravity antigravity-internal 1 provider "Antigravity quota response has no readable quota windows."
+        return 0
+      fi
     elif jq -e '(.models | type) == "object"' "$response_file" >/dev/null 2>&1; then
       antigravity_models_account_json \
         "${ANTIGRAVITY_INSTALL_LABEL:-Antigravity}" \
@@ -801,91 +917,65 @@ fetch_antigravity_native() {
             "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
           continue
         fi
-        curl_status=0
-        http_status="$(curl -sS --max-time 12 \
-            --config <(printf 'header = "Authorization: Bearer %s"\n' "$at") \
-            -o "$tmp_body" -w '%{http_code}' \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "User-Agent: ${user_agent}" \
-            -H "X-Client-Name: antigravity" \
-            -H "X-Client-Version: 2.1.1" \
-            -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
-            -d "$quota_body" \
-            "$endpoint/$quota_method" 2>/dev/null)" || curl_status=$?
-        if [ "$curl_status" -ne 0 ]; then
-          antigravity_append_account_error "$account_errors_file" "$install" "$email" "fetchAvailableModels" 1 \
-            "Antigravity fetchAvailableModels request could not reach Google."
-        elif [ "$http_status" != "200" ]; then
-          antigravity_append_account_error "$account_errors_file" "$install" "$email" "fetchAvailableModels" "$http_status" \
-            "$(antigravity_http_error_message fetchAvailableModels "$http_status" "$tmp_body")"
-        elif ! jq -e '(.models | type) == "object"' "$tmp_body" >/dev/null 2>&1; then
-          antigravity_append_account_error "$account_errors_file" "$install" "$email" "fetchAvailableModels" 1 \
-            "Antigravity fetchAvailableModels response schema changed: models object is missing."
-        else
-          antigravity_models_account_json "$install" "$email" "IDE session OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
-        fi
+        antigravity_fetch_account \
+          "$accounts_file" "$account_errors_file" "$tmp_body" "$install" "$email" \
+          "IDE session OAuth (refreshed)" "$at" "$endpoint" "$quota_body" "$user_agent" "$quota_method" || true
       done
     fi
 
-    # Desktop keyring (agy CLI) as an extra source, if it carries a fresh session.
+    # Desktop keyring or CLI file storage (agy CLI) as an extra source.
     # When ANTIGRAVITY_STATE_DB is explicitly set, it pins discovery to that DB
     # for deterministic tests and targeted debugging, so do not fall through to
     # unrelated local keyring credentials.
-    if [ -z "${ANTIGRAVITY_STATE_DB:-}" ] && command -v secret-tool >/dev/null 2>&1; then
-      local keyring_payload service
-      for service in "gemini" "${ANTIGRAVITY_KEYRING_SERVICE:-Antigravity CLI}" "antigravity-cli" "Antigravity"; do
-        if [ "$service" = "gemini" ]; then
-          keyring_payload="$(timeout 3 secret-tool lookup service gemini username antigravity 2>/dev/null || true)"
-        else
-          keyring_payload="$(timeout 3 secret-tool lookup service "$service" 2>/dev/null || true)"
-        fi
-        [ -n "$keyring_payload" ] || continue
+    if [ -z "${ANTIGRAVITY_STATE_DB:-}" ]; then
+      local keyring_payload="" service="" source_label="CLI keyring"
+      if command -v secret-tool >/dev/null 2>&1; then
+        for service in "gemini" "${ANTIGRAVITY_KEYRING_SERVICE:-Antigravity CLI}" "antigravity-cli" "Antigravity"; do
+          if [ "$service" = "gemini" ]; then
+            keyring_payload="$(timeout 3 secret-tool lookup service gemini username antigravity 2>/dev/null || true)"
+          else
+            keyring_payload="$(timeout 3 secret-tool lookup service "$service" 2>/dev/null || true)"
+          fi
+          [ -n "$keyring_payload" ] && break
+        done
+      fi
+      if [ -z "$keyring_payload" ]; then
+        for token_file in "${HOME}/.gemini/antigravity-cli/antigravity-oauth-token" \
+                          "${XDG_CONFIG_HOME:-$HOME/.config}/antigravity-cli/antigravity-oauth-token"; do
+          if [ -r "$token_file" ]; then
+            keyring_payload="$(cat "$token_file" 2>/dev/null || true)"
+            [ -n "$keyring_payload" ] && { source_label="CLI file"; break; }
+          fi
+        done
+      fi
+      if [ -n "$keyring_payload" ]; then
         rt="$(printf '%s' "$keyring_payload" | extract_antigravity_keyring_refresh)"
-        [ -n "$rt" ] || continue
-        : > "$request_error_file"
-        if ! refreshed="$(antigravity_refresh_access_token "$rt" 2>"$request_error_file")"; then
-          antigravity_append_account_error "$account_errors_file" "CLI keyring" "Account unavailable" "oauth-refresh" \
-            "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
-          continue
+        if [ -n "$rt" ]; then
+          : > "$request_error_file"
+          if ! refreshed="$(antigravity_refresh_access_token "$rt" 2>"$request_error_file")"; then
+            antigravity_append_account_error "$account_errors_file" "$source_label" "Account unavailable" "oauth-refresh" \
+              "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
+          else
+            at="$(printf '%s' "$refreshed" | cut -f1)"
+            email="$(antigravity_email_from_idtoken "$(printf '%s' "$refreshed" | cut -f2)")"
+            [ -n "$email" ] || email="Antigravity CLI"
+            case "$seen_emails" in *" $email "*) : ;; *)
+              seen_emails="$seen_emails$email "
+              : > "$tmp_body"
+              : > "$request_error_file"
+              if ! quota_body="$(antigravity_quota_request_body "$at" "$endpoint" "$user_agent" "$platform" 2>"$request_error_file")"; then
+                antigravity_append_account_error "$account_errors_file" "$source_label" "$email" "loadCodeAssist" \
+                  "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
+              else
+                antigravity_fetch_account \
+                  "$accounts_file" "$account_errors_file" "$tmp_body" "$source_label" "$email" \
+                  "CLI OAuth (refreshed)" "$at" "$endpoint" "$quota_body" "$user_agent" "$quota_method" || true
+              fi
+              ;;
+            esac
+          fi
         fi
-        at="$(printf '%s' "$refreshed" | cut -f1)"
-        email="$(antigravity_email_from_idtoken "$(printf '%s' "$refreshed" | cut -f2)")"
-        [ -n "$email" ] || email="Antigravity CLI"
-        case "$seen_emails" in *" $email "*) continue ;; esac
-        seen_emails="$seen_emails$email "
-        : > "$tmp_body"
-        : > "$request_error_file"
-        if ! quota_body="$(antigravity_quota_request_body "$at" "$endpoint" "$user_agent" "$platform" 2>"$request_error_file")"; then
-          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "loadCodeAssist" \
-            "$(cut -f1 "$request_error_file")" "$(cut -f2- "$request_error_file")"
-          continue
-        fi
-        keyring_curl_status=0
-        keyring_http_status="$(curl -sS --max-time 12 \
-            --config <(printf 'header = "Authorization: Bearer %s"\n' "$at") \
-            -o "$tmp_body" -w '%{http_code}' -X POST \
-            -H "Content-Type: application/json" \
-            -H "User-Agent: ${user_agent}" \
-            -H "X-Client-Name: antigravity" \
-            -H "X-Client-Version: 2.1.1" \
-            -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
-            -d "$quota_body" \
-            "$endpoint/$quota_method" 2>/dev/null)" || keyring_curl_status=$?
-        if [ "$keyring_curl_status" -ne 0 ]; then
-          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "fetchAvailableModels" 1 \
-            "Antigravity fetchAvailableModels request could not reach Google."
-        elif [ "$keyring_http_status" != "200" ]; then
-          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "fetchAvailableModels" "$keyring_http_status" \
-            "$(antigravity_http_error_message fetchAvailableModels "$keyring_http_status" "$tmp_body")"
-        elif ! jq -e '(.models | type) == "object"' "$tmp_body" >/dev/null 2>&1; then
-          antigravity_append_account_error "$account_errors_file" "CLI keyring" "$email" "fetchAvailableModels" 1 \
-            "Antigravity fetchAvailableModels response schema changed: models object is missing."
-        else
-          antigravity_models_account_json "CLI keyring" "$email" "CLI keyring OAuth (refreshed)" < "$tmp_body" >> "$accounts_file"
-        fi
-        break
-      done
+      fi
     fi
   fi
 
@@ -926,9 +1016,9 @@ fetch_antigravity_native() {
               identity:{providerID:"antigravity", accountEmail:$lead.email, loginMethod:$lead.loginMethod},
               accountEmail:$lead.email,
               loginMethod:$lead.loginMethod,
-              primary:($lead.windows[0] // null),
-              secondary:($lead.windows[1] // null),
-              tertiary:($lead.windows[2] // null),
+              primary:(($lead.windows | sort_by(-.usedPercent))[0] // null),
+              secondary:(($lead.windows | sort_by(-.usedPercent))[1] // null),
+              tertiary:(($lead.windows | sort_by(-.usedPercent))[2] // null),
               updatedAt:(now | todateiso8601)
             },
             accounts:$accts,

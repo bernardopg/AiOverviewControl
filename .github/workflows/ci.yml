@@ -501,10 +501,10 @@ jobs:
             providers/get-provider-usage "antigravity" "")"
           echo "$SCHEMA_ERROR" | jq -e '.[0].error.message | contains("schema changed")' >/dev/null
 
-      - name: Integration test — Antigravity available-models fixture
+      - name: Integration test — Antigravity available-models fallback fixture
         run: |
-          # fetchAvailableModels is the live endpoint. Its models member is an
-          # object keyed by model ID, unlike the older groups/buckets response.
+          # fetchAvailableModels remains the compatibility fallback. Its models
+          # member is an object keyed by model ID, unlike quota-summary groups.
           OUT="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-models-valid.json \
             providers/get-provider-usage "antigravity" "")"
           echo "$OUT" | jq -e '
@@ -521,6 +521,19 @@ jobs:
             and .[0].accounts[0].modelWindows[1].name == "Gemini Pro"
             and .[0].accounts[0].modelWindows[1].usedPercent == 100
             and ([.[0].accounts[0].modelWindows[].name] | index("Placeholder")) == null
+          ' >/dev/null
+
+      - name: Integration test — Antigravity 5-hour and weekly quota summary
+        run: |
+          OUT="$(ANTIGRAVITY_RESPONSE_FILE=tests/fixtures/antigravity-summary-valid.json \
+            providers/get-provider-usage "antigravity" "")"
+          echo "$OUT" | jq -e '
+            (.[0].accounts[0].windows | length) == 4
+            and ([.[0].accounts[0].windows[].name] | index("Gemini Models (5h)")) != null
+            and ([.[0].accounts[0].windows[].name] | index("Claude & OpenAI Models (Weekly)")) != null
+            and ([.[0].accounts[0].windows[].name] | index("Claude & OpenAI Models (monthly)")) == null
+            and .[0].usage.primary.name == "Claude & OpenAI Models (5h)"
+            and .[0].usage.primary.usedPercent == 90
           ' >/dev/null
 
       - name: Integration test — Antigravity live request safeguards

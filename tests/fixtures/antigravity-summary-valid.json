@@ -1,0 +1,51 @@
+{
+  "description": "Antigravity quota windows",
+  "groups": [
+    {
+      "displayName": "Gemini Models",
+      "description": "Gemini shared quota",
+      "buckets": [
+        {
+          "bucketId": "gemini-5h",
+          "displayName": "5 hour limit",
+          "window": "5h",
+          "remainingFraction": 0.8,
+          "resetTime": "2026-07-20T05:00:00Z"
+        },
+        {
+          "bucketId": "gemini-weekly",
+          "displayName": "Weekly limit",
+          "window": "weekly",
+          "remainingFraction": 0.3,
+          "resetTime": "2026-07-27T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "displayName": "Claude and GPT Models",
+      "description": "Third-party shared quota",
+      "buckets": [
+        {
+          "bucketId": "3p-5h",
+          "displayName": "5 hour limit",
+          "window": "5-hour",
+          "remainingFraction": 0.1,
+          "resetTime": "2026-07-20T05:00:00Z"
+        },
+        {
+          "bucketId": "3p-weekly",
+          "displayName": "Weekly limit",
+          "window": "7d",
+          "remainingFraction": 0.6,
+          "resetTime": "2026-07-27T00:00:00Z"
+        },
+        {
+          "bucketId": "future-limit",
+          "displayName": "Future limit",
+          "window": "monthly",
+          "remainingFraction": 0.05
+        }
+      ]
+    }
+  ]
+}

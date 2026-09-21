@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Antigravity `agy` sessions and complete quota windows (#30)
+
+- Antigravity now discovers the file-backed OAuth session written by `agy` at `~/.gemini/antigravity-cli/antigravity-oauth-token` (plus the XDG-compatible path) when a desktop keyring session is unavailable. Health detection validates the saved refresh token and still requires `sqlite3` for IDE-state discovery.
+- The preferred quota source is now `v1internal:retrieveUserQuotaSummary` on `daily-cloudcode-pa.googleapis.com`, the endpoint used by current Antigravity tooling. Expanded cards preserve all Gemini and Claude/OpenAI 5-hour and weekly windows; compact/history usage selects the most constrained reported window.
+- Unknown window kinds and non-numeric quota buckets are omitted rather than converted into fabricated weekly or 100%-used limits. Empty/malformed summaries surface an account error, and deployments without quota-summary support fall back to the previous `fetchAvailableModels` family view.
+- Live-path tests now exercise real summary groups, all four windows, endpoint fallback, malformed summaries, partial accounts, and a hermetic CLI token-file path. CI also carries a dedicated quota-summary fixture. Contributed by [@Murat65536](https://github.com/Murat65536) ([#30](https://github.com/bernardopg/AiOverviewControl/pull/30)).
+
 ## 1.16.0 - 2026-09-15
 
 ### xAI (Grok) usage from grok login and the Management API (#28)

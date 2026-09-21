@@ -99,7 +99,7 @@ Read the card's source and display value rather than assuming every provider has
 
 ## Antigravity quota or account layout
 
-The normal Antigravity view deliberately groups known quotas as **Gemini Models** and **Claude & OpenAI Models**. These are family quotas, not placeholders: each reflects the model in that family with the least quota remaining. A real unrecognized model is isolated under **Other Models**, while internal placeholder entries are discarded. With multiple locally signed-in accounts, expand the card to see the family rows under each account email and install.
+The normal Antigravity view shows separate 5-hour and weekly windows for **Gemini Models** and **Claude & OpenAI Models**. The compact percentage is the most constrained real window; expand the card to see all windows, or each account email and install when multiple sessions are present. Deployments that do not support quota-summary automatically fall back to the older family view built from available models.
 
 If the result looks inconsistent with the Antigravity Models screen, refresh the plugin and check the raw response without exposing credentials:
 
@@ -108,7 +108,7 @@ PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
 $PLUGIN/providers/get-provider-usage antigravity | jq .
 ```
 
-For a temporary model-by-model diagnosis, enable **Show individual Antigravity models** in the plugin settings, then expand the Antigravity card. Turn it off again to return to the concise view. A **Partial** badge means at least one account succeeded and another failed; the expanded warning identifies the account, request stage, and cause. If every account fails, the card reports the actual OAuth, HTTP, rate-limit, or schema error. If the helper reports no session at all, open the affected Antigravity installation, sign in, and ensure `sqlite3` is installed.
+For a temporary model-by-model diagnosis of the available-models fallback, enable **Show individual Antigravity models** in the plugin settings, then expand the Antigravity card. Turn it off again to return to the concise view. A **Partial** badge means at least one account succeeded and another failed; the expanded warning identifies the account, request stage, and cause. If every account fails, the card reports the actual OAuth, HTTP, rate-limit, or schema error. If the helper reports no session at all, run `agy login`, open the affected Antigravity installation and sign in, or ensure `sqlite3` is installed for IDE-state discovery.
 
 ## Hermes telemetry
 

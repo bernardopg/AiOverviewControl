@@ -938,6 +938,14 @@ PluginComponent {
             }
             return detailed;
         }
+        if (provider.provider === "antigravity" && accounts.length === 1 && accounts[0].windows && accounts[0].windows.length) {
+            const acctWindows = accounts[0].windows;
+            const detailed = [];
+            for (let i = 0; i < acctWindows.length; i++) {
+                detailed.push({ key: `window-${i}`, label: acctWindows[i].resetDescription || acctWindows[i].name || "", data: acctWindows[i] });
+            }
+            return detailed;
+        }
         const windows = [];
         if (usage.primary) windows.push({ key: "primary", label: usage.primary.resetDescription || getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
         if (usage.secondary) windows.push({ key: "secondary", label: usage.secondary.resetDescription || getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
