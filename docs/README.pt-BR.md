@@ -90,7 +90,7 @@ Os cartões usam um de seis níveis honestos de cobertura:
 | **Cota** | Retorna janelas reais de limite ou gasto e o percentual usado (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, Command Code, OpenCode Go, xAI SuperGrok). |
 | **Saldo** | Retorna saldo pré-pago ou créditos restantes em moeda real (Kimi, DeepSeek, xAI Management API). |
 | **Analytics** | Lê contadores de consumo ou dados locais pertencentes ao provedor (Cloudflare GraphQL, 9Router, Claude, pi, Hermes). |
-| **Autenticação** | Verifica credenciais via endpoint somente leitura sem dados estáveis de cota (Gemini, Mistral, MiniMax, Qwen e outros). Alguns cartões de status configurado, como NVIDIA, não conseguem validar a chave porque o catálogo do provedor é público. |
+| **Autenticação** | Verifica credenciais via endpoint somente leitura sem dados estáveis de cota (Gemini, Mistral, MiniMax PAYG, Qwen e outros). Alguns cartões de status configurado, como NVIDIA, não conseguem validar a chave porque o catálogo do provedor é público. |
 | **Runtime local** | Mostra estado local em vez de cota de conta (modelos do Ollama, autenticação do Vertex AI). |
 | **Informativo** | Aponta para o uso oficial quando não existe API somente leitura (Kiro, Cursor, Warp e outros). |
 
@@ -114,7 +114,9 @@ Integrações medidas notáveis:
 | Command Code | Uso ao vivo das janelas de 5h/semanal/mensal via `/alpha/billing/credits`; usa `COMMAND_CODE_API_KEY` ou o `apiKey` protegido salvo por `cmd login` em `~/.commandcode/auth.json`. |
 | OpenCode Go | Uso ao vivo das janelas de 5h/semanal/mensal em `/zen/go/v1/usage`; usa `OPENCODE_API_KEY` ou a credencial do CLI em `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json`. Quando o fallback de saldo do plano Go está ativo, o cartão o informa sem declarar um valor de saldo. |
 | xAI (Grok) | Uso SuperGrok semanal/mensal a partir de `grok login` (`~/.grok/auth.json`) via a API de billing do CLI; créditos pré-pagos da API via Management API (`XAI_MANAGEMENT_KEY` + `XAI_TEAM_ID`); `XAI_API_KEY` é apenas autenticação. |
-| MiniMax, Qwen, Mistral | Validação somente leitura via `/models` (ou `/api-key`) — consumo zero de tokens. |
+| Qwen, Mistral | Validação somente leitura via `/models` — consumo zero de tokens. |
+| MiniMax PAYG (`sk-api-…`) | Validação somente leitura via `/v1/models` — consumo zero de tokens. |
+| MiniMax Token Plan (`sk-cp-…`) | Uso ao vivo das janelas de 5h + semanal via `/v1/token_plan/remains`; prefere `MINIMAX_TOKEN_PLAN_KEY`, com fallback para `MINIMAX_API_KEY` em configurações antigas. |
 | NVIDIA | Apenas status da chave configurada; o catálogo público de modelos não permite validar a chave. |
 | Ollama | Modelos instalados e em execução via `/api/tags` e `/api/ps`. |
 
@@ -249,9 +251,7 @@ ambiente e o comportamento do health-check.
   retenção configurada. O escritor de histórico registra apenas pressão real
   não-zero de cota/gasto; placeholders `0%` informativos, de runtime local,
   somente-saldo e somente-analytics são ignorados para que as sparklines
-  permaneçam significativas. Suítes de teste baseadas em fixtures exportam um
-  `XDG_CACHE_HOME` isolado antes de invocar o dispatcher real, então nunca
-  gravam snapshots de fixture no seu histórico real. Como o arquivo é podado,
+  permaneçam significativas. Como o arquivo é podado,
   `providers/export-usage-history csv|jsonl` (também um botão nas
   Configurações) é a forma de guardar dados de longo prazo.
 - O analytics do Claude roda separadamente, para que falhas de histórico local
