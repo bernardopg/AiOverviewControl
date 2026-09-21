@@ -203,12 +203,12 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>kimi</code></td>
 <td>Balance / Quota</td>
 <td>✅ <code>GET /v1/models</code></td>
-<td>✅ <code>/v1/users/me/balance</code> (funds) &middot; <code>/coding/v1/usages</code> (Kimi Code weekly + 5h)</td>
+<td>✅ <code>/v1/users/me/balance</code> (funds) &middot; <code>/coding/v1/usages</code> (Kimi Code 5h plus plan-supplied weekly/monthly windows)</td>
 <td>✅ Kimi Code (tempo tiers)</td>
 <td>✅ per token (USD/CNY)</td>
 <td><code>MOONSHOT_API_KEY</code>, <code>KIMI_API_KEY</code>, or <code>KIMI_CODING_API_KEY</code></td>
-<td><a href="https://platform.kimi.ai/console">platform.kimi.ai</a></td>
-<td><a href="https://platform.kimi.ai/docs/intro">platform.kimi.ai/docs</a></td>
+<td><a href="https://www.kimi.ai/code/console">Kimi Code console</a> / <a href="https://platform.kimi.ai/console">Open Platform</a></td>
+<td><a href="https://github.com/MoonshotAI/kimi-code/blob/main/packages/oauth/src/managed-usage.ts">Kimi Code CLI usage client</a> / <a href="https://platform.kimi.ai/docs/intro">Open Platform docs</a></td>
 </tr>
 <tr>
 <td><code>qwen</code></td>
@@ -633,16 +633,16 @@ force the Zen path.
 | | |
 | --- | --- |
 | **Two systems** | Kimi exposes **two independent quota surfaces with non-interchangeable keys.** ① **Open Platform** (prepaid *balance*): `sk-xxx` key on `api.moonshot.ai`/`.cn`. ② **Kimi Code / Coding Plan** (subscription *quota*): `sk-kimi-xxx` key on `api.kimi.com/coding/v1` — the same data the Kimi CLI `/usage` command reads. The adapter routes by key (see **Env var** / **Adapter**). |
-| **API base** | Open Platform — Global `https://api.moonshot.ai/v1` (USD); China `https://api.moonshot.cn/v1` (CNY). Coding Plan — `https://api.kimi.com/coding/v1` (override with `KIMI_BASE_URL`). Platform rebranded: `platform.moonshot.ai` → [platform.kimi.ai](https://platform.kimi.ai) (global) / `platform.moonshot.cn` → [platform.kimi.com](https://platform.kimi.com); API hosts unchanged. |
-| **Env var** | Balance: `MOONSHOT_API_KEY` (fallback `KIMI_API_KEY`); optional `MOONSHOT_API_BASE` overrides host probing. Coding Plan: `KIMI_CODING_API_KEY`, **or** a `KIMI_API_KEY`/`MOONSHOT_API_KEY` carrying the `sk-kimi-` prefix; optional `KIMI_BASE_URL`. An explicit coding key wins over the balance path. |
+| **API base** | Open Platform — Global `https://api.moonshot.ai/v1` (USD); China `https://api.moonshot.cn/v1` (CNY). Kimi Code — `https://api.kimi.com/coding/v1`; the first-party CLI also recognizes global `https://api.kimi.ai/coding/v1`. Override with `KIMI_CODE_BASE_URL` (`KIMI_BASE_URL` remains a plugin alias). Platform rebranded: `platform.moonshot.ai` → [platform.kimi.ai](https://platform.kimi.ai) (global) / `platform.moonshot.cn` → [platform.kimi.com](https://platform.kimi.com); API hosts unchanged. |
+| **Env var** | Balance: `MOONSHOT_API_KEY` (fallback `KIMI_API_KEY`); optional `MOONSHOT_API_BASE` overrides host probing. Kimi Code: `KIMI_CODING_API_KEY`, **or** a `KIMI_API_KEY`/`MOONSHOT_API_KEY` carrying the `sk-kimi-` prefix; optional `KIMI_CODE_BASE_URL` (`KIMI_BASE_URL` alias). An explicit coding key wins over the balance path. |
 | **Auth** | `Authorization: Bearer <key>` (both systems). Coding Plan requests also send `User-Agent: KimiCLI/1.6`. |
 | **Key check** | Balance: `GET /v1/models` → `200`; `401` on bad key. Coding Plan: the `/usages` probe doubles as the key check (`401`/`403` = wrong key type, `404` = wrong base URL). |
-| **Quota / balance** | Balance: ✅ **`GET /v1/users/me/balance`** → `{data:{available_balance, voucher_balance, cash_balance}}` (USD on `.ai`, CNY on `.cn`; `available_balance = cash + voucher`). Coding Plan: ✅ **`GET /coding/v1/usages`** (older deployments answer on `/usage`) → weekly + 5-hour windows with `used`/`limit`/`remaining` and a reset time; mapped weekly → `primary`, 5h → `secondary`. |
-| **Plans** | **Open Platform**: no subscription — PAYG + prepaid top-up vouchers; rate-limit tiers scale with cumulative recharge ($1 Tier0 → $3,000 Tier5). **Kimi Code** subscription tiers (named after musical tempos): **Adagio $0** (no Kimi Code), **Moderato $19**, **Allegretto $39**, **Allegro $99**, **Vivace $199**/mo (annual ≈ −20%). Quota refreshes on a 7-day cycle plus a 5-hour burst limiter (≈300–1,200 requests/5h, up to 30 concurrent by tier); entry paid tier ≈ 2,048 Kimi Code requests/week. `403 "reached your usage limit for this billing cycle"` = weekly quota exhausted. |
+| **Quota / balance** | Balance: ✅ **`GET /v1/users/me/balance`** → `{data:{available_balance, voucher_balance, cash_balance}}` (USD on `.ai`, CNY on `.cn`; `available_balance = cash + voucher`). Kimi Code: CLI-owned **`GET /coding/v1/usages`** → exact counted `limits[]` (including 5h) plus plan-supplied ratio pools `usages.limit_5h`, `limit_7d`, and `limit_month_total` (`used_ratio`, `reset_time`). `limit_month_code` is the code share of the combined monthly total, not another allowance. The card prefers the exact 5h count, shows the combined monthly pool when present, and never invents an absent weekly limit. |
+| **Plans** | **Open Platform** remains prepaid PAYG. Kimi Code membership entitlement and model permission are shown by the Kimi Code console, but `/usages` does not return a reliable plan name or model entitlement; the adapter deliberately does not guess either. Its quota windows are plan-dependent: a current Pro account can expose a 5h frequency count plus a monthly pool, with no weekly window. |
 | **Billing** | Per 1M tokens (256K ctx): **`kimi-k2.7-code`** $0.95/$4.00 (cache hit $0.19) &middot; `kimi-k2.7-code-highspeed` $1.90/$8.00 &middot; `kimi-k2.6` $0.95/$4.00 &middot; `kimi-k2.5` $0.60/$3.00. Automatic context caching. |
-| **Dashboard** | Balance: [platform.kimi.ai/console](https://platform.kimi.ai/console) (global) / [platform.kimi.com/console](https://platform.kimi.com/console) (China). Coding Plan: Kimi Code console + membership page; in-CLI `/usage`. |
+| **Dashboard** | Balance: [platform.kimi.ai/console](https://platform.kimi.ai/console) (global) / [platform.kimi.com/console](https://platform.kimi.com/console) (China). Kimi Code: [Kimi Code console](https://www.kimi.ai/code/console); the card's open-console action chooses this URL for `source: kimi-code`. |
 | **Changelog** | **`kimi-k3`** (max quality) and **`kimi-k2.7-code`** / `-highspeed` (routine coding, ~180 tok/s). `kimi-k2.6` (multimodal flagship). **`kimi-k2.5` + `moonshot-v1` retire 2026-08-31** → migrate to `kimi-k2.7-code` or `kimi-k3`. **`kimi-k2` series deprecated 2026-05-25**; `kimi-latest` removed 2026-01-28; `kimi-thinking-preview` removed 2025-11-11. Full OpenAPI spec at `platform.kimi.ai/docs/openapi.json`. |
-| **Adapter** | `fetch_kimi_native` routes by key: `sk-kimi-`/`KIMI_CODING_API_KEY` → `fetch_kimi_code_native` (Coding Plan `GET /usages` → weekly `primary` + 5h `secondary`, `source: kimi-code`); otherwise the balance API with global→China host probing (`source: kimi-api`, `primary` = available balance, `secondary` = voucher/cash split). |
+| **Adapter** | `fetch_kimi_native` routes by key: `sk-kimi-`/`KIMI_CODING_API_KEY` → `fetch_kimi_code_native` (Kimi Code `GET /usages`; exact counted 5h plus API-supplied weekly/monthly ratio pools, `source: kimi-code`); otherwise the balance API with global→China host probing (`source: kimi-api`, `primary` = available balance, `secondary` = voucher/cash split). The contract is tracked in [Kimi Code usage research](kimi-code-usage-research.md). |
 
 ### Qwen / DashScope (Alibaba Model Studio)
 

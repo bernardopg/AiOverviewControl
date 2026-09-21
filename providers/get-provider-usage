@@ -1347,23 +1347,28 @@ fetch_deepseek_native() {
 }
 
 fetch_kimi_code_native() {
-  # Kimi Code (Coding Plan) subscription quota — weekly + 5h windows, the same
-  # data the Kimi CLI `/usage` command shows. Endpoint: GET .../usages (older
+  # Kimi Code (Coding Plan) subscription quota — 5h burst window plus (per
+  # plan) weekly and monthly pools, the same data the
+  # Kimi CLI `/usage` command shows. Endpoint: GET .../usages (older
   # deployments answer on /usage; try both). Requires a Coding Plan key
   # (sk-kimi-xxx); an Open Platform key (sk-xxx) returns 401/404 here.
   local key="$1"
-  local base="${KIMI_BASE_URL:-https://api.kimi.com/coding/v1}"
+  # Kimi Code's CLI calls this KIMI_CODE_BASE_URL. Keep KIMI_BASE_URL as
+  # a backwards-compatible alias for existing AiOverviewControl setups.
+  local base="${KIMI_CODE_BASE_URL:-${KIMI_BASE_URL:-https://api.kimi.com/coding/v1}}"
   local tmp_body http_status url
   tmp_body="$(mktemp)"
   url="${base%/}/usages"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
     -H "Authorization: Bearer ${key}" \
+    -H "Accept: application/json" \
     -H "User-Agent: KimiCLI/1.6" \
     "$url" 2>/dev/null || true)"
   if [ "$http_status" = "404" ]; then
     url="${base%/}/usage"
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
       -H "Authorization: Bearer ${key}" \
+      -H "Accept: application/json" \
       -H "User-Agent: KimiCLI/1.6" \
       "$url" 2>/dev/null || true)"
   fi
@@ -1418,11 +1423,31 @@ fetch_kimi_code_native() {
             # Emit a raw label only for unrecognized windows; known windows carry
             # windowMinutes so the widget localizes them via getWindowLabel().
             resetDescription: (if $wmin == null then $desc else null end),
-            displayValue: (if ($limit != null and $limit > 0) then "\($used // 0) / \($limit)" else null end),
+            # No displayValue: formatUsageLine() in the widget prefers it
+            # over the percentage, which would hide both the percent and the
+            # reset countdown behind a raw "used / limit" count.
+            displayValue: null,
             _rank: $rank,
             _min: ($wmin // 999999) }
         end;
-    ( if (.data | type) == "array" then
+    # Current Kimi Code plans also emit ratio pools under `usages`. The
+    # first-party CLI renders limit_5h and limit_7d as windows and
+    # limit_month_total as one monthly window. limit_month_code is only the
+    # code share used to break down that monthly total; it is not an
+    # independent allowance and must not become a second monthly window.
+    def ratio_build($entry; $wmin; $rank; $label):
+      (num($entry.used_ratio) // num($entry.usedRatio)) as $ratio
+      | if ($ratio == null or $ratio < 0 or $ratio > 1) then null else
+          { usedPercent: ($ratio * 100),
+            windowMinutes: $wmin,
+            resetsAt: as_iso($entry.reset_time // $entry.resetTime),
+            resetDescription: $label,
+            displayValue: null,
+            _rank: $rank,
+            _min: $wmin }
+        end;
+    . as $payload
+    | ( if (.data | type) == "array" then
         [ .data[] | select(type == "object")
           | build(.; {}; (if .model_name == "all" then "all" else null end)) ]
       else
@@ -1431,7 +1456,16 @@ fetch_kimi_code_native() {
               | (if (.detail | type) == "object" then .detail else . end) as $d
               | (if (.window | type) == "object" then .window else {} end) as $w
               | build($d; $w; null) ] )
-      end ) | map(select(. != null)) as $rows
+      end ) | map(select(. != null)) as $legacy_rows
+    | ($payload.usages // {}) as $ratio_pools
+    | ( $legacy_rows
+        + [ if ($legacy_rows | any(.windowMinutes == 300)) then empty
+            else ratio_build($ratio_pools.limit_5h; 300; 1; null) end,
+            if ($legacy_rows | any(.windowMinutes == 10080)) then empty
+            else ratio_build($ratio_pools.limit_7d; 10080; 0; null) end,
+            if ($legacy_rows | any(.windowMinutes == 43200)) then empty
+            else ratio_build($ratio_pools.limit_month_total; 43200; 2; null) end ]
+      ) | map(select(. != null)) as $rows
     | ($rows | sort_by([._rank, ._min])) as $sorted
     | ( def clean($w): if $w == null then null else ($w | del(._rank, ._min)) end;
         { provider: "kimi",

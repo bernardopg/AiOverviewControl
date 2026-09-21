@@ -106,7 +106,7 @@ Integrações medidas notáveis:
 | pi | Telemetria JSONL local de sessões (`~/.pi/agent/sessions`) — custo, tokens, top modelos, top projetos; não há API de cota (o pi não tem rate limits). |
 | Hermes | Entrada de natureza dupla: telemetria do harness de agente via `~/.hermes/state.db` (sessões, tokens por modelo/projeto, origens, chamadas de API) mais identidade de provider (cobrança ativa, modelo padrão) de `~/.hermes/config.yaml` / `auth.json`. O faturamento do lado provider permanece no [Nous Portal](https://portal.nousresearch.com). |
 | OpenRouter | Limites de chave, gasto, saldo e atividade de modelos em 30 dias. |
-| Kimi (Moonshot) | Saldo da Open Platform (`GET /v1/users/me/balance`, USD/CNY) — ou cota da assinatura **Kimi Code** (`GET /coding/v1/usages`, janelas semanal e de 5h) quando uma chave `sk-kimi-` / `KIMI_CODING_API_KEY` está definida. |
+| Kimi (Moonshot) | Saldo da Open Platform (`GET /v1/users/me/balance`, USD/CNY) — ou cota da assinatura **Kimi Code** (`GET /coding/v1/usages`): limite de frequência de 5h com contagem exata e, conforme o plano, janelas semanal ou mensal. Uma chave `sk-kimi-` / `KIMI_CODING_API_KEY` seleciona essa superfície. |
 | DeepSeek | API oficial de saldo da conta. |
 | Together | Validação somente leitura da chave; uso e billing permanecem no console da Together. |
 | Cloudflare | Verificação de token e analytics opcional do Workers AI via GraphQL. |

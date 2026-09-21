@@ -4,10 +4,21 @@
 
 ### Antigravity `agy` sessions and complete quota windows (#30)
 
-- Antigravity now discovers the file-backed OAuth session written by `agy` at `~/.gemini/antigravity-cli/antigravity-oauth-token` (plus the XDG-compatible path) when a desktop keyring session is unavailable. Health detection validates the saved refresh token and still requires `sqlite3` for IDE-state discovery.
+- Antigravity now discovers the file-backed OAuth session written by `agy` at `~/.gemini/antigravity-cli/antigravity-oauth-token` (plus its XDG-compatible path) when a desktop keyring session is unavailable. Health detection validates the saved refresh token and still requires `sqlite3` for IDE-state discovery.
 - The preferred quota source is now `v1internal:retrieveUserQuotaSummary` on `daily-cloudcode-pa.googleapis.com`, the endpoint used by current Antigravity tooling. Expanded cards preserve all Gemini and Claude/OpenAI 5-hour and weekly windows; compact/history usage selects the most constrained reported window.
-- Unknown window kinds and non-numeric quota buckets are omitted rather than converted into fabricated weekly or 100%-used limits. Empty/malformed summaries surface an account error, and deployments without quota-summary support fall back to the previous `fetchAvailableModels` family view.
-- Live-path tests now exercise real summary groups, all four windows, endpoint fallback, malformed summaries, partial accounts, and a hermetic CLI token-file path. CI also carries a dedicated quota-summary fixture. Contributed by [@Murat65536](https://github.com/Murat65536) ([#30](https://github.com/bernardopg/AiOverviewControl/pull/30)).
+- Unknown window kinds and non-numeric quota buckets are omitted rather than converted into fabricated weekly or 100%-used limits. Empty or malformed summaries surface an account error, while deployments without quota-summary support fall back to the previous `fetchAvailableModels` family view.
+- Live-path tests now exercise real summary groups, all four windows, endpoint fallback, malformed summaries, partial accounts, and the hermetic CLI token-file path. CI also carries a dedicated quota-summary fixture.
+
+Contributed by [@Murat65536](https://github.com/Murat65536) ([#30](https://github.com/bernardopg/AiOverviewControl/pull/30)).
+
+### Language `auto` follows the real desktop locale under systemd
+
+- `auto` language detection no longer trusts `Qt.locale()` blindly. DMS runs as a systemd user service whose manager environment may still carry `LANG=C.UTF-8` (e.g. inherited from greetd), which made `Qt.locale().name` report `"C"` and silently pinned the plugin UI to English even on a fully localized desktop. Detection now resolves, in order: the DMS language setting (`SessionData.locale`), `Qt.locale()` when it names a real locale, the session environment (`LANGUAGE`/`LC_ALL`/`LC_MESSAGES`/`LANG`), and finally `/etc/locale.conf` / `~/.config/locale.conf`. `"C"`/`"POSIX"` values are treated as "no locale configured" instead of English, and locale strings are hardened against `LANGUAGE` colon lists, `.UTF-8` charsets and `@modifier` suffixes.
+
+### Kimi Code shows each independent Coding Plan window as a percentage
+
+- The Kimi Code card now renders each independent window the Coding Plan returns — the exact counted 5-hour burst, the optional weekly pool, and the combined monthly pool — as a percentage with its reset countdown, matching the Claude card. `limit_month_code` remains a breakdown of the combined monthly total, not a fabricated second allowance. Previously the 5-hour window emitted a raw `used / limit` `displayValue`, which made `formatUsageLine()` hide both the percentage and the reset time.
+- Tertiary windows without an explicit description now fall back to the localized window label (e.g. "Monthly") instead of the generic "Tertiary" placeholder.
 
 ## 1.16.0 - 2026-09-15
 

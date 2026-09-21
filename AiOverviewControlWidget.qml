@@ -949,7 +949,7 @@ PluginComponent {
         const windows = [];
         if (usage.primary) windows.push({ key: "primary", label: usage.primary.resetDescription || getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
         if (usage.secondary) windows.push({ key: "secondary", label: usage.secondary.resetDescription || getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
-        if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || t("window.tertiary", "Tertiary"), data: usage.tertiary });
+        if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || getWindowLabel(usage.tertiary.windowMinutes) || t("window.tertiary", "Tertiary"), data: usage.tertiary });
         return windows;
     }
 
@@ -1328,7 +1328,10 @@ PluginComponent {
         return (claudeMonthCost / dayOfMonth) * daysInMonth;
     }
 
-    function providerConsoleUrl(providerId) {
+    function providerConsoleUrl(providerId, providerSource) {
+        if ((providerId === "kimi" || providerId === "moonshot") && providerSource === "kimi-code") {
+            return "https://www.kimi.ai/code/console";
+        }
         const urls = {
             claude: "https://claude.ai/settings/usage",
             codex: "https://chatgpt.com/codex/settings/usage",
@@ -1380,8 +1383,8 @@ PluginComponent {
         return urls[providerId] || "";
     }
 
-    function openProviderConsole(providerId) {
-        const url = providerConsoleUrl(providerId);
+    function openProviderConsole(providerId, providerSource) {
+        const url = providerConsoleUrl(providerId, providerSource);
         if (url.length > 0) Quickshell.execDetached(["xdg-open", url]);
     }
 
@@ -3362,11 +3365,11 @@ PluginComponent {
                 }
 
                 SurfaceButton {
-                    visible: root.providerConsoleUrl(card.provider.provider).length > 0
+                    visible: root.providerConsoleUrl(card.provider.provider, card.provider.source).length > 0
                     iconName: "open_in_new"
                     label: t("card.open_console", "Open console")
                     compact: true
-                    onTriggered: root.openProviderConsole(card.provider.provider)
+                    onTriggered: root.openProviderConsole(card.provider.provider, card.provider.source)
                 }
 
                 StyledRect {
