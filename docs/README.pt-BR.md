@@ -1,6 +1,6 @@
 <div align="center">
 
-![Banner do AiOverviewControl](./assets/banner.png)
+![Banner do AiOverviewControl](../screenshot.png)
 
 # AiOverviewControl
 
@@ -26,13 +26,17 @@ billing, autenticação e telemetria local de uso de IA — direto na sua DankBa
 
 ## Veja em ação
 
-[![Demonstração do AiOverviewControl](./assets/github-preview.png)](./assets/demo.mp4)
+<div align="center">
 
-> 🎬 Prefere mais qualidade? Assista ao [demo em MP4](./assets/demo.mp4).
+<video src="./assets/demo.mp4" poster="./assets/github-preview.png" controls muted loop playsinline width="100%"></video>
+
+> 🎬 Não consegue reproduzir inline? Assista à [demonstração em MP4](./assets/demo.mp4).
 
 A pílula fica na DankBar e mostra o uso ao vivo. Provedores com múltiplas janelas de cota (as de 5 horas e 7 dias do Claude, por exemplo) podem exibir qualquer janela na barra — escolha por provedor, ou deixe `highest` seguir a mais apertada. Passe o mouse sobre a pílula para ver de qual janela veio o número e quando ela reseta:
 
 ![Pílula na DankBar](./assets/bar-pill.png)
+
+</div>
 
 ## Por que AiOverviewControl?
 
@@ -48,25 +52,25 @@ inventados. Nunca.
 
 ## Destaques
 
-| | |
-| --- | --- |
-| 📊 **Dashboard unificado** | 37 provedores de IA e ferramentas de desenvolvimento em um só lugar. |
-| 🛰️ **Visão geral da frota** | Rollup cross-provider no hero — carga média só de cotas mensuráveis, provedor mais quente, quantos estão perto do limite e o próximo reset. |
-| ⏱️ **Janelas oficiais do Codex** | Janelas de rate-limit direto do `codex app-server`. |
-| 🤖 **Analytics profundo do Claude** | Cota mais analytics local de tokens, sessões, modelos, projetos e custo. |
-| 🐙 **Cotas do Copilot** | Snapshots de Premium requests, Chat e Completions. |
-| 🗂️ **Cartões ricos** | Janelas de uso, horários de reset, identidade, créditos, sparklines, tendências e links para o console. |
-| 🛡️ **Falhas isoladas** | Um timeout ou credencial inválida nunca esconde provedores saudáveis. |
-| 🎛️ **Layout flexível** | Densidade compacta/confortável, filtros por status, provedores fixados, pílula `auto`/`custom`/`top` e escolha de janela de uso por provedor na DankBar. |
-| 🔔 **Notificações de cota** | Alertas do DMS com a marca do provedor, limiares globais/por provedor, um toast por janela de cota, atualizado no mesmo toast quando a cota esgota. Os alertas podem seguir a janela exibida na barra, todas as janelas ou apenas a primária. |
-| 📄 **Exportação de histórico** | Salve o histórico local de uso em CSV ou JSONL pelas Configurações ou por `providers/export-usage-history`. |
-| 🌍 **5 idiomas de UI** | English, Português (BR), 简体中文, Español e Deutsch. |
-| 🔒 **Privacidade em primeiro lugar** | Adaptadores locais, nenhuma chamada paga só para testar chave, segredos nunca exibidos. |
+|                                      |                                                                                                                                                                                                                                               |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 📊 **Dashboard unificado**           | 37 provedores de IA e ferramentas de desenvolvimento em um só lugar.                                                                                                                                                                          |
+| 🛰️ **Visão geral da frota**          | Rollup cross-provider no hero — carga média só de cotas mensuráveis, provedor mais quente, quantos estão perto do limite e o próximo reset.                                                                                                   |
+| ⏱️ **Janelas oficiais do Codex**     | Janelas de rate-limit direto do `codex app-server`.                                                                                                                                                                                           |
+| 🤖 **Analytics profundo do Claude**  | Cota mais analytics local de tokens, sessões, modelos, projetos e custo.                                                                                                                                                                      |
+| 🐙 **Cotas do Copilot**              | Snapshots de Premium requests, Chat e Completions.                                                                                                                                                                                            |
+| 🗂️ **Cartões ricos**                 | Janelas de uso, horários de reset, identidade, créditos, sparklines, tendências e links para o console.                                                                                                                                       |
+| 🛡️ **Falhas isoladas**               | Um timeout ou credencial inválida nunca esconde provedores saudáveis.                                                                                                                                                                         |
+| 🎛️ **Layout flexível**               | Densidade compacta/confortável, filtros por status, provedores fixados, pílula `auto`/`custom`/`top` e escolha de janela de uso por provedor na DankBar.                                                                                      |
+| 🔔 **Notificações de cota**          | Alertas do DMS com a marca do provedor, limiares globais/por provedor, um toast por janela de cota, atualizado no mesmo toast quando a cota esgota. Os alertas podem seguir a janela exibida na barra, todas as janelas ou apenas a primária. |
+| 📄 **Exportação de histórico**       | Salve o histórico local de uso em CSV ou JSONL pelas Configurações ou por `providers/export-usage-history`.                                                                                                                                   |
+| 🌍 **5 idiomas de UI**               | English, Português (BR), 简体中文, Español e Deutsch.                                                                                                                                                                                         |
+| 🔒 **Privacidade em primeiro lugar** | Adaptadores locais, nenhuma chamada paga só para testar chave, segredos nunca exibidos.                                                                                                                                                       |
 
 ## Screenshots
 
-| Visão geral do dashboard | Cartão de provedor expandido |
-| --- | --- |
+| Visão geral do dashboard             | Cartão de provedor expandido                    |
+| ------------------------------------ | ----------------------------------------------- |
 | ![Dashboard](./assets/dashboard.png) | ![Cartão expandido](./assets/card-expanded.png) |
 
 <details>
@@ -85,40 +89,40 @@ provedor roteado — tudo lido de dados locais pertencentes ao provedor.
 
 Os cartões usam um de seis níveis honestos de cobertura:
 
-| Cobertura | Significado |
-| --- | --- |
-| **Cota** | Retorna janelas reais de limite ou gasto e o percentual usado (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, Command Code, OpenCode Go, xAI SuperGrok). |
-| **Saldo** | Retorna saldo pré-pago ou créditos restantes em moeda real (Kimi, DeepSeek, xAI Management API). |
-| **Analytics** | Lê contadores de consumo ou dados locais pertencentes ao provedor (Cloudflare GraphQL, 9Router, Claude, pi, Hermes). |
-| **Autenticação** | Verifica credenciais via endpoint somente leitura sem dados estáveis de cota (Gemini, Mistral, MiniMax PAYG, Qwen e outros). Alguns cartões de status configurado, como NVIDIA, não conseguem validar a chave porque o catálogo do provedor é público. |
-| **Runtime local** | Mostra estado local em vez de cota de conta (modelos do Ollama, autenticação do Vertex AI). |
-| **Informativo** | Aponta para o uso oficial quando não existe API somente leitura (Kiro, Cursor, Warp e outros). |
+| Cobertura         | Significado                                                                                                                                                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cota**          | Retorna janelas reais de limite ou gasto e o percentual usado (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, Command Code, OpenCode Go, xAI SuperGrok).                                                                                     |
+| **Saldo**         | Retorna saldo pré-pago ou créditos restantes em moeda real (Kimi, DeepSeek, xAI Management API).                                                                                                                                                  |
+| **Analytics**     | Lê contadores de consumo ou dados locais pertencentes ao provedor (Cloudflare GraphQL, 9Router, Claude, pi, Hermes).                                                                                                                              |
+| **Autenticação**  | Verifica credenciais via endpoint somente leitura sem dados estáveis de cota (Gemini, Mistral, MiniMax PAYG, Qwen e outros). Alguns cartões de status configurado, como NVIDIA, não conseguem validar a chave porque o catálogo do provedor é público. |
+| **Runtime local** | Mostra estado local em vez de cota de conta (modelos do Ollama, autenticação do Vertex AI).                                                                                                                                                       |
+| **Informativo**   | Aponta para o uso oficial quando não existe API somente leitura (Kiro, Cursor, Warp e outros).                                                                                                                                                    |
 
 Integrações medidas notáveis:
 
-| Provedor | Fonte de dados |
-| --- | --- |
-| Codex | Métodos oficiais de conta e rate-limit do `codex app-server`. |
-| Claude Code | Cota OAuth mais analytics local de `~/.claude/projects` (ou `$CLAUDE_CONFIG_DIR/projects` quando essa variável de ambiente estiver definida). |
-| GitHub Copilot | Snapshot autenticado de cota GitHub/Copilot. |
-| Antigravity | Janelas de cota de 5 horas e semanais para Gemini e Claude/OpenAI via Cloud Code Assist; diagnósticos opcionais por modelo, separação automática de múltiplas contas e descoberta do arquivo de token do `agy`. |
-| 9Router | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado. |
-| pi | Telemetria JSONL local de sessões (`~/.pi/agent/sessions`) — custo, tokens, top modelos, top projetos; não há API de cota (o pi não tem rate limits). |
-| Hermes | Entrada de natureza dupla: telemetria do harness de agente via `~/.hermes/state.db` (sessões, tokens por modelo/projeto, origens, chamadas de API) mais identidade de provider (cobrança ativa, modelo padrão) de `~/.hermes/config.yaml` / `auth.json`. O faturamento do lado provider permanece no [Nous Portal](https://portal.nousresearch.com). |
-| OpenRouter | Limites de chave, gasto, saldo e atividade de modelos em 30 dias. |
-| Kimi (Moonshot) | Saldo da Open Platform (`GET /v1/users/me/balance`, USD/CNY) — ou cota da assinatura **Kimi Code** (`GET /coding/v1/usages`): limite de frequência de 5h com contagem exata e, conforme o plano, janelas semanal ou mensal. Uma chave `sk-kimi-` / `KIMI_CODING_API_KEY` seleciona essa superfície. |
-| DeepSeek | API oficial de saldo da conta. |
-| Together | Validação somente leitura da chave; uso e billing permanecem no console da Together. |
-| Cloudflare | Verificação de token e analytics opcional do Workers AI via GraphQL. |
-| Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — uso real por janela, timestamps de reset e plano da assinatura. Faz fallback para verificação apenas de autenticação via `/models`. |
-| Command Code | Uso ao vivo das janelas de 5h/semanal/mensal via `/alpha/billing/credits`; usa `COMMAND_CODE_API_KEY` ou o `apiKey` protegido salvo por `cmd login` em `~/.commandcode/auth.json`. |
-| OpenCode Go | Uso ao vivo das janelas de 5h/semanal/mensal em `/zen/go/v1/usage`; usa `OPENCODE_API_KEY` ou a credencial do CLI em `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json`. Quando o fallback de saldo do plano Go está ativo, o cartão o informa sem declarar um valor de saldo. |
-| xAI (Grok) | Uso SuperGrok semanal/mensal a partir de `grok login` (`~/.grok/auth.json`) via a API de billing do CLI; créditos pré-pagos da API via Management API (`XAI_MANAGEMENT_KEY` + `XAI_TEAM_ID`); `XAI_API_KEY` é apenas autenticação. |
-| Qwen, Mistral | Validação somente leitura via `/models` — consumo zero de tokens. |
-| MiniMax PAYG (`sk-api-…`) | Validação somente leitura via `/v1/models` — consumo zero de tokens. |
-| MiniMax Token Plan (`sk-cp-…`) | Uso ao vivo das janelas de 5h + semanal via `/v1/token_plan/remains`; prefere `MINIMAX_TOKEN_PLAN_KEY`, com fallback para `MINIMAX_API_KEY` em configurações antigas. |
-| NVIDIA | Apenas status da chave configurada; o catálogo público de modelos não permite validar a chave. |
-| Ollama | Modelos instalados e em execução via `/api/tags` e `/api/ps`. |
+| Provedor               | Fonte de dados                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codex                  | Métodos oficiais de conta e rate-limit do `codex app-server`.                                                                                                                                                                                                                                                                                        |
+| Claude Code            | Cota OAuth mais analytics local de `~/.claude/projects` (ou `$CLAUDE_CONFIG_DIR/projects` quando essa variável de ambiente estiver definida).                                                                                                                                                                                                        |
+| GitHub Copilot         | Snapshot autenticado de cota GitHub/Copilot.                                                                                                                                                                                                                                                                                                         |
+| Antigravity            | Janelas de cota de 5 horas e semanais para Gemini e Claude/OpenAI via Cloud Code Assist; diagnósticos opcionais por modelo, separação automática de múltiplas contas e descoberta do arquivo de token do `agy`.                                                                                                                                      |
+| 9Router                | Dados locais de uso em SQLite ou JSON, incluindo telemetria por modelo roteado.                                                                                                                                                                                                                                                                      |
+| pi                     | Telemetria JSONL local de sessões (`~/.pi/agent/sessions`) — custo, tokens, top modelos, top projetos; não há API de cota (o pi não tem rate limits).                                                                                                                                                                                                |
+| Hermes                 | Entrada de natureza dupla: telemetria do harness de agente via `~/.hermes/state.db` (sessões, tokens por modelo/projeto, origens, chamadas de API) mais identidade de provider (cobrança ativa, modelo padrão) de `~/.hermes/config.yaml` / `auth.json`. O faturamento do lado provider permanece no [Nous Portal](https://portal.nousresearch.com). |
+| OpenRouter             | Limites de chave, gasto, saldo e atividade de modelos em 30 dias.                                                                                                                                                                                                                                                                                    |
+| Kimi (Moonshot)        | Saldo da Open Platform (`GET /v1/users/me/balance`, USD/CNY) — ou cota da assinatura **Kimi Code** (`GET /coding/v1/usages`): limite de frequência de 5h com contagem exata e, conforme o plano, janelas semanal ou mensal. Uma chave `sk-kimi-` / `KIMI_CODING_API_KEY` seleciona essa superfície.                                                  |
+| DeepSeek               | API oficial de saldo da conta.                                                                                                                                                                                                                                                                                                                       |
+| Together               | Validação somente leitura da chave; uso e billing permanecem no console da Together.                                                                                                                                                                                                                                                                 |
+| Cloudflare             | Verificação de token e analytics opcional do Workers AI via GraphQL.                                                                                                                                                                                                                                                                                 |
+| Z.ai, GLM              | `GET /api/monitor/usage/quota/limit` — uso real por janela, timestamps de reset e plano da assinatura. Faz fallback para verificação apenas de autenticação via `/models`.                                                                                                                                                                           |
+| Command Code           | Uso ao vivo das janelas de 5h/semanal/mensal via `/alpha/billing/credits`; usa `COMMAND_CODE_API_KEY` ou o `apiKey` protegido salvo por `cmd login` em `~/.commandcode/auth.json`.                                                                                                                                                                   |
+| OpenCode Go            | Uso ao vivo das janelas de 5h/semanal/mensal em `/zen/go/v1/usage`; usa `OPENCODE_API_KEY` ou a credencial do CLI em `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json`. Quando o fallback de saldo do plano Go está ativo, o cartão o informa sem declarar um valor de saldo.                                                                |
+| xAI (Grok)             | Uso SuperGrok semanal/mensal a partir de `grok login` (`~/.grok/auth.json`) via a API de billing do CLI; créditos pré-pagos da API via Management API (`XAI_MANAGEMENT_KEY` + `XAI_TEAM_ID`); `XAI_API_KEY` é apenas autenticação.                                                                                                                   |
+| Qwen, Mistral          | Validação somente leitura via `/models` — consumo zero de tokens.                                                                                                                                                                                                                                                                                    |
+| MiniMax PAYG (`sk-api-…`) | Validação somente leitura via `/v1/models` — consumo zero de tokens.                                                                                                                                                                                                                                                                                 |
+| MiniMax Token Plan (`sk-cp-…`) | Uso ao vivo das janelas de 5h + semanal via `/v1/token_plan/remains`; prefere `MINIMAX_TOKEN_PLAN_KEY`, com fallback para `MINIMAX_API_KEY` em configurações antigas.                                                                                                                                                                               |
+| NVIDIA                 | Apenas status da chave configurada; o catálogo público de modelos não permite validar a chave.                                                                                                                                                                                                                                                       |
+| Ollama                 | Modelos instalados e em execução via `/api/tags` e `/api/ps`.                                                                                                                                                                                                                                                                                        |
 
 A matriz completa, credenciais e referências upstream estão documentadas em
 [Provedores](./providers.md) e
@@ -189,27 +193,27 @@ da DankBar. Orientações detalhadas de instalação e upgrade estão em
 
 As configurações são armazenadas pelo DMS e sobrevivem a upgrades do plugin.
 
-| Configuração | Valores | Padrão |
-| --- | --- | --- |
-| Idioma | `auto`, `en_US`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE` | `auto` |
-| Provedores monitorados | IDs separados por vírgula | `codex,claude,copilot` |
-| Densidade do dashboard | `comfortable`, `compact` | `comfortable` |
-| Modo da pílula | `auto`, `custom`, `top` | `auto` |
-| Provedores da pílula customizada | IDs de provedores monitorados separados por vírgula | provedores monitorados |
-| Janela de uso no DankBar | pares `provedor:janela`, com janela `primary`, `secondary`, `tertiary` ou `highest` (ex.: `claude:secondary`) | janela primária |
-| Tooltip da pílula no DankBar | ativado ou desativado | ativado |
-| Provedores fixados | IDs separados por vírgula | vazio |
-| Cor dos logos | qualquer string de cor aceita pelo QML | cor primária atual do DMS |
-| Intervalo de atualização | 1, 2, 5, 15 ou 30 minutos | 2 minutos |
-| Mostrar erros de provedor | habilitado ou desabilitado | habilitado |
-| Detalhamento de projetos do Claude | habilitado ou desabilitado | habilitado |
-| Modelos individuais do Antigravity | habilitado ou desabilitado | desabilitado |
-| Notificações de cota | habilitado ou desabilitado | habilitado |
-| Limiar global de notificação | 75%, 85% ou 95% | 85% |
-| Limiares por provedor | pares `provedor:percentual` separados por vírgula (ex.: `claude:90,codex:75`), validados na hora | vazio |
-| Janelas que geram alertas | `displayed` (segue a janela do DankBar), `all` ou `primary` | `displayed` |
-| Intervalo de repetição | uma vez por janela, 1h, 6h ou 24h (atualiza o alerta existente) | uma vez por janela |
-| Retenção de histórico | 500, 2.000 ou 10.000 snapshots | 2.000 |
+| Configuração                       | Valores                                                                                                       | Padrão                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Idioma                             | `auto`, `en_US`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE`                                                           | `auto`                    |
+| Provedores monitorados             | IDs separados por vírgula                                                                                     | `codex,claude,copilot`    |
+| Densidade do dashboard             | `comfortable`, `compact`                                                                                      | `comfortable`             |
+| Modo da pílula                     | `auto`, `custom`, `top`                                                                                       | `auto`                    |
+| Provedores da pílula customizada   | IDs de provedores monitorados separados por vírgula                                                           | provedores monitorados    |
+| Janela de uso no DankBar           | pares `provedor:janela`, com janela `primary`, `secondary`, `tertiary` ou `highest` (ex.: `claude:secondary`) | janela primária           |
+| Tooltip da pílula no DankBar       | ativado ou desativado                                                                                         | ativado                   |
+| Provedores fixados                 | IDs separados por vírgula                                                                                     | vazio                     |
+| Cor dos logos                      | qualquer string de cor aceita pelo QML                                                                        | cor primária atual do DMS |
+| Intervalo de atualização           | 1, 2, 5, 15 ou 30 minutos                                                                                     | 2 minutos                 |
+| Mostrar erros de provedor          | habilitado ou desabilitado                                                                                    | habilitado                |
+| Detalhamento de projetos do Claude | habilitado ou desabilitado                                                                                    | habilitado                |
+| Modelos individuais do Antigravity | habilitado ou desabilitado                                                                                    | desabilitado              |
+| Notificações de cota               | habilitado ou desabilitado                                                                                    | habilitado                |
+| Limiar global de notificação       | 75%, 85% ou 95%                                                                                               | 85%                       |
+| Limiares por provedor              | pares `provedor:percentual` separados por vírgula (ex.: `claude:90,codex:75`), validados na hora              | vazio                     |
+| Janelas que geram alertas          | `displayed` (segue a janela do DankBar), `all` ou `primary`                                                   | `displayed`               |
+| Intervalo de repetição             | uma vez por janela, 1h, 6h ou 24h (atualiza o alerta existente)                                               | uma vez por janela        |
+| Retenção de histórico              | 500, 2.000 ou 10.000 snapshots                                                                                | 2.000                     |
 
 As Configurações também oferecem **Exportar histórico de uso** (CSV ou JSONL) e
 um **Redefinir configurações do plugin** em dois passos, que restaura todas as
@@ -333,17 +337,17 @@ normalizado de provedores.
 
 ## Documentação
 
-| Tópico | Link |
-| --- | --- |
-| Instalação e upgrades | [installation.md](./installation.md) |
-| Configuração e credenciais | [configuration.md](./configuration.md) |
-| Matriz de cobertura de provedores | [providers.md](./providers.md) |
+| Tópico                                | Link                                                   |
+| ------------------------------------- | ------------------------------------------------------ |
+| Instalação e upgrades                 | [installation.md](./installation.md)                   |
+| Configuração e credenciais            | [configuration.md](./configuration.md)                 |
+| Matriz de cobertura de provedores     | [providers.md](./providers.md)                         |
 | Política de verificação de provedores | [provider-verification.md](./provider-verification.md) |
-| Arquitetura e contrato de adaptadores | [architecture.md](./architecture.md) |
-| Solução de problemas | [troubleshooting.md](./troubleshooting.md) |
-| Internacionalização e Crowdin | [i18n-crowdin.md](./i18n-crowdin.md) |
-| Checklist de release | [release-checklist.md](./release-checklist.md) |
-| Changelog | [CHANGELOG.md](../CHANGELOG.md) |
+| Arquitetura e contrato de adaptadores | [architecture.md](./architecture.md)                   |
+| Solução de problemas                  | [troubleshooting.md](./troubleshooting.md)             |
+| Internacionalização e Crowdin         | [i18n-crowdin.md](./i18n-crowdin.md)                   |
+| Checklist de release                  | [release-checklist.md](./release-checklist.md)         |
+| Changelog                             | [CHANGELOG.md](../CHANGELOG.md)                        |
 
 ## Apoie o plugin
 
