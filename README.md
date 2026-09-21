@@ -1,6 +1,6 @@
 <div align="center">
 
-![AiOverviewControl banner](./docs/assets/banner.png)
+![AiOverviewControl banner](./screenshot.png)
 
 # AiOverviewControl
 
@@ -26,13 +26,17 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 
 ## See it in action
 
-[![AiOverviewControl demo](./docs/assets/github-preview.png)](./docs/assets/demo.mp4)
+<div align="center">
 
-> 🎬 Prefer higher quality? Watch the [MP4 demo](./docs/assets/demo.mp4).
+<video src="./docs/assets/demo.mp4" poster="./docs/assets/github-preview.png" controls muted loop playsinline width="100%"></video>
+
+> 🎬 Having trouble playing inline? Watch the [MP4 demo](./docs/assets/demo.mp4).
 
 The pill lives in your DankBar and shows live usage at a glance. Providers with multiple quota windows (Claude's 5 hour and 7 day, for example) can show any window in the bar — pick it per provider, or let `highest` follow the most-constrained one. Hover the pill to see which window the number came from and when it resets:
 
 ![DankBar pill](./docs/assets/bar-pill.png)
+
+</div>
 
 ## Why AiOverviewControl?
 
@@ -47,25 +51,25 @@ it does not. No dashboard scraping. No fabricated percentages. Ever.
 
 ## Highlights
 
-| | |
-| --- | --- |
-| 📊 **Unified dashboard** | 37 AI providers and developer tools in one place. |
-| 🛰️ **Fleet overview** | Cross-provider rollup in the hero — quota-only average load, hottest provider, how many are near their cap, and the soonest reset. |
-| ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`. |
-| 🤖 **Deep Claude analytics** | Quota plus local token, session, model, project, and cost analytics. |
-| 🐙 **Copilot quotas** | Premium request, Chat, and Completions snapshots. |
-| 🗂️ **Rich provider cards** | Usage windows, reset times, identity, credits, sparklines, trends, and console links. |
-| 🛡️ **Failure isolation** | One timeout or invalid credential never hides healthy providers. |
-| 🎛️ **Flexible layout** | Compact/comfortable density, status filters, pinned providers, `auto`/`custom`/`top` pill modes, and a per-provider DankBar usage-window choice. |
-| 🔔 **Quota notifications** | Branded DMS desktop alerts with global/per-provider thresholds; one toast per quota window, upgraded in place when quota is exhausted. Alerts can follow the window the DankBar shows, every window, or the primary one. |
-| 📄 **History export** | Dump the local usage history to CSV or JSONL from Settings, or from `providers/export-usage-history`. |
-| 🌍 **5 UI languages** | English, Português (BR), 简体中文, Español, and Deutsch. |
-| 🔒 **Privacy first** | Local adapters, no paid endpoints just to test keys, secrets never displayed. |
+| Feature                       | Description                                                                                                                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 📊 **Unified dashboard**      | 37 AI providers and developer tools in one place.                                                                                                                                                                        |
+| 🛰️ **Fleet overview**         | Cross-provider rollup in the hero — quota-only average load, hottest provider, how many are near their cap, and the soonest reset.                                                                                       |
+| ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`.                                                                                                                                                                     |
+| 🤖 **Deep Claude analytics**  | Quota plus local token, session, model, project, and cost analytics.                                                                                                                                                     |
+| 🐙 **Copilot quotas**         | Premium request, Chat, and Completions snapshots.                                                                                                                                                                        |
+| 🗂️ **Rich provider cards**    | Usage windows, reset times, identity, credits, sparklines, trends, and console links.                                                                                                                                    |
+| 🛡️ **Failure isolation**      | One timeout or invalid credential never hides healthy providers.                                                                                                                                                         |
+| 🎛️ **Flexible layout**        | Compact/comfortable density, status filters, pinned providers, `auto`/`custom`/`top` pill modes, and a per-provider DankBar usage-window choice.                                                                         |
+| 🔔 **Quota notifications**    | Branded DMS desktop alerts with global/per-provider thresholds; one toast per quota window, upgraded in place when quota is exhausted. Alerts can follow the window the DankBar shows, every window, or the primary one. |
+| 📄 **History export**         | Dump the local usage history to CSV or JSONL from Settings, or from `providers/export-usage-history`.                                                                                                                    |
+| 🌍 **5 UI languages**         | English, Português (BR), 简体中文, Español, and Deutsch.                                                                                                                                                                 |
+| 🔒 **Privacy first**          | Local adapters, no paid endpoints just to test keys, secrets never displayed.                                                                                                                                            |
 
 ## Screenshots
 
-| Dashboard overview | Expanded provider card |
-| --- | --- |
+| Dashboard overview                        | Expanded provider card                            |
+| ----------------------------------------- | ------------------------------------------------- |
 | ![Dashboard](./docs/assets/dashboard.png) | ![Expanded card](./docs/assets/card-expanded.png) |
 
 <details>
@@ -84,40 +88,40 @@ all read from local, provider-owned data.
 
 Provider cards use one of these honest coverage levels:
 
-| Coverage | Meaning |
-| --- | --- |
-| **Quota** | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, Command Code, OpenCode Go, xAI SuperGrok). |
-| **Balance** | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek, xAI Management API). |
-| **Analytics** | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, pi, Hermes). |
+| Coverage           | Meaning                                                                                                                                                                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Quota**          | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, Command Code, OpenCode Go, xAI SuperGrok).                                                                                |
+| **Balance**        | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek, xAI Management API).                                                                                                                                      |
+| **Analytics**      | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, pi, Hermes).                                                                                                                               |
 | **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, MiniMax PAYG, Qwen, and more). Some configured-status cards, such as NVIDIA, cannot validate the key because the provider's catalog is public. |
-| **Local runtime** | Reports local state rather than account quota (Ollama models, Vertex AI authentication). |
-| **Informational** | Links official usage when no read-only API exists (Kiro, Cursor, Warp, and more). |
+| **Local runtime**  | Reports local state rather than account quota (Ollama models, Vertex AI authentication).                                                                                                                                                 |
+| **Informational**  | Links official usage when no read-only API exists (Kiro, Cursor, Warp, and more).                                                                                                                                                        |
 
 Notable integrations:
 
-| Provider | Data source |
-| --- | --- |
-| Codex | Official `codex app-server` account and rate-limit methods. |
-| Claude Code | OAuth quota plus local `~/.claude/projects` analytics (or `$CLAUDE_CONFIG_DIR/projects` when that env var is set). |
-| GitHub Copilot | Authenticated GitHub/Copilot quota snapshot. |
-| Antigravity | Gemini and Claude/OpenAI 5-hour and weekly quota windows from Cloud Code Assist; optional per-model diagnostics, automatic multi-account separation, and `agy` CLI token-file discovery. |
-| 9Router | Local SQLite or JSON usage data, including routed-model telemetry. |
-| pi | Local session JSONL telemetry (`~/.pi/agent/sessions`) — cost, tokens, top models, top projects; no quota API (pi has no rate limits). |
-| Hermes | Dual-nature entry: agent-harness telemetry from `~/.hermes/state.db` (sessions, tokens per model/project, sources, API calls) plus provider identity (active billing provider, default model) from `~/.hermes/config.yaml` / `auth.json`. Provider-side billing stays on the [Nous Portal](https://portal.nousresearch.com). |
-| OpenRouter | Key limits, spend, balance, and 30-day model activity. |
-| Kimi (Moonshot) | Open Platform balance (`GET /v1/users/me/balance`, USD/CNY) — or **Kimi Code** subscription quota (`GET /coding/v1/usages`, weekly + 5h windows) when a `sk-kimi-` / `KIMI_CODING_API_KEY` is set. |
-| DeepSeek | Official account balance API. |
-| Together | Read-only API-key validation; usage and billing remain in the Together console. |
-| Cloudflare | Token verification and optional Workers AI GraphQL analytics. |
-| Z.ai, GLM | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check. |
-| Command Code | Live 5h/weekly/monthly usage via `/alpha/billing/credits`; uses `COMMAND_CODE_API_KEY` or the protected `apiKey` saved by `cmd login` in `~/.commandcode/auth.json`. |
-| OpenCode Go | Live 5h/weekly/monthly usage from `/zen/go/v1/usage`; uses `OPENCODE_API_KEY` or the CLI credential in `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json`. When the Go plan's balance fallback is enabled, the card says so without claiming a balance amount. |
-| xAI (Grok) | SuperGrok weekly/monthly usage from `grok login` (`~/.grok/auth.json`) via the CLI billing API; prepaid API credits from the Management API (`XAI_MANAGEMENT_KEY` + `XAI_TEAM_ID`); `XAI_API_KEY` is auth-only. |
-| Qwen, Mistral | Read-only `/models` validation — zero token consumption. |
-| MiniMax PAYG (`sk-api-…`) | Read-only `/v1/models` validation — zero token consumption. |
-| MiniMax Token Plan (`sk-cp-…`) | Live 5h + weekly windows via `/v1/token_plan/remains`; prefer `MINIMAX_TOKEN_PLAN_KEY`, fall back to `MINIMAX_API_KEY` for older configs. |
-| NVIDIA | Configured-key status only; its public model catalog cannot validate the key. |
-| Ollama | Installed and running models from `/api/tags` and `/api/ps`. |
+| Provider                       | Data source                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codex                          | Official `codex app-server` account and rate-limit methods.                                                                                                                                                                                                                                                                  |
+| Claude Code                    | OAuth quota plus local `~/.claude/projects` analytics (or `$CLAUDE_CONFIG_DIR/projects` when that env var is set).                                                                                                                                                                                                           |
+| GitHub Copilot                 | Authenticated GitHub/Copilot quota snapshot.                                                                                                                                                                                                                                                                                 |
+| Antigravity                    | Gemini and Claude/OpenAI 5-hour and weekly quota windows from Cloud Code Assist; optional per-model diagnostics, automatic multi-account separation, and `agy` CLI token-file discovery.                                                                                                                                     |
+| 9Router                        | Local SQLite or JSON usage data, including routed-model telemetry.                                                                                                                                                                                                                                                           |
+| pi                             | Local session JSONL telemetry (`~/.pi/agent/sessions`) — cost, tokens, top models, top projects; no quota API (pi has no rate limits).                                                                                                                                                                                       |
+| Hermes                         | Dual-nature entry: agent-harness telemetry from `~/.hermes/state.db` (sessions, tokens per model/project, sources, API calls) plus provider identity (active billing provider, default model) from `~/.hermes/config.yaml` / `auth.json`. Provider-side billing stays on the [Nous Portal](https://portal.nousresearch.com). |
+| OpenRouter                     | Key limits, spend, balance, and 30-day model activity.                                                                                                                                                                                                                                                                       |
+| Kimi (Moonshot)                | Open Platform balance (`GET /v1/users/me/balance`, USD/CNY) — or **Kimi Code** subscription quota (`GET /coding/v1/usages`, weekly + 5h windows) when a `sk-kimi-` / `KIMI_CODING_API_KEY` is set.                                                                                                                           |
+| DeepSeek                       | Official account balance API.                                                                                                                                                                                                                                                                                                |
+| Together                       | Read-only API-key validation; usage and billing remain in the Together console.                                                                                                                                                                                                                                              |
+| Cloudflare                     | Token verification and optional Workers AI GraphQL analytics.                                                                                                                                                                                                                                                                |
+| Z.ai, GLM                      | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check.                                                                                                                                                                                    |
+| Command Code                   | Live 5h/weekly/monthly usage via `/alpha/billing/credits`; uses `COMMAND_CODE_API_KEY` or the protected `apiKey` saved by `cmd login` in `~/.commandcode/auth.json`.                                                                                                                                                         |
+| OpenCode Go                    | Live 5h/weekly/monthly usage from `/zen/go/v1/usage`; uses `OPENCODE_API_KEY` or the CLI credential in `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json`. When the Go plan's balance fallback is enabled, the card says so without claiming a balance amount.                                                        |
+| xAI (Grok)                     | SuperGrok weekly/monthly usage from `grok login` (`~/.grok/auth.json`) via the CLI billing API; prepaid API credits from the Management API (`XAI_MANAGEMENT_KEY` + `XAI_TEAM_ID`); `XAI_API_KEY` is auth-only.                                                                                                              |
+| Qwen, Mistral                  | Read-only `/models` validation — zero token consumption.                                                                                                                                                                                                                                                                     |
+| MiniMax PAYG (`sk-api-…`)      | Read-only `/v1/models` validation — zero token consumption.                                                                                                                                                                                                                                                                  |
+| MiniMax Token Plan (`sk-cp-…`) | Live 5h + weekly windows via `/v1/token_plan/remains`; prefer `MINIMAX_TOKEN_PLAN_KEY`, fall back to `MINIMAX_API_KEY` for older configs.                                                                                                                                                                                    |
+| NVIDIA                         | Configured-key status only; its public model catalog cannot validate the key.                                                                                                                                                                                                                                                |
+| Ollama                         | Installed and running models from `/api/tags` and `/api/ps`.                                                                                                                                                                                                                                                                 |
 
 The full matrix, credentials, and upstream references are documented in
 [Providers](./docs/providers.md) and
@@ -188,27 +192,27 @@ Detailed installation and upgrade guidance is available in
 
 Settings are stored by DMS and survive plugin upgrades.
 
-| Setting | Values | Default |
-| --- | --- | --- |
-| Language | `auto`, `en_US`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE` | `auto` |
-| Tracked providers | comma-separated provider IDs | `codex,claude,copilot` |
-| Dashboard density | `comfortable`, `compact` | `comfortable` |
-| Pill mode | `auto`, `custom`, `top` | `auto` |
-| Custom pill providers | comma-separated tracked-provider IDs | tracked providers |
-| DankBar usage window | `provider:slot` pairs, slot `primary`, `secondary`, `tertiary`, or `highest` (e.g. `claude:secondary`) | primary window |
-| DankBar pill tooltip | enabled or disabled | enabled |
-| Pinned providers | comma-separated provider IDs | empty |
-| Provider logo color | any QML color string | current DMS primary color |
-| Refresh interval | 1, 2, 5, 15, or 30 minutes | 2 minutes |
-| Show provider errors | enabled or disabled | enabled |
-| Claude project breakdown | enabled or disabled | enabled |
-| Individual Antigravity models | enabled or disabled | disabled |
-| Quota notifications | enabled or disabled | enabled |
-| Global notification threshold | 75%, 85%, or 95% | 85% |
-| Per-provider thresholds | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`), validated inline | empty |
-| Windows that raise alerts | `displayed` (follows the DankBar window), `all`, or `primary` | `displayed` |
-| Re-alert interval | once per window, 1h, 6h, or 24h (updates the existing alert) | once per window |
-| History retention | 500, 2,000, or 10,000 snapshots | 2,000 |
+| Setting                       | Values                                                                                                 | Default                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------- |
+| Language                      | `auto`, `en_US`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE`                                                    | `auto`                    |
+| Tracked providers             | comma-separated provider IDs                                                                           | `codex,claude,copilot`    |
+| Dashboard density             | `comfortable`, `compact`                                                                               | `comfortable`             |
+| Pill mode                     | `auto`, `custom`, `top`                                                                                | `auto`                    |
+| Custom pill providers         | comma-separated tracked-provider IDs                                                                   | tracked providers         |
+| DankBar usage window          | `provider:slot` pairs, slot `primary`, `secondary`, `tertiary`, or `highest` (e.g. `claude:secondary`) | primary window            |
+| DankBar pill tooltip          | enabled or disabled                                                                                    | enabled                   |
+| Pinned providers              | comma-separated provider IDs                                                                           | empty                     |
+| Provider logo color           | any QML color string                                                                                   | current DMS primary color |
+| Refresh interval              | 1, 2, 5, 15, or 30 minutes                                                                             | 2 minutes                 |
+| Show provider errors          | enabled or disabled                                                                                    | enabled                   |
+| Claude project breakdown      | enabled or disabled                                                                                    | enabled                   |
+| Individual Antigravity models | enabled or disabled                                                                                    | disabled                  |
+| Quota notifications           | enabled or disabled                                                                                    | enabled                   |
+| Global notification threshold | 75%, 85%, or 95%                                                                                       | 85%                       |
+| Per-provider thresholds       | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`), validated inline                 | empty                     |
+| Windows that raise alerts     | `displayed` (follows the DankBar window), `all`, or `primary`                                          | `displayed`               |
+| Re-alert interval             | once per window, 1h, 6h, or 24h (updates the existing alert)                                           | once per window           |
+| History retention             | 500, 2,000, or 10,000 snapshots                                                                        | 2,000                     |
 
 Settings also offers **Export usage history** (CSV or JSONL) and a two-step
 **Reset plugin settings**, which restores every option above without touching
@@ -328,18 +332,18 @@ provider contract.
 
 ## Documentation
 
-| Topic | Link |
-| --- | --- |
-| Installation and upgrades | [docs/installation.md](./docs/installation.md) |
-| Configuration and credentials | [docs/configuration.md](./docs/configuration.md) |
-| Provider coverage matrix | [docs/providers.md](./docs/providers.md) |
-| Provider verification policy | [docs/provider-verification.md](./docs/provider-verification.md) |
-| Architecture and adapter contract | [docs/architecture.md](./docs/architecture.md) |
-| Troubleshooting | [docs/troubleshooting.md](./docs/troubleshooting.md) |
-| Português do Brasil | [docs/README.pt-BR.md](./docs/README.pt-BR.md) |
-| Internationalization and Crowdin | [docs/i18n-crowdin.md](./docs/i18n-crowdin.md) |
-| Release checklist | [docs/release-checklist.md](./docs/release-checklist.md) |
-| Changelog | [CHANGELOG.md](./CHANGELOG.md) |
+| Topic                             | Link                                                             |
+| --------------------------------- | ---------------------------------------------------------------- |
+| Installation and upgrades         | [docs/installation.md](./docs/installation.md)                   |
+| Configuration and credentials     | [docs/configuration.md](./docs/configuration.md)                 |
+| Provider coverage matrix          | [docs/providers.md](./docs/providers.md)                         |
+| Provider verification policy      | [docs/provider-verification.md](./docs/provider-verification.md) |
+| Architecture and adapter contract | [docs/architecture.md](./docs/architecture.md)                   |
+| Troubleshooting                   | [docs/troubleshooting.md](./docs/troubleshooting.md)             |
+| Português do Brasil               | [docs/README.pt-BR.md](./docs/README.pt-BR.md)                   |
+| Internationalization and Crowdin  | [docs/i18n-crowdin.md](./docs/i18n-crowdin.md)                   |
+| Release checklist                 | [docs/release-checklist.md](./docs/release-checklist.md)         |
+| Changelog                         | [CHANGELOG.md](./CHANGELOG.md)                                   |
 
 ## Support the plugin
 
