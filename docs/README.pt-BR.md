@@ -26,7 +26,7 @@ billing, autenticação e telemetria local de uso de IA — direto na sua DankBa
 
 ## Veja em ação
 
-![Demonstração do AiOverviewControl](./assets/demo.gif)
+[![Demonstração do AiOverviewControl](./assets/github-preview.png)](./assets/demo.mp4)
 
 > 🎬 Prefere mais qualidade? Assista ao [demo em MP4](./assets/demo.mp4).
 

@@ -26,7 +26,7 @@ billing, authentication, and local usage telemetry — right in your DankBar.
 
 ## See it in action
 
-![AiOverviewControl demo](./docs/assets/demo.gif)
+[![AiOverviewControl demo](./docs/assets/github-preview.png)](./docs/assets/demo.mp4)
 
 > 🎬 Prefer higher quality? Watch the [MP4 demo](./docs/assets/demo.mp4).
 
