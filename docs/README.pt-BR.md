@@ -375,6 +375,7 @@ ideias de funcionalidades também são bem-vindos por lá, além das
 <a href="https://github.com/arqueon" title="arqueon"><img src="https://avatars.githubusercontent.com/u/66568719?v=4&s=112" width="56" height="56" alt="arqueon" /></a>
 <a href="https://github.com/goulartdev" title="goulartdev"><img src="https://avatars.githubusercontent.com/u/16469407?v=4&s=112" width="56" height="56" alt="goulartdev" /></a>
 <a href="https://github.com/emmsixx" title="emmsixx"><img src="https://avatars.githubusercontent.com/u/56744133?v=4&s=112" width="56" height="56" alt="emmsixx" /></a>
+<a href="https://github.com/Murat65536" title="Murat65536"><img src="https://avatars.githubusercontent.com/u/99989538?v=4&s=112" width="56" height="56" alt="Murat65536" /></a>
 <a href="https://github.com/gouwazi" title="gouwazi"><img src="https://avatars.githubusercontent.com/u/23072555?v=4&s=112" width="56" height="56" alt="gouwazi" /></a>
 <a href="https://github.com/UN-9BOT" title="UN-9BOT"><img src="https://avatars.githubusercontent.com/u/111110804?v=4&s=112" width="56" height="56" alt="UN-9BOT" /></a>
 
