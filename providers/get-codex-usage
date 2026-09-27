@@ -141,32 +141,12 @@ run_app_server() {
   exec {read_fd}<&- 2>/dev/null || true
 }
 
-# Daemon mode keeps one long-lived app-server per session and forwards each
-# poll through `codex app-server proxy`, so steady-state usage never starts a
-# backend (and never pays its startup marketplace refresh). `daemon start` is
-# idempotent but only exists for standalone-installer Codex; anything else —
-# npm, brew, distro packages — falls back to spawning a backend per refresh.
-backend_mode="spawn"
-if [ "${CODEX_APP_SERVER_MODE:-auto}" != "spawn" ]; then
-  # </dev/null keeps the probe from inheriting a caller's stdin, and the
-  # timeout bounds an unusual slow daemon start.
-  if timeout 10 codex app-server daemon start >/dev/null 2>&1 </dev/null; then
-    backend_mode="proxy"
-  fi
-fi
-
+# The adapter sends newline-delimited JSON-RPC over stdio. `codex app-server
+# proxy` is only a byte relay to the daemon's WebSocket socket; it cannot
+# translate that JSONL protocol. Use direct stdio, with the cache and lock
+# above preventing redundant backend launches.
 for attempt in 1 2; do
-  # A proxy that reached nothing is retried against a direct spawn instead of
-  # a second doomed proxy connection.
-  if [ "$attempt" -eq 2 ] && [ "$backend_mode" = "proxy" ] && [ ! -s "$tmp_out" ]; then
-    backend_mode="spawn"
-  fi
-
-  if [ "$backend_mode" = "proxy" ]; then
-    run_app_server codex app-server proxy
-  else
-    run_app_server codex app-server
-  fi
+  run_app_server codex app-server
 
   account="$(jq -cs '[.[] | select(.id == 1)][0].result.account // null' "$tmp_out" 2>/dev/null || printf 'null')"
   limits="$(jq -cs '[.[] | select(.id == 2)][0].result // null' "$tmp_out" 2>/dev/null || printf 'null')"
@@ -184,7 +164,8 @@ for attempt in 1 2; do
 done
 
 if [ "$limits" = "null" ] || ! printf '%s' "$limits" | jq -e '.rateLimits' >/dev/null 2>&1; then
-  if [ "$account" = "null" ]; then
+  account_responded="$(jq -cs 'any(.[]; .id == 1)' "$tmp_out" 2>/dev/null || printf 'false')"
+  if [ "$account" = "null" ] && [ "$account_responded" = "true" ]; then
     fail_json 2 "Codex CLI is not authenticated. Run: codex login"
   else
     if cache_is_valid; then
@@ -197,7 +178,7 @@ if [ "$limits" = "null" ] || ! printf '%s' "$limits" | jq -e '.rateLimits' >/dev
     fi
 
     error_message="$(printf '%s' "$limit_error" | jq -r '.message // empty' 2>/dev/null || true)"
-    [ -n "$error_message" ] || error_message="Codex app-server did not return account rate limits."
+    [ -n "$error_message" ] || error_message="Codex app-server did not return account or rate limits."
     fail_json 3 "$error_message"
   fi
   exit 0

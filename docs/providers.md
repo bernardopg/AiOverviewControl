@@ -727,13 +727,12 @@ upgrade keeps being interrupted, each round leaves git temp directories under
 [#36093](https://github.com/openai/codex/issues/36093)). A quota poll must
 therefore launch as few backends as possible:
 
-- **Daemon/proxy mode.** When the Codex CLI supports it (standalone-installer
-  installs), `get-codex-usage` runs `codex app-server daemon start` (idempotent)
-  and speaks each poll through `codex app-server proxy`, so steady-state usage
-  never starts a backend at all. npm/brew/distro installs without the daemon
-  subcommand fall back to spawning a backend per refresh.
-- **`CODEX_APP_SERVER_MODE=spawn`** forces the spawn path and skips the daemon
-  probe.
+- **Direct stdio mode.** Each cache refresh starts `codex app-server` and sends
+  newline-delimited JSON-RPC over stdin. `codex app-server proxy` is a raw byte
+  relay to the daemon's **WebSocket** Unix socket; it does not translate JSONL
+  into WebSocket frames. Sending JSONL through it silently receives no replies,
+  so this adapter does not use that proxy. A future daemon client would need a
+  proper WebSocket handshake and framed messages.
 - **Single-flight.** A `flock` on
   `~/.cache/AiOverviewControl/codex-usage.lock` serializes launches; an
   invocation arriving while another refresh runs serves the cached snapshot,
