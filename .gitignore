@@ -17,3 +17,10 @@ CLAUDE.md
 AUDIT-REPORT.md
 graphify-out/
 dist/
+GEMINI.md
+.codegraph/
+.cursor
+.gemini
+.kiro
+.mcp.json
+opencode.jsonc
