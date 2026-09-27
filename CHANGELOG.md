@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.16.2 - 2026-09-27
+
+### Codex adapter drops the broken daemon proxy and stops misreporting transport failures as logout
+
+- `codex app-server proxy` is a raw byte relay to the daemon's **WebSocket** Unix socket — it does not translate the adapter's newline-delimited JSON-RPC, so polls forwarded through it silently received no replies. The daemon/proxy backend mode and the `CODEX_APP_SERVER_MODE` toggle are removed; every refresh now speaks JSON-RPC directly to a stdio `codex app-server`, with the existing 60s freshness cache and single-flight lock still keeping backend launches to one per refresh window (#25).
+- A silent backend is no longer misreported as "Codex CLI is not authenticated". The adapter raises the login error only when the app-server explicitly answers `account/read` with a null account; a transport failure with no account response falls back to a recent cached snapshot or surfaces the underlying JSON-RPC error instead.
+
 ## 1.16.1 - 2026-09-21
 
 ### Antigravity `agy` sessions and complete quota windows (#30)
