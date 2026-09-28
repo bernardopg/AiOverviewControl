@@ -413,6 +413,10 @@ PluginSettings {
         id: pluginManifestView
         path: root._pluginDir.length > 0 ? root._pluginDir + "/plugin.json" : ""
         printErrors: false
+        // Follow the manifest on disk, so an in-place update shows the new
+        // version without a shell restart.
+        watchChanges: true
+        onFileChanged: reload()
         onLoaded: {
             try {
                 const manifest = JSON.parse(text());
