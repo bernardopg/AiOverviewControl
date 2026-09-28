@@ -20,11 +20,7 @@ e sem nenhum serviço externo.
 
 <br />
 
-<img src="./assets/bar-pill.png" alt="Pílula do AiOverviewControl na DankBar" />
-
-<br /><br />
-
-<img src="./assets/dashboard.png" alt="Painel do AiOverviewControl" width="720" />
+<img src="./assets/banner.jpg" alt="AiOverviewControl" width="100%" />
 
 </div>
 
@@ -32,9 +28,9 @@ e sem nenhum serviço externo.
 
 <div align="center">
 
-<a href="./assets/demo.mp4"><img src="./assets/demo-poster.jpg" alt="Assista à demonstração do AiOverviewControl (27 s)" width="720" /></a>
+<img src="./assets/demo.gif" alt="Demonstração do AiOverviewControl" width="100%" />
 
-<sub>Clique para assistir à demonstração de 27 segundos.</sub>
+<sub><a href="./assets/demo.mp4">MP4 em alta qualidade</a></sub>
 
 </div>
 

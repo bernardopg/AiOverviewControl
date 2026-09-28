@@ -20,11 +20,7 @@ with no external service.
 
 <br />
 
-<img src="./docs/assets/bar-pill.png" alt="AiOverviewControl pill in the DankBar" />
-
-<br /><br />
-
-<img src="./docs/assets/dashboard.png" alt="AiOverviewControl dashboard" width="720" />
+<img src="./docs/assets/banner.jpg" alt="AiOverviewControl" width="100%" />
 
 </div>
 
@@ -32,9 +28,9 @@ with no external service.
 
 <div align="center">
 
-<a href="./docs/assets/demo.mp4"><img src="./docs/assets/demo-poster.jpg" alt="Watch the AiOverviewControl demo (27 s)" width="720" /></a>
+<img src="./docs/assets/demo.gif" alt="AiOverviewControl demo" width="100%" />
 
-<sub>Click to watch the 27-second demo.</sub>
+<sub><a href="./docs/assets/demo.mp4">Full-quality MP4</a></sub>
 
 </div>
 
