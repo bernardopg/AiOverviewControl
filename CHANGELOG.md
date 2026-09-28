@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.17.1 - 2026-09-28
+
+### Version pill follows updates
+
 - The version pill in the popout and settings now follows `plugin.json` on disk, so an in-place update shows the new version without restarting the shell.
 
 ## 1.17.0 - 2026-09-28
