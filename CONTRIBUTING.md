@@ -58,8 +58,14 @@ Two caveats that cost real debugging time:
   that are not on the lint path — filter them:
 
   ```bash
-  qmllint *.qml 2>&1 | grep -vE "qs\.|was not found|Unqualified|import"
+  QT_FORCE_STDERR_LOGGING=1 qmllint *.qml 2>&1 | grep -vE "qs\.|was not found|Unqualified|import"
   ```
+
+  Keep `QT_FORCE_STDERR_LOGGING=1`: without a terminal, Qt6 `qmllint` sends its
+  messages to journald instead of stderr, so a piped run looks clean while
+  parse errors land in `journalctl --user`. Trust the exit code (non-zero means
+  a parse error). Qt6's parser also rejects a `: void` return annotation, so
+  `IpcHandler` functions return `string`.
 
 ## Providers
 
@@ -80,7 +86,7 @@ Two caveats that cost real debugging time:
 | i18n JSON valid | `for f in i18n/*.json; do jq -e . "$f"; done` |
 | **i18n key parity** (all locales == `en`) | `for locale in pt_BR zh_CN es_ES de_DE; do diff <(jq -r 'keys[]' i18n/en.json) <(jq -r 'keys[]' "i18n/$locale.json") || exit 1; done` |
 | CHANGELOG has the `plugin.json` version | `VERSION="$(jq -r .version plugin.json)"; grep -qF "## $VERSION" CHANGELOG.md \|\| grep -qF "## [$VERSION]" CHANGELOG.md` |
-| **QML lint (hard gate)** | `qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml` |
+| **QML lint (hard gate)** | `QT_FORCE_STDERR_LOGGING=1 qmllint *.qml` |
 | Shell syntax | `find providers -maxdepth 1 -type f -print0 \| xargs -0 bash -n; for test in tests/*.sh; do bash -n "$test"; done; bash -n scripts/package-release` |
 | Shell lint | `shellcheck -S warning providers/* tests/*.sh scripts/package-release` |
 | Release package | `scripts/package-release` |

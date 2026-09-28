@@ -673,6 +673,8 @@ jobs:
             AiOverviewControlWidget.qml \
             AiOverviewControlSettings.qml \
             AiOverviewControlI18n.qml \
+            AiOverviewSettingsWindow.qml \
+            HeaderAction.qml \
             ProviderLogo.qml
 
       - name: No hardcoded install path in QML

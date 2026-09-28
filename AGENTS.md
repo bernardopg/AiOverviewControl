@@ -44,7 +44,7 @@ find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash "$test"; done
 bash -n scripts/package-release
 shellcheck -S warning providers/* tests/*.sh scripts/package-release
-qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml
+QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
 for f in i18n/*.json; do jq -e . "$f" >/dev/null; done   # plus exact key parity vs i18n/en.json
 ```
 

@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 1.17.0 - 2026-09-28
+
+### New brand header, hero, and charts
+
+- The popout opens with a brand header: the new AiOverviewControl mascot (tinted with the theme accent), the title, the version, and an icon capsule with upvote, GitHub, refresh, settings, and close. Hovering a button names its action in the subtitle line.
+- The hero shows the focused provider's logo inside its primary-window ring and merges the two stat strips into one: average load, hottest provider, active, attention, at risk, next reset, and last sync. Fleet-wide figures appear only with two or more live providers. It fades in on open, a soft glow drifts behind it, and figures pulse when they change.
+- Every seven-day chart (Claude, 9Router, pi, Hermes) now uses one shared component: bars with a square base and rounded top, a common baseline, a staggered grow-in, and the day's value lifted above the bar on hover instead of covering it.
+- Usage bars grow in with a gradient fill; the history sparkline draws in, adds guide lines, a hover cursor, and a gradient area.
+- Card actions (pin, remove, expand) share the header's capsule style. "Open console" no longer wraps.
+
+### Standalone settings and About windows
+
+- The ⚙ button opens a dedicated settings window that hosts the same page as DMS Settings → Plugins, so both entry points write the same values. Its header links to upvote, the repository, the issue tracker, and a new About window with the developer and funding links.
+- Provider selection is now a uniform grid with a logo, name, kind, and a health-coloured check per provider.
+- Settings rows are aligned, and the scrollbar no longer overlaps the content.
+
+### IPC commands
+
+- `dms ipc call aiOverviewControl toggle | settings | about` open the popout, the settings window, and the About window, so the dashboard can be bound to a compositor shortcut.
+
+### DankBar pill
+
+- The circular gauge at the start of the pill is removed; the pill shows only the provider entries. The vertical pill now colours percentages by usage, like the horizontal one.
+
+### Complete translations
+
+- Labels emitted by provider adapters ("5 hour", "7 day", "Chat", "Key limit", "Prepaid credits", "Latest day …", and more) are translated everywhere they appear: hero, cards, pill tooltip, status, and notifications. Unknown text such as model names passes through.
+- Time units, token/request abbreviations, and plan tiers are localized.
+- Settings dropdowns show translated option names instead of raw stored values (`compact`, `primary`, `120000`).
+- The Claude details section uses the same Session/Weekly vocabulary as the rest of the plugin.
+
+### Tooling and docs
+
+- `qmllint` must run with `QT_FORCE_STDERR_LOGGING=1`: without a terminal, Qt 6 sends its messages to journald, which hid a parse error on `: void` IPC annotations. IPC functions now return `string`, and CI lints the new QML files.
+- The README is rewritten around the new UI, with a demo video, screenshots, a feature grid, and a documentation index. Detailed behaviour moves to the new `docs/usage.md`.
+
 ## 1.16.2 - 2026-09-27
 
 ### Codex adapter drops the broken daemon proxy and stops misreporting transport failures as logout

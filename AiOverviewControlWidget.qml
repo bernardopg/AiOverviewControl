@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
@@ -68,11 +69,13 @@ PluginComponent {
     readonly property var notifyThresholdOverrides: {
         const raw = String(pluginData.notifyThresholds || "").trim();
         const map = {};
-        if (raw.length === 0) return map;
+        if (raw.length === 0)
+            return map;
         const pairs = raw.split(",");
         for (let i = 0; i < pairs.length; i++) {
             const kv = pairs[i].split(":");
-            if (kv.length !== 2) continue;
+            if (kv.length !== 2)
+                continue;
             const id = kv[0].trim().toLowerCase();
             const value = parseInt(kv[1].trim());
             if (id.length > 0 && Number.isFinite(value) && value > 0 && value <= 100) {
@@ -98,7 +101,8 @@ PluginComponent {
     // Minutes between repeats of the same alert; 0 = once per quota window.
     readonly property int notifyCooldownSecs: {
         const parsed = parseInt(pluginData.notifyCooldownMinutes || "0");
-        if (!Number.isFinite(parsed) || parsed <= 0) return 999999999;
+        if (!Number.isFinite(parsed) || parsed <= 0)
+            return 999999999;
         return parsed * 60;
     }
     property string pinnedProvidersCsv: (pluginData.pinnedProviders || "").trim()
@@ -107,7 +111,8 @@ PluginComponent {
         const result = [];
         for (let i = 0; i < parts.length; i++) {
             const id = parts[i].trim().toLowerCase();
-            if (id.length > 0 && result.indexOf(id) < 0) result.push(id);
+            if (id.length > 0 && result.indexOf(id) < 0)
+                result.push(id);
         }
         return result;
     }
@@ -171,45 +176,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: [
-        "codex",
-        "claude",
-        "copilot",
-        "antigravity",
-        "gemini",
-        "openrouter",
-        "deepseek",
-        "kimi",
-        "mistral",
-        "glm",
-        "zai",
-        "minimax",
-        "commandcode",
-        "qwen",
-        "nvidia",
-        "cloudflare",
-        "vertexai",
-        "byteplus",
-        "together",
-        "groq",
-        "cohere",
-        "replicate",
-        "fireworks",
-        "ai21",
-        "xai",
-        "kilo",
-        "perplexity",
-        "cursor",
-        "cline",
-        "opencode",
-        "kiro",
-        "warp",
-        "amp",
-        "ollama",
-        "9router",
-        "pi",
-        "hermes"
-    ]
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"]
 
     ListModel {
         id: claudeModelList
@@ -272,23 +239,28 @@ PluginComponent {
         const result = [];
         for (let i = 0; i < displayProviders.length; i++) {
             const provider = displayProviders[i];
-            if (providerStatusFilter === "live" && (provider.error || !provider.usage)) continue;
-            if (providerStatusFilter === "issues" && !provider.error && !root.hasPartialAccountErrors(provider)) continue;
+            if (providerStatusFilter === "live" && (provider.error || !provider.usage))
+                continue;
+            if (providerStatusFilter === "issues" && !provider.error && !root.hasPartialAccountErrors(provider))
+                continue;
             if (query.length > 0) {
                 const haystack = `${providerName(provider.provider)} ${provider.provider} ${providerSourceLabel(provider)}`.toLowerCase();
-                if (haystack.indexOf(query) < 0) continue;
+                if (haystack.indexOf(query) < 0)
+                    continue;
             }
             result.push(provider);
         }
         // Pinned first, then most-used so attention lands where quota is
         // burning; failed providers sink to the end without hiding.
-        result.sort(function(a, b) {
+        result.sort(function (a, b) {
             const aPin = pinnedProviders.indexOf(a.provider) >= 0 ? 0 : 1;
             const bPin = pinnedProviders.indexOf(b.provider) >= 0 ? 0 : 1;
-            if (aPin !== bPin) return aPin - bPin;
+            if (aPin !== bPin)
+                return aPin - bPin;
             const aErr = a.error ? 1 : 0;
             const bErr = b.error ? 1 : 0;
-            if (aErr !== bErr) return aErr - bErr;
+            if (aErr !== bErr)
+                return aErr - bErr;
             return providerPercent(b) - providerPercent(a);
         });
         return result;
@@ -301,14 +273,17 @@ PluginComponent {
     readonly property var barWindowOverrideMap: {
         const raw = String(barWindowOverrides || "").trim();
         const map = {};
-        if (raw.length === 0) return map;
+        if (raw.length === 0)
+            return map;
         const pairs = raw.split(",");
         for (let i = 0; i < pairs.length; i++) {
             const kv = pairs[i].split(":");
-            if (kv.length !== 2) continue;
+            if (kv.length !== 2)
+                continue;
             const id = notificationProviderId(kv[0].trim());
             const slot = kv[1].trim().toLowerCase();
-            if (id.length === 0) continue;
+            if (id.length === 0)
+                continue;
             if (slot === "primary" || slot === "secondary" || slot === "tertiary" || slot === "highest") {
                 map[id] = slot;
             }
@@ -337,7 +312,8 @@ PluginComponent {
             const result = [];
             for (let i = 0; i < ids.length; i++) {
                 const id = ids[i].trim().toLowerCase();
-                if (id.length === 0) continue;
+                if (id.length === 0)
+                    continue;
                 for (let j = 0; j < providers.length; j++) {
                     if (providers[j] && providers[j].provider === id && !providers[j].error) {
                         result.push(providers[j]);
@@ -359,9 +335,6 @@ PluginComponent {
         }
         return active.length > 0 ? active : successfulProviders;
     }
-    readonly property var pillPrimaryProvider: pillDisplayProviders.length > 0 ? pillDisplayProviders[0] : null
-    readonly property real pillPrimaryPercent: pillPrimaryProvider ? pillPercentFor(pillPrimaryProvider) : 0
-    readonly property color pillAccent: pillPrimaryProvider ? providerAccent(pillPrimaryProvider.provider) : Theme.surfaceVariantText
 
     readonly property var providerData: {
         for (let i = 0; i < pinnedProviders.length; i++) {
@@ -397,7 +370,15 @@ PluginComponent {
     // touched so nextResetLabel re-evaluates on the same cadence as the hero.
     readonly property var fleetRollup: {
         const live = successfulProviders;
-        const out = { count: live.length, avg: 0, peak: 0, peakName: "", peakId: "", atRisk: 0, nextResetMs: 0 };
+        const out = {
+            count: live.length,
+            avg: 0,
+            peak: 0,
+            peakName: "",
+            peakId: "",
+            atRisk: 0,
+            nextResetMs: 0
+        };
         if (live.length === 0) {
             return out;
         }
@@ -490,7 +471,9 @@ PluginComponent {
         if (!resetLabel) {
             return t("status.windows_available", "Provider windows are available.");
         }
-        return t("status.primary_resets", "Primary window resets in {time}.", { time: resetLabel });
+        return t("status.primary_resets", "Primary window resets in {time}.", {
+            time: resetLabel
+        });
     }
 
     readonly property bool isDataStale: {
@@ -515,6 +498,82 @@ PluginComponent {
         return value.charAt(0).toUpperCase() + value.slice(1);
     }
 
+    // Adapters emit English resetDescription strings ("5 hour", "Weekly",
+    // "7 day · Opus"...). Standard ones are translated here, per " · " segment,
+    // so every caller renders the same localized label; unknown text passes through.
+    function windowLabel(windowData, fallback) {
+        if (!windowData) return fallback || "";
+        const raw = windowData.resetDescription;
+        if (!raw) return getWindowLabel(windowData.windowMinutes) || fallback || "";
+        return String(raw).split(" · ").map(part => translateWindowPart(part)).join(" · ");
+    }
+
+    // Every label an adapter can emit, in English, mapped to an i18n key.
+    // Unknown text (model names, account labels) passes through untouched.
+    function translateWindowPart(part) {
+        const text = String(part).trim();
+        const key = text.toLowerCase();
+        const known = {
+            "session": ["window.session", "Session"],
+            "5 hour": ["window.session", "Session"],
+            "5h": ["window.session", "Session"],
+            "weekly": ["window.weekly", "Weekly"],
+            "week": ["window.weekly", "Weekly"],
+            "7 day": ["window.weekly", "Weekly"],
+            "7 days": ["window.weekly", "Weekly"],
+            "monthly": ["window.monthly", "Monthly"],
+            "month": ["window.monthly", "Monthly"],
+            "today": ["window.today", "Today"],
+            "window": ["window.window", "Window"],
+            "quota": ["window.quota", "Quota"],
+            "credits": ["window.credits", "Credits"],
+            "chat": ["window.chat", "Chat"],
+            "completions": ["window.completions", "Completions"],
+            "key limit": ["window.key_limit", "Key limit"],
+            "spent today": ["window.spent_today", "Spent today"],
+            "week and top models": ["window.week_top_models", "Week and top models"],
+            "week and month spend": ["window.week_month_spend", "Week and month spend"],
+            "tracked total": ["window.tracked_total", "Tracked total"],
+            "tokens": ["window.tokens", "Tokens"],
+            "total tokens": ["window.total_tokens", "Total tokens"],
+            "tokens/5h": ["window.tokens_session", "Tokens / session"],
+            "tokens/week": ["window.tokens_week", "Tokens / week"],
+            "tokens/month": ["window.tokens_month", "Tokens / month"],
+            "balance": ["window.balance", "Balance"],
+            "granted credits": ["window.granted_credits", "Granted credits"],
+            "paid balance": ["window.paid_balance", "Paid balance"],
+            "voucher / cash": ["window.voucher_cash", "Voucher / Cash"],
+            "running now": ["window.running_now", "Running now"],
+            "prepaid credits": ["window.prepaid_credits", "Prepaid credits"],
+            "account": ["window.account", "Account"],
+            "premium requests": ["window.premium_requests", "Premium requests"],
+            "ai credits": ["window.ai_credits", "AI credits"],
+            "gemini models": ["window.gemini_models", "Gemini models"],
+            "claude & openai models": ["window.claude_openai_models", "Claude & OpenAI models"],
+            "other models": ["window.other_models", "Other models"],
+            "1 hour": ["window.hourly", "Hourly"],
+            "1 day": ["window.daily", "Daily"],
+            "1 week": ["window.weekly", "Weekly"]
+        };
+        if (known[key]) return t(known[key][0], known[key][1]);
+        let m = key.match(/^mcp (.+)$/);
+        if (m) return "MCP " + translateWindowPart(text.substring(4));
+        m = key.match(/^(\d+) (minute|hour|day|week)s?$/);
+        if (m) {
+            const unitKeys = { minute: ["window.n_minutes", "{count} minutes"], hour: ["window.n_hours", "{count} hours"], day: ["window.n_days", "{count} days"], week: ["window.n_weeks", "{count} weeks"] };
+            return t(unitKeys[m[2]][0], unitKeys[m[2]][1], { count: m[1] });
+        }
+        m = text.match(/^Latest day (.+)$/);
+        if (m) return t("window.latest_day", "Latest day {date}", { date: m[1] });
+        m = text.match(/^local-routed, not (.+) quota$/);
+        if (m) return t("window.local_routed", "local-routed, not {provider} quota", { provider: m[1] });
+        m = text.match(/^Local — (\d+) model\(s\)$/);
+        if (m) return t("window.local_models", "Local · {count} models", { count: m[1] });
+        m = text.match(/^Available balance \((.+)\)$/);
+        if (m) return t("window.available_balance", "Available balance ({currency})", { currency: m[1] });
+        return text;
+    }
+
     function getWindowLabel(windowMinutes) {
         if (!windowMinutes) {
             return "";
@@ -528,7 +587,7 @@ PluginComponent {
         if (windowMinutes <= 43200) {
             return t("window.monthly", "Monthly");
         }
-        return `${Math.floor(windowMinutes / 1440)}d`;
+        return t("time.days", "{d}d", { d: Math.floor(windowMinutes / 1440) });
     }
 
     function formatTimeUntil(isoDate) {
@@ -539,16 +598,7 @@ PluginComponent {
         if (diff <= 0) {
             return t("time.now", "now");
         }
-        const mins = Math.floor(diff / 60000);
-        if (mins < 60) {
-            return `${mins}m`;
-        }
-        const hours = Math.floor(mins / 60);
-        if (hours < 24) {
-            return `${hours}h ${mins % 60}m`;
-        }
-        const days = Math.floor(hours / 24);
-        return `${days}d ${hours % 24}h`;
+        return formatMinutes(Math.floor(diff / 60000));
     }
 
     function formatUsageLine(windowData) {
@@ -564,8 +614,11 @@ PluginComponent {
     }
 
     function formatUsageError(exitCode) {
-        if (rawStderrBuffer.length > 0) return rawStderrBuffer.trim();
-        return t("error.helper_exit", "provider helper exited with code {code}", { code: exitCode });
+        if (rawStderrBuffer.length > 0)
+            return rawStderrBuffer.trim();
+        return t("error.helper_exit", "provider helper exited with code {code}", {
+            code: exitCode
+        });
     }
 
     function providerName(providerId) {
@@ -628,9 +681,16 @@ PluginComponent {
 
     function notificationProviderId(providerId) {
         const aliases = {
-            agy: "antigravity", moonshot: "kimi", zhipu: "glm",
-            "z.ai": "zai", dashscope: "qwen", alibaba: "qwen", nim: "nvidia",
-            vertex: "vertexai", ark: "byteplus", modelark: "byteplus",
+            agy: "antigravity",
+            moonshot: "kimi",
+            zhipu: "glm",
+            "z.ai": "zai",
+            dashscope: "qwen",
+            alibaba: "qwen",
+            nim: "nvidia",
+            vertex: "vertexai",
+            ark: "byteplus",
+            modelark: "byteplus",
             grok: "xai"
         };
         const normalized = normalizeProviderId(providerId);
@@ -654,18 +714,20 @@ PluginComponent {
         // Keep the identity independent of translated display text. Changing
         // the DMS/plugin locale must never re-arm a quota alert.
         let windowKind = "usage";
-        if (minutes > 0 && minutes <= 300) windowKind = "session";
-        else if (minutes > 0 && minutes <= 10080) windowKind = "weekly";
-        else if (minutes > 0 && minutes <= 43200) windowKind = "monthly";
-        else if (minutes > 0) windowKind = `${Math.floor(minutes / 1440)}d`;
+        if (minutes > 0 && minutes <= 300)
+            windowKind = "session";
+        else if (minutes > 0 && minutes <= 10080)
+            windowKind = "weekly";
+        else if (minutes > 0 && minutes <= 43200)
+            windowKind = "monthly";
+        else if (minutes > 0)
+            windowKind = `${Math.floor(minutes / 1440)}d`;
         const resetMs = new Date(windowData && windowData.resetsAt || "").getTime();
         if (Number.isFinite(resetMs) && resetMs > 0) {
             // Some APIs recalculate a reset timestamp by a few seconds on
             // every poll. Bucket it by its quota duration so that drift does
             // not look like a brand-new quota window.
-            const periodMs = minutes > 0
-                ? Math.max(60 * 60 * 1000, minutes * 60 * 1000)
-                : 24 * 60 * 60 * 1000;
+            const periodMs = minutes > 0 ? Math.max(60 * 60 * 1000, minutes * 60 * 1000) : 24 * 60 * 60 * 1000;
             return `${canonicalId}:${windowKind}:${minutes}:${Math.floor(resetMs / periodMs)}`;
         }
         return `${canonicalId}:${windowKind}:${minutes}:static`;
@@ -684,14 +746,17 @@ PluginComponent {
 
     function saveProviderSelection(csv) {
         const normalized = providersCsv(csv.split(","));
-        if (normalized.length === 0) return;
+        if (normalized.length === 0)
+            return;
         const tracked = normalized.split(",");
         const currentPillIds = providersCsv(pillProviders.split(",")).split(",");
         const nextPillIds = [];
         for (let i = 0; i < currentPillIds.length; i++) {
-            if (tracked.indexOf(currentPillIds[i]) >= 0) nextPillIds.push(currentPillIds[i]);
+            if (tracked.indexOf(currentPillIds[i]) >= 0)
+                nextPillIds.push(currentPillIds[i]);
         }
-        if (nextPillIds.length === 0) nextPillIds.push(tracked[0]);
+        if (nextPillIds.length === 0)
+            nextPillIds.push(tracked[0]);
         pillProviders = nextPillIds.join(",");
         providerSelection = normalized;
         providers = [];
@@ -707,7 +772,8 @@ PluginComponent {
 
     function addProvider(providerId) {
         const provider = normalizeProviderId(providerId);
-        if (provider.length === 0) return;
+        if (provider.length === 0)
+            return;
         const next = selectedProviders.slice();
         if (next.indexOf(provider) < 0) {
             next.push(provider);
@@ -742,19 +808,27 @@ PluginComponent {
     }
 
     function providerStatus(provider) {
-        if (!provider) return "missing";
-        if (provider.error) return "error";
-        if (hasPartialAccountErrors(provider)) return "partial";
-        if (provider.usage) return "active";
+        if (!provider)
+            return "missing";
+        if (provider.error)
+            return "error";
+        if (hasPartialAccountErrors(provider))
+            return "partial";
+        if (provider.usage)
+            return "active";
         return "empty";
     }
 
     function providerStatusLabel(provider) {
         const status = root.providerStatus(provider);
-        if (status === "error") return t("status.error", "Error");
-        if (status === "partial") return t("status.partial", "Partial");
-        if (status === "active") return t("status.online", "Live");
-        if (status === "empty") return t("status.waiting", "Waiting");
+        if (status === "error")
+            return t("status.error", "Error");
+        if (status === "partial")
+            return t("status.partial", "Partial");
+        if (status === "active")
+            return t("status.online", "Live");
+        if (status === "empty")
+            return t("status.waiting", "Waiting");
         return t("status.none", "(none)");
     }
 
@@ -790,30 +864,38 @@ PluginComponent {
 
     function providerAccount(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage) return "—";
+        if (!usage)
+            return "—";
         const accounts = accountsForProvider(provider);
         if (provider.provider === "antigravity" && accounts.length >= 2) {
-            return t("card.accounts_count", "{count} local accounts", { count: accounts.length });
+            return t("card.accounts_count", "{count} local accounts", {
+                count: accounts.length
+            });
         }
-        if (usage.identity && usage.identity.accountEmail) return usage.identity.accountEmail;
+        if (usage.identity && usage.identity.accountEmail)
+            return usage.identity.accountEmail;
         return usage.accountEmail || "—";
     }
 
     function providerLogin(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage) return "—";
-        if (usage.identity && usage.identity.loginMethod) return usage.identity.loginMethod;
+        if (!usage)
+            return "—";
+        if (usage.identity && usage.identity.loginMethod)
+            return usage.identity.loginMethod;
         return usage.loginMethod || "—";
     }
 
     function providerCredits(provider) {
-        if (!provider || !provider.credits) return "—";
+        if (!provider || !provider.credits)
+            return "—";
         return String(provider.credits.remaining ?? "—");
     }
 
     function providerUpdatedMs(provider) {
         const value = provider && provider.usage ? provider.usage.updatedAt : "";
-        if (!value) return lastUpdatedMs;
+        if (!value)
+            return lastUpdatedMs;
         const parsed = new Date(value).getTime();
         return Number.isFinite(parsed) ? parsed : lastUpdatedMs;
     }
@@ -825,9 +907,11 @@ PluginComponent {
 
     function compactPath(value) {
         const text = String(value || "");
-        if (text.length === 0) return "none";
+        if (text.length === 0)
+            return "none";
         const parts = text.split("/");
-        if (parts.length <= 2) return text;
+        if (parts.length <= 2)
+            return text;
         return `…/${parts.slice(-2).join("/")}`;
     }
 
@@ -835,34 +919,62 @@ PluginComponent {
     // callers pass only providerId.
 
     function providerAccent(providerId) {
-        if (providerId === "claude") return Theme.warning;
-        if (providerId === "codex") return Theme.success;
-        if (providerId === "copilot") return Theme.primary;
-        if (providerId === "pi") return Theme.success;
-        if (providerId === "hermes") return Theme.primary;
-        if (providerId === "antigravity") return Theme.primary;
-        if (providerId === "gemini") return Theme.secondary;
-        if (providerId === "openrouter") return Theme.primary;
-        if (providerId === "9router") return Theme.secondary;
-        if (providerId === "deepseek") return Theme.primary;
-        if (providerId === "kimi" || providerId === "moonshot") return Theme.secondary;
-        if (providerId === "mistral") return Theme.warning;
-        if (providerId === "glm" || providerId === "zhipu" || providerId === "zai") return Theme.primary;
-        if (providerId === "minimax") return Theme.success;
-        if (providerId === "commandcode" || providerId === "cmd" || providerId === "cmdcode") return Theme.primary;
-        if (providerId === "opencode") return Theme.secondary;
-        if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba") return Theme.warning;
-        if (providerId === "nvidia" || providerId === "nim") return Theme.success;
-        if (providerId === "cloudflare") return Theme.warning;
-        if (providerId === "vertexai" || providerId === "vertex") return Theme.primary;
-        if (providerId === "byteplus" || providerId === "ark" || providerId === "modelark") return Theme.secondary;
-        if (providerId === "together") return Theme.primary;
-        if (providerId === "groq") return Theme.success;
-        if (providerId === "cohere") return Theme.secondary;
-        if (providerId === "replicate") return Theme.primary;
-        if (providerId === "fireworks") return Theme.warning;
-        if (providerId === "xai" || providerId === "grok") return Theme.primary;
-        if (providerId === "ai21") return Theme.secondary;
+        if (providerId === "claude")
+            return Theme.warning;
+        if (providerId === "codex")
+            return Theme.success;
+        if (providerId === "copilot")
+            return Theme.primary;
+        if (providerId === "pi")
+            return Theme.success;
+        if (providerId === "hermes")
+            return Theme.primary;
+        if (providerId === "antigravity")
+            return Theme.primary;
+        if (providerId === "gemini")
+            return Theme.secondary;
+        if (providerId === "openrouter")
+            return Theme.primary;
+        if (providerId === "9router")
+            return Theme.secondary;
+        if (providerId === "deepseek")
+            return Theme.primary;
+        if (providerId === "kimi" || providerId === "moonshot")
+            return Theme.secondary;
+        if (providerId === "mistral")
+            return Theme.warning;
+        if (providerId === "glm" || providerId === "zhipu" || providerId === "zai")
+            return Theme.primary;
+        if (providerId === "minimax")
+            return Theme.success;
+        if (providerId === "commandcode" || providerId === "cmd" || providerId === "cmdcode")
+            return Theme.primary;
+        if (providerId === "opencode")
+            return Theme.secondary;
+        if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba")
+            return Theme.warning;
+        if (providerId === "nvidia" || providerId === "nim")
+            return Theme.success;
+        if (providerId === "cloudflare")
+            return Theme.warning;
+        if (providerId === "vertexai" || providerId === "vertex")
+            return Theme.primary;
+        if (providerId === "byteplus" || providerId === "ark" || providerId === "modelark")
+            return Theme.secondary;
+        if (providerId === "together")
+            return Theme.primary;
+        if (providerId === "groq")
+            return Theme.success;
+        if (providerId === "cohere")
+            return Theme.secondary;
+        if (providerId === "replicate")
+            return Theme.primary;
+        if (providerId === "fireworks")
+            return Theme.warning;
+        if (providerId === "xai" || providerId === "grok")
+            return Theme.primary;
+        if (providerId === "ai21")
+            return Theme.secondary;
         return Theme.secondary;
     }
 
@@ -890,9 +1002,12 @@ PluginComponent {
     }
 
     function providerKindLabel(kind) {
-        if (kind === "agent") return t("kind.agent", "Agent");
-        if (kind === "gateway") return t("kind.gateway", "Gateway");
-        if (kind === "local") return t("kind.local", "Local");
+        if (kind === "agent")
+            return t("kind.agent", "Agent");
+        if (kind === "gateway")
+            return t("kind.gateway", "Gateway");
+        if (kind === "local")
+            return t("kind.local", "Local");
         return t("kind.provider", "Provider");
     }
 
@@ -901,16 +1016,20 @@ PluginComponent {
     }
 
     function providerKindIcon(kind) {
-        if (kind === "agent") return "smart_toy";
-        if (kind === "gateway") return "alt_route";
-        if (kind === "local") return "dns";
+        if (kind === "agent")
+            return "smart_toy";
+        if (kind === "gateway")
+            return "alt_route";
+        if (kind === "local")
+            return "dns";
         return "cloud";
     }
 
     function providerKindIconFor(providerId) {
         const kinds = providerKinds(providerId);
         for (let i = 0; i < kinds.length; i++) {
-            if (kinds[i] !== "provider") return providerKindIcon(kinds[i]);
+            if (kinds[i] !== "provider")
+                return providerKindIcon(kinds[i]);
         }
         return providerKindIcon("provider");
     }
@@ -918,23 +1037,30 @@ PluginComponent {
     function providerKindAccentFor(providerId) {
         const kinds = providerKinds(providerId);
         for (let i = 0; i < kinds.length; i++) {
-            if (kinds[i] === "agent") return Theme.secondary;
-            if (kinds[i] === "gateway") return Theme.primary;
-            if (kinds[i] === "local") return Theme.success;
+            if (kinds[i] === "agent")
+                return Theme.secondary;
+            if (kinds[i] === "gateway")
+                return Theme.primary;
+            if (kinds[i] === "local")
+                return Theme.success;
         }
         return Theme.surfaceVariantText;
     }
 
     function windowsForProvider(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage) return [];
+        if (!usage)
+            return [];
         const accounts = accountsForProvider(provider);
-        if (provider.provider === "antigravity" && showAntigravityModelDetails
-                && accounts.length === 1 && accounts[0].modelWindows && accounts[0].modelWindows.length) {
+        if (provider.provider === "antigravity" && showAntigravityModelDetails && accounts.length === 1 && accounts[0].modelWindows && accounts[0].modelWindows.length) {
             const modelWindows = accounts[0].modelWindows;
             const detailed = [];
             for (let i = 0; i < modelWindows.length; i++) {
-                detailed.push({ key: `model-${i}`, label: modelWindows[i].resetDescription || modelWindows[i].name || "", data: modelWindows[i] });
+                detailed.push({
+                    key: `model-${i}`,
+                    label: modelWindows[i].resetDescription || modelWindows[i].name || "",
+                    data: modelWindows[i]
+                });
             }
             return detailed;
         }
@@ -942,20 +1068,40 @@ PluginComponent {
             const acctWindows = accounts[0].windows;
             const detailed = [];
             for (let i = 0; i < acctWindows.length; i++) {
-                detailed.push({ key: `window-${i}`, label: acctWindows[i].resetDescription || acctWindows[i].name || "", data: acctWindows[i] });
+                detailed.push({
+                    key: `window-${i}`,
+                    label: acctWindows[i].resetDescription || acctWindows[i].name || "",
+                    data: acctWindows[i]
+                });
             }
             return detailed;
         }
         const windows = [];
-        if (usage.primary) windows.push({ key: "primary", label: usage.primary.resetDescription || getWindowLabel(usage.primary.windowMinutes), data: usage.primary });
-        if (usage.secondary) windows.push({ key: "secondary", label: usage.secondary.resetDescription || getWindowLabel(usage.secondary.windowMinutes), data: usage.secondary });
-        if (usage.tertiary) windows.push({ key: "tertiary", label: usage.tertiary.resetDescription || getWindowLabel(usage.tertiary.windowMinutes) || t("window.tertiary", "Tertiary"), data: usage.tertiary });
+        if (usage.primary)
+            windows.push({
+                key: "primary",
+                label: windowLabel(usage.primary),
+                data: usage.primary
+            });
+        if (usage.secondary)
+            windows.push({
+                key: "secondary",
+                label: windowLabel(usage.secondary),
+                data: usage.secondary
+            });
+        if (usage.tertiary)
+            windows.push({
+                key: "tertiary",
+                label: windowLabel(usage.tertiary, t("window.tertiary", "Tertiary")),
+                data: usage.tertiary
+            });
         return windows;
     }
 
     function primaryUsageWindow(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage) return null;
+        if (!usage)
+            return null;
         return usage.primary || usage.secondary || usage.tertiary || null;
     }
 
@@ -971,21 +1117,24 @@ PluginComponent {
     // window — an override must never blank or zero the bar.
     function pillWindowFor(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage) return null;
+        if (!usage)
+            return null;
         const slot = barWindowChoiceFor(provider.provider);
         if (slot === "highest") {
             let best = null;
             const candidates = [usage.primary, usage.secondary, usage.tertiary];
             for (let i = 0; i < candidates.length; i++) {
                 const window = candidates[i];
-                if (!window) continue;
+                if (!window)
+                    continue;
                 if (!best || Number(window.usedPercent || 0) > Number(best.usedPercent || 0)) {
                     best = window;
                 }
             }
             return best || primaryUsageWindow(provider);
         }
-        if (slot !== "primary" && usage[slot]) return usage[slot];
+        if (slot !== "primary" && usage[slot])
+            return usage[slot];
         return primaryUsageWindow(provider);
     }
 
@@ -994,7 +1143,8 @@ PluginComponent {
     // history keep providerPercent()/primaryUsageWindow().
     function pillPercentFor(provider) {
         const windowData = pillWindowFor(provider);
-        if (!windowData) return 0;
+        if (!windowData)
+            return 0;
         return Number(windowData.usedPercent || 0);
     }
 
@@ -1008,14 +1158,19 @@ PluginComponent {
         for (let i = 0; i < pillDisplayProviders.length; i++) {
             const provider = pillDisplayProviders[i];
             const windowData = pillWindowFor(provider);
-            if (!windowData) continue;
+            if (!windowData)
+                continue;
             const segment = [providerName(provider.provider)];
-            const label = windowData.resetDescription || getWindowLabel(windowData.windowMinutes);
-            if (label && String(label).length > 0) segment.push(label);
+            const label = windowLabel(windowData);
+            if (label && String(label).length > 0)
+                segment.push(label);
             segment.push(`${Math.round(Number(windowData.usedPercent || 0))}%`);
             if (withReset) {
                 const reset = formatTimeUntil(windowData.resetsAt);
-                if (reset.length > 0) segment.push(t("notify.resets_in", "resets in {time}", { time: reset }));
+                if (reset.length > 0)
+                    segment.push(t("notify.resets_in", "resets in {time}", {
+                        time: reset
+                    }));
             }
             entries.push(segment.join(" · "));
         }
@@ -1028,21 +1183,26 @@ PluginComponent {
     function pillHostFor(item) {
         let node = item ? item.parent : null;
         for (let depth = 0; node && depth < 8; depth++) {
-            if (node.isMouseHovered !== undefined) return node;
+            if (node.isMouseHovered !== undefined)
+                return node;
             node = node.parent;
         }
         return null;
     }
 
     function showPillTooltip(anchorItem) {
-        if (!pillTooltipEnabled || !anchorItem) return;
+        if (!pillTooltipEnabled || !anchorItem)
+            return;
         const text = pillTooltipText();
-        if (text.length === 0) return;
+        if (text.length === 0)
+            return;
         pillTooltipLoader.active = true;
         const tooltip = pillTooltipLoader.item;
-        if (!tooltip) return;
+        if (!tooltip)
+            return;
         const currentScreen = parentScreen || Screen;
-        if (!currentScreen) return;
+        if (!currentScreen)
+            return;
         const edge = (axis && axis.edge) ? axis.edge : "top";
         const offset = barThickness + barSpacing + Theme.spacingXS;
         const center = anchorItem.mapToItem(null, anchorItem.width / 2, anchorItem.height / 2);
@@ -1054,14 +1214,13 @@ PluginComponent {
         // The tooltip is its own layer-shell window in screen coordinates, so
         // a bottom bar has to be measured from the bottom of the screen.
         tooltip.text = text;
-        const y = edge === "bottom"
-            ? Math.max(Theme.spacingS, currentScreen.height - offset - tooltip.implicitHeight)
-            : offset;
+        const y = edge === "bottom" ? Math.max(Theme.spacingS, currentScreen.height - offset - tooltip.implicitHeight) : offset;
         tooltip.show(text, center.x, y, currentScreen, false, false);
     }
 
     function hidePillTooltip() {
-        if (pillTooltipLoader.item) pillTooltipLoader.item.hide();
+        if (pillTooltipLoader.item)
+            pillTooltipLoader.item.hide();
         pillTooltipLoader.active = false;
     }
 
@@ -1070,30 +1229,32 @@ PluginComponent {
     // using primaryUsageWindow() regardless.
     function notifyWindowsFor(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage) return [];
+        if (!usage)
+            return [];
         if (notifyWindowScope === "all") {
             const every = [];
             const candidates = [usage.primary, usage.secondary, usage.tertiary];
             for (let i = 0; i < candidates.length; i++) {
-                if (candidates[i]) every.push(candidates[i]);
+                if (candidates[i])
+                    every.push(candidates[i]);
             }
             return every;
         }
-        const single = notifyWindowScope === "primary"
-            ? primaryUsageWindow(provider)
-            : pillWindowFor(provider);
+        const single = notifyWindowScope === "primary" ? primaryUsageWindow(provider) : pillWindowFor(provider);
         return single ? [single] : [];
     }
 
     // Providers exposing more than one signed-in account (Antigravity surfaces
     // every local IDE / Google session) carry an `accounts` array.
     function accountsForProvider(provider) {
-        if (!provider || !provider.accounts || !provider.accounts.length) return [];
+        if (!provider || !provider.accounts || !provider.accounts.length)
+            return [];
         return provider.accounts;
     }
 
     function accountErrorsForProvider(provider) {
-        if (!provider || !provider.accountErrors || !provider.accountErrors.length) return [];
+        if (!provider || !provider.accountErrors || !provider.accountErrors.length)
+            return [];
         return provider.accountErrors;
     }
 
@@ -1103,8 +1264,11 @@ PluginComponent {
 
     function partialAccountErrorText(provider) {
         const errors = accountErrorsForProvider(provider);
-        if (errors.length === 0) return "";
-        const countLabel = t("card.account_errors_count", "{count} account(s) unavailable", { count: errors.length });
+        if (errors.length === 0)
+            return "";
+        const countLabel = t("card.account_errors_count", "{count} account(s) unavailable", {
+            count: errors.length
+        });
         const first = errors[0];
         const account = first.email || first.install || t("card.account", "Account");
         const message = first.message || t("status.error", "Error");
@@ -1124,17 +1288,20 @@ PluginComponent {
     }
 
     function accountWorstPercent(account) {
-        if (!account || !account.windows || !account.windows.length) return 0;
+        if (!account || !account.windows || !account.windows.length)
+            return 0;
         let worst = 0;
         for (let i = 0; i < account.windows.length; i++) {
             const p = Number(account.windows[i].usedPercent || 0);
-            if (p > worst) worst = p;
+            if (p > worst)
+                worst = p;
         }
         return worst;
     }
 
     function accountWindows(account) {
-        if (!account) return [];
+        if (!account)
+            return [];
         if (showAntigravityModelDetails && account.modelWindows && account.modelWindows.length) {
             return account.modelWindows;
         }
@@ -1143,17 +1310,20 @@ PluginComponent {
 
     function providerReset(provider) {
         const windowData = primaryUsageWindow(provider);
-        if (!windowData) return "—";
+        if (!windowData)
+            return "—";
         return formatTimeUntil(windowData.resetsAt);
     }
 
     function providerSubtitle(provider) {
-        if (!provider) return t("status.provider_missing", "No provider data");
-        if (provider.error) return root.providerErrorText(provider);
+        if (!provider)
+            return t("status.provider_missing", "No provider data");
+        if (provider.error)
+            return root.providerErrorText(provider);
         const source = provider.source || "local";
         const windowData = primaryUsageWindow(provider);
         if (windowData && windowData.displayValue && String(windowData.displayValue).length > 0) {
-            const label = windowData.resetDescription || t("status.usage", "usage");
+            const label = windowData.resetDescription ? windowLabel(windowData) : t("status.usage", "usage");
             const reset = provider.provider === "antigravity" ? formatTimeUntil(windowData.resetsAt) : "";
             if (reset && reset !== "—") {
                 return `${source} · ${label} · ${windowData.displayValue} · ${t("status.reset", "reset")} ${reset}`;
@@ -1166,18 +1336,25 @@ PluginComponent {
 
     function formatTokens(n) {
         const value = Number(n || 0);
-        if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
-        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-        if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+        if (value >= 1000000000)
+            return `${(value / 1000000000).toFixed(1)}B`;
+        if (value >= 1000000)
+            return `${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000)
+            return `${(value / 1000).toFixed(1)}K`;
         return Math.round(value).toString();
     }
 
     function formatCost(usd) {
-        if (usd === null || usd === undefined || !Number.isFinite(Number(usd))) return "—";
+        if (usd === null || usd === undefined || !Number.isFinite(Number(usd)))
+            return "—";
         const value = Number(usd);
-        if (value > 0 && value < 0.01) return "<$0.01";
-        if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-        if (value >= 100) return `$${Math.round(value)}`;
+        if (value > 0 && value < 0.01)
+            return "<$0.01";
+        if (value >= 1000)
+            return `$${(value / 1000).toFixed(1)}K`;
+        if (value >= 100)
+            return `$${Math.round(value)}`;
         return `$${value.toFixed(2)}`;
     }
 
@@ -1190,17 +1367,23 @@ PluginComponent {
         const parts = raw.split("-");
         if (parts.length === 3) {
             const parsed = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-            if (!isNaN(parsed.getTime())) return Qt.formatDate(parsed, "ddd");
+            if (!isNaN(parsed.getTime()))
+                return Qt.locale(root.i18nLocale).toString(parsed, "ddd");
         }
         return dayData && dayData.weekday ? String(dayData.weekday) : "";
     }
 
     function formatTier(tier) {
-        if (!tier) return "—";
-        if (tier.indexOf("max_20x") >= 0) return "Max 20x";
-        if (tier.indexOf("max_5x") >= 0) return "Max 5x";
-        if (tier.indexOf("pro") >= 0) return "Pro";
-        if (tier.indexOf("free") >= 0) return "Free";
+        if (!tier)
+            return "—";
+        if (tier.indexOf("max_20x") >= 0)
+            return "Max 20x";
+        if (tier.indexOf("max_5x") >= 0)
+            return "Max 5x";
+        if (tier.indexOf("pro") >= 0)
+            return "Pro";
+        if (tier.indexOf("free") >= 0)
+            return t("tier.free", "Free");
         return tier;
     }
 
@@ -1215,30 +1398,52 @@ PluginComponent {
 
     function parseClaudeLine(line) {
         const idx = line.indexOf("=");
-        if (idx < 0) return;
+        if (idx < 0)
+            return;
         const key = line.substring(0, idx);
         const val = line.substring(idx + 1);
-        if (key === "RATE_LIMIT_TIER") claudeRateLimitTier = val;
-        else if (key === "FIVE_HOUR_UTIL") claudeFiveHourUtil = Number(val || 0);
-        else if (key === "FIVE_HOUR_RESET") claudeFiveHourReset = val;
-        else if (key === "SEVEN_DAY_UTIL") claudeSevenDayUtil = Number(val || 0);
-        else if (key === "SEVEN_DAY_RESET") claudeSevenDayReset = val;
-        else if (key === "SCOPED_LIMIT_UTIL") claudeScopedLimitUtil = Number(val || 0);
-        else if (key === "SCOPED_LIMIT_RESET") claudeScopedLimitReset = val;
-        else if (key === "SCOPED_LIMIT_MODEL") claudeScopedLimitModel = val;
-        else if (key === "EXTRA_USAGE_ENABLED") claudeExtraUsageEnabled = (val === "true");
-        else if (key === "WEEK_MESSAGES") claudeWeekMessages = parseInt(val) || 0;
-        else if (key === "WEEK_SESSIONS") claudeWeekSessions = parseInt(val) || 0;
-        else if (key === "WEEK_TOKENS") claudeWeekTokens = Number(val || 0);
-        else if (key === "MONTH_TOKENS") claudeMonthTokens = Number(val || 0);
-        else if (key === "ALLTIME_SESSIONS") claudeAlltimeSessions = parseInt(val) || 0;
-        else if (key === "ALLTIME_MESSAGES") claudeAlltimeMessages = parseInt(val) || 0;
-        else if (key === "FIRST_SESSION") claudeFirstSession = val;
-        else if (key === "TODAY_COST") claudeTodayCost = Number(val || 0);
-        else if (key === "WEEK_COST") claudeWeekCost = Number(val || 0);
-        else if (key === "MONTH_COST") claudeMonthCost = Number(val || 0);
-        else if (key === "DAILY") claudeDailyTokens = parseNumberList(val);
-        else if (key === "DAILY_COSTS") claudeDailyCosts = parseNumberList(val);
+        if (key === "RATE_LIMIT_TIER")
+            claudeRateLimitTier = val;
+        else if (key === "FIVE_HOUR_UTIL")
+            claudeFiveHourUtil = Number(val || 0);
+        else if (key === "FIVE_HOUR_RESET")
+            claudeFiveHourReset = val;
+        else if (key === "SEVEN_DAY_UTIL")
+            claudeSevenDayUtil = Number(val || 0);
+        else if (key === "SEVEN_DAY_RESET")
+            claudeSevenDayReset = val;
+        else if (key === "SCOPED_LIMIT_UTIL")
+            claudeScopedLimitUtil = Number(val || 0);
+        else if (key === "SCOPED_LIMIT_RESET")
+            claudeScopedLimitReset = val;
+        else if (key === "SCOPED_LIMIT_MODEL")
+            claudeScopedLimitModel = val;
+        else if (key === "EXTRA_USAGE_ENABLED")
+            claudeExtraUsageEnabled = (val === "true");
+        else if (key === "WEEK_MESSAGES")
+            claudeWeekMessages = parseInt(val) || 0;
+        else if (key === "WEEK_SESSIONS")
+            claudeWeekSessions = parseInt(val) || 0;
+        else if (key === "WEEK_TOKENS")
+            claudeWeekTokens = Number(val || 0);
+        else if (key === "MONTH_TOKENS")
+            claudeMonthTokens = Number(val || 0);
+        else if (key === "ALLTIME_SESSIONS")
+            claudeAlltimeSessions = parseInt(val) || 0;
+        else if (key === "ALLTIME_MESSAGES")
+            claudeAlltimeMessages = parseInt(val) || 0;
+        else if (key === "FIRST_SESSION")
+            claudeFirstSession = val;
+        else if (key === "TODAY_COST")
+            claudeTodayCost = Number(val || 0);
+        else if (key === "WEEK_COST")
+            claudeWeekCost = Number(val || 0);
+        else if (key === "MONTH_COST")
+            claudeMonthCost = Number(val || 0);
+        else if (key === "DAILY")
+            claudeDailyTokens = parseNumberList(val);
+        else if (key === "DAILY_COSTS")
+            claudeDailyCosts = parseNumberList(val);
         else if (key === "WEEK_MODELS") {
             claudeModelList.clear();
             if (val.length > 0) {
@@ -1246,18 +1451,22 @@ PluginComponent {
                 for (let i = 0; i < pairs.length; i++) {
                     const kv = pairs[i].split(":");
                     if (kv.length === 2) {
-                        claudeModelList.append({ modelName: capitalizeFirst(kv[0]), modelTokens: Number(kv[1] || 0), modelCost: 0 });
+                        claudeModelList.append({
+                            modelName: capitalizeFirst(kv[0]),
+                            modelTokens: Number(kv[1] || 0),
+                            modelCost: 0
+                        });
                     }
                 }
             }
-        }
-        else if (key === "WEEK_MODEL_COSTS") {
+        } else if (key === "WEEK_MODEL_COSTS") {
             // Arrives after WEEK_MODELS: enrich the already-built model rows.
             if (val.length > 0) {
                 const pairs = val.split(",");
                 for (let i = 0; i < pairs.length; i++) {
                     const kv = pairs[i].split(":");
-                    if (kv.length !== 2) continue;
+                    if (kv.length !== 2)
+                        continue;
                     const name = capitalizeFirst(kv[0]);
                     for (let j = 0; j < claudeModelList.count; j++) {
                         if (claudeModelList.get(j).modelName === name) {
@@ -1267,14 +1476,14 @@ PluginComponent {
                     }
                 }
             }
-        }
-        else if (key === "WEEK_PROJECTS") {
+        } else if (key === "WEEK_PROJECTS") {
             claudeProjectList.clear();
             if (val.length > 0) {
                 const pairs = val.split(",");
                 for (let i = 0; i < pairs.length; i++) {
                     const cut = pairs[i].lastIndexOf(":");
-                    if (cut <= 0) continue;
+                    if (cut <= 0)
+                        continue;
                     claudeProjectList.append({
                         projectPath: pairs[i].substring(0, cut),
                         projectTokens: Number(pairs[i].substring(cut + 1) || 0)
@@ -1286,28 +1495,42 @@ PluginComponent {
 
     function formatMinutes(mins) {
         const value = Math.max(0, Math.round(Number(mins) || 0));
-        if (value < 60) return `${value}m`;
+        if (value < 60)
+            return t("time.minutes", "{m}m", { m: value });
         const hours = Math.floor(value / 60);
-        if (hours < 24) return `${hours}h ${value % 60}m`;
-        return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+        if (hours < 24)
+            return t("time.hours_minutes", "{h}h {m}m", { h: hours, m: value % 60 });
+        return t("time.days_hours", "{d}d {h}h", { d: Math.floor(hours / 24), h: hours % 24 });
     }
 
     // Burn-rate forecast for a rolling window: utilization so far divided by
     // elapsed window time, extrapolated to 100%.
     function windowBurnForecast(util, resetIso, windowMinutes) {
-        if (!resetIso || util <= 0) return null;
+        if (!resetIso || util <= 0)
+            return null;
         const resetMs = new Date(resetIso).getTime();
-        if (!Number.isFinite(resetMs)) return null;
+        if (!Number.isFinite(resetMs))
+            return null;
         const remainMin = Math.max(0, (resetMs - Date.now()) / 60000);
-        if (remainMin <= 0 || remainMin >= windowMinutes) return null;
+        if (remainMin <= 0 || remainMin >= windowMinutes)
+            return null;
         const elapsedMin = Math.max(1, windowMinutes - remainMin);
         const rate = util / elapsedMin;
-        if (rate <= 0) return null;
+        if (rate <= 0)
+            return null;
         const minTo100 = (100 - util) / rate;
         if (minTo100 <= remainMin) {
-            return { exceed: true, text: t("claude.burn_pace_exceed", "At this pace: 100% in {time}", { time: formatMinutes(minTo100) }) };
+            return {
+                exceed: true,
+                text: t("claude.burn_pace_exceed", "At this pace: 100% in {time}", {
+                    time: formatMinutes(minTo100)
+                })
+            };
         }
-        return { exceed: false, text: t("claude.burn_pace_ok", "Usage on pace for this window") };
+        return {
+            exceed: false,
+            text: t("claude.burn_pace_ok", "Usage on pace for this window")
+        };
     }
 
     readonly property var claudeBurnForecast: {
@@ -1323,7 +1546,8 @@ PluginComponent {
     readonly property real claudeMonthProjection: {
         const today = new Date();
         const dayOfMonth = today.getDate();
-        if (dayOfMonth <= 0 || claudeMonthCost <= 0) return 0;
+        if (dayOfMonth <= 0 || claudeMonthCost <= 0)
+            return 0;
         const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
         return (claudeMonthCost / dayOfMonth) * daysInMonth;
     }
@@ -1385,7 +1609,8 @@ PluginComponent {
 
     function openProviderConsole(providerId, providerSource) {
         const url = providerConsoleUrl(providerId, providerSource);
-        if (url.length > 0) Quickshell.execDetached(["xdg-open", url]);
+        if (url.length > 0)
+            Quickshell.execDetached(["xdg-open", url]);
     }
 
     function isPinned(providerId) {
@@ -1396,8 +1621,10 @@ PluginComponent {
         const id = normalizeProviderId(providerId);
         const next = pinnedProviders.slice();
         const index = next.indexOf(id);
-        if (index >= 0) next.splice(index, 1);
-        else next.push(id);
+        if (index >= 0)
+            next.splice(index, 1);
+        else
+            next.push(id);
         pinnedProvidersCsv = next.join(",");
         PluginService.savePluginData("aiOverviewControl", "pinnedProviders", pinnedProvidersCsv);
     }
@@ -1409,15 +1636,19 @@ PluginComponent {
 
     function providerTrend(providerId) {
         const history = usageHistory[normalizeProviderId(providerId)];
-        if (!history || history.length < 2) return "";
+        if (!history || history.length < 2)
+            return "";
         const delta = historyPercent(history[history.length - 1]) - historyPercent(history[history.length - 2]);
-        if (delta >= 1) return "up";
-        if (delta <= -1) return "down";
+        if (delta >= 1)
+            return "up";
+        if (delta <= -1)
+            return "down";
         return "flat";
     }
 
     function retryProvider(providerId) {
-        if (procRetry.running) return;
+        if (procRetry.running)
+            return;
         retryingProviderId = normalizeProviderId(providerId);
         retryBuffer = "";
         procRetry.command = ["bash", providerUsageScript, retryingProviderId, copilotUsageScript];
@@ -1425,7 +1656,8 @@ PluginComponent {
     }
 
     function checkNotifications() {
-        if (!notifyEnabled) return;
+        if (!notifyEnabled)
+            return;
         const seen = notifiedMap;
         const now = Date.now();
         for (let i = 0; i < successfulProviders.length; i++) {
@@ -1439,14 +1671,16 @@ PluginComponent {
             const handled = {};
             for (let w = 0; w < windows.length; w++) {
                 const windowData = windows[w];
-                if (!windowData) continue;
+                if (!windowData)
+                    continue;
                 const percent = Number(windowData.usedPercent || 0);
                 // One stable key per provider quota window. In particular, do not
                 // include the threshold or an unbucketed reset time: changing a
                 // setting or a provider's timestamp jitter must not create a
                 // fresh toast on every refresh.
                 const dedupeKey = notificationWindowKey(provider.provider, windowData);
-                if (handled[dedupeKey]) continue;
+                if (handled[dedupeKey])
+                    continue;
                 handled[dedupeKey] = true;
                 if (percent < threshold - 5) {
                     // Re-arm only after a meaningful fall. The hysteresis avoids
@@ -1456,47 +1690,50 @@ PluginComponent {
                     Quickshell.execDetached(["bash", notifyAlertScript, "--clear", dedupeKey]);
                     continue;
                 }
-                if (percent < threshold) continue;
+                if (percent < threshold)
+                    continue;
 
                 const pct = Math.round(percent);
                 const exhausted = percent >= 100;
                 const severity = exhausted ? 2 : 1;
                 const previous = seen[dedupeKey];
-                const cooldownElapsed = previous
-                    && notifyCooldownSecs < 999999999
-                    && now - previous.lastAttemptMs >= notifyCooldownSecs * 1000;
+                const cooldownElapsed = previous && notifyCooldownSecs < 999999999 && now - previous.lastAttemptMs >= notifyCooldownSecs * 1000;
                 // Dispatch on the crossing, when it becomes exhausted, or for an
                 // explicitly requested reminder. The helper repeats this check
                 // atomically across bars/reloads and updates, rather than stacks,
                 // the DMS notification when an escalation is needed.
-                if (previous && severity <= previous.severity && !cooldownElapsed) continue;
-                seen[dedupeKey] = { severity: Math.max(severity, previous ? previous.severity : 0), lastAttemptMs: now };
+                if (previous && severity <= previous.severity && !cooldownElapsed)
+                    continue;
+                seen[dedupeKey] = {
+                    severity: Math.max(severity, previous ? previous.severity : 0),
+                    lastAttemptMs: now
+                };
 
                 const reset = formatTimeUntil(windowData.resetsAt);
-                const windowLabel = windowData.resetDescription || getWindowLabel(windowData.windowMinutes) || t("status.usage", "usage");
+                const windowLabel = root.windowLabel(windowData, t("status.usage", "usage"));
 
-                const title = exhausted
-                    ? t("notify.title_exhausted", "{provider} quota reached", { provider: providerName(provider.provider) })
-                    : t("notify.title", "{provider} usage is high ({percent}%)", { provider: providerName(provider.provider), percent: pct });
-                const bodyParts = [exhausted
-                    ? t("notify.body_exhausted", "No quota remains in the {window} window.", { window: windowLabel })
-                    : t("notify.body", "{window} quota · {percent}% used", { window: windowLabel, percent: pct })];
-                if (reset.length > 0) bodyParts.push(t("notify.resets_in", "resets in {time}", { time: reset }));
+                const title = exhausted ? t("notify.title_exhausted", "{provider} quota reached", {
+                    provider: providerName(provider.provider)
+                }) : t("notify.title", "{provider} usage is high ({percent}%)", {
+                    provider: providerName(provider.provider),
+                    percent: pct
+                });
+                const bodyParts = [exhausted ? t("notify.body_exhausted", "No quota remains in the {window} window.", {
+                        window: windowLabel
+                    }) : t("notify.body", "{window} quota · {percent}% used", {
+                        window: windowLabel,
+                        percent: pct
+                    })];
+                if (reset.length > 0)
+                    bodyParts.push(t("notify.resets_in", "resets in {time}", {
+                        time: reset
+                    }));
 
                 // The helper persists state on disk (flock-guarded), so duplicate
                 // widget instances, plugin reloads and shell restarts cannot
                 // re-fire inside the cooldown window. At 100%, it replaces the
                 // prior provider toast with a critical, branded update.
-                Quickshell.execDetached([
-                    "bash", notifyAlertScript,
-                    dedupeKey,
-                    String(notifyCooldownSecs),
-                    exhausted ? "critical" : "normal",
-                    notificationIconPath(provider.provider),
-                    providerLogoColor.toString(),
-                    title,
-                    bodyParts.join(" · ")
-                ]);
+                Quickshell.execDetached(["bash", notifyAlertScript, dedupeKey, String(notifyCooldownSecs), exhausted ? "critical" : "normal", notificationIconPath(provider.provider), providerLogoColor.toString(), title, bodyParts.join(" · ")]);
             }
         }
         notifiedMap = seen;
@@ -1578,7 +1815,9 @@ PluginComponent {
             } else {
                 root.providers = [];
                 root.hasError = true;
-                root.errorMessage = t("error.helper_missing", "Local provider helper is missing or not executable: {path}", { path: root.providerUsageScript });
+                root.errorMessage = t("error.helper_missing", "Local provider helper is missing or not executable: {path}", {
+                    path: root.providerUsageScript
+                });
             }
         }
     }
@@ -1598,7 +1837,9 @@ PluginComponent {
     Process {
         id: procUsage
         command: root.usageCommand
-        environment: { "AIOC_HISTORY_MAX": root.historyRetention }
+        environment: {
+            "AIOC_HISTORY_MAX": root.historyRetention
+        }
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => root.rawJsonBuffer += data
@@ -1651,7 +1892,9 @@ PluginComponent {
                         root.errorMessage = firstErrMsg || t("error.fetch_failed", "Failed to fetch usage from providers.");
                     } else {
                         root.hasError = false;
-                        root.errorMessage = root.errorProviders.length > 0 ? t("error.providers_need_attention", "{count} provider(s) need attention.", { count: root.errorProviders.length }) : "";
+                        root.errorMessage = root.errorProviders.length > 0 ? t("error.providers_need_attention", "{count} provider(s) need attention.", {
+                            count: root.errorProviders.length
+                        }) : "";
                     }
                     const nowMs = Date.now();
                     root.lastUpdated = Qt.formatDateTime(new Date(), "hh:mm:ss");
@@ -1800,8 +2043,10 @@ PluginComponent {
             piStatsProcess.running = true;
             piStatsTimeout.restart();
         }
-        if (root.selectedProviders.indexOf("codex") >= 0) codexReader.refresh();
-        if (root.selectedProviders.indexOf("opencode") >= 0) opencodeReader.refresh();
+        if (root.selectedProviders.indexOf("codex") >= 0)
+            codexReader.refresh();
+        if (root.selectedProviders.indexOf("opencode") >= 0)
+            opencodeReader.refresh();
         if (root.selectedProviders.indexOf("hermes") >= 0 && !hermesStatsProcess.running) {
             hermesStatsBuffer = "";
             hermesStatsProcess.running = true;
@@ -1816,7 +2061,8 @@ PluginComponent {
         property string buffer: ""
         visible: false
         function refresh() {
-            if (readerProcess.running) return;
+            if (readerProcess.running)
+                return;
             buffer = "";
             readerProcess.running = true;
             readerTimeout.restart();
@@ -1833,18 +2079,30 @@ PluginComponent {
                 try {
                     const parsed = code === 0 ? JSON.parse(localReader.buffer) : null;
                     localReader.data = parsed && !parsed.error ? parsed : null;
-                } catch (error) { localReader.data = null; }
+                } catch (error) {
+                    localReader.data = null;
+                }
                 localReader.buffer = "";
             }
         }
         Timer {
             id: readerTimeout
             interval: root.fetchTimeoutMs
-            onTriggered: { readerProcess.running = false; localReader.buffer = ""; localReader.data = null; }
+            onTriggered: {
+                readerProcess.running = false;
+                localReader.buffer = "";
+                localReader.data = null;
+            }
         }
     }
-    LocalAnalyticsReader { id: codexReader; providerId: "codex" }
-    LocalAnalyticsReader { id: opencodeReader; providerId: "opencode" }
+    LocalAnalyticsReader {
+        id: codexReader
+        providerId: "codex"
+    }
+    LocalAnalyticsReader {
+        id: opencodeReader
+        providerId: "opencode"
+    }
 
     Process {
         id: nineStatsProcess
@@ -2015,8 +2273,7 @@ PluginComponent {
             if (!id || id.length === 0) {
                 return;
             }
-            if (typeof contentFlick === "undefined" || !contentFlick
-                || typeof providerCardsRepeater === "undefined" || !providerCardsRepeater) {
+            if (typeof contentFlick === "undefined" || !contentFlick || typeof providerCardsRepeater === "undefined" || !providerCardsRepeater) {
                 return;
             }
             for (let i = 0; i < providerCardsRepeater.count; i++) {
@@ -2054,7 +2311,7 @@ PluginComponent {
 
         signal triggered
 
-        implicitWidth: compact ? 104 : 176
+        implicitWidth: compact ? Math.max(104, buttonLabel.implicitWidth + 24 + Theme.spacingXS + Theme.spacingS * 2 + 2) : 176
         implicitHeight: compact ? 40 : (description.length > 0 ? 56 : 48)
         radius: Theme.cornerRadius
         color: {
@@ -2127,8 +2384,10 @@ PluginComponent {
                 spacing: description.length > 0 && !compact ? 2 : 0
 
                 StyledText {
+                    id: buttonLabel
                     width: parent.width
                     text: buttonRoot.label
+                    wrapMode: Text.NoWrap
                     color: buttonRoot.prominent ? Theme.primary : Theme.surfaceText
                     font.pixelSize: compact ? Theme.fontSizeSmall : Theme.fontSizeMedium
                     font.weight: Font.DemiBold
@@ -2283,8 +2542,14 @@ PluginComponent {
             height: parent.height
             opacity: 0.42
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(accentColor, 0.12) }
-                GradientStop { position: 1.0; color: Theme.withAlpha(accentColor, 0.0) }
+                GradientStop {
+                    position: 0.0
+                    color: Theme.withAlpha(accentColor, 0.12)
+                }
+                GradientStop {
+                    position: 1.0
+                    color: Theme.withAlpha(accentColor, 0.0)
+                }
             }
         }
 
@@ -2328,7 +2593,10 @@ PluginComponent {
         property real animatedPercent: percent
 
         Behavior on animatedPercent {
-            NumberAnimation { duration: 420; easing.type: Easing.OutCubic }
+            NumberAnimation {
+                duration: 420
+                easing.type: Easing.OutCubic
+            }
         }
 
         onAnimatedPercentChanged: ringCanvas.requestPaint()
@@ -2347,7 +2615,8 @@ PluginComponent {
                 const cx = width / 2;
                 const cy = height / 2;
                 const radius = Math.min(width, height) / 2 - ring.thickness / 2;
-                if (radius <= 0) return;
+                if (radius <= 0)
+                    return;
                 const start = -Math.PI / 2;
                 const sweep = Math.max(0, Math.min(1, ring.animatedPercent / 100)) * Math.PI * 2;
                 ctx.lineWidth = ring.thickness;
@@ -2387,6 +2656,16 @@ PluginComponent {
             return entry && entry.t ? Number(entry.t) * 1000 : 0;
         }
 
+        // Left-to-right draw-in on first show.
+        property real reveal: 0
+        NumberAnimation on reveal {
+            from: 0
+            to: 1
+            duration: 700
+            easing.type: Easing.OutCubic
+        }
+        onRevealChanged: sparkCanvas.requestPaint()
+
         onPointsChanged: sparkCanvas.requestPaint()
         onLineColorChanged: sparkCanvas.requestPaint()
         onHoverIndexChanged: sparkCanvas.requestPaint()
@@ -2401,18 +2680,41 @@ PluginComponent {
                 const ctx = getContext("2d");
                 ctx.reset();
                 const pts = spark.points || [];
-                if (pts.length < 2 || width <= 4 || height <= 4) return;
+                if (pts.length < 2 || width <= 4 || height <= 4)
+                    return;
                 const pad = spark.pad;
                 const w = width - pad * 2;
                 const h = height - pad * 2;
                 let max = 10;
-                for (let i = 0; i < pts.length; i++) max = Math.max(max, spark.pointPercent(i));
+                for (let i = 0; i < pts.length; i++)
+                    max = Math.max(max, spark.pointPercent(i));
                 const stepX = w / (pts.length - 1);
                 const yFor = v => pad + h - (Math.max(0, Math.min(max, v)) / max) * h;
+                const c = spark.lineColor;
+
+                // Faint mid and base guides give the line a scale.
+                ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, 0.12);
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 4]);
+                ctx.beginPath();
+                ctx.moveTo(pad, pad + h / 2 + 0.5);
+                ctx.lineTo(pad + w, pad + h / 2 + 0.5);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(pad, pad + h + 0.5);
+                ctx.lineTo(pad + w, pad + h + 0.5);
+                ctx.stroke();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, width * spark.reveal, height);
+                ctx.clip();
 
                 ctx.beginPath();
                 ctx.moveTo(pad, yFor(spark.pointPercent(0)));
-                for (let i = 1; i < pts.length; i++) ctx.lineTo(pad + i * stepX, yFor(spark.pointPercent(i)));
+                for (let i = 1; i < pts.length; i++)
+                    ctx.lineTo(pad + i * stepX, yFor(spark.pointPercent(i)));
                 const line = String(spark.lineColor);
                 ctx.strokeStyle = line;
                 ctx.lineWidth = 2;
@@ -2424,15 +2726,38 @@ PluginComponent {
                 ctx.lineTo(pad + w, pad + h);
                 ctx.lineTo(pad, pad + h);
                 ctx.closePath();
-                ctx.fillStyle = Qt.rgba(spark.lineColor.r, spark.lineColor.g, spark.lineColor.b, 0.12);
+                const area = ctx.createLinearGradient(0, pad, 0, pad + h);
+                area.addColorStop(0, Qt.rgba(c.r, c.g, c.b, 0.26));
+                area.addColorStop(1, Qt.rgba(c.r, c.g, c.b, 0.0));
+                ctx.fillStyle = area;
                 ctx.fill();
+                ctx.restore();
+
+                if (spark.hoverIndex >= 0) {
+                    const hx = pad + spark.hoverIndex * stepX;
+                    ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, 0.4);
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(hx, pad);
+                    ctx.lineTo(hx, pad + h);
+                    ctx.stroke();
+                }
 
                 // Highlighted (hovered) or last point dot
                 const dotIndex = spark.hoverIndex >= 0 && spark.hoverIndex < pts.length ? spark.hoverIndex : pts.length - 1;
                 ctx.beginPath();
-                ctx.arc(pad + dotIndex * stepX, yFor(spark.pointPercent(dotIndex)), spark.hoverIndex >= 0 ? 3.4 : 2.6, 0, Math.PI * 2);
-                ctx.fillStyle = line;
-                ctx.fill();
+                const dotX = pad + dotIndex * stepX;
+                const dotY = yFor(spark.pointPercent(dotIndex));
+                if (spark.reveal >= 1) {
+                    ctx.beginPath();
+                    ctx.arc(dotX, dotY, spark.hoverIndex >= 0 ? 6 : 5, 0, Math.PI * 2);
+                    ctx.fillStyle = Qt.rgba(c.r, c.g, c.b, 0.22);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(dotX, dotY, spark.hoverIndex >= 0 ? 3.4 : 2.6, 0, Math.PI * 2);
+                    ctx.fillStyle = line;
+                    ctx.fill();
+                }
             }
         }
 
@@ -2441,7 +2766,8 @@ PluginComponent {
             hoverEnabled: true
             acceptedButtons: Qt.NoButton
             onPositionChanged: mouse => {
-                if (spark.stepX <= 0) return;
+                if (spark.stepX <= 0)
+                    return;
                 const index = Math.round((mouse.x - spark.pad) / spark.stepX);
                 spark.hoverIndex = Math.max(0, Math.min((spark.points || []).length - 1, index));
             }
@@ -2462,9 +2788,7 @@ PluginComponent {
             StyledText {
                 id: hoverLabel
                 anchors.centerIn: parent
-                text: spark.hoverIndex >= 0
-                    ? `${Math.round(spark.pointPercent(spark.hoverIndex))}%${spark.pointTime(spark.hoverIndex) > 0 ? " · " + Qt.formatDateTime(new Date(spark.pointTime(spark.hoverIndex)), "hh:mm") : ""}`
-                    : ""
+                text: spark.hoverIndex >= 0 ? `${Math.round(spark.pointPercent(spark.hoverIndex))}%${spark.pointTime(spark.hoverIndex) > 0 ? " · " + Qt.formatDateTime(new Date(spark.pointTime(spark.hoverIndex)), "hh:mm") : ""}` : ""
                 color: Theme.surfaceText
                 font.pixelSize: Theme.fontSizeSmall - 1
                 font.weight: Font.DemiBold
@@ -2472,84 +2796,112 @@ PluginComponent {
         }
     }
 
-    component HeroStat: Row {
+    component HeroStat: Item {
         id: heroStat
 
         required property string statIcon
         required property string statLabel
         required property string statValue
         property color statAccent: Theme.primary
+        // >= 0 swaps the icon tile for a progress ring of that percent.
+        property real ringPercent: -1
+        property bool clickable: false
 
-        spacing: Theme.spacingS
+        signal clicked
 
-        Rectangle {
-            width: 34
-            height: 34
-            radius: 11
-            color: Theme.withAlpha(heroStat.statAccent, 0.12)
-            border.width: 1
-            border.color: Theme.withAlpha(heroStat.statAccent, 0.2)
-            anchors.verticalCenter: parent.verticalCenter
+        implicitWidth: statRow.implicitWidth
+        implicitHeight: statRow.implicitHeight
 
-            DankIcon {
-                anchors.centerIn: parent
-                name: heroStat.statIcon
-                size: 16
-                color: heroStat.statAccent
+        // Brief bump whenever the figure changes, so a refresh reads as live.
+        onStatValueChanged: valuePulse.restart()
+
+        Row {
+            id: statRow
+            spacing: Theme.spacingS
+            opacity: statMouse.containsMouse ? 0.8 : 1
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 120
+                }
+            }
+
+            Rectangle {
+                width: 34
+                height: 34
+                radius: heroStat.ringPercent >= 0 ? 17 : 11
+                color: Theme.withAlpha(heroStat.statAccent, heroStat.ringPercent >= 0 ? 0 : 0.12)
+                border.width: heroStat.ringPercent >= 0 ? 0 : 1
+                border.color: Theme.withAlpha(heroStat.statAccent, 0.2)
+                anchors.verticalCenter: parent.verticalCenter
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 300
+                    }
+                }
+
+                ProgressRing {
+                    anchors.fill: parent
+                    visible: heroStat.ringPercent >= 0
+                    percent: Math.max(0, heroStat.ringPercent)
+                    thickness: 4
+                    accentColor: heroStat.statAccent
+                }
+
+                DankIcon {
+                    anchors.centerIn: parent
+                    name: heroStat.statIcon
+                    size: heroStat.ringPercent >= 0 ? 14 : 16
+                    color: heroStat.statAccent
+                }
+            }
+
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 1
+
+                StyledText {
+                    id: statValueText
+                    text: heroStat.statValue
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Bold
+                    transformOrigin: Item.Left
+
+                    SequentialAnimation {
+                        id: valuePulse
+                        NumberAnimation {
+                            target: statValueText
+                            property: "scale"
+                            to: 1.12
+                            duration: 110
+                            easing.type: Easing.OutQuad
+                        }
+                        NumberAnimation {
+                            target: statValueText
+                            property: "scale"
+                            to: 1.0
+                            duration: 260
+                            easing.type: Easing.OutBack
+                        }
+                    }
+                }
+
+                StyledText {
+                    text: heroStat.statLabel
+                    color: heroStat.clickable && statMouse.containsMouse ? heroStat.statAccent : Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall - 1
+                    font.underline: heroStat.clickable && statMouse.containsMouse
+                }
             }
         }
 
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 1
-
-            StyledText {
-                text: heroStat.statValue
-                color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.Bold
-            }
-
-            StyledText {
-                text: heroStat.statLabel
-                color: Theme.surfaceVariantText
-                font.pixelSize: Theme.fontSizeSmall - 1
-            }
-        }
-    }
-
-    component PillProgressRing: Canvas {
-        id: ring
-
-        property real percent: 0
-        property color accent: Theme.primary
-
-        width: 20
-        height: 20
-        renderStrategy: Canvas.Cooperative
-        onPercentChanged: requestPaint()
-        onAccentChanged: requestPaint()
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.reset();
-            const cx = width / 2;
-            const cy = height / 2;
-            const r = 7.5;
-            const lw = 2.5;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
-            ctx.lineWidth = lw;
-            ctx.strokeStyle = Theme.withAlpha(ring.accent, 0.2);
-            ctx.stroke();
-            const pct = Math.max(0, Math.min(1, percent / 100));
-            if (pct > 0) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(pct, 1));
-                ctx.lineWidth = lw;
-                ctx.strokeStyle = ring.accent;
-                ctx.lineCap = "round";
-                ctx.stroke();
-            }
+        MouseArea {
+            id: statMouse
+            anchors.fill: parent
+            enabled: heroStat.clickable
+            hoverEnabled: enabled
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: heroStat.clicked()
         }
     }
 
@@ -2569,26 +2921,12 @@ PluginComponent {
             readonly property var pillHost: root.pillHostFor(horizontalPillContent)
             readonly property bool pillHovered: pillHost ? pillHost.isMouseHovered : false
             onPillHoveredChanged: {
-                if (pillHovered) root.showPillTooltip(horizontalPillContent);
-                else root.hidePillTooltip();
+                if (pillHovered)
+                    root.showPillTooltip(horizontalPillContent);
+                else
+                    root.hidePillTooltip();
             }
             Component.onDestruction: root.hidePillTooltip()
-
-            Rectangle {
-                width: 26
-                height: 26
-                radius: 13
-                color: Theme.withAlpha(root.pillAccent, 0.16)
-                border.width: 1
-                border.color: Theme.withAlpha(root.pillAccent, 0.28)
-                anchors.verticalCenter: parent.verticalCenter
-
-                PillProgressRing {
-                    anchors.centerIn: parent
-                    percent: root.pillPrimaryPercent
-                    accent: root.pillAccent
-                }
-            }
 
             Row {
                 anchors.verticalCenter: parent.verticalCenter
@@ -2659,26 +2997,12 @@ PluginComponent {
             readonly property var pillHost: root.pillHostFor(verticalPillContent)
             readonly property bool pillHovered: pillHost ? pillHost.isMouseHovered : false
             onPillHoveredChanged: {
-                if (pillHovered) root.showPillTooltip(verticalPillContent);
-                else root.hidePillTooltip();
+                if (pillHovered)
+                    root.showPillTooltip(verticalPillContent);
+                else
+                    root.hidePillTooltip();
             }
             Component.onDestruction: root.hidePillTooltip()
-
-            Rectangle {
-                width: 24
-                height: 24
-                radius: 12
-                color: Theme.withAlpha(root.pillAccent, 0.16)
-                border.width: 1
-                border.color: Theme.withAlpha(root.pillAccent, 0.28)
-                anchors.horizontalCenter: parent.horizontalCenter
-
-                PillProgressRing {
-                    anchors.centerIn: parent
-                    percent: root.pillPrimaryPercent
-                    accent: root.pillAccent
-                }
-            }
 
             Repeater {
                 model: root.pillDisplayProviders
@@ -2697,7 +3021,7 @@ PluginComponent {
 
                     StyledText {
                         text: `${Math.round(root.pillPercentFor(modelData))}%`
-                        color: root.providerAccent(modelData.provider)
+                        color: root.getUsageColor(root.pillPercentFor(modelData))
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -2742,7 +3066,13 @@ PluginComponent {
             StyledText {
                 id: valueText
                 text: usageBar.aside.length > 0 ? usageBar.aside : `${Math.round(usageBar.percent)}%`
+                wrapMode: Text.NoWrap
                 color: usageBar.accentColor
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 300
+                    }
+                }
                 font.pixelSize: Theme.fontSizeSmall + 1
                 font.weight: Font.DemiBold
             }
@@ -2758,76 +3088,188 @@ PluginComponent {
             clip: true
 
             Rectangle {
-                width: Math.max(3, Math.min(1, usageBar.percent / 100) * parent.width)
+                id: usageFill
+                property bool grown: false
+                width: grown ? Math.max(3, Math.min(1, usageBar.percent / 100) * parent.width) : 0
                 height: parent.height
                 radius: parent.radius
-                color: usageBar.accentColor
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop {
+                        position: 0.0
+                        color: Theme.withAlpha(usageBar.accentColor, 0.7)
+                    }
+                    GradientStop {
+                        position: 1.0
+                        color: usageBar.accentColor
+                    }
+                }
+                Component.onCompleted: Qt.callLater(() => usageFill.grown = true)
 
                 Behavior on width {
-                    NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        duration: 520
+                        easing.type: Easing.OutCubic
+                    }
                 }
             }
         }
     }
 
-    component ClaudeDailyBars: Row {
-        id: dailyBars
+    component ClaudeDailyBars: DailyBarChart {
         width: parent ? parent.width : implicitWidth
+        accent: Theme.primary
+        bars: {
+            const out = [];
+            for (let i = 0; i < 7; i++) {
+                out.push({
+                    value: Number(root.claudeDailyTokens[i] || 0),
+                    primary: root.formatTokens(root.claudeDailyTokens[i] || 0),
+                    secondary: root.formatCost(root.claudeDailyCosts[i] || 0),
+                    label: root.dayLabels[i],
+                    today: i === root.currentWeekdayIndex
+                });
+            }
+            return out;
+        }
+    }
+
+    // Seven-column usage chart shared by every provider card. Each entry of
+    // `bars` is { value, primary, secondary, label, today }: bar height comes
+    // from value, hover lifts primary/secondary above the bar. Bars have a
+    // square base and rounded top, and grow in staggered on first show.
+    component DailyBarChart: Row {
+        id: chart
+
+        property var bars: []
+        property color accent: Theme.primary
+        property real barHeight: 66
+        readonly property real maxValue: {
+            let top = 0;
+            for (let i = 0; i < bars.length; i++)
+                top = Math.max(top, Number(bars[i].value || 0));
+            return top > 0 ? top : 1;
+        }
+
         spacing: Theme.spacingS
 
-        property real maxDaily: Math.max.apply(null, root.claudeDailyTokens) || 1
-
         Repeater {
-            model: 7
+            model: chart.bars
 
             Column {
-                id: dayColumn
-                width: (dailyBars.width - Theme.spacingS * 6) / 7
+                id: barColumn
+                required property var modelData
+                required property int index
+                width: (chart.width - chart.spacing * Math.max(0, chart.bars.length - 1)) / Math.max(1, chart.bars.length)
                 spacing: 7
 
-                Rectangle {
+                Item {
+                    id: barSlot
                     width: parent.width
-                    height: 66
-                    radius: Theme.cornerRadius - 2
-                    color: Theme.surfaceContainer
-                    border.width: dayHover.containsMouse ? 1 : 0
-                    border.color: Theme.withAlpha(index === root.currentWeekdayIndex ? Theme.warning : Theme.primary, 0.5)
-                    clip: true
+                    height: chart.barHeight
 
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        height: Math.max(3, (Number(root.claudeDailyTokens[index] || 0) / dailyBars.maxDaily) * parent.height)
-                        color: index === root.currentWeekdayIndex ? Theme.warning : Theme.withAlpha(Theme.primary, dayHover.containsMouse ? 0.75 : 0.55)
+                    readonly property bool today: !!barColumn.modelData.today
+                    readonly property bool hovered: dayHover.containsMouse
+                    readonly property color barAccent: today ? Theme.warning : chart.accent
+                    readonly property real ratio: Number(barColumn.modelData.value || 0) / chart.maxValue
+                    readonly property real cap: Theme.cornerRadius - 2
+                    property bool grown: false
 
-                        Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                    Component.onCompleted: growTimer.start()
+
+                    Timer {
+                        id: growTimer
+                        interval: 40 + barColumn.index * 45
+                        onTriggered: barSlot.grown = true
                     }
 
                     Rectangle {
-                        visible: dayHover.containsMouse
                         anchors.fill: parent
-                        radius: parent.radius
-                        color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
-
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 1
-
-                            StyledText {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: root.formatTokens(root.claudeDailyTokens[index] || 0)
-                                color: Theme.surfaceText
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.weight: Font.Bold
+                        topLeftRadius: barSlot.cap
+                        topRightRadius: barSlot.cap
+                        color: Theme.withAlpha(barSlot.barAccent, barSlot.hovered ? 0.1 : 0.05)
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 160
                             }
+                        }
+                    }
 
-                            StyledText {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: root.formatCost(root.claudeDailyCosts[index] || 0)
-                                color: Theme.surfaceVariantText
-                                font.pixelSize: Theme.fontSizeSmall - 1
+                    Rectangle {
+                        id: barFill
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: barSlot.grown ? Math.max(3, barSlot.ratio * parent.height) : 0
+                        topLeftRadius: Math.min(barSlot.cap, height / 2)
+                        topRightRadius: Math.min(barSlot.cap, height / 2)
+                        gradient: Gradient {
+                            GradientStop {
+                                position: 0.0
+                                color: Theme.withAlpha(barSlot.barAccent, barSlot.today || barSlot.hovered ? 1.0 : 0.72)
                             }
+                            GradientStop {
+                                position: 1.0
+                                color: Theme.withAlpha(barSlot.barAccent, barSlot.today || barSlot.hovered ? 0.78 : 0.42)
+                            }
+                        }
+
+                        Behavior on height {
+                            NumberAnimation {
+                                duration: 520
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        // Baseline shared by every column.
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 1
+                        color: Theme.withAlpha(barSlot.barAccent, 0.35)
+                    }
+
+                    Column {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: parent.width - 4
+                        y: barSlot.hovered ? 4 : 10
+                        spacing: 0
+                        opacity: barSlot.hovered ? 1 : 0
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: 160
+                            }
+                        }
+                        Behavior on y {
+                            NumberAnimation {
+                                duration: 200
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+
+                        StyledText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            text: barColumn.modelData.primary || ""
+                            color: Theme.surfaceText
+                            style: Text.Outline
+                            styleColor: Theme.withAlpha(Theme.surfaceContainer, 0.6)
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Bold
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            visible: text.length > 0
+                            text: barColumn.modelData.secondary || ""
+                            color: Theme.surfaceText
+                            style: Text.Outline
+                            styleColor: Theme.withAlpha(Theme.surfaceContainer, 0.6)
+                            font.pixelSize: Theme.fontSizeSmall - 1
+                            elide: Text.ElideRight
                         }
                     }
 
@@ -2841,11 +3283,12 @@ PluginComponent {
 
                 StyledText {
                     width: parent.width
-                    text: root.dayLabels[index]
+                    text: barColumn.modelData.label || ""
                     horizontalAlignment: Text.AlignHCenter
-                    color: dayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
+                    color: barSlot.today ? Theme.warning : (barSlot.hovered ? Theme.surfaceText : Theme.surfaceVariantText)
                     font.pixelSize: Theme.fontSizeSmall
-                    font.weight: Font.DemiBold
+                    font.weight: barSlot.today ? Font.Bold : Font.DemiBold
+                    elide: Text.ElideRight
                 }
             }
         }
@@ -2869,15 +3312,24 @@ PluginComponent {
         Rectangle { // accent bar
             width: 3
             radius: 2
-            anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: Theme.spacingS }
+            anchors {
+                left: parent.left
+                top: parent.top
+                bottom: parent.bottom
+                margins: Theme.spacingS
+            }
             color: acct.accent
         }
 
         Column {
             id: acctCol
             anchors {
-                left: parent.left; right: parent.right; top: parent.top
-                leftMargin: Theme.spacingL + 5; rightMargin: Theme.spacingM; topMargin: Theme.spacingM
+                left: parent.left
+                right: parent.right
+                top: parent.top
+                leftMargin: Theme.spacingL + 5
+                rightMargin: Theme.spacingM
+                topMargin: Theme.spacingM
             }
             spacing: Theme.spacingS
 
@@ -2935,9 +3387,7 @@ PluginComponent {
                     width: parent.width
                     label: modelData.name || modelData.resetDescription || ""
                     percent: Number(modelData.usedPercent || 0)
-                    aside: (modelData.description && String(modelData.description).length > 0)
-                        ? String(modelData.description)
-                        : `${Math.round(Number(modelData.usedPercent || 0))}% used`
+                    aside: (modelData.description && String(modelData.description).length > 0) ? String(modelData.description) : `${Math.round(Number(modelData.usedPercent || 0))}% used`
                     accentColor: root.getUsageColor(Number(modelData.usedPercent || 0))
                 }
             }
@@ -2975,9 +3425,12 @@ PluginComponent {
         color: expanded ? Theme.surfaceContainerHigh : (hovered ? Theme.surfaceContainerHigh : Theme.surfaceContainer)
         border.width: 1
         border.color: {
-            if (card.activeFocus) return Theme.primary;
-            if (provider && provider.error) return Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16);
-            if (root.hasPartialAccountErrors(provider)) return Theme.withAlpha(Theme.warning, expanded ? 0.48 : 0.24);
+            if (card.activeFocus)
+                return Theme.primary;
+            if (provider && provider.error)
+                return Theme.withAlpha(Theme.error, expanded ? 0.34 : 0.16);
+            if (root.hasPartialAccountErrors(provider))
+                return Theme.withAlpha(Theme.warning, expanded ? 0.48 : 0.24);
             return Theme.withAlpha(accentColor, expanded ? 0.42 : (hovered ? 0.26 : 0.07));
         }
         activeFocusOnTab: true
@@ -2987,7 +3440,8 @@ PluginComponent {
         Keys.onReturnPressed: toggleExpanded()
         Keys.onSpacePressed: toggleExpanded()
         Keys.onDeletePressed: {
-            if (root.selectedProviders.length > 1) root.removeProvider(card.provider.provider);
+            if (root.selectedProviders.length > 1)
+                root.removeProvider(card.provider.provider);
         }
         Keys.onPressed: event => {
             if (event.key === Qt.Key_P) {
@@ -3009,9 +3463,18 @@ PluginComponent {
             radius: parent.radius
             opacity: expanded || hovered ? 1 : 0.32
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(card.accentColor, expanded ? 0.12 : 0.055) }
-                GradientStop { position: 0.52; color: Theme.withAlpha(card.accentColor, 0.025) }
-                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surfaceContainer, 0.0) }
+                GradientStop {
+                    position: 0.0
+                    color: Theme.withAlpha(card.accentColor, expanded ? 0.12 : 0.055)
+                }
+                GradientStop {
+                    position: 0.52
+                    color: Theme.withAlpha(card.accentColor, 0.025)
+                }
+                GradientStop {
+                    position: 1.0
+                    color: Theme.withAlpha(Theme.surfaceContainer, 0.0)
+                }
             }
         }
 
@@ -3028,12 +3491,29 @@ PluginComponent {
             // extra Behavior here would stack on the card's own height
             // animation, making the bar lag and drift off-center while the
             // card expands or collapses.
-            Behavior on opacity { NumberAnimation { duration: 160 } }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 160
+                }
+            }
         }
 
-        Behavior on color { ColorAnimation { duration: 180 } }
-        Behavior on border.color { ColorAnimation { duration: 180 } }
-        Behavior on implicitHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on color {
+            ColorAnimation {
+                duration: 180
+            }
+        }
+        Behavior on border.color {
+            ColorAnimation {
+                duration: 180
+            }
+        }
+        Behavior on implicitHeight {
+            NumberAnimation {
+                duration: 220
+                easing.type: Easing.OutCubic
+            }
+        }
 
         Column {
             id: cardColumn
@@ -3179,74 +3659,47 @@ PluginComponent {
                     }
                 }
 
-                Rectangle {
+                // Card actions share the popout header's capsule language.
+                Row {
                     Layout.alignment: Qt.AlignVCenter
                     z: 2
-                    width: card.compact ? 30 : 34
-                    height: width
-                    radius: width / 2
-                    color: pinArea.containsMouse ? Theme.withAlpha(Theme.primary, 0.14) : (root.isPinned(card.provider.provider) ? Theme.withAlpha(Theme.primary, 0.1) : "transparent")
-                    border.width: root.isPinned(card.provider.provider) ? 1 : 0
-                    border.color: Theme.withAlpha(Theme.primary, 0.3)
+                    spacing: 2
 
-                    DankIcon {
-                        anchors.centerIn: parent
-                        name: root.isPinned(card.provider.provider) ? "star" : "star_border"
-                        size: card.compact ? 15 : 17
-                        color: root.isPinned(card.provider.provider) ? Theme.primary : Theme.surfaceVariantText
+                    HeaderAction {
+                        width: card.compact ? 30 : 34
+                        height: width
+                        position: "first"
+                        iconName: "star"
+                        active: root.isPinned(card.provider.provider)
+                        label: root.t("card.pin", "Pin")
+                        onTriggered: root.togglePin(card.provider.provider)
                     }
 
-                    MouseArea {
-                        id: pinArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: function(mouse) {
-                            mouse.accepted = true;
-                            root.togglePin(card.provider.provider);
+                    HeaderAction {
+                        visible: root.selectedProviders.length > 1
+                        width: card.compact ? 30 : 34
+                        height: width
+                        iconName: "close"
+                        accent: Theme.error
+                        hoverRotation: 90
+                        label: root.t("header.close", "Close")
+                        onTriggered: root.removeProvider(card.provider.provider)
+                    }
+
+                    HeaderAction {
+                        width: card.compact ? 30 : 34
+                        height: width
+                        position: "last"
+                        iconName: "keyboard_arrow_down"
+                        accent: card.accentColor
+                        active: card.expanded
+                        iconRotation: card.expanded ? 180 : 0
+                        label: root.t("card.expand", "Details")
+                        onTriggered: {
+                            card.forceActiveFocus();
+                            card.toggleExpanded();
                         }
                     }
-                }
-
-                Rectangle {
-                    Layout.alignment: Qt.AlignVCenter
-                    visible: root.selectedProviders.length > 1
-                    z: 2
-                    width: card.compact ? 32 : 36
-                    height: width
-                    radius: width / 2
-                    color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.14) : Theme.withAlpha(card.accentColor, 0.08)
-                    border.width: 1
-                    border.color: removeArea.containsMouse ? Theme.withAlpha(Theme.error, 0.32) : Theme.withAlpha(card.accentColor, 0.18)
-
-                    DankIcon {
-                        anchors.centerIn: parent
-                        name: "close"
-                        size: card.compact ? 16 : 18
-                        color: removeArea.containsMouse ? Theme.error : Theme.surfaceVariantText
-                    }
-
-                    MouseArea {
-                        id: removeArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: function(mouse) {
-                            mouse.accepted = true;
-                            root.removeProvider(card.provider.provider);
-                        }
-                    }
-                }
-
-                DankIcon {
-                    Layout.alignment: Qt.AlignVCenter
-                    name: "keyboard_arrow_down"
-                    size: card.compact ? 24 : 28
-                    color: card.expanded ? card.accentColor : Theme.surfaceVariantText
-                    rotation: card.expanded ? 180 : 0
-
-                    Behavior on rotation { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                    Behavior on color { ColorAnimation { duration: 160 } }
                 }
             }
 
@@ -3342,8 +3795,7 @@ PluginComponent {
 
                     InfoPill {
                         iconName: "person"
-                        label: card.provider.provider === "antigravity" && root.accountsForProvider(card.provider).length >= 2
-                            ? t("card.accounts", "Accounts") : t("card.account", "Account")
+                        label: card.provider.provider === "antigravity" && root.accountsForProvider(card.provider).length >= 2 ? t("card.accounts", "Accounts") : t("card.account", "Account")
                         value: root.providerAccount(card.provider)
                         accentColor: card.accentColor
                     }
@@ -3416,7 +3868,7 @@ PluginComponent {
 
                         UsageBar {
                             width: parent.width
-                            label: t("card.week", "Week")
+                            label: t("window.weekly", "Weekly")
                             percent: root.claudeSevenDayUtil
                             aside: {
                                 const reset = root.formatTimeUntil(root.claudeSevenDayReset);
@@ -3428,7 +3880,7 @@ PluginComponent {
                         UsageBar {
                             width: parent.width
                             visible: root.claudeScopedLimitModel !== "" && root.claudeScopedLimitUtil > 0
-                            label: `${t("card.week", "Week")} · ${root.claudeScopedLimitModel}`
+                            label: `${t("window.weekly", "Weekly")} · ${root.claudeScopedLimitModel}`
                             percent: root.claudeScopedLimitUtil
                             aside: {
                                 const reset = root.formatTimeUntil(root.claudeScopedLimitReset);
@@ -3459,7 +3911,7 @@ PluginComponent {
 
                         UsageBar {
                             width: parent.width
-                            label: root.t("card.five_hour", "5h")
+                            label: root.t("window.session", "Session")
                             percent: root.claudeFiveHourUtil
                             aside: {
                                 const reset = root.formatTimeUntil(root.claudeFiveHourReset);
@@ -3494,11 +3946,37 @@ PluginComponent {
                             columnSpacing: Theme.spacingM
                             rowSpacing: Theme.spacingM
 
-                            MetricTile { Layout.fillWidth: true; label: t("card.today_tokens", "Today tokens"); value: root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0); accentColor: Theme.warning }
-                            MetricTile { Layout.fillWidth: true; label: t("card.today_cost", "Today cost"); value: root.formatCost(root.claudeTodayCost); accentColor: Theme.warning }
-                            MetricTile { Layout.fillWidth: true; label: t("card.week", "Week"); value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`; accentColor: Theme.warning }
-                            MetricTile { Layout.fillWidth: true; label: t("card.month", "Month"); value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`; accentColor: Theme.warning }
-                            MetricTile { Layout.fillWidth: true; visible: root.claudeMonthProjection > 0; label: t("card.projected_month", "Projected month"); value: `≈ ${root.formatCost(root.claudeMonthProjection)}`; accentColor: root.claudeMonthProjection > root.claudeMonthCost * 1.5 ? Theme.error : Theme.warning }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.today_tokens", "Today tokens")
+                                value: root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0)
+                                accentColor: Theme.warning
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.today_cost", "Today cost")
+                                value: root.formatCost(root.claudeTodayCost)
+                                accentColor: Theme.warning
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.week", "Week")
+                                value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`
+                                accentColor: Theme.warning
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.month", "Month")
+                                value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`
+                                accentColor: Theme.warning
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                visible: root.claudeMonthProjection > 0
+                                label: t("card.projected_month", "Projected month")
+                                value: `≈ ${root.formatCost(root.claudeMonthProjection)}`
+                                accentColor: root.claudeMonthProjection > root.claudeMonthCost * 1.5 ? Theme.error : Theme.warning
+                            }
                         }
 
                         ClaudeDailyBars {
@@ -3596,7 +4074,12 @@ PluginComponent {
                                             radius: parent.radius
                                             color: Theme.withAlpha(Theme.warning, index === 0 ? 0.85 : 0.45)
 
-                                            Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                            Behavior on width {
+                                                NumberAnimation {
+                                                    duration: 300
+                                                    easing.type: Easing.OutCubic
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -3605,7 +4088,11 @@ PluginComponent {
 
                         StyledText {
                             width: parent.width
-                            text: t("card.claude_since", "Since {date} · {sessions} sessions · {messages} messages", { date: root.claudeFirstSession || "—", sessions: root.claudeAlltimeSessions, messages: root.claudeAlltimeMessages })
+                            text: t("card.claude_since", "Since {date} · {sessions} sessions · {messages} messages", {
+                                date: root.claudeFirstSession || "—",
+                                sessions: root.claudeAlltimeSessions,
+                                messages: root.claudeAlltimeMessages
+                            })
                             color: Theme.surfaceVariantText
                             font.pixelSize: Theme.fontSizeMedium
                             elide: Text.ElideRight
@@ -3649,7 +4136,9 @@ PluginComponent {
                             }
 
                             StyledText {
-                                text: t("card.nine_month_total", "{cost} this month", { cost: root.formatCost(Number(nineCol.nineMonth.cost || 0)) })
+                                text: t("card.nine_month_total", "{cost} this month", {
+                                    cost: root.formatCost(Number(nineCol.nineMonth.cost || 0))
+                                })
                                 color: Theme.secondary
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
@@ -3665,117 +4154,40 @@ PluginComponent {
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.nine_today", "Today")
-                                value: `${root.formatCost(Number(nineCol.nineToday.cost || 0))} · ${Number(nineCol.nineToday.requests || 0)} req`
+                                value: `${root.formatCost(Number(nineCol.nineToday.cost || 0))} · ${Number(nineCol.nineToday.requests || 0)} ${root.t("unit.req", "req")}`
                                 accentColor: Theme.secondary
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.week", "Week")
-                                value: `${root.formatCost(Number(nineCol.nineWeek.cost || 0))} · ${Number(nineCol.nineWeek.requests || 0)} req`
+                                value: `${root.formatCost(Number(nineCol.nineWeek.cost || 0))} · ${Number(nineCol.nineWeek.requests || 0)} ${root.t("unit.req", "req")}`
                                 accentColor: Theme.secondary
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.month", "Month")
-                                value: `${root.formatCost(Number(nineCol.nineMonth.cost || 0))} · ${Number(nineCol.nineMonth.requests || 0)} req`
+                                value: `${root.formatCost(Number(nineCol.nineMonth.cost || 0))} · ${Number(nineCol.nineMonth.requests || 0)} ${root.t("unit.req", "req")}`
                                 accentColor: Theme.secondary
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.nine_week_tokens", "Week tokens")
-                                value: `${root.formatTokens(Number(nineCol.nineWeek.promptTokens || 0))} in · ${root.formatTokens(Number(nineCol.nineWeek.cachedTokens || 0))} cached · ${root.formatTokens(Number(nineCol.nineWeek.completionTokens || 0))} out`
+                                value: root.t("card.nine_io", "{input} in · {cached} cached · {output} out", { input: root.formatTokens(Number(nineCol.nineWeek.promptTokens || 0)), cached: root.formatTokens(Number(nineCol.nineWeek.cachedTokens || 0)), output: root.formatTokens(Number(nineCol.nineWeek.completionTokens || 0)) })
                                 accentColor: Theme.secondary
                             }
                         }
 
                         // 7-day cost chart, calendar aligned (today is the last bar).
-                        Row {
-                            id: nineBars
+                        DailyBarChart {
                             width: parent.width
-                            spacing: Theme.spacingS
-
-                            readonly property real maxCost: {
-                                let top = 0;
-                                for (let i = 0; i < nineCol.nineDays.length; i++) {
-                                    top = Math.max(top, Number(nineCol.nineDays[i].cost || 0));
-                                }
-                                return top > 0 ? top : 1;
-                            }
-
-                            Repeater {
-                                model: nineCol.nineDays
-
-                                Column {
-                                    id: nineDayColumn
-                                    required property var modelData
-                                    required property int index
-                                    width: (nineBars.width - Theme.spacingS * 6) / 7
-                                    spacing: 7
-
-                                    Rectangle {
-                                        width: parent.width
-                                        height: 66
-                                        radius: Theme.cornerRadius - 2
-                                        color: Theme.surfaceContainer
-                                        border.width: nineDayHover.containsMouse ? 1 : 0
-                                        border.color: Theme.withAlpha(index === 6 ? Theme.warning : Theme.secondary, 0.5)
-                                        clip: true
-
-                                        Rectangle {
-                                            anchors.bottom: parent.bottom
-                                            width: parent.width
-                                            height: Math.max(3, (Number(nineDayColumn.modelData.cost || 0) / nineBars.maxCost) * parent.height)
-                                            color: index === 6 ? Theme.warning : Theme.withAlpha(Theme.secondary, nineDayHover.containsMouse ? 0.75 : 0.55)
-
-                                            Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                                            Behavior on color { ColorAnimation { duration: 120 } }
-                                        }
-
-                                        Rectangle {
-                                            visible: nineDayHover.containsMouse
-                                            anchors.fill: parent
-                                            radius: parent.radius
-                                            color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
-
-                                            Column {
-                                                anchors.centerIn: parent
-                                                spacing: 1
-
-                                                StyledText {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: root.formatCost(Number(nineDayColumn.modelData.cost || 0))
-                                                    color: Theme.surfaceText
-                                                    font.pixelSize: Theme.fontSizeSmall
-                                                    font.weight: Font.Bold
-                                                }
-
-                                                StyledText {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: `${Number(nineDayColumn.modelData.requests || 0)} req`
-                                                    color: Theme.surfaceVariantText
-                                                    font.pixelSize: Theme.fontSizeSmall - 1
-                                                }
-                                            }
-                                        }
-
-                                        MouseArea {
-                                            id: nineDayHover
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            acceptedButtons: Qt.NoButton
-                                        }
-                                    }
-
-                                    StyledText {
-                                        width: parent.width
-                                        text: root.weekdayLabel(nineDayColumn.modelData)
-                                        horizontalAlignment: Text.AlignHCenter
-                                        color: nineDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
-                            }
+                            accent: Theme.secondary
+                            bars: nineCol.nineDays.map((day, i) => ({
+                                        value: Number(day.cost || 0),
+                                        primary: root.formatCost(Number(day.cost || 0)),
+                                        secondary: `${Number(day.requests || 0)} ${root.t("unit.req", "req")}`,
+                                        label: root.weekdayLabel(day),
+                                        today: i === nineCol.nineDays.length - 1
+                                    }))
                         }
 
                         Column {
@@ -3799,7 +4211,7 @@ PluginComponent {
                                     width: parent.width
                                     label: modelData.provider ? `${modelData.model} · ${modelData.provider}` : String(modelData.model || "")
                                     percent: Number(nineCol.nineWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(nineCol.nineWeek.cost)) * 100 : 0
-                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} req`
+                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} ${root.t("unit.req", "req")}`
                                     accentColor: Theme.secondary
                                 }
                             }
@@ -3826,7 +4238,7 @@ PluginComponent {
                                     width: parent.width
                                     label: root.providerName(String(modelData.provider || ""))
                                     percent: Number(nineCol.nineWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(nineCol.nineWeek.cost)) * 100 : 0
-                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} req`
+                                    aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} ${root.t("unit.req", "req")}`
                                     accentColor: Theme.secondary
                                 }
                             }
@@ -3870,7 +4282,9 @@ PluginComponent {
                             }
 
                             StyledText {
-                                text: t("card.pi_month_total", "{cost} this month", { cost: root.formatCost(piCol.piMonth.cost) })
+                                text: t("card.pi_month_total", "{cost} this month", {
+                                    cost: root.formatCost(piCol.piMonth.cost)
+                                })
                                 color: Theme.success
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
@@ -3886,19 +4300,19 @@ PluginComponent {
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.pi_today", "Today")
-                                value: `${root.formatCost(piCol.piToday.cost)} · ${root.formatTokens(Number(piCol.piToday.tokens || 0))} tok`
+                                value: `${root.formatCost(piCol.piToday.cost)} · ${root.formatTokens(Number(piCol.piToday.tokens || 0))} ${root.t("unit.tok", "tok")}`
                                 accentColor: Theme.success
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.week", "Week")
-                                value: `${root.formatCost(piCol.piWeek.cost)} · ${root.formatTokens(Number(piCol.piWeek.tokens || 0))} tok`
+                                value: `${root.formatCost(piCol.piWeek.cost)} · ${root.formatTokens(Number(piCol.piWeek.tokens || 0))} ${root.t("unit.tok", "tok")}`
                                 accentColor: Theme.success
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.month", "Month")
-                                value: `${root.formatCost(piCol.piMonth.cost)} · ${root.formatTokens(Number(piCol.piMonth.tokens || 0))} tok`
+                                value: `${root.formatCost(piCol.piMonth.cost)} · ${root.formatTokens(Number(piCol.piMonth.tokens || 0))} ${root.t("unit.tok", "tok")}`
                                 accentColor: Theme.success
                             }
                         }
@@ -3914,101 +4328,54 @@ PluginComponent {
                             width: parent.width
                             columns: 3
                             visible: card.provider.provider !== "pi"
-                            MetricTile { Layout.fillWidth: true; label: t("card.local_input", "Input (7d)"); value: root.formatTokens(piCol.piWeek.input); accentColor: Theme.success }
-                            MetricTile { Layout.fillWidth: true; label: t("card.local_output", "Output (7d)"); value: root.formatTokens(piCol.piWeek.output); accentColor: Theme.success }
-                            MetricTile { Layout.fillWidth: true; label: t("card.local_cache", "Cache read (7d)"); value: root.formatTokens(piCol.piWeek.cacheRead); accentColor: Theme.success }
-                            MetricTile { Layout.fillWidth: true; label: t("card.local_reasoning", "Reasoning (7d)"); value: root.formatTokens(piCol.piWeek.reasoning); accentColor: Theme.success }
-                            MetricTile { Layout.fillWidth: true; label: t("card.local_calls", "Usage events (7d)"); value: String(piCol.piWeek.calls || 0); accentColor: Theme.success }
-                            MetricTile { Layout.fillWidth: true; label: t("card.local_sessions", "Sessions (7d)"); value: String(piCol.piWeek.sessions || 0); accentColor: Theme.success }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.local_input", "Input (7d)")
+                                value: root.formatTokens(piCol.piWeek.input)
+                                accentColor: Theme.success
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.local_output", "Output (7d)")
+                                value: root.formatTokens(piCol.piWeek.output)
+                                accentColor: Theme.success
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.local_cache", "Cache read (7d)")
+                                value: root.formatTokens(piCol.piWeek.cacheRead)
+                                accentColor: Theme.success
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.local_reasoning", "Reasoning (7d)")
+                                value: root.formatTokens(piCol.piWeek.reasoning)
+                                accentColor: Theme.success
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.local_calls", "Usage events (7d)")
+                                value: String(piCol.piWeek.calls || 0)
+                                accentColor: Theme.success
+                            }
+                            MetricTile {
+                                Layout.fillWidth: true
+                                label: t("card.local_sessions", "Sessions (7d)")
+                                value: String(piCol.piWeek.sessions || 0)
+                                accentColor: Theme.success
+                            }
                         }
                         // Token activity remains useful when no cost is available.
-                        Row {
-                            id: piBars
+                        DailyBarChart {
                             width: parent.width
-                            spacing: Theme.spacingS
-
-                            readonly property real maxCost: {
-                                let top = 0;
-                                for (let i = 0; i < piCol.piDays.length; i++) {
-                                    top = Math.max(top, Number(piCol.piDays[i].tokens || 0));
-                                }
-                                return top > 0 ? top : 1;
-                            }
-
-                            Repeater {
-                                model: piCol.piDays
-
-                                Column {
-                                    id: piDayColumn
-                                    required property var modelData
-                                    required property int index
-                                    width: (piBars.width - Theme.spacingS * 6) / 7
-                                    spacing: 7
-
-                                    Rectangle {
-                                        width: parent.width
-                                        height: 66
-                                        radius: Theme.cornerRadius - 2
-                                        color: Theme.surfaceContainer
-                                        border.width: piDayHover.containsMouse ? 1 : 0
-                                        border.color: Theme.withAlpha(index === 6 ? Theme.warning : Theme.success, 0.5)
-                                        clip: true
-
-                                        Rectangle {
-                                            anchors.bottom: parent.bottom
-                                            width: parent.width
-                                            height: Math.max(3, (Number(piDayColumn.modelData.tokens || 0) / piBars.maxCost) * parent.height)
-                                            color: index === 6 ? Theme.warning : Theme.withAlpha(Theme.success, piDayHover.containsMouse ? 0.75 : 0.55)
-
-                                            Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                                            Behavior on color { ColorAnimation { duration: 120 } }
-                                        }
-
-                                        Rectangle {
-                                            visible: piDayHover.containsMouse
-                                            anchors.fill: parent
-                                            radius: parent.radius
-                                            color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
-
-                                            Column {
-                                                anchors.centerIn: parent
-                                                spacing: 1
-
-                                                StyledText {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: root.formatCost(piDayColumn.modelData.cost)
-                                                    color: Theme.surfaceText
-                                                    font.pixelSize: Theme.fontSizeSmall
-                                                    font.weight: Font.Bold
-                                                }
-
-                                                StyledText {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: root.formatTokens(Number(piDayColumn.modelData.tokens || 0))
-                                                    color: Theme.surfaceVariantText
-                                                    font.pixelSize: Theme.fontSizeSmall - 1
-                                                }
-                                            }
-                                        }
-
-                                        MouseArea {
-                                            id: piDayHover
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            acceptedButtons: Qt.NoButton
-                                        }
-                                    }
-
-                                    StyledText {
-                                        width: parent.width
-                                        text: root.weekdayLabel(piDayColumn.modelData)
-                                        horizontalAlignment: Text.AlignHCenter
-                                        color: piDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
-                            }
+                            accent: Theme.success
+                            bars: piCol.piDays.map((day, i) => ({
+                                        value: Number(day.tokens || 0),
+                                        primary: root.formatCost(day.cost),
+                                        secondary: root.formatTokens(Number(day.tokens || 0)),
+                                        label: root.weekdayLabel(day),
+                                        today: i === piCol.piDays.length - 1
+                                    }))
                         }
 
                         Column {
@@ -4100,7 +4467,12 @@ PluginComponent {
                                             radius: parent.radius
                                             color: Theme.withAlpha(Theme.success, index === 0 ? 0.85 : 0.45)
 
-                                            Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                            Behavior on width {
+                                                NumberAnimation {
+                                                    duration: 300
+                                                    easing.type: Easing.OutCubic
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -4154,7 +4526,9 @@ PluginComponent {
                             }
 
                             StyledText {
-                                text: t("card.hermes_month_total", "{cost} this month", { cost: root.formatCost(hermesCol.hMonth.cost) })
+                                text: t("card.hermes_month_total", "{cost} this month", {
+                                    cost: root.formatCost(hermesCol.hMonth.cost)
+                                })
                                 color: Theme.primary
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
@@ -4221,19 +4595,19 @@ PluginComponent {
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.hermes_today", "Today")
-                                value: `${root.formatCost(hermesCol.hToday.cost)} · ${root.formatTokens(Number(hermesCol.hToday.tokens || 0))} tok`
+                                value: `${root.formatCost(hermesCol.hToday.cost)} · ${root.formatTokens(Number(hermesCol.hToday.tokens || 0))} ${root.t("unit.tok", "tok")}`
                                 accentColor: Theme.primary
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.week", "Week")
-                                value: `${root.formatCost(hermesCol.hWeek.cost)} · ${root.formatTokens(Number(hermesCol.hWeek.tokens || 0))} tok`
+                                value: `${root.formatCost(hermesCol.hWeek.cost)} · ${root.formatTokens(Number(hermesCol.hWeek.tokens || 0))} ${root.t("unit.tok", "tok")}`
                                 accentColor: Theme.primary
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.month", "Month")
-                                value: `${root.formatCost(hermesCol.hMonth.cost)} · ${root.formatTokens(Number(hermesCol.hMonth.tokens || 0))} tok`
+                                value: `${root.formatCost(hermesCol.hMonth.cost)} · ${root.formatTokens(Number(hermesCol.hMonth.tokens || 0))} ${root.t("unit.tok", "tok")}`
                                 accentColor: Theme.primary
                             }
                         }
@@ -4241,93 +4615,16 @@ PluginComponent {
                         // 7-day token chart, trailing window (today is the last
                         // bar). Hermes costs are often unpriced locally, so the
                         // bars carry tokens; hover still shows both.
-                        Row {
-                            id: hermesBars
+                        DailyBarChart {
                             width: parent.width
-                            spacing: Theme.spacingS
-
-                            readonly property real maxTokens: {
-                                let top = 0;
-                                for (let i = 0; i < hermesCol.hDays.length; i++) {
-                                    top = Math.max(top, Number(hermesCol.hDays[i].tokens || 0));
-                                }
-                                return top > 0 ? top : 1;
-                            }
-
-                            Repeater {
-                                model: hermesCol.hDays
-
-                                Column {
-                                    id: hermesDayColumn
-                                    required property var modelData
-                                    required property int index
-                                    width: (hermesBars.width - Theme.spacingS * 6) / 7
-                                    spacing: 7
-
-                                    Rectangle {
-                                        width: parent.width
-                                        height: 66
-                                        radius: Theme.cornerRadius - 2
-                                        color: Theme.surfaceContainer
-                                        border.width: hermesDayHover.containsMouse ? 1 : 0
-                                        border.color: Theme.withAlpha(index === 6 ? Theme.warning : Theme.primary, 0.5)
-                                        clip: true
-
-                                        Rectangle {
-                                            anchors.bottom: parent.bottom
-                                            width: parent.width
-                                            height: Math.max(3, (Number(hermesDayColumn.modelData.tokens || 0) / hermesBars.maxTokens) * parent.height)
-                                            color: index === 6 ? Theme.warning : Theme.withAlpha(Theme.primary, hermesDayHover.containsMouse ? 0.75 : 0.55)
-
-                                            Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                                            Behavior on color { ColorAnimation { duration: 120 } }
-                                        }
-
-                                        Rectangle {
-                                            visible: hermesDayHover.containsMouse
-                                            anchors.fill: parent
-                                            radius: parent.radius
-                                            color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.93)
-
-                                            Column {
-                                                anchors.centerIn: parent
-                                                spacing: 1
-
-                                                StyledText {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: root.formatTokens(Number(hermesDayColumn.modelData.tokens || 0))
-                                                    color: Theme.surfaceText
-                                                    font.pixelSize: Theme.fontSizeSmall
-                                                    font.weight: Font.Bold
-                                                }
-
-                                                StyledText {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    text: root.formatCost(hermesDayColumn.modelData.cost)
-                                                    color: Theme.surfaceVariantText
-                                                    font.pixelSize: Theme.fontSizeSmall - 1
-                                                }
-                                            }
-                                        }
-
-                                        MouseArea {
-                                            id: hermesDayHover
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            acceptedButtons: Qt.NoButton
-                                        }
-                                    }
-
-                                    StyledText {
-                                        width: parent.width
-                                        text: root.weekdayLabel(hermesDayColumn.modelData)
-                                        horizontalAlignment: Text.AlignHCenter
-                                        color: hermesDayHover.containsMouse ? Theme.surfaceText : Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
-                            }
+                            accent: Theme.primary
+                            bars: hermesCol.hDays.map((day, i) => ({
+                                        value: Number(day.tokens || 0),
+                                        primary: root.formatTokens(Number(day.tokens || 0)),
+                                        secondary: root.formatCost(day.cost),
+                                        label: root.weekdayLabel(day),
+                                        today: i === hermesCol.hDays.length - 1
+                                    }))
                         }
 
                         Column {
@@ -4351,7 +4648,7 @@ PluginComponent {
                                     width: parent.width
                                     label: String(modelData.model || "")
                                     percent: Number(hermesCol.hWeek.tokens || 0) > 0 ? (Number(modelData.tokens || 0) / Number(hermesCol.hWeek.tokens)) * 100 : 0
-                                    aside: `${root.formatTokens(Number(modelData.tokens || 0))} tok · ${root.formatCost(modelData.cost)}`
+                                    aside: `${root.formatTokens(Number(modelData.tokens || 0))} ${root.t("unit.tok", "tok")} · ${root.formatCost(modelData.cost)}`
                                     accentColor: Theme.primary
                                 }
                             }
@@ -4399,7 +4696,7 @@ PluginComponent {
                                         }
 
                                         StyledText {
-                                            text: `${root.formatTokens(Number(modelData.tokens || 0))} tok`
+                                            text: `${root.formatTokens(Number(modelData.tokens || 0))} ${root.t("unit.tok", "tok")}`
                                             color: Theme.surfaceVariantText
                                             font.pixelSize: Theme.fontSizeSmall - 1
                                         }
@@ -4418,7 +4715,12 @@ PluginComponent {
                                             radius: parent.radius
                                             color: Theme.withAlpha(Theme.primary, index === 0 ? 0.85 : 0.45)
 
-                                            Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                            Behavior on width {
+                                                NumberAnimation {
+                                                    duration: 300
+                                                    easing.type: Easing.OutCubic
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -4471,7 +4773,9 @@ PluginComponent {
                 }
 
                 StyledText {
-                    text: root.t("card.updated_at", "Updated {time}", { time: root.providerUpdatedLabel(card.provider) })
+                    text: root.t("card.updated_at", "Updated {time}", {
+                        time: root.providerUpdatedLabel(card.provider)
+                    })
                     color: card.isStale ? Theme.withAlpha(Theme.warning, 0.8) : Theme.withAlpha(Theme.surfaceVariantText, 0.6)
                     font.pixelSize: Theme.fontSizeSmall - 2
                     anchors.verticalCenter: parent.verticalCenter
@@ -4579,10 +4883,12 @@ PluginComponent {
                     options: root.availableProviderOptions
                     // Kind icons keep hosted providers visually separate from
                     // local tooling (gateway / agent analytics / self-hosted).
-                    optionIcons: root.availableProviderOptions.map(function(id) { return root.providerKindIconFor(id); })
+                    optionIcons: root.availableProviderOptions.map(function (id) {
+                        return root.providerKindIconFor(id);
+                    })
                     dropdownWidth: 220
                     enableFuzzySearch: true
-                    onValueChanged: function(value) {
+                    onValueChanged: function (value) {
                         root.pendingProviderId = value;
                     }
                 }
@@ -4601,6 +4907,52 @@ PluginComponent {
         }
     }
 
+    // Standalone settings window, created on first use. DMS Settings > Plugins
+    // keeps loading the same AiOverviewControlSettings page directly.
+    // Created from its URL rather than as an inline type, so a hot reload
+    // picks the window up without a shell restart.
+    property var _settingsWindow: null
+
+    function openSettingsWindow() {
+        if (!_settingsWindow) {
+            const component = Qt.createComponent(Qt.resolvedUrl("AiOverviewSettingsWindow.qml"));
+            if (component.status !== Component.Ready) {
+                console.warn("AiOverviewControl: settings window failed:", component.errorString());
+                PopoutService.openSettingsWithTab("plugins");
+                return;
+            }
+            _settingsWindow = component.createObject(root, { pluginVersion: Qt.binding(() => root.pluginVersion) });
+        }
+        _settingsWindow.activate();
+    }
+
+    Component.onDestruction: if (_settingsWindow) _settingsWindow.destroy()
+
+    // Returns string, not void: qmllint's parser rejects a `void` return
+    // annotation even though the Quickshell runtime accepts it.
+    IpcHandler {
+        target: "aiOverviewControl"
+
+        // Bindable to a compositor shortcut, e.g.
+        // dms ipc call aiOverviewControl toggle
+        function toggle(): string {
+            root.triggerPopout();
+            return "POPOUT_TOGGLED";
+        }
+
+        function settings(): string {
+            root.openSettingsWindow();
+            return "SETTINGS_OPENED";
+        }
+
+        function about(): string {
+            root.openSettingsWindow();
+            if (root._settingsWindow)
+                root._settingsWindow.showAbout();
+            return "ABOUT_OPENED";
+        }
+    }
+
     popoutWidth: densityMode === "compact" ? 800 : 860
     popoutHeight: 820
 
@@ -4608,50 +4960,264 @@ PluginComponent {
         PopoutComponent {
             id: popout
 
-            headerText: t("app.title", "AI Usage Control")
-            detailsText: root.lastUpdated.length > 0 ? (root.isDataStale ? t("popout.details_stale", "Stale since {time} · local adapters", { time: root.lastUpdated }) : t("popout.details_updated", "Updated {time} · local adapters", { time: root.lastUpdated })) : t("popout.provider_dashboard", "Provider dashboard")
-            showCloseButton: true
+            // The stock header is replaced by the brand card below.
+            headerText: ""
+            detailsText: ""
+            showCloseButton: false
 
-            headerActions: Component {
-                Row {
-                    spacing: Theme.spacingS
+            // Label of the header action under the cursor; the subtitle shows
+            // it in place of the status line, since the buttons are icon-only.
+            property string hoveredAction: ""
+
+            StyledRect {
+                id: brandHeader
+                width: parent.width
+                height: 68
+                radius: Theme.cornerRadius + 4
+                color: Theme.surfaceContainerHigh
+                border.width: 1
+                border.color: Theme.withAlpha(Theme.primary, 0.14)
+                clip: true
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: parent.radius
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop {
+                            position: 0.0
+                            color: Theme.withAlpha(Theme.primary, 0.12)
+                        }
+                        GradientStop {
+                            position: 0.6
+                            color: Theme.withAlpha(Theme.primary, 0.02)
+                        }
+                    }
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.spacingM
+                    anchors.rightMargin: Theme.spacingM
+                    spacing: Theme.spacingM
 
                     Rectangle {
-                        // Manifest version pill: reads plugin.json at runtime,
-                        // so it stays correct across store and manual installs.
-                        visible: root.pluginVersion.length > 0
-                        anchors.verticalCenter: parent.verticalCenter
-                        implicitWidth: popoutVersionLabel.implicitWidth + Theme.spacingS * 2
-                        implicitHeight: 26
-                        radius: 13
-                        color: Theme.withAlpha(Theme.surfaceVariantText, 0.08)
+                        Layout.alignment: Qt.AlignVCenter
+                        width: 44
+                        height: 44
+                        radius: width / 2
+                        color: Theme.withAlpha(Theme.primary, 0.16)
                         border.width: 1
-                        border.color: Theme.withAlpha(Theme.surfaceVariantText, 0.18)
+                        border.color: Theme.withAlpha(Theme.primary, 0.28)
 
-                        StyledText {
-                            id: popoutVersionLabel
+                        // White silhouette tinted to the theme accent, so the
+                        // mascot keeps contrast on every palette.
+                        Image {
                             anchors.centerIn: parent
-                            text: "v" + root.pluginVersion
-                            color: Theme.surfaceVariantText
-                            font.pixelSize: Theme.fontSizeSmall - 1
-                            font.weight: Font.DemiBold
+                            width: 30
+                            height: 30
+                            source: Qt.resolvedUrl("assets/logo.png")
+                            sourceSize: Qt.size(60, 60)
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true
+                            mipmap: true
+                            asynchronous: true
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: Theme.primary
+                            }
                         }
                     }
 
-                    SurfaceButton {
-                        iconName: "refresh"
-                        label: t("card.refresh", "Refresh")
-                        compact: true
-                        prominent: true
-                        actionEnabled: root.binaryReady && !root.isLoading
-                        onTriggered: root.refresh()
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 2
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                Layout.fillWidth: implicitWidth > width
+                                Layout.maximumWidth: implicitWidth
+                                text: t("app.title", "AI Usage Control")
+                                font.pixelSize: Theme.fontSizeLarge
+                                font.weight: Font.Bold
+                                color: Theme.surfaceText
+                                elide: Text.ElideRight
+                            }
+
+                            Rectangle {
+                                // Manifest version pill: reads plugin.json at runtime,
+                                // so it stays correct across store and manual installs.
+                                visible: root.pluginVersion.length > 0
+                                Layout.alignment: Qt.AlignVCenter
+                                implicitWidth: popoutVersionLabel.implicitWidth + Theme.spacingS * 2
+                                implicitHeight: 20
+                                radius: 10
+                                color: Theme.withAlpha(Theme.primary, 0.12)
+                                border.width: 1
+                                border.color: Theme.withAlpha(Theme.primary, 0.24)
+
+                                StyledText {
+                                    id: popoutVersionLabel
+                                    anchors.centerIn: parent
+                                    text: "v" + root.pluginVersion
+                                    color: Theme.primary
+                                    font.pixelSize: Theme.fontSizeSmall - 2
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                            implicitHeight: headerStatusText.implicitHeight
+                            clip: true
+
+                            StyledText {
+                                id: headerStatusText
+                                width: parent.width
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                                color: popout.hoveredAction.length > 0 ? Theme.primary : (root.isDataStale || root.hasError ? Theme.warning : Theme.surfaceVariantText)
+                                elide: Text.ElideRight
+
+                                readonly property string targetText: {
+                                    if (popout.hoveredAction.length > 0)
+                                        return popout.hoveredAction;
+                                    if (root.lastUpdated.length === 0)
+                                        return t("popout.provider_dashboard", "Provider dashboard");
+                                    return root.isDataStale ? t("popout.details_stale", "Stale since {time} · local adapters", {
+                                        time: root.lastUpdated
+                                    }) : t("popout.details_updated", "Updated {time} · local adapters", {
+                                        time: root.lastUpdated
+                                    });
+                                }
+
+                                Component.onCompleted: text = targetText
+                                onTargetTextChanged: if (text !== targetText)
+                                    statusFlip.restart()
+
+                                SequentialAnimation {
+                                    id: statusFlip
+                                    ParallelAnimation {
+                                        NumberAnimation {
+                                            target: headerStatusText
+                                            property: "opacity"
+                                            to: 0
+                                            duration: 90
+                                        }
+                                        NumberAnimation {
+                                            target: headerStatusText
+                                            property: "y"
+                                            to: 6
+                                            duration: 90
+                                            easing.type: Easing.InQuad
+                                        }
+                                    }
+                                    PropertyAction {
+                                        target: headerStatusText
+                                        property: "text"
+                                        value: headerStatusText.targetText
+                                    }
+                                    PropertyAction {
+                                        target: headerStatusText
+                                        property: "y"
+                                        value: -6
+                                    }
+                                    ParallelAnimation {
+                                        NumberAnimation {
+                                            target: headerStatusText
+                                            property: "opacity"
+                                            to: 1
+                                            duration: 140
+                                        }
+                                        NumberAnimation {
+                                            target: headerStatusText
+                                            property: "y"
+                                            to: 0
+                                            duration: 140
+                                            easing.type: Easing.OutQuad
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Segmented capsule: community links, then plugin actions.
+                    Row {
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 2
+
+                        HeaderAction {
+                            position: "first"
+                            iconName: "favorite"
+                            accent: Theme.error
+                            label: t("header.upvote", "Upvote on the DankLinux plugin registry")
+                            onHoveredChanged: popout.hoveredAction = hovered ? label : ""
+                            onTriggered: Qt.openUrlExternally("https://github.com/AvengeMedia/dms-plugin-registry/issues/358")
+                        }
+
+                        HeaderAction {
+                            iconName: "code"
+                            label: t("header.repo", "Source code on GitHub")
+                            onHoveredChanged: popout.hoveredAction = hovered ? label : ""
+                            onTriggered: Qt.openUrlExternally("https://github.com/bernardopg/AiOverviewControl")
+                        }
+
+                        HeaderAction {
+                            iconName: "refresh"
+                            hoverRotation: 180
+                            spinning: root.isLoading
+                            actionEnabled: root.binaryReady && !root.isLoading
+                            label: t("card.refresh", "Refresh")
+                            onHoveredChanged: popout.hoveredAction = hovered ? label : ""
+                            onTriggered: root.refresh()
+                        }
+
+                        HeaderAction {
+                            position: "last"
+                            iconName: "settings"
+                            hoverRotation: 90
+                            label: t("header.settings", "Plugin settings")
+                            onHoveredChanged: popout.hoveredAction = hovered ? label : ""
+                            onTriggered: {
+                                if (popout.closePopout)
+                                    popout.closePopout();
+                                root.openSettingsWindow();
+                            }
+                        }
+                    }
+
+                    HeaderAction {
+                        Layout.alignment: Qt.AlignVCenter
+                        position: "single"
+                        iconName: "close"
+                        accent: Theme.error
+                        hoverRotation: 90
+                        label: t("header.close", "Close")
+                        onHoveredChanged: popout.hoveredAction = hovered ? label : ""
+                        onTriggered: if (popout.closePopout)
+                            popout.closePopout()
                     }
                 }
             }
 
             Item {
                 width: parent.width
-                implicitHeight: root.popoutHeight - popout.headerHeight - popout.detailsHeight - Theme.spacingXL
+                height: Theme.spacingM
+            }
+
+            Item {
+                width: parent.width
+                implicitHeight: root.popoutHeight - brandHeader.height - Theme.spacingM - Theme.spacingXL
 
                 Flickable {
                     id: contentFlick
@@ -4676,20 +5242,30 @@ PluginComponent {
                         contentItem: Rectangle {
                             implicitWidth: 6
                             radius: width / 2
-                            color: Theme.withAlpha(Theme.surfaceText,
-                                contentScrollBar.pressed ? 0.5 : (contentScrollBar.hovered ? 0.34 : 0.2))
-                            opacity: (contentScrollBar.active
-                                || contentScrollBar.policy === ScrollBar.AlwaysOn
-                                || contentScrollBar.hovered) ? 1 : 0
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                            Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                            color: Theme.withAlpha(Theme.surfaceText, contentScrollBar.pressed ? 0.5 : (contentScrollBar.hovered ? 0.34 : 0.2))
+                            opacity: (contentScrollBar.active || contentScrollBar.policy === ScrollBar.AlwaysOn || contentScrollBar.hovered) ? 1 : 0
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
+                            Behavior on opacity {
+                                NumberAnimation {
+                                    duration: 220
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
                         }
                         background: Rectangle {
                             implicitWidth: 6
                             radius: width / 2
                             color: Theme.withAlpha(Theme.surfaceText, 0.05)
                             opacity: contentScrollBar.hovered || contentScrollBar.pressed ? 1 : 0
-                            Behavior on opacity { NumberAnimation { duration: 220 } }
+                            Behavior on opacity {
+                                NumberAnimation {
+                                    duration: 220
+                                }
+                            }
                         }
                     }
 
@@ -4733,11 +5309,12 @@ PluginComponent {
                         }
 
                         StyledRect {
+                            id: heroCard
                             width: parent.width
                             radius: Theme.cornerRadius + 8
                             color: Theme.surfaceContainerHigh
                             border.width: 1
-                            border.color: Theme.withAlpha(root.heroAccent, 0.38)
+                            border.color: Theme.withAlpha(root.heroAccent, 0.3)
                             implicitHeight: overviewCol.implicitHeight + (contentColumn.width < 560 ? Theme.spacingL : Theme.spacingXL) * 2
                             clip: true
 
@@ -4745,9 +5322,74 @@ PluginComponent {
                                 anchors.fill: parent
                                 radius: parent.radius
                                 gradient: Gradient {
-                                    GradientStop { position: 0.0; color: Theme.withAlpha(root.heroAccent, 0.18) }
-                                    GradientStop { position: 0.52; color: Theme.withAlpha(root.heroAccent, 0.055) }
-                                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surfaceContainer, 0.02) }
+                                    GradientStop {
+                                        position: 0.0
+                                        color: Theme.withAlpha(root.heroAccent, 0.18)
+                                    }
+                                    GradientStop {
+                                        position: 0.52
+                                        color: Theme.withAlpha(root.heroAccent, 0.055)
+                                    }
+                                    GradientStop {
+                                        position: 1.0
+                                        color: Theme.withAlpha(Theme.surfaceContainer, 0.02)
+                                    }
+                                }
+                            }
+
+                            // Slow ambient glow drifting behind the content, tinted by usage.
+                            Rectangle {
+                                id: heroGlow
+                                width: parent.width * 0.55
+                                height: width
+                                radius: width / 2
+                                y: -height * 0.55
+                                color: Theme.withAlpha(root.heroAccent, 0.09)
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 600
+                                    }
+                                }
+
+                                SequentialAnimation on x {
+                                    loops: Animation.Infinite
+                                    NumberAnimation {
+                                        from: -heroGlow.width * 0.3
+                                        to: heroCard.width - heroGlow.width * 0.7
+                                        duration: 14000
+                                        easing.type: Easing.InOutSine
+                                    }
+                                    NumberAnimation {
+                                        from: heroCard.width - heroGlow.width * 0.7
+                                        to: -heroGlow.width * 0.3
+                                        duration: 14000
+                                        easing.type: Easing.InOutSine
+                                    }
+                                }
+                            }
+
+                            opacity: 0
+                            transform: Translate {
+                                id: heroShift
+                                y: 10
+                            }
+                            Component.onCompleted: heroIntro.start()
+
+                            ParallelAnimation {
+                                id: heroIntro
+                                NumberAnimation {
+                                    target: heroCard
+                                    property: "opacity"
+                                    to: 1
+                                    duration: 380
+                                    easing.type: Easing.OutCubic
+                                }
+                                NumberAnimation {
+                                    target: heroShift
+                                    property: "y"
+                                    to: 0
+                                    duration: 480
+                                    easing.type: Easing.OutCubic
                                 }
                             }
 
@@ -4760,6 +5402,74 @@ PluginComponent {
                                 RowLayout {
                                     width: parent.width
                                     spacing: Theme.spacingM
+
+                                    // Provider mark wrapped in its primary-window ring: the same number
+                                    // as the bars, read at a glance before the text.
+                                    Item {
+                                        Layout.alignment: Qt.AlignTop
+                                        width: 56
+                                        height: 56
+
+                                        ProgressRing {
+                                            anchors.fill: parent
+                                            percent: root.hasProviderData ? root.primaryPercent : 0
+                                            thickness: 4
+                                            accentColor: root.heroAccent
+                                        }
+
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: 42
+                                            height: 42
+                                            radius: width / 2
+                                            color: Theme.withAlpha(root.heroAccent, 0.14)
+                                            Behavior on color {
+                                                ColorAnimation {
+                                                    duration: 400
+                                                }
+                                            }
+
+                                            SequentialAnimation on scale {
+                                                running: root.isLoading
+                                                loops: Animation.Infinite
+                                                alwaysRunToEnd: true
+                                                NumberAnimation {
+                                                    to: 0.9
+                                                    duration: 520
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                                NumberAnimation {
+                                                    to: 1.0
+                                                    duration: 520
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                            }
+
+                                            ProviderLogo {
+                                                anchors.centerIn: parent
+                                                visible: root.hasProviderData
+                                                providerId: root.providerData ? root.providerData.provider : ""
+                                                logoSize: 22
+                                                tintColor: root.heroAccent
+                                            }
+
+                                            Image {
+                                                anchors.centerIn: parent
+                                                visible: !root.hasProviderData
+                                                width: 26
+                                                height: 26
+                                                source: Qt.resolvedUrl("assets/logo.png")
+                                                sourceSize: Qt.size(52, 52)
+                                                fillMode: Image.PreserveAspectFit
+                                                mipmap: true
+                                                layer.enabled: true
+                                                layer.effect: MultiEffect {
+                                                    colorization: 1.0
+                                                    colorizationColor: Theme.primary
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     Column {
                                         Layout.fillWidth: true
@@ -4779,8 +5489,18 @@ PluginComponent {
                                                 SequentialAnimation on opacity {
                                                     running: root.isLoading
                                                     loops: Animation.Infinite
-                                                    NumberAnimation { from: 1; to: 0.3; duration: 620; easing.type: Easing.InOutQuad }
-                                                    NumberAnimation { from: 0.3; to: 1; duration: 620; easing.type: Easing.InOutQuad }
+                                                    NumberAnimation {
+                                                        from: 1
+                                                        to: 0.3
+                                                        duration: 620
+                                                        easing.type: Easing.InOutQuad
+                                                    }
+                                                    NumberAnimation {
+                                                        from: 0.3
+                                                        to: 1
+                                                        duration: 620
+                                                        easing.type: Easing.InOutQuad
+                                                    }
                                                 }
                                             }
 
@@ -4831,11 +5551,7 @@ PluginComponent {
                                             }
 
                                             BadgePill {
-                                                label: root.hasError && !root.hasProviderData
-                                                    ? t("status.setup_required", "Setup required")
-                                                    : root.hasError
-                                                        ? t("status.needs_attention", "Needs attention")
-                                                        : root.providerStatusLabel(root.providerData)
+                                                label: root.hasError && !root.hasProviderData ? t("status.setup_required", "Setup required") : root.hasError ? t("status.needs_attention", "Needs attention") : root.providerStatusLabel(root.providerData)
                                                 iconName: root.hasError ? "warning" : "check_circle"
                                                 accentColor: root.hasError ? Theme.warning : root.getUsageColor(root.primaryPercent)
                                             }
@@ -4862,7 +5578,11 @@ PluginComponent {
                                             width: parent.width
                                             spacing: Theme.spacingM
                                             opacity: heroBarsJump.containsMouse ? 0.82 : 1
-                                            Behavior on opacity { NumberAnimation { duration: 120 } }
+                                            Behavior on opacity {
+                                                NumberAnimation {
+                                                    duration: 120
+                                                }
+                                            }
 
                                             Repeater {
                                                 model: root.windowsForProvider(root.providerData)
@@ -4896,9 +5616,7 @@ PluginComponent {
                                         Layout.preferredWidth: Math.min(260, contentColumn.width * 0.44)
                                         spacing: Theme.spacingS
 
-                                        readonly property color hintAccent: root.isLoading
-                                            ? Theme.primary
-                                            : (root.errorProviders.length > 0 ? Theme.warning : root.heroAccent)
+                                        readonly property color hintAccent: root.isLoading ? Theme.primary : (root.errorProviders.length > 0 ? Theme.warning : root.heroAccent)
 
                                         Rectangle {
                                             width: 34
@@ -4911,9 +5629,7 @@ PluginComponent {
 
                                             DankIcon {
                                                 anchors.centerIn: parent
-                                                name: root.isLoading
-                                                    ? "hourglass_top"
-                                                    : (root.errorProviders.length > 0 ? "warning" : "monitoring")
+                                                name: root.isLoading ? "hourglass_top" : (root.errorProviders.length > 0 ? "warning" : "monitoring")
                                                 size: 17
                                                 color: parent.parent.hintAccent
                                             }
@@ -4926,11 +5642,7 @@ PluginComponent {
 
                                             StyledText {
                                                 width: parent.width
-                                                text: root.isLoading
-                                                    ? t("status.syncing", "Syncing usage")
-                                                    : (root.errorProviders.length > 0
-                                                        ? t("hero.error_title", "All providers need attention")
-                                                        : t("hero.empty_title", "No usage data yet"))
+                                                text: root.isLoading ? t("status.syncing", "Syncing usage") : (root.errorProviders.length > 0 ? t("hero.error_title", "All providers need attention") : t("hero.empty_title", "No usage data yet"))
                                                 color: Theme.surfaceText
                                                 font.pixelSize: Theme.fontSizeMedium
                                                 font.weight: Font.Bold
@@ -4939,11 +5651,7 @@ PluginComponent {
 
                                             StyledText {
                                                 width: parent.width
-                                                text: root.isLoading
-                                                    ? t("status.loading_usage", "Fetching provider usage data...")
-                                                    : (root.errorProviders.length > 0
-                                                        ? t("hero.error_body", "Check credentials and that the provider CLIs are installed.")
-                                                        : t("status.no_data_hint", "Run your configured AI CLIs and refresh to populate usage windows."))
+                                                text: root.isLoading ? t("status.loading_usage", "Fetching provider usage data...") : (root.errorProviders.length > 0 ? t("hero.error_body", "Check credentials and that the provider CLIs are installed.") : t("status.no_data_hint", "Run your configured AI CLIs and refresh to populate usage windows."))
                                                 color: Theme.surfaceVariantText
                                                 font.pixelSize: Theme.fontSizeSmall
                                                 wrapMode: Text.WordWrap
@@ -4954,174 +5662,79 @@ PluginComponent {
                                     }
                                 }
 
+                                // One stat strip for the whole fleet. Fleet-wide figures only appear
+                                // with 2+ live providers; the focused reset covers the single case.
                                 StyledRect {
                                     width: parent.width
-                                    visible: root.fleetRollup.count >= 2
-                                    radius: Theme.cornerRadius
-                                    color: Theme.withAlpha(Theme.surfaceText, 0.04)
+                                    radius: Theme.cornerRadius + 2
+                                    color: Theme.withAlpha(Theme.surfaceText, 0.035)
                                     border.width: 1
-                                    border.color: Theme.withAlpha(Theme.surfaceText, 0.08)
-                                    implicitHeight: fleetCol.implicitHeight + Theme.spacingM * 2
+                                    border.color: Theme.withAlpha(Theme.surfaceText, 0.07)
+                                    implicitHeight: statFlow.implicitHeight + Theme.spacingM * 2
 
-                                    Column {
-                                        id: fleetCol
+                                    Flow {
+                                        id: statFlow
                                         anchors.fill: parent
                                         anchors.margins: Theme.spacingM
-                                        spacing: Theme.spacingM
+                                        spacing: Theme.spacingL
 
-                                        RowLayout {
-                                            width: parent.width
-                                            spacing: Theme.spacingS
-
-                                            DankIcon {
-                                                Layout.alignment: Qt.AlignVCenter
-                                                name: "dashboard"
-                                                size: 15
-                                                color: Theme.surfaceVariantText
-                                            }
-
-                                            StyledText {
-                                                Layout.alignment: Qt.AlignVCenter
-                                                text: t("rollup.title", "Fleet overview").toUpperCase()
-                                                color: Theme.surfaceVariantText
-                                                font.pixelSize: Theme.fontSizeSmall - 2
-                                                font.weight: Font.DemiBold
-                                                font.letterSpacing: 1.0
-                                            }
-
-                                            Item { Layout.fillWidth: true }
-
-                                            BadgePill {
-                                                Layout.alignment: Qt.AlignVCenter
-                                                label: t("rollup.providers", "{count} live", { count: root.fleetRollup.count })
-                                                iconName: "lan"
-                                                accentColor: Theme.primary
-                                            }
+                                        HeroStat {
+                                            visible: root.fleetRollup.count >= 2
+                                            ringPercent: root.fleetRollup.avg
+                                            statIcon: "speed"
+                                            statLabel: t("rollup.avg_load", "Avg load")
+                                            statValue: `${Math.round(root.fleetRollup.avg)}%`
+                                            statAccent: root.getUsageColor(root.fleetRollup.avg)
                                         }
 
-                                        Flow {
-                                            width: parent.width
-                                            spacing: Theme.spacingXL
-
-                                            Row {
-                                                spacing: Theme.spacingS
-
-                                                Item {
-                                                    width: 40
-                                                    height: 40
-                                                    anchors.verticalCenter: parent.verticalCenter
-
-                                                    ProgressRing {
-                                                        anchors.fill: parent
-                                                        percent: root.fleetRollup.avg
-                                                        thickness: 5
-                                                        accentColor: root.getUsageColor(root.fleetRollup.avg)
-                                                    }
-
-                                                    StyledText {
-                                                        anchors.centerIn: parent
-                                                        text: `${Math.round(root.fleetRollup.avg)}%`
-                                                        color: Theme.surfaceText
-                                                        font.pixelSize: Theme.fontSizeSmall - 1
-                                                        font.weight: Font.Bold
-                                                    }
-                                                }
-
-                                                Column {
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    spacing: 1
-
-                                                    StyledText {
-                                                        text: t("rollup.avg_load", "Avg load")
-                                                        color: Theme.surfaceText
-                                                        font.pixelSize: Theme.fontSizeMedium
-                                                        font.weight: Font.Bold
-                                                    }
-
-                                                    StyledText {
-                                                        text: t("rollup.across", "across {count}", { count: root.fleetRollup.count })
-                                                        color: Theme.surfaceVariantText
-                                                        font.pixelSize: Theme.fontSizeSmall - 1
-                                                    }
-                                                }
-                                            }
-
-                                            // Peak provider is a jump link: click to expand + scroll to its card.
-                                            MouseArea {
-                                                id: peakJump
-                                                implicitWidth: peakStat.implicitWidth
-                                                implicitHeight: peakStat.implicitHeight
-                                                enabled: root.fleetRollup.peakId.length > 0
-                                                hoverEnabled: enabled
-                                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                                onClicked: root.focusProvider(root.fleetRollup.peakId)
-
-                                                HeroStat {
-                                                    id: peakStat
-                                                    opacity: peakJump.containsMouse ? 0.78 : 1
-                                                    statIcon: "local_fire_department"
-                                                    statLabel: root.fleetRollup.peakName.length > 0 ? root.fleetRollup.peakName : t("rollup.peak", "Peak")
-                                                    statValue: `${Math.round(root.fleetRollup.peak)}%`
-                                                    statAccent: root.getUsageColor(root.fleetRollup.peak)
-                                                    Behavior on opacity { NumberAnimation { duration: 120 } }
-                                                }
-                                            }
-
-                                            HeroStat {
-                                                statIcon: "warning"
-                                                statLabel: t("rollup.at_risk", "At risk")
-                                                statValue: String(root.fleetRollup.atRisk)
-                                                statAccent: root.fleetRollup.atRisk > 0 ? Theme.error : Theme.success
-                                            }
-
-                                            HeroStat {
-                                                visible: root.fleetRollup.nextResetMs > 0
-                                                statIcon: "schedule"
-                                                statLabel: t("rollup.next_reset", "Next reset")
-                                                statValue: root.fleetNextResetLabel
-                                                statAccent: root.heroAccent
-                                            }
+                                        // Peak provider is a jump link: click to expand + scroll to its card.
+                                        HeroStat {
+                                            visible: root.fleetRollup.count >= 2
+                                            statIcon: "local_fire_department"
+                                            statLabel: root.fleetRollup.peakName.length > 0 ? root.fleetRollup.peakName : t("rollup.peak", "Peak")
+                                            statValue: `${Math.round(root.fleetRollup.peak)}%`
+                                            statAccent: root.getUsageColor(root.fleetRollup.peak)
+                                            clickable: root.fleetRollup.peakId.length > 0
+                                            onClicked: root.focusProvider(root.fleetRollup.peakId)
                                         }
-                                    }
-                                }
 
-                                Rectangle {
-                                    width: parent.width
-                                    height: 1
-                                    color: Theme.withAlpha(Theme.surfaceText, 0.07)
-                                }
+                                        HeroStat {
+                                            statIcon: "check_circle"
+                                            statLabel: t("card.active", "Active")
+                                            statValue: String(root.successfulProviders.length)
+                                            statAccent: Theme.success
+                                        }
 
-                                Flow {
-                                    width: parent.width
-                                    spacing: Theme.spacingXL
+                                        HeroStat {
+                                            statIcon: "error"
+                                            statLabel: t("card.attention", "Attention")
+                                            statValue: String(root.errorProviders.length)
+                                            statAccent: root.errorProviders.length > 0 ? Theme.warning : Theme.success
+                                        }
 
-                                    HeroStat {
-                                        statIcon: "check_circle"
-                                        statLabel: t("card.active", "Active")
-                                        statValue: String(root.successfulProviders.length)
-                                        statAccent: Theme.success
-                                    }
+                                        HeroStat {
+                                            visible: root.fleetRollup.count >= 2
+                                            statIcon: "warning"
+                                            statLabel: t("rollup.at_risk", "At risk")
+                                            statValue: String(root.fleetRollup.atRisk)
+                                            statAccent: root.fleetRollup.atRisk > 0 ? Theme.error : Theme.success
+                                        }
 
-                                    HeroStat {
-                                        statIcon: "warning"
-                                        statLabel: t("card.attention", "Attention")
-                                        statValue: String(root.errorProviders.length)
-                                        statAccent: root.errorProviders.length > 0 ? Theme.warning : Theme.success
-                                    }
+                                        HeroStat {
+                                            readonly property bool fleet: root.fleetRollup.count >= 2
+                                            visible: fleet ? root.fleetRollup.nextResetMs > 0 : !!(root.primaryWindow && root.primaryWindow.resetsAt)
+                                            statIcon: "schedule"
+                                            statLabel: fleet ? t("rollup.next_reset", "Next reset") : t("card.resets_in", "Resets in")
+                                            statValue: fleet ? root.fleetNextResetLabel : (root.primaryWindow ? root.formatTimeUntil(root.primaryWindow.resetsAt) : "—")
+                                            statAccent: root.heroAccent
+                                        }
 
-                                    HeroStat {
-                                        visible: !!(root.primaryWindow && root.primaryWindow.resetsAt)
-                                        statIcon: "schedule"
-                                        statLabel: t("card.resets_in", "Resets in")
-                                        statValue: root.primaryWindow ? root.formatTimeUntil(root.primaryWindow.resetsAt) : "—"
-                                        statAccent: root.heroAccent
-                                    }
-
-                                    HeroStat {
-                                        statIcon: "history"
-                                        statLabel: t("popout.last_sync", "Last sync")
-                                        statValue: root.lastUpdated.length > 0 ? root.lastUpdated : "—"
-                                        statAccent: root.isDataStale ? Theme.warning : Theme.primary
+                                        HeroStat {
+                                            statIcon: "history"
+                                            statLabel: t("popout.last_sync", "Last sync")
+                                            statValue: root.lastUpdated.length > 0 ? root.lastUpdated : "—"
+                                            statAccent: root.isDataStale ? Theme.warning : Theme.primary
+                                        }
                                     }
                                 }
                             }
@@ -5156,7 +5769,11 @@ PluginComponent {
                                     StyledText {
                                         id: providerCountLabel
                                         anchors.centerIn: parent
-                                        text: root.filteredDisplayProviders.length === 1 ? t("status.displayed", "{count} displayed", { count: root.filteredDisplayProviders.length }) : t("status.displayed_plural", "{count} displayed", { count: root.filteredDisplayProviders.length })
+                                        text: root.filteredDisplayProviders.length === 1 ? t("status.displayed", "{count} displayed", {
+                                            count: root.filteredDisplayProviders.length
+                                        }) : t("status.displayed_plural", "{count} displayed", {
+                                            count: root.filteredDisplayProviders.length
+                                        })
                                         color: root.heroAccent
                                         font.pixelSize: Theme.fontSizeSmall
                                         font.weight: Font.DemiBold
@@ -5172,7 +5789,8 @@ PluginComponent {
                                     tooltipText: root.allExpanded ? t("card.collapse_all", "Collapse all") : t("card.expand_all", "Expand all")
                                     onClicked: {
                                         root.allExpanded = !root.allExpanded;
-                                        if (root.allExpanded) root.focusedProviderId = "";
+                                        if (root.allExpanded)
+                                            root.focusedProviderId = "";
                                     }
                                 }
                             }
@@ -5181,9 +5799,18 @@ PluginComponent {
                                 width: parent.width
                                 showCounts: true
                                 model: [
-                                    { label: t("filter.all", "All"), count: root.displayProviders.length },
-                                    { label: t("filter.live", "Live"), count: root.successfulProviders.length },
-                                    { label: t("filter.issues", "Issues"), count: root.errorProviders.length }
+                                    {
+                                        label: t("filter.all", "All"),
+                                        count: root.displayProviders.length
+                                    },
+                                    {
+                                        label: t("filter.live", "Live"),
+                                        count: root.successfulProviders.length
+                                    },
+                                    {
+                                        label: t("filter.issues", "Issues"),
+                                        count: root.errorProviders.length
+                                    }
                                 ]
                                 onSelectionChanged: index => root.providerStatusFilter = index === 1 ? "live" : (index === 2 ? "issues" : "all")
                             }
@@ -5269,7 +5896,9 @@ PluginComponent {
                                     }
 
                                     BadgePill {
-                                        label: root.t("settings.configured_count", "{count} configured", { count: root.selectedProviders.length })
+                                        label: root.t("settings.configured_count", "{count} configured", {
+                                            count: root.selectedProviders.length
+                                        })
                                         iconName: "playlist_add_check"
                                         accentColor: Theme.surfaceVariantText
                                     }

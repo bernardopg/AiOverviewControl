@@ -7,6 +7,8 @@ AiOverviewControlWidget.qml       Runtime orchestration and dashboard
 AiOverviewControlSettings.qml     Settings, provider selection, health UI
 AiOverviewControlI18n.qml         Locale loading and interpolation
 ProviderLogo.qml                  Local provider-logo resolution and fallback icons
+HeaderAction.qml                  Icon-only capsule button shared by the popout, cards, and windows
+AiOverviewSettingsWindow.qml      Standalone settings window and About window (hosts the settings page)
 providers/get-provider-usage      Multi-provider dispatcher and history writer
 providers/get-provider-health     Prerequisite checks for settings
 providers/get-usage-history       Local usage history reader
@@ -172,7 +174,7 @@ find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
 shellcheck -S warning providers/* tests/*.sh scripts/package-release
-qmllint AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml ProviderLogo.qml
+QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
 ./providers/get-provider-health "codex,claude,copilot,pi" | jq .
 ./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .
 ./providers/get-pi-analytics | jq .

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
@@ -10,6 +11,9 @@ import qs.Modules.Plugins
 PluginSettings {
     id: root
     pluginId: "aiOverviewControl"
+    // The standalone settings window draws its own brand header, so it hides
+    // the mascot + title here to avoid showing them twice.
+    property bool showBrand: true
 
     readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
     property var selectedIds: normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"))
@@ -488,10 +492,10 @@ PluginSettings {
 
     StyledRect {
         width: parent.width
-        radius: Theme.cornerRadius + 6
+        radius: Theme.cornerRadius + 4
         color: Theme.surfaceContainerHigh
         border.width: 1
-        border.color: Theme.withAlpha(Theme.primary, 0.2)
+        border.color: Theme.withAlpha(Theme.primary, 0.14)
         implicitHeight: hero.implicitHeight + Theme.spacingL * 2
         clip: true
 
@@ -499,20 +503,10 @@ PluginSettings {
             anchors.fill: parent
             radius: parent.radius
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.1) }
-                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.primary, 0.0) }
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.12) }
+                GradientStop { position: 0.6; color: Theme.withAlpha(Theme.primary, 0.02) }
             }
-        }
-
-        Rectangle {
-            width: 150
-            height: 150
-            radius: 75
-            anchors.right: parent.right
-            anchors.rightMargin: -52
-            anchors.top: parent.top
-            anchors.topMargin: -62
-            color: Theme.withAlpha(Theme.primary, 0.07)
         }
 
         Column {
@@ -527,18 +521,28 @@ PluginSettings {
 
                 Rectangle {
                     Layout.alignment: Qt.AlignVCenter
+                    visible: root.showBrand
                     width: 44
                     height: 44
-                    radius: 14
-                    color: Theme.withAlpha(Theme.primary, 0.14)
+                    radius: width / 2
+                    color: Theme.withAlpha(Theme.primary, 0.16)
                     border.width: 1
                     border.color: Theme.withAlpha(Theme.primary, 0.28)
 
-                    DankIcon {
+                    // Same tinted mascot as the popout and settings window.
+                    Image {
                         anchors.centerIn: parent
-                        name: "monitoring"
-                        size: 22
-                        color: Theme.primary
+                        width: 30
+                        height: 30
+                        source: Qt.resolvedUrl("assets/logo.png")
+                        sourceSize: Qt.size(60, 60)
+                        fillMode: Image.PreserveAspectFit
+                        mipmap: true
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            colorization: 1.0
+                            colorizationColor: Theme.primary
+                        }
                     }
                 }
 
@@ -548,10 +552,11 @@ PluginSettings {
                     spacing: 2
 
                     Row {
+                        visible: root.showBrand
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "AiOverviewControl"
+                            text: t("app.title", "AI Usage Control")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Bold
                             color: Theme.surfaceText
@@ -572,7 +577,7 @@ PluginSettings {
                                 id: versionLabel
                                 anchors.centerIn: parent
                                 text: "v" + root.pluginVersion
-                                font.pixelSize: Theme.fontSizeSmall - 1
+                                font.pixelSize: Theme.fontSizeSmall - 2
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
                             }
@@ -639,42 +644,46 @@ PluginSettings {
         headerIcon: "tune"
     }
 
-    DankDropdown {
+    ValueDropdown {
         width: parent.width
         text: t("settings.language.label", "Language")
         description: t("settings.language.description", "UI language for this plugin. Auto follows system locale.")
-        currentValue: { root.settingsEpoch; return loadValue("languageOverride", "auto"); }
-        options: ["auto", "en_US", "pt_BR", "zh_CN", "es_ES", "de_DE"]
+        selected: { root.settingsEpoch; return loadValue("languageOverride", "auto"); }
+        values: ["auto", "en_US", "pt_BR", "zh_CN", "es_ES", "de_DE"]
+        // Language names stay in their own language so anyone can find theirs.
+        labels: [t("settings.option.auto", "Auto"), "English", "Português (Brasil)", "简体中文", "Español", "Deutsch"]
         optionIcons: ["language", "translate", "translate", "translate", "translate", "translate"]
         dropdownWidth: 220
-        onValueChanged: function(value) { saveValue("languageOverride", value); }
+        onPicked: function(value) { saveValue("languageOverride", value); }
     }
 
-    DankDropdown {
+    ValueDropdown {
         width: parent.width
         text: t("settings.density.label", "Dashboard density")
         description: t("settings.density.description", "Comfortable keeps full previews. Compact reduces card height and visual detail.")
-        currentValue: { root.settingsEpoch; return loadValue("densityMode", "comfortable"); }
-        options: ["comfortable", "compact"]
+        selected: { root.settingsEpoch; return loadValue("densityMode", "comfortable"); }
+        values: ["comfortable", "compact"]
+        labels: [t("settings.option.comfortable", "Comfortable"), t("settings.option.compact", "Compact")]
         optionIcons: ["view_agenda", "density_small"]
         dropdownWidth: 220
-        onValueChanged: function(value) { saveValue("densityMode", value); }
+        onPicked: function(value) { saveValue("densityMode", value); }
     }
 
-    DankDropdown {
+    ValueDropdown {
         id: pillModeDropdown
         width: parent.width
         text: t("settings.pill_mode.label", "Pill mode")
         description: t("settings.pill_mode.description", "Auto shows providers with measurable usage. Custom uses the list below.")
-        currentValue: { root.settingsEpoch; return loadValue("pillMode", "auto"); }
-        options: ["auto", "custom", "top"]
+        selected: { root.settingsEpoch; return loadValue("pillMode", "auto"); }
+        values: ["auto", "custom", "top"]
+        labels: [t("settings.option.auto", "Auto"), t("settings.option.custom", "Custom"), t("settings.option.top", "Top usage")]
         optionIcons: ["auto_awesome", "tune", "trending_up"]
         dropdownWidth: 180
-        onValueChanged: function(value) { saveValue("pillMode", value); }
+        onPicked: function(value) { saveValue("pillMode", value); }
     }
 
     StyledRect {
-        visible: pillModeDropdown.currentValue === "custom"
+        visible: pillModeDropdown.selected === "custom"
         width: parent.width
         radius: Theme.cornerRadius
         color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
@@ -772,7 +781,9 @@ PluginSettings {
     }
 
     DankToggle {
-        width: parent.width
+        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
         text: t("settings.pill_tooltip", "DankBar pill tooltip")
         description: t("settings.pill_tooltip_desc", "Hovering the bar pill spells out the provider, which quota window the percentage came from, and when it resets.")
         checked: { root.settingsEpoch; return loadValue("pillTooltip", "true") === "true"; }
@@ -814,33 +825,37 @@ PluginSettings {
             Repeater {
                 model: root.selectedIds
 
-                DankDropdown {
+                ValueDropdown {
                     required property string modelData
                     width: parent.width
                     text: root.providerDisplayName(modelData)
-                    currentValue: { root.settingsEpoch; return root.barChoiceFor(modelData); }
-                    options: ["primary", "secondary", "tertiary", "highest"]
+                    selected: { root.settingsEpoch; return root.barChoiceFor(modelData); }
+                    values: ["primary", "secondary", "tertiary", "highest"]
+                    labels: [t("settings.option.primary", "Primary"), t("settings.option.secondary", "Secondary"), t("settings.option.tertiary", "Tertiary"), t("settings.option.highest", "Highest")]
                     optionIcons: ["looks_one", "looks_two", "looks_3", "trending_up"]
                     dropdownWidth: 200
-                    onValueChanged: function(value) { root.setBarChoice(modelData, value); }
+                    onPicked: function(value) { root.setBarChoice(modelData, value); }
                 }
             }
         }
     }
 
-    DankDropdown {
+    ValueDropdown {
         width: parent.width
         text: t("settings.refresh_interval", "Refresh interval")
         description: t("settings.refresh_description", "How often the plugin queries selected local adapters and provider APIs.")
-        currentValue: { root.settingsEpoch; return loadValue("refreshInterval", "120000"); }
-        options: ["60000", "120000", "300000", "900000", "1800000"]
+        selected: { root.settingsEpoch; return loadValue("refreshInterval", "120000"); }
+        values: ["60000", "120000", "300000", "900000", "1800000"]
+        labels: [1, 2, 5, 15, 30].map(n => t("settings.option.minutes", "{count} min", { count: n }))
         optionIcons: ["timer", "timer", "timer_off", "timer_off", "timer_off"]
         dropdownWidth: 200
-        onValueChanged: function(value) { saveValue("refreshInterval", value); }
+        onPicked: function(value) { saveValue("refreshInterval", value); }
     }
 
     DankToggle {
-        width: parent.width
+        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
         text: t("settings.show_errors", "Show providers with errors")
         description: t("settings.show_errors_desc", "Keep authentication and configuration failures visible in the dashboard.")
         checked: { root.settingsEpoch; return loadValue("showErrorProviders", "true") === "true"; }
@@ -914,7 +929,9 @@ PluginSettings {
     }
 
     DankToggle {
-        width: parent.width
+        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
         text: t("settings.show_projects", "Show Claude projects")
         description: t("settings.show_projects_desc", "List the week's top projects inside the Claude card.")
         checked: { root.settingsEpoch; return loadValue("showClaudeProjects", "true") === "true"; }
@@ -922,7 +939,9 @@ PluginSettings {
     }
 
     DankToggle {
-        width: parent.width
+        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
         text: t("settings.antigravity_model_details", "Show individual Antigravity models")
         description: t("settings.antigravity_model_details_desc", "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.")
         checked: { root.settingsEpoch; return loadValue("showAntigravityModelDetails", "false") === "true"; }
@@ -931,47 +950,52 @@ PluginSettings {
 
     DankToggle {
         id: notifyToggle
-        width: parent.width
+        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
         text: t("settings.notify.label", "Quota notifications")
         description: t("settings.notify.description", "Alert once when a provider crosses the threshold, then update the same notification if its quota is exhausted.")
         checked: { root.settingsEpoch; return loadValue("quotaNotifications", "true") === "true"; }
         onToggled: function(checked) { saveValue("quotaNotifications", checked ? "true" : "false"); }
     }
 
-    DankDropdown {
+    ValueDropdown {
         visible: notifyToggle.checked
         width: parent.width
         text: t("settings.notify.threshold", "Notification threshold")
         description: t("settings.notify.threshold_desc", "Usage percent that triggers a notification.")
-        currentValue: { root.settingsEpoch; return loadValue("notifyThreshold", "85"); }
-        options: ["75", "85", "95"]
+        selected: { root.settingsEpoch; return loadValue("notifyThreshold", "85"); }
+        values: ["75", "85", "95"]
+        labels: ["75%", "85%", "95%"]
         optionIcons: ["notifications", "notifications_active", "notification_important"]
         dropdownWidth: 160
-        onValueChanged: function(value) { saveValue("notifyThreshold", value); }
+        onPicked: function(value) { saveValue("notifyThreshold", value); }
     }
 
-    DankDropdown {
+    ValueDropdown {
         visible: notifyToggle.checked
         width: parent.width
         text: t("settings.notify.window_scope", "Windows that raise alerts")
         description: t("settings.notify.window_scope_desc", "“displayed” alerts on whatever window the DankBar shows for each provider — identical to “primary” until you override a provider above. “all” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
-        currentValue: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
-        options: ["displayed", "all", "primary"]
+        selected: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
+        values: ["displayed", "all", "primary"]
+        labels: [t("settings.option.displayed", "Displayed"), t("settings.option.all", "All windows"), t("settings.option.primary", "Primary")]
         optionIcons: ["align_horizontal_left", "select_all", "looks_one"]
         dropdownWidth: 200
-        onValueChanged: function(value) { saveValue("notifyWindowScope", value); }
+        onPicked: function(value) { saveValue("notifyWindowScope", value); }
     }
 
-    DankDropdown {
+    ValueDropdown {
         visible: notifyToggle.checked
         width: parent.width
         text: t("settings.notify.cooldown", "Re-alert interval")
         description: t("settings.notify.cooldown_desc", "0 alerts once per quota window. Other values update the same notification after that many minutes while usage stays high.")
-        currentValue: { root.settingsEpoch; return loadValue("notifyCooldownMinutes", "0"); }
-        options: ["0", "60", "360", "1440"]
+        selected: { root.settingsEpoch; return loadValue("notifyCooldownMinutes", "0"); }
+        values: ["0", "60", "360", "1440"]
+        labels: [t("settings.option.once", "Once per window")].concat([1, 6, 24].map(n => t("settings.option.hours", "{count} h", { count: n })))
         optionIcons: ["notifications_off", "schedule", "schedule", "schedule"]
         dropdownWidth: 160
-        onValueChanged: function(value) { saveValue("notifyCooldownMinutes", value); }
+        onPicked: function(value) { saveValue("notifyCooldownMinutes", value); }
     }
 
     Column {
@@ -1031,15 +1055,16 @@ PluginSettings {
         }
     }
 
-    DankDropdown {
+    ValueDropdown {
         width: parent.width
         text: t("settings.history_retention", "Usage history retention")
         description: t("settings.history_retention_desc", "Snapshots kept per trim of the local usage history (sparklines and trends).")
-        currentValue: { root.settingsEpoch; return loadValue("historyRetention", "2000"); }
-        options: ["500", "2000", "10000"]
+        selected: { root.settingsEpoch; return loadValue("historyRetention", "2000"); }
+        values: ["500", "2000", "10000"]
+        labels: [500, 2000, 10000].map(n => t("settings.option.snapshots", "{count} snapshots", { count: n.toLocaleString(Qt.locale(root.i18nLocale), "f", 0) }))
         optionIcons: ["history", "history", "history"]
         dropdownWidth: 160
-        onValueChanged: function(value) { saveValue("historyRetention", value); }
+        onPicked: function(value) { saveValue("historyRetention", value); }
     }
 
     // Usage history export. The store is an append-only JSONL cache the plugin
@@ -1319,6 +1344,30 @@ PluginSettings {
         }
     }
 
+    // DankDropdown shows its raw option strings, so stored values ("compact",
+    // "primary", "120000") would leak into the UI untranslated. This keeps the
+    // stored value and the translated label apart: `values` are persisted,
+    // `labels` are what the user reads.
+    component ValueDropdown: DankDropdown {
+        id: valueDropdown
+        property var values: []
+        property var labels: []
+        property string selected: ""
+        signal picked(string value)
+
+        options: labels
+        currentValue: {
+            const i = values.indexOf(selected);
+            return i >= 0 && i < labels.length ? labels[i] : selected;
+        }
+        onValueChanged: function(label) {
+            const i = labels.indexOf(label);
+            const picked = i >= 0 ? values[i] : label;
+            valueDropdown.selected = picked;
+            valueDropdown.picked(picked);
+        }
+    }
+
     component HealthChip: Rectangle {
         id: healthChip
 
@@ -1429,9 +1478,15 @@ PluginSettings {
             color: Theme.withAlpha(Theme.surfaceText, 0.06)
         }
 
-        Flow {
+        // Uniform grid: every provider gets the same cell, so the list scans
+        // in columns instead of a ragged run of different-width pills.
+        Grid {
+            id: providerGrid
             width: parent.width
+            columns: Math.max(2, Math.floor((width + spacing) / (168 + spacing)))
             spacing: Theme.spacingS
+            readonly property real cellWidth: (width - spacing * (columns - 1)) / columns
+
             Repeater {
                 model: providerSection.providers
                 delegate: Rectangle {
@@ -1439,49 +1494,94 @@ PluginSettings {
                     required property var modelData
                     readonly property bool active: root.isSelected(modelData.id)
                     readonly property var health: root.healthFor(modelData.id)
-                    width: chipRow.implicitWidth + Theme.spacingM * 2
-                    height: 38
-                    radius: 19
-                    color: active ? Theme.withAlpha(Theme.primary, 0.17) : (chipMouse.containsMouse ? Theme.withAlpha(Theme.surfaceVariantText, 0.13) : Theme.withAlpha(Theme.surfaceVariantText, 0.07))
-                    border.width: active ? 1 : 0
-                    border.color: Theme.withAlpha(Theme.primary, activeFocus ? 0.9 : 0.45)
-                    scale: chipMouse.containsMouse ? 1.04 : 1.0
+                    width: providerGrid.cellWidth
+                    height: 44
+                    radius: Theme.cornerRadius
+                    color: active ? Theme.withAlpha(Theme.primary, chipMouse.containsMouse ? 0.22 : 0.15) : (chipMouse.containsMouse ? Theme.withAlpha(Theme.surfaceVariantText, 0.13) : Theme.withAlpha(Theme.surfaceVariantText, 0.06))
+                    border.width: 1
+                    border.color: active ? Theme.withAlpha(Theme.primary, activeFocus ? 0.9 : 0.4) : Theme.withAlpha(Theme.surfaceText, activeFocus ? 0.5 : 0.06)
+                    scale: chipMouse.pressed ? 0.97 : 1.0
                     activeFocusOnTab: true
 
                     Behavior on color { ColorAnimation { duration: 140 } }
-                    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                    Behavior on border.color { ColorAnimation { duration: 140 } }
+                    Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                     Accessible.role: Accessible.CheckBox
                     Accessible.name: modelData.name
                     Accessible.checked: active
                     Keys.onReturnPressed: root.toggleProvider(modelData.id)
                     Keys.onSpacePressed: root.toggleProvider(modelData.id)
 
-                    Row {
-                        id: chipRow
-                        anchors.centerIn: parent
-                        spacing: Theme.spacingXS
-                        ProviderLogo {
-                            providerId: providerChip.modelData.id
-                            logoSize: 16
-                            tintColor: root.providerLogoColor
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        StyledText { text:modelData.name; color:providerChip.active ? Theme.primary : Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall; font.weight:providerChip.active ? Font.Medium : Font.Normal }
-                        StyledText {
-                            visible: root.providerKind(providerChip.modelData.id).length > 0
-                            text: "· " + root.providerKindLabel(providerChip.modelData.id)
-                            color: Theme.surfaceVariantText
-                            font.pixelSize: Theme.fontSizeSmall - 2
-                            font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacingS
+                        anchors.rightMargin: Theme.spacingS
+                        spacing: Theme.spacingS
+
                         Rectangle {
-                            visible: providerChip.active
-                            width: 7; height: 7; radius: 4
-                            color: root.healthColor(providerChip.health.status)
+                            Layout.alignment: Qt.AlignVCenter
+                            width: 28
+                            height: 28
+                            radius: 14
+                            color: Theme.withAlpha(providerChip.active ? Theme.primary : Theme.surfaceText, providerChip.active ? 0.16 : 0.06)
+
+                            ProviderLogo {
+                                anchors.centerIn: parent
+                                providerId: providerChip.modelData.id
+                                logoSize: 16
+                                tintColor: providerChip.active ? root.providerLogoColor : Theme.surfaceVariantText
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: 0
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: providerChip.modelData.name
+                                color: providerChip.active ? Theme.surfaceText : Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: providerChip.active ? Font.DemiBold : Font.Normal
+                                wrapMode: Text.NoWrap
+                                elide: Text.ElideRight
+                            }
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                visible: root.providerKind(providerChip.modelData.id).length > 0
+                                text: root.providerKindLabel(providerChip.modelData.id)
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall - 3
+                                font.weight: Font.DemiBold
+                                wrapMode: Text.NoWrap
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        // Selected: health-coloured check; otherwise an empty ring.
+                        Rectangle {
+                            Layout.alignment: Qt.AlignVCenter
+                            width: 18
+                            height: 18
+                            radius: 9
+                            color: providerChip.active ? root.healthColor(providerChip.health.status) : "transparent"
+                            border.width: providerChip.active ? 0 : 1.5
+                            border.color: Theme.withAlpha(Theme.surfaceText, chipMouse.containsMouse ? 0.4 : 0.2)
+                            Behavior on color { ColorAnimation { duration: 160 } }
+
+                            DankIcon {
+                                anchors.centerIn: parent
+                                visible: providerChip.active
+                                name: "check"
+                                size: 13
+                                color: Theme.surfaceContainer
+                            }
                         }
                     }
-                    MouseArea { id:chipMouse; anchors.fill:parent; hoverEnabled:true; cursorShape:Qt.PointingHandCursor; onClicked:root.toggleProvider(modelData.id) }
+
+                    MouseArea { id:chipMouse; anchors.fill:parent; hoverEnabled:true; cursorShape:Qt.PointingHandCursor; onClicked:root.toggleProvider(providerChip.modelData.id) }
                 }
             }
         }

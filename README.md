@@ -1,369 +1,191 @@
 <div align="center">
 
-![AiOverviewControl banner](./screenshot.png)
+<img src="./docs/assets/logo.png" alt="AiOverviewControl mascot" width="140" />
 
 # AiOverviewControl
 
-**All your AI quotas. One dashboard. Zero guesswork.**
+**Every AI quota you pay for, live in your DankBar.**
 
-A self-contained [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) widget for AI quota,
-billing, authentication, and local usage telemetry — right in your DankBar.
+A [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) plugin that tracks
+quota, billing, authentication, and local usage for 37 AI providers — locally, honestly,
+with no external service.
 
+[![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
-[![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl)](./LICENSE)
-[![Providers](https://img.shields.io/badge/providers-37-7C4DFF)](./docs/providers.md)
-[![Languages](https://img.shields.io/badge/UI%20languages-5-00BFA5)](./docs/i18n-crowdin.md)
-[![Upvote on Dank Plugins](https://img.shields.io/badge/Dank%20Plugins-%F0%9F%91%8D%20upvote-FF4081)](https://github.com/AvengeMedia/dms-plugin-registry/issues/358)
+[![Providers](https://img.shields.io/badge/providers-37-8B5CF6)](./docs/providers.md)
+[![Languages](https://img.shields.io/badge/languages-5-00BFA5)](./docs/i18n-crowdin.md)
+[![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl?color=64748B)](./LICENSE)
 
-[Install](#installation) · [Screenshots](#screenshots) · [Providers](./docs/providers.md) ·
-[Configuration](./docs/configuration.md) · [Changelog](./CHANGELOG.md) ·
-[Upvote](#support-the-plugin) · [Português do Brasil](./docs/README.pt-BR.md)
+[**Demo**](#-demo) · [**Install**](#-quick-start) · [**Screenshots**](#-a-closer-look) · [**Providers**](./docs/providers.md) · [**Docs**](#-documentation) · [**Support**](#-support-the-project) · [Português](./docs/README.pt-BR.md)
+
+<br />
+
+<img src="./docs/assets/bar-pill.png" alt="AiOverviewControl pill in the DankBar" />
+
+<br /><br />
+
+<img src="./docs/assets/dashboard.png" alt="AiOverviewControl dashboard" width="720" />
 
 </div>
 
----
-
-## See it in action
+## 🎬 Demo
 
 <div align="center">
 
-<video src="./docs/assets/demo.mp4" poster="./docs/assets/github-preview.png" controls muted loop playsinline width="100%"></video>
+<a href="./docs/assets/demo.mp4"><img src="./docs/assets/demo-poster.jpg" alt="Watch the AiOverviewControl demo (27 s)" width="720" /></a>
 
-> 🎬 Having trouble playing inline? Watch the [MP4 demo](./docs/assets/demo.mp4).
-
-The pill lives in your DankBar and shows live usage at a glance. Providers with multiple quota windows (Claude's 5 hour and 7 day, for example) can show any window in the bar — pick it per provider, or let `highest` follow the most-constrained one. Hover the pill to see which window the number came from and when it resets:
-
-![DankBar pill](./docs/assets/bar-pill.png)
+<sub>Click to watch the 27-second demo.</sub>
 
 </div>
 
-## Why AiOverviewControl?
+## ✨ Why AiOverviewControl
 
-You pay for Claude, Codex, Copilot, OpenRouter — and each one hides its quota
-in a different dashboard, CLI, or API. AiOverviewControl collects every
-provider **independently and locally**, normalizes the result, and renders one
-honest overview without any external aggregation service.
+You pay for Claude, Codex, Copilot, OpenRouter… and each one hides its quota in a
+different dashboard, CLI, or API. AiOverviewControl reads every provider
+**independently and on your machine**, then shows one overview.
 
-**Honest** is the key word: it reports measured data when a supported source
-exists, and clearly labels authentication-only or informational providers when
-it does not. No dashboard scraping. No fabricated percentages. Ever.
+It reports measured data when a real source exists, and says plainly when a
+provider is authentication-only or informational. No dashboard scraping. No
+invented percentages.
 
-## Highlights
+## 🚀 Features
 
-| Feature                       | Description                                                                                                                                                                                                              |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 📊 **Unified dashboard**      | 37 AI providers and developer tools in one place.                                                                                                                                                                        |
-| 🛰️ **Fleet overview**         | Cross-provider rollup in the hero — quota-only average load, hottest provider, how many are near their cap, and the soonest reset.                                                                                       |
-| ⏱️ **Official Codex windows** | Rate-limit windows straight from `codex app-server`.                                                                                                                                                                     |
-| 🤖 **Deep Claude analytics**  | Quota plus local token, session, model, project, and cost analytics.                                                                                                                                                     |
-| 🐙 **Copilot quotas**         | Premium request, Chat, and Completions snapshots.                                                                                                                                                                        |
-| 🗂️ **Rich provider cards**    | Usage windows, reset times, identity, credits, sparklines, trends, and console links.                                                                                                                                    |
-| 🛡️ **Failure isolation**      | One timeout or invalid credential never hides healthy providers.                                                                                                                                                         |
-| 🎛️ **Flexible layout**        | Compact/comfortable density, status filters, pinned providers, `auto`/`custom`/`top` pill modes, and a per-provider DankBar usage-window choice.                                                                         |
-| 🔔 **Quota notifications**    | Branded DMS desktop alerts with global/per-provider thresholds; one toast per quota window, upgraded in place when quota is exhausted. Alerts can follow the window the DankBar shows, every window, or the primary one. |
-| 📄 **History export**         | Dump the local usage history to CSV or JSONL from Settings, or from `providers/export-usage-history`.                                                                                                                    |
-| 🌍 **5 UI languages**         | English, Português (BR), 简体中文, Español, and Deutsch.                                                                                                                                                                 |
-| 🔒 **Privacy first**          | Local adapters, no paid endpoints just to test keys, secrets never displayed.                                                                                                                                            |
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## Screenshots
+**📊 One dashboard, 37 providers**<br />
+Quota, balance, analytics, and auth status side by side, with a fleet overview
+of average load, hottest provider, and next reset.
 
-| Dashboard overview                        | Expanded provider card                            |
-| ----------------------------------------- | ------------------------------------------------- |
-| ![Dashboard](./docs/assets/dashboard.png) | ![Expanded card](./docs/assets/card-expanded.png) |
+</td>
+<td width="50%" valign="top">
 
-<details>
-<summary><b>📈 Local telemetry deep-dive (9Router example)</b></summary>
-<br>
+**🎯 A pill that tells the truth**<br />
+Pick which quota window each provider shows in the bar, or follow the
+most-constrained one. Hover for the window and reset time.
 
-Per-provider telemetry sections include daily cost charts, today/week/month
-totals, token in/out counters, top models, and routed-provider breakdowns —
-all read from local, provider-owned data.
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-![9Router telemetry](./docs/assets/telemetry.png)
+**🤖 Deep local telemetry**<br />
+Claude, 9Router, pi, and Hermes add token, cost, model, and project analytics
+with a seven-day chart — read from data already on your disk.
 
-</details>
+</td>
+<td valign="top">
 
-## Coverage Model
+**🔔 Quota alerts**<br />
+Desktop notifications at 75, 85, or 95% — or per-provider thresholds — updated
+in place instead of spamming.
 
-Provider cards use one of these honest coverage levels:
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-| Coverage           | Meaning                                                                                                                                                                                                                                  |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Quota**          | Returns real rate-limit/spend windows and used percentage (Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, Command Code, OpenCode Go, xAI SuperGrok).                                                                                |
-| **Balance**        | Returns remaining prepaid balance or credits in real currency (Kimi, DeepSeek, xAI Management API).                                                                                                                                      |
-| **Analytics**      | Reads consumption counters or provider-owned local data (Cloudflare GraphQL, 9Router, Claude, pi, Hermes).                                                                                                                               |
-| **Authentication** | Verifies credentials via a read-only endpoint without stable quota data (Gemini, Mistral, MiniMax PAYG, Qwen, and more). Some configured-status cards, such as NVIDIA, cannot validate the key because the provider's catalog is public. |
-| **Local runtime**  | Reports local state rather than account quota (Ollama models, Vertex AI authentication).                                                                                                                                                 |
-| **Informational**  | Links official usage when no read-only API exists (Kiro, Cursor, Warp, and more).                                                                                                                                                        |
+**🛡️ Private and resilient**<br />
+Secrets are never shown. One failing provider never hides the healthy ones.
+No paid endpoints are called to test a key.
 
-Notable integrations:
+</td>
+<td valign="top">
 
-| Provider                       | Data source                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Codex                          | Official `codex app-server` account and rate-limit methods.                                                                                                                                                                                                                                                                  |
-| Claude Code                    | OAuth quota plus local `~/.claude/projects` analytics (or `$CLAUDE_CONFIG_DIR/projects` when that env var is set).                                                                                                                                                                                                           |
-| GitHub Copilot                 | Authenticated GitHub/Copilot quota snapshot.                                                                                                                                                                                                                                                                                 |
-| Antigravity                    | Gemini and Claude/OpenAI 5-hour and weekly quota windows from Cloud Code Assist; optional per-model diagnostics, automatic multi-account separation, and `agy` CLI token-file discovery.                                                                                                                                     |
-| 9Router                        | Local SQLite or JSON usage data, including routed-model telemetry.                                                                                                                                                                                                                                                           |
-| pi                             | Local session JSONL telemetry (`~/.pi/agent/sessions`) — cost, tokens, top models, top projects; no quota API (pi has no rate limits).                                                                                                                                                                                       |
-| Hermes                         | Dual-nature entry: agent-harness telemetry from `~/.hermes/state.db` (sessions, tokens per model/project, sources, API calls) plus provider identity (active billing provider, default model) from `~/.hermes/config.yaml` / `auth.json`. Provider-side billing stays on the [Nous Portal](https://portal.nousresearch.com). |
-| OpenRouter                     | Key limits, spend, balance, and 30-day model activity.                                                                                                                                                                                                                                                                       |
-| Kimi (Moonshot)                | Open Platform balance (`GET /v1/users/me/balance`, USD/CNY) — or **Kimi Code** subscription quota (`GET /coding/v1/usages`, weekly + 5h windows) when a `sk-kimi-` / `KIMI_CODING_API_KEY` is set.                                                                                                                           |
-| DeepSeek                       | Official account balance API.                                                                                                                                                                                                                                                                                                |
-| Together                       | Read-only API-key validation; usage and billing remain in the Together console.                                                                                                                                                                                                                                              |
-| Cloudflare                     | Token verification and optional Workers AI GraphQL analytics.                                                                                                                                                                                                                                                                |
-| Z.ai, GLM                      | `GET /api/monitor/usage/quota/limit` — real per-window usage %, reset timestamps, and plan tier. Falls back to `/models` auth-only check.                                                                                                                                                                                    |
-| Command Code                   | Live 5h/weekly/monthly usage via `/alpha/billing/credits`; uses `COMMAND_CODE_API_KEY` or the protected `apiKey` saved by `cmd login` in `~/.commandcode/auth.json`.                                                                                                                                                         |
-| OpenCode Go                    | Live 5h/weekly/monthly usage from `/zen/go/v1/usage`; uses `OPENCODE_API_KEY` or the CLI credential in `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json`. When the Go plan's balance fallback is enabled, the card says so without claiming a balance amount.                                                        |
-| xAI (Grok)                     | SuperGrok weekly/monthly usage from `grok login` (`~/.grok/auth.json`) via the CLI billing API; prepaid API credits from the Management API (`XAI_MANAGEMENT_KEY` + `XAI_TEAM_ID`); `XAI_API_KEY` is auth-only.                                                                                                              |
-| Qwen, Mistral                  | Read-only `/models` validation — zero token consumption.                                                                                                                                                                                                                                                                     |
-| MiniMax PAYG (`sk-api-…`)      | Read-only `/v1/models` validation — zero token consumption.                                                                                                                                                                                                                                                                  |
-| MiniMax Token Plan (`sk-cp-…`) | Live 5h + weekly windows via `/v1/token_plan/remains`; prefer `MINIMAX_TOKEN_PLAN_KEY`, fall back to `MINIMAX_API_KEY` for older configs.                                                                                                                                                                                    |
-| NVIDIA                         | Configured-key status only; its public model catalog cannot validate the key.                                                                                                                                                                                                                                                |
-| Ollama                         | Installed and running models from `/api/tags` and `/api/ps`.                                                                                                                                                                                                                                                                 |
+**🌍 Five languages**<br />
+English, Português (Brasil), Español, Deutsch, and 简体中文 — including every
+label the provider adapters emit.
 
-The full matrix, credentials, and upstream references are documented in
-[Providers](./docs/providers.md) and
-[Provider verification](./docs/provider-verification.md).
+</td>
+</tr>
+</table>
 
-## Requirements
+## 📸 A closer look
 
-- DankMaterialShell running on Quickshell.
-- `bash`, `jq`, and `curl`.
-- Provider-specific CLIs or credentials only for providers you enable. Antigravity can read the `agy` CLI token file at `~/.gemini/antigravity-cli/antigravity-oauth-token`, a `secret-tool` keyring session, or an IDE state database (the database path requires `sqlite3`); Hermes and 9Router need `sqlite3` for their local usage databases.
-- Quota notifications additionally need `notify-send` and `flock`.
+<table>
+<tr>
+<td align="center" width="50%"><img src="./docs/assets/settings.png" alt="Settings window" /><br /><sub><b>Settings window</b> — also available in DMS Settings → Plugins</sub></td>
+<td align="center" width="50%"><img src="./docs/assets/about.png" alt="About window" /><br /><sub><b>About</b> — version, developer, and ways to support the project</sub></td>
+</tr>
+</table>
 
-Recommended baseline for the default provider set:
+## ⚡ Quick start
 
-```bash
-command -v bash jq curl codex claude gh
-codex login
-claude auth status
-gh auth status
-```
-
-## Installation
-
-### DMS Plugin Store (recommended)
+**1. Install** from the DMS plugin store:
 
 ```bash
 dms plugins install aiOverviewControl
 ```
 
-Or install **AiOverviewControl** from the plugin store inside DMS settings, or
-from the [Dank Plugins directory](https://danklinux.com/plugins). Store installs
-land under the manifest id `aiOverviewControl` (lowercase leading `a`); the two
-manual methods below use the `AiOverviewControl` display-name casing instead —
-see [docs/installation.md](./docs/installation.md) for why that matters on
-case-sensitive filesystems.
+Or search for **AiOverviewControl** in DMS Settings → Plugins, or in the
+[Dank Plugins directory](https://danklinux.com/plugins).
 
-### Release Archive
+**2. Add the widget** to a DankBar section in DMS settings.
 
-Download the `.tar.gz` or `.zip` from the
-[latest release](https://github.com/bernardopg/AiOverviewControl/releases/latest),
-extract it as `AiOverviewControl`, and place it in the DMS plugin directory:
-
-```text
-~/.config/DankMaterialShell/plugins/AiOverviewControl
-```
-
-Then restore executable bits and restart DMS:
+**3. Sign in** to the providers you use. The default set needs:
 
 ```bash
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
-dms restart
+command -v bash jq curl codex claude gh
+codex login && claude auth status && gh auth status
 ```
 
-### Git Checkout
+Open the ⚙ settings window to enable more providers — each one shows whether
+its CLI or credential is ready.
 
-```bash
-git clone https://github.com/bernardopg/AiOverviewControl.git \
-  ~/.config/DankMaterialShell/plugins/AiOverviewControl
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
-dms restart
-```
+> [!TIP]
+> Bind the dashboard to a shortcut: `dms ipc call aiOverviewControl toggle`.
+> See [Usage](./docs/usage.md#ipc-commands) for all commands.
 
-Enable **AiOverviewControl** in DMS settings and add it to a DankBar section.
-Detailed installation and upgrade guidance is available in
-[docs/installation.md](./docs/installation.md).
+Prefer a release archive or a git checkout? See [Installation](./docs/installation.md).
 
-## Configuration
+## 🧩 Providers
 
-Settings are stored by DMS and survive plugin upgrades.
+| Coverage | What you get | Examples |
+| --- | --- | --- |
+| **Quota** | Real usage % and reset time | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI |
+| **Balance** | Remaining prepaid credit | Kimi, DeepSeek |
+| **Analytics** | Tokens, cost, and models from local data | Claude, 9Router, pi, Hermes, Cloudflare |
+| **Authentication** | Credential check, no usage numbers | Gemini, Mistral, Qwen, Groq, Cohere |
+| **Local runtime** | Local models and sessions | Ollama, Vertex AI |
+| **Informational** | A link to the official usage page | Cursor, Kiro, Warp, Perplexity |
 
-| Setting                       | Values                                                                                                 | Default                   |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------- |
-| Language                      | `auto`, `en_US`, `pt_BR`, `zh_CN`, `es_ES`, `de_DE`                                                    | `auto`                    |
-| Tracked providers             | comma-separated provider IDs                                                                           | `codex,claude,copilot`    |
-| Dashboard density             | `comfortable`, `compact`                                                                               | `comfortable`             |
-| Pill mode                     | `auto`, `custom`, `top`                                                                                | `auto`                    |
-| Custom pill providers         | comma-separated tracked-provider IDs                                                                   | tracked providers         |
-| DankBar usage window          | `provider:slot` pairs, slot `primary`, `secondary`, `tertiary`, or `highest` (e.g. `claude:secondary`) | primary window            |
-| DankBar pill tooltip          | enabled or disabled                                                                                    | enabled                   |
-| Pinned providers              | comma-separated provider IDs                                                                           | empty                     |
-| Provider logo color           | any QML color string                                                                                   | current DMS primary color |
-| Refresh interval              | 1, 2, 5, 15, or 30 minutes                                                                             | 2 minutes                 |
-| Show provider errors          | enabled or disabled                                                                                    | enabled                   |
-| Claude project breakdown      | enabled or disabled                                                                                    | enabled                   |
-| Individual Antigravity models | enabled or disabled                                                                                    | disabled                  |
-| Quota notifications           | enabled or disabled                                                                                    | enabled                   |
-| Global notification threshold | 75%, 85%, or 95%                                                                                       | 85%                       |
-| Per-provider thresholds       | comma-separated `provider:percent` pairs (e.g. `claude:90,codex:75`), validated inline                 | empty                     |
-| Windows that raise alerts     | `displayed` (follows the DankBar window), `all`, or `primary`                                          | `displayed`               |
-| Re-alert interval             | once per window, 1h, 6h, or 24h (updates the existing alert)                                           | once per window           |
-| History retention             | 500, 2,000, or 10,000 snapshots                                                                        | 2,000                     |
+The full list, data sources, and credentials are in [Providers](./docs/providers.md).
 
-Settings also offers **Export usage history** (CSV or JSONL) and a two-step
-**Reset plugin settings**, which restores every option above without touching
-the recorded history.
+## 📚 Documentation
 
-The default provider selection is:
+| | |
+| --- | --- |
+| [Usage](./docs/usage.md) | Pill, popout, cards, keyboard, IPC, history, privacy |
+| [Installation](./docs/installation.md) | Store, archive, and git installs; upgrades |
+| [Configuration](./docs/configuration.md) | Every setting, environment variables, health checks |
+| [Providers](./docs/providers.md) | Coverage matrix and per-provider data sources |
+| [Troubleshooting](./docs/troubleshooting.md) | Missing cards, credentials, notifications |
+| [Architecture](./docs/architecture.md) | Runtime flow and the adapter contract |
+| [Translations](./docs/i18n-crowdin.md) | Locales and Crowdin |
+| [Contributing](./CONTRIBUTING.md) | Local checks and conventions |
+| [Changelog](./CHANGELOG.md) | Release history |
 
-```text
-codex,claude,copilot
-```
+## 💜 Support the project
 
-API-backed providers read credentials from the DMS process environment. An
-export available only in an interactive shell may not reach a graphical DMS
-session. See [Configuration](./docs/configuration.md) for the environment
-variable matrix and health-check behavior.
-
-## Dashboard Behavior
-
-- The hero shows a **fleet overview** when two or more providers resolve: the
-  average load across measurable quota windows, the hottest provider, how many
-  sit at or above 80%, and the soonest reset across the fleet. Balance,
-  analytics, local-runtime, and informational cards are intentionally excluded
-  from the average denominator so their truthful `0%` placeholders do not dilute
-  real quota pressure. Peak, at-risk count, and reset still scan all live cards.
-- The overview is **navigable**: click the fleet rollup's peak provider, or the
-  hero usage bars, to expand and scroll straight to that provider's card.
-- Cards are sorted with pinned providers first, then by highest measurable
-  usage, with failed providers last.
-- Cards support keyboard focus plus Enter/Space (expand), Delete (remove),
-  P (pin), and R (retry) actions.
-- Data becomes stale after twice the configured refresh interval.
-- Failed cards expose a provider-specific retry action.
-- Expanded cards show available windows, credits, source, identity, and update
-  time without inventing unavailable fields.
-- Usage snapshots are stored locally in
-  `~/.cache/AiOverviewControl/usage-history.jsonl` and trimmed according to the
-  configured retention. The history writer records only real non-zero quota/spend
-  pressure; informational, local-runtime, balance-only, and analytics-only `0%`
-  placeholders are skipped so sparklines remain meaningful. Because the store is
-  trimmed, `providers/export-usage-history csv|jsonl` (also a button in
-  Settings) is the way to keep long-term data.
-- Claude analytics run separately so local history or OAuth failures cannot
-  block the main provider collection.
-
-## Privacy and Resilience
-
-- Credentials are read from provider CLIs, local provider-owned data, or
-  environment variables; the UI never displays secret values.
-- The plugin does not scrape authenticated web dashboards.
-- It does not call paid inference endpoints merely to test a key.
-- Temporary files are isolated per run and removed when collection finishes.
-- Provider errors are returned as structured data instead of terminating the
-  complete refresh.
-- Informational cards use explicit text and official links rather than
-  synthetic percentages.
-
-## Validation
-
-<details>
-<summary>Run the same core checks used by CI</summary>
-<br>
-
-QML lint is a **hard gate** in CI (Qt5 `qmllint`, syntax verification — no
-`qs.*` import-resolution noise to filter). A malformed QML file fails the build.
-
-```bash
-jq -e . plugin.json >/dev/null
-for file in i18n/*.json; do jq -e . "$file" >/dev/null; done
-find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
-for test in tests/*.sh; do bash -n "$test"; done
-bash -n scripts/package-release
-for test in tests/*.sh; do bash "$test"; done
-shellcheck -S warning providers/* tests/*.sh scripts/package-release scripts/render-contributors
-qmllint \
-  AiOverviewControlWidget.qml \
-  AiOverviewControlSettings.qml \
-  AiOverviewControlI18n.qml \
-  ProviderLogo.qml
-./providers/get-provider-health "codex,claude,copilot,pi" | jq .
-./providers/get-provider-usage \
-  "codex,claude,copilot,pi" \
-  ./providers/get-copilot-usage | jq .
-./providers/get-usage-history | jq .
-./providers/export-usage-history csv /tmp
-```
-
-GitHub Actions additionally validates workflow syntax, locale key parity,
-provider script permissions, integration contracts, Crowdin configuration,
-and release packaging.
-
-</details>
-
-## Architecture
-
-```text
-AiOverviewControlWidget.qml       Runtime orchestration and dashboard
-AiOverviewControlSettings.qml     Settings, provider selection, and health UI
-AiOverviewControlI18n.qml         Locale loading and interpolation
-ProviderLogo.qml                  Local provider-logo resolution and fallback icons
-providers/get-provider-usage      Multi-provider dispatcher and history writer
-providers/get-provider-health     Local prerequisite checks
-providers/export-usage-history    Usage-history export to CSV or JSONL
-providers/get-codex-usage         Codex app-server protocol bridge
-providers/get-claude-usage        Claude quota and local analytics bridge
-providers/get-copilot-usage       GitHub Copilot quota bridge
-providers/get-antigravity-usage   Antigravity Cloud Code Assist quota bridge
-providers/get-9router-analytics   9Router local telemetry blob
-providers/get-pi-analytics        pi local session telemetry blob
-providers/get-hermes-analytics    Hermes local state telemetry blob
-providers/get-*-usage             Canonical single-provider entrypoints
-scripts/package-release           Release archive build and validation
-scripts/render-contributors       Contributor avatar grid for the README files
-```
-
-See [Architecture](./docs/architecture.md) for the runtime flow and normalized
-provider contract.
-
-## Documentation
-
-| Topic                             | Link                                                             |
-| --------------------------------- | ---------------------------------------------------------------- |
-| Installation and upgrades         | [docs/installation.md](./docs/installation.md)                   |
-| Configuration and credentials     | [docs/configuration.md](./docs/configuration.md)                 |
-| Provider coverage matrix          | [docs/providers.md](./docs/providers.md)                         |
-| Provider verification policy      | [docs/provider-verification.md](./docs/provider-verification.md) |
-| Architecture and adapter contract | [docs/architecture.md](./docs/architecture.md)                   |
-| Troubleshooting                   | [docs/troubleshooting.md](./docs/troubleshooting.md)             |
-| Português do Brasil               | [docs/README.pt-BR.md](./docs/README.pt-BR.md)                   |
-| Internationalization and Crowdin  | [docs/i18n-crowdin.md](./docs/i18n-crowdin.md)                   |
-| Release checklist                 | [docs/release-checklist.md](./docs/release-checklist.md)         |
-| Changelog                         | [CHANGELOG.md](./CHANGELOG.md)                                   |
-
-## Support the plugin
-
-AiOverviewControl is ranked in the [Dank Plugins directory](https://danklinux.com/plugins)
-by the 👍 reactions on its registry tracking issue. One reaction there is the
-single most useful thing you can do for the project — it decides whether other
-DankMaterialShell users ever see the plugin.
+The [Dank Plugins directory](https://danklinux.com/plugins) ranks plugins by the 👍
+reactions on their registry issue. One reaction is the most useful thing you can
+do — it decides whether other DankMaterialShell users ever find the plugin.
 
 <div align="center">
 
-[![Upvote on Dank Plugins](https://img.shields.io/badge/Dank%20Plugins-%F0%9F%91%8D%20upvote%20this%20plugin-7C4DFF?style=for-the-badge)](https://github.com/AvengeMedia/dms-plugin-registry/issues/358)
-[![Star this repo](https://img.shields.io/github/stars/bernardopg/AiOverviewControl?style=for-the-badge&color=FFC400&label=star%20the%20repo)](https://github.com/bernardopg/AiOverviewControl/stargazers)
+[![Upvote on Dank Plugins](https://img.shields.io/badge/Dank%20Plugins-%F0%9F%91%8D%20upvote-8B5CF6?style=for-the-badge)](https://github.com/AvengeMedia/dms-plugin-registry/issues/358)
+[![Star on GitHub](https://img.shields.io/github/stars/bernardopg/AiOverviewControl?style=for-the-badge&color=FFC400&label=star)](https://github.com/bernardopg/AiOverviewControl/stargazers)
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/bernardopg)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white)](https://ko-fi.com/bernardopg)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/wctwom9emu)
 
 </div>
 
-The same issue is the plugin's **Discuss** link in the directory, so feedback and
-feature ideas are welcome there as well as in
-[GitHub issues](https://github.com/bernardopg/AiOverviewControl/issues).
+Found a bug or have an idea? [Open an issue](https://github.com/bernardopg/AiOverviewControl/issues/new/choose).
 
-## Contributors
+## 👥 Contributors
 
 <div align="center">
 
@@ -381,16 +203,12 @@ feature ideas are welcome there as well as in
 
 <!-- CONTRIBUTORS:END -->
 
-</div>
+Contributions are welcome — start with [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-Contributions welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+</div>
 
 ---
 
 <div align="center">
-
-Released under the [MIT License](./LICENSE).
-
-Made with ❤️ for the [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) community.
-
+<sub>MIT License · made with 💜 for the <a href="https://github.com/AvengeMedia/DankMaterialShell">DankMaterialShell</a> community</sub>
 </div>
