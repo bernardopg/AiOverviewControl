@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.17.2 - 2026-09-29
+
+### Registry review remediation ([dms-plugin-registry#358](https://github.com/AvengeMedia/dms-plugin-registry/issues/358))
+
+- **Claude caches moved out of `~/.claude`.** `pricing-cache.json` and `usage-cache.json` now live under `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/` (as `claude-pricing-cache.json` / `claude-usage-cache.json`) like every other adapter, with a one-time migration that moves and removes the legacy files. Claude Code's own `stats-cache.json` is still only read, never written.
+- **Transcript analytics are content-addressed.** The 31-day and 8-day scans of `~/.claude/projects/**/*.jsonl` are gated by a fingerprint (jsonl count + newest mtime + date + pricing checksum); unchanged transcripts cost one `find -printf` instead of a full `cat | jq | awk` pipeline on every refresh. The `claude --version` probe is now cached for 24h instead of spawning the CLI per refresh.
+- **Third-party calls documented and optional.** New [Network endpoints](./docs/usage.md#network-endpoints) docs cover the daily LiteLLM pricing fetch and the Copilot `dns.google` DoH fallback, with `AIOC_NO_LITELLM=1` and `AIOC_NO_DOH_FALLBACK=1` opt-outs.
+- **Antigravity mechanism stated plainly.** Docs now spell out that the opt-in provider reads Google refresh tokens from local sessions (including the IDE `state.vscdb`), exchanges them with the public embedded Cloud Code OAuth client credentials, and calls Google's internal Cloud Code endpoints with the IDE User-Agent — tokens only ever travel to Google.
+- **Ambient hero glow no longer animates off-screen.** The popout's `heroGlow` animation now runs only while the popout is visible.
+- New integration tests: `tests/test-claude-cache.sh` (cache placement, migration, fingerprint invalidation, version TTL, LiteLLM opt-out) and `tests/test-network-opt-outs.sh` (both opt-outs plus the default-on paths).
+
 ## 1.17.1 - 2026-09-28
 
 ### Version pill follows updates
