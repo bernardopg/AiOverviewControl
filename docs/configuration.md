@@ -78,7 +78,7 @@ The settings health check describes whether the plugin can run an adapter in the
 
 | Provider | Variables |
 | --- | --- |
-| Copilot | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN` |
+| Copilot | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`; `AIOC_NO_DOH_FALLBACK=1` disables the `dns.google` DNS-over-HTTPS fallback used to resolve an alternate `api.github.com` edge after a regional route fails (TLS hostname verification stays enabled either way) |
 | Antigravity | No environment variable is normally required. Credentials are discovered from `~/.gemini/antigravity-cli/antigravity-oauth-token`, the desktop keyring, or the IDE state database. Optional `ANTIGRAVITY_API_BASE_URL` retargets Cloud Code Assist; `ANTIGRAVITY_QUOTA_METHOD` can pin the compatibility method for diagnostics. |
 | Gemini | `GEMINI_API_KEY`, `GOOGLE_API_KEY`, or `GOOGLE_GENERATIVE_AI_API_KEY` |
 | OpenRouter | `OPENROUTER_API_KEY` |
@@ -90,7 +90,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST`; requires the `ollama` CLI in PATH |
 | Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`) |
-| Claude Code | optional `CLAUDE_CONFIG_DIR` (defaults to `~/.claude`) |
+| Claude Code | optional `CLAUDE_CONFIG_DIR` (defaults to `~/.claude`); `AIOC_NO_LITELLM=1` disables the daily LiteLLM pricing fetch from `raw.githubusercontent.com` (cost fields then reuse the last cached snapshot, or report 0.00 with none) |
 | NVIDIA | `NVIDIA_API_KEY` |
 | Cloudflare | `CLOUDFLARE_AI_TOKEN` or `CLOUDFLARE_API_TOKEN`; optional `CLOUDFLARE_ACCOUNT_ID` |
 | Vertex AI | requires `gcloud auth print-access-token` to succeed at collection time; the readiness chip checks only that the `gcloud` CLI is in `PATH`. Optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` enrich the reported identity |

@@ -148,6 +148,13 @@ Prefer a release archive or a git checkout? See [Installation](./docs/installati
 
 The full list, data sources, and credentials are in [Providers](./docs/providers.md).
 
+> **Privacy:** every credential is sent only to its own provider's official API.
+> The plugin makes exactly two optional third-party calls, both documented with
+> opt-outs (`AIOC_NO_LITELLM=1`, `AIOC_NO_DOH_FALLBACK=1`), and writes caches
+> only under `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/`. See
+> [Network endpoints](./docs/usage.md#network-endpoints) and the
+> [Antigravity access mechanism](./docs/usage.md#antigravity-access-mechanism).
+
 ## 📚 Documentation
 
 | | |

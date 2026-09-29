@@ -5356,6 +5356,9 @@ PluginComponent {
                                 }
 
                                 SequentialAnimation on x {
+                                    // Only burn cycles while the popout is actually on screen;
+                                    // parentPopout is injected by PluginPopout's Loader.
+                                    running: popout.parentPopout ? popout.parentPopout.shouldBeVisible : false
                                     loops: Animation.Infinite
                                     NumberAnimation {
                                         from: -heroGlow.width * 0.3

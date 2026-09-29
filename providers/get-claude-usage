@@ -3,14 +3,44 @@ set -euo pipefail
 
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 CREDENTIALS="${CLAUDE_DIR}/.credentials.json"
+# stats-cache.json is Claude Code's own file — read-only from here, never written.
 STATS_CACHE="${CLAUDE_DIR}/stats-cache.json"
 PROJECTS_DIR="${CLAUDE_DIR}/projects"
-PRICING_CACHE="${CLAUDE_DIR}/pricing-cache.json"
-USAGE_CACHE="${CLAUDE_DIR}/usage-cache.json"
+# Plugin-owned caches live in the XDG cache dir alongside every other adapter,
+# never inside another tool's config directory.
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+PRICING_CACHE="${CACHE_DIR}/claude-pricing-cache.json"
+USAGE_CACHE="${CACHE_DIR}/claude-usage-cache.json"
+LOCAL_STATS_CACHE="${CACHE_DIR}/claude-local-stats.json"
+VERSION_CACHE="${CACHE_DIR}/claude-version-cache.json"
 USAGE_CACHE_TTL=120  # seconds
+VERSION_CACHE_TTL=86400  # seconds: the CLI version changes on upgrade, not per refresh
 LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
-CLAUDE_VERSION=$(claude --version 2>/dev/null | head -1 | grep -oP '[\d.]+' || echo "2.0.0")
+mkdir -p "$CACHE_DIR"
+# One-time migration: these caches used to be written into ~/.claude. Move the
+# data across so the refreshed paths stay warm, then leave no trace behind.
+for legacy in pricing-cache usage-cache; do
+    if [ -f "${CLAUDE_DIR}/${legacy}.json" ]; then
+        mv "${CLAUDE_DIR}/${legacy}.json" "${CACHE_DIR}/claude-${legacy}.json" 2>/dev/null \
+            || rm -f "${CLAUDE_DIR}/${legacy}.json"
+    fi
+done
+
+# The CLI version only matters for the User-Agent header; probe it at most
+# once a day instead of spawning `claude --version` on every refresh.
+CLAUDE_VERSION=""
+if [ -f "$VERSION_CACHE" ]; then
+    ver_ts=$(jq -r '.cached_at // 0' "$VERSION_CACHE" 2>/dev/null || echo 0)
+    ver_val=$(jq -r '.version // ""' "$VERSION_CACHE" 2>/dev/null || echo "")
+    if [ -n "$ver_val" ] && [ $(( $(date +%s) - ver_ts )) -lt "$VERSION_CACHE_TTL" ]; then
+        CLAUDE_VERSION="$ver_val"
+    fi
+fi
+if [ -z "$CLAUDE_VERSION" ]; then
+    CLAUDE_VERSION=$(claude --version 2>/dev/null | head -1 | grep -oP '[\d.]+' || echo "2.0.0")
+    jq -n --arg v "$CLAUDE_VERSION" '{cached_at: (now | floor), version: $v}' > "$VERSION_CACHE" 2>/dev/null || true
+fi
 TODAY=$(date +%Y-%m-%d)
 # Calendar week: Monday to Sunday
 DOW=$(date +%u)  # 1=Monday, 7=Sunday
@@ -58,8 +88,12 @@ ALLTIME_MESSAGES=0
 FIRST_SESSION="unknown"
 
 # --- Pricing cache (refresh once per day from LiteLLM) ---
+# LiteLLM's pricing table is third-party data fetched from
+# raw.githubusercontent.com; AIOC_NO_LITELLM=1 opts out (cost fields then fall
+# back to the last cached snapshot, or 0.00 when no snapshot exists).
 PRICING_JSON=""
 refresh_pricing() {
+    [ "${AIOC_NO_LITELLM:-0}" = "1" ] && return 1
     local raw
     raw=$(curl -s --max-time 10 "$LITELLM_URL" 2>/dev/null) || return 1
     # Dynamically extract pricing for all Claude model families
@@ -199,7 +233,39 @@ else
 fi
 
 # --- Token consumption from JSONL session files ---
+# Content-addressed aggregation: a fingerprint of the projects dir (jsonl count
+# + newest mtime within the 31-day window, today's date, and the pricing table
+# — all three shift the date buckets and costs) gates reuse of the cached
+# aggregates. Unchanged transcripts cost one find(1) instead of re-reading
+# every session file through jq+awk on each refresh.
+LOCAL_STATS_HIT=false
 if [ -d "$PROJECTS_DIR" ]; then
+    read -r JSONL_COUNT JSONL_NEWEST < <(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -31 -printf '%T@\n' 2>/dev/null \
+        | awk '{ c++; if ($1+0 > m) m = $1 } END { printf "%d %d\n", c+0, m+0 }')
+    TRANSCRIPTS_FP="${JSONL_COUNT}:${JSONL_NEWEST}:${TODAY}:$(printf '%s' "$PRICING_AWK" | cksum | awk '{print $1}')"
+    if [ -f "$LOCAL_STATS_CACHE" ] \
+        && [ "$(jq -r '.fingerprint // ""' "$LOCAL_STATS_CACHE" 2>/dev/null)" = "$TRANSCRIPTS_FP" ]; then
+        LOCAL_STATS_HIT=true
+        while IFS='=' read -r key value; do
+            case "$key" in
+                WEEK_TOKENS) WEEK_TOKENS="$value" ;;
+                WEEK_MESSAGES) WEEK_MESSAGES="$value" ;;
+                WEEK_SESSIONS) WEEK_SESSIONS="$value" ;;
+                MONTH_TOKENS) MONTH_TOKENS="$value" ;;
+                DAILY) DAILY="$value" ;;
+                WEEK_MODELS) WEEK_MODELS="$value" ;;
+                WEEK_MODEL_COSTS) WEEK_MODEL_COSTS="$value" ;;
+                TODAY_COST) TODAY_COST="$value" ;;
+                WEEK_COST) WEEK_COST="$value" ;;
+                MONTH_COST) MONTH_COST="$value" ;;
+                DAILY_COSTS) DAILY_COSTS="$value" ;;
+            esac
+        done < <(jq -r '.kv // ""' "$LOCAL_STATS_CACHE" 2>/dev/null)
+        WEEK_PROJECTS=$(jq -r '.projects // ""' "$LOCAL_STATS_CACHE" 2>/dev/null || echo "")
+    fi
+fi
+
+if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
     # Calendar week dates: Monday (index 1) to Sunday (index 7)
     DAY_DATES=""
     for i in $(seq 0 6); do
@@ -330,7 +396,7 @@ fi
 # --- Top projects this week. Separate 8-day pass: each session line carries
 # its real working directory in .cwd, which beats decoding the project dir
 # name. Commas/colons in paths would break the CSV contract, so strip them. ---
-if [ -d "$PROJECTS_DIR" ]; then
+if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
     WEEK_PROJECTS=$(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -8 -exec cat {} + 2>/dev/null \
         | jq -r -R '
             fromjson?
@@ -348,6 +414,26 @@ if [ -d "$PROJECTS_DIR" ]; then
         | sort -t"$(printf '\t')" -k2,2nr \
         | head -5 \
         | awk -F'\t' '{printf "%s%s:%d", (NR > 1 ? "," : ""), $1, $2}')
+fi
+
+# Persist fresh aggregates keyed by the fingerprint computed above.
+if [ -d "$PROJECTS_DIR" ] && [ "$LOCAL_STATS_HIT" = false ]; then
+    LOCAL_KV_OUT=$(printf '%s\n' \
+        "WEEK_TOKENS=$WEEK_TOKENS" \
+        "WEEK_MESSAGES=$WEEK_MESSAGES" \
+        "WEEK_SESSIONS=$WEEK_SESSIONS" \
+        "MONTH_TOKENS=$MONTH_TOKENS" \
+        "DAILY=$DAILY" \
+        "WEEK_MODELS=$WEEK_MODELS" \
+        "WEEK_MODEL_COSTS=$WEEK_MODEL_COSTS" \
+        "TODAY_COST=$TODAY_COST" \
+        "WEEK_COST=$WEEK_COST" \
+        "MONTH_COST=$MONTH_COST" \
+        "DAILY_COSTS=$DAILY_COSTS")
+    jq -n --arg fp "$TRANSCRIPTS_FP" --arg kv "$LOCAL_KV_OUT" --arg projects "$WEEK_PROJECTS" \
+        '{fingerprint: $fp, kv: $kv, projects: $projects}' > "${LOCAL_STATS_CACHE}.tmp" 2>/dev/null \
+        && mv "${LOCAL_STATS_CACHE}.tmp" "$LOCAL_STATS_CACHE" 2>/dev/null \
+        || rm -f "${LOCAL_STATS_CACHE}.tmp"
 fi
 
 # --- All-time from stats cache (supplementary) ---

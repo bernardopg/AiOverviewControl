@@ -9,6 +9,33 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ---
 
+## 🔧 Registry review remediation (AvengeMedia/dms-plugin-registry#358)
+
+Automated Claude review on `6d37548` flagged 6 issues, all verified legitimate.
+Tracked here until 1.17.2 ships and the registry PR lands.
+
+- [x] **Move Claude caches out of `~/.claude`** — `pricing-cache.json` and
+  `usage-cache.json` relocate to `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/`
+  with one-time migration of stale files. `stats-cache.json` stays read-only
+  from `~/.claude` (Claude Code's own file). `S · ★★★`
+- [x] **Content-addressed transcript aggregates** — fingerprint
+  `~/.claude/projects` (file count + newest mtime) and skip the 31-day and
+  8-day `cat | jq | awk` passes when unchanged; `claude --version` gets a
+  daily TTL cache. `M · ★★★`
+- [x] **Document + opt-out third-party calls** — LiteLLM pricing fetch
+  (`AIOC_NO_LITELLM=1`) and Copilot dns.google DoH fallback
+  (`AIOC_NO_DOH_FALLBACK=1`) documented in README/docs with env opt-outs.
+  `S · ★★`
+- [x] **Antigravity transparency** — docs state plainly: reads Google refresh
+  tokens from IDE `state.vscdb`, exchanges via public embedded OAuth client
+  credentials, calls internal Cloud Code endpoints with the IDE User-Agent;
+  provider is opt-in. `S · ★★`
+- [x] **Registry entry PR** — update `plugins/bernardopg-aioverviewcontrol.json`
+  description (~40 providers) and dependencies (sqlite3, notify-send, flock,
+  secret-tool as optional). `S · ★★`
+- [x] **heroGlow infinite animation** — bind `running` to popout visibility
+  via injected `parentPopout.shouldBeVisible`. `S · ★★`
+
 ## ⚡ Next up (prioritized)
 
 The v1.6.0 audit is **closed**: every P0/P1 finding was verified fixed in the

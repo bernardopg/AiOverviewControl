@@ -54,8 +54,8 @@ http_status="$(request_copilot)"
 
 # Some regional api.github.com routes occasionally fail before HTTP. Resolve
 # an alternate GitHub edge through DNS-over-HTTPS, while keeping TLS hostname
-# verification enabled through curl --resolve.
-if [ "$http_status" = "000" ] || [ -z "$http_status" ]; then
+# verification enabled through curl --resolve. AIOC_NO_DOH_FALLBACK=1 opts out.
+if [ "${AIOC_NO_DOH_FALLBACK:-0}" != "1" ] && { [ "$http_status" = "000" ] || [ -z "$http_status" ]; }; then
   alternate_ip="$(curl -sS --connect-timeout 4 --max-time 8 \
     'https://dns.google/resolve?name=api.github.com&type=A&edns_client_subnet=1.1.1.0/24' 2>/dev/null \
     | jq -r '[.Answer[]? | select(.type == 1) | .data] | first // empty' 2>/dev/null || true)"

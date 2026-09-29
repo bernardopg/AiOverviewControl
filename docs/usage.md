@@ -106,3 +106,37 @@ bind = SUPER, U, exec, dms ipc call aiOverviewControl toggle
   block the main collection.
 - Informational cards use explicit text and official links, never synthetic
   percentages.
+
+## Network endpoints
+
+Every credential is sent only to its own provider's official API. Beyond those,
+the plugin contacts exactly two third-party hosts, both optional:
+
+- **`raw.githubusercontent.com`** — the Claude adapter refreshes LiteLLM's
+  public pricing table (`model_prices_and_context_window.json`) once a day to
+  price local session tokens. No credential or usage data is sent; the request
+  is a plain unauthenticated GET. On failure the last cached snapshot is used;
+  without any snapshot, cost fields report 0.00. Set `AIOC_NO_LITELLM=1` to
+  disable this fetch entirely.
+- **`dns.google`** — the Copilot adapter uses DNS-over-HTTPS only as a
+  fallback after a regional `api.github.com` route fails before HTTP, to
+  resolve an alternate GitHub edge IP. TLS hostname verification stays enabled
+  (`curl --resolve`), and no credential crosses this lookup. Set
+  `AIOC_NO_DOH_FALLBACK=1` to disable it.
+
+All caches are written under `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/`.
+The plugin never writes into another tool's config directory; Claude Code's
+own `stats-cache.json` is only read.
+
+## Antigravity access mechanism
+
+The Antigravity provider is disabled unless you select it. When enabled, it
+reads Google refresh tokens from your local Antigravity sessions — the `agy`
+CLI token file, the desktop keyring, or the IDE's `state.vscdb` SQLite
+database — and exchanges them with Google's OAuth token endpoint using the
+Cloud Code client credentials embedded in the public Antigravity/gemini-cli
+bundle (not secrets; any install exposes them). Quota is then read from
+Google's internal Cloud Code endpoints with the IDE's User-Agent. Refresh
+tokens only ever travel to `oauth2.googleapis.com`, form-encoded via stdin so
+they never appear in process arguments, and bearer tokens use an ephemeral
+curl config descriptor. Nothing is sent to any other host.
