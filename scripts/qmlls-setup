@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Dev-only: make qmlls/qmllint (VS Code Qt extension) resolve `import qs.*`.
+# Quickshell only exposes `qs.*` modules through its runtime VFS, so editors
+# see every DMS type as missing. This copies the running DMS shell into
+# ~/.cache/dms-qmlls/qs, writes a qmldir per directory, and points the
+# plugin's (gitignored) .qmlls.ini at it. Re-run after a DMS update.
+set -euo pipefail
+
+src=${1:-$(ls -d /run/user/"$(id -u)"/danklinux-shell/*/ 2>/dev/null | head -n1)}
+[[ -d $src ]] || { echo "DMS shell dir not found; pass it as \$1" >&2; exit 1; }
+
+out=${XDG_CACHE_HOME:-$HOME/.cache}/dms-qmlls
+rm -rf "$out" && mkdir -p "$out/qs"
+cp -rL "$src"/. "$out/qs/" && chmod -R u+w "$out/qs"
+
+find "$out/qs" -type d | while read -r dir; do
+  qmls=("$dir"/*.qml)
+  [[ -e ${qmls[0]} ]] || continue
+  rel=${dir#"$out"/}
+  {
+    echo "module ${rel//\//.}"
+    for f in "${qmls[@]}"; do
+      name=$(basename "$f" .qml)
+      if grep -q '^pragma Singleton' "$f"; then echo "singleton $name 1.0 $name.qml"
+      else echo "$name 1.0 $name.qml"; fi
+    done
+  } > "$dir/qmldir"
+done
+
+cd "$(dirname "$0")/.."
+printf '[General]\nimportPaths="%s"\nno-cmake-calls=true\n' "$out" > .qmlls.ini
+echo "qmlls import tree: $out"
