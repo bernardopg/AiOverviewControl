@@ -84,9 +84,14 @@ bind = SUPER, U, exec, dms ipc call aiOverviewControl toggle
 
 ## Usage history
 
+Codex reset-credit balances are also retained as optional `creditBalance`
+readings, including zero. They do not create percentage sparklines. CSV exports
+append `credit_balance`; unavailable percentages/balances are empty rather than
+fabricated zeroes. See [the persistence contract](development-gates.md#codex-credit-snapshots).
+
 - Snapshots are stored in `~/.cache/AiOverviewControl/usage-history.jsonl` and
   trimmed to the configured retention.
-- Only real non-zero quota or spend pressure is recorded. Informational,
+- Percentage snapshots record only real non-zero quota or spend pressure; Codex reset-credit readings are stored separately within each snapshot. Informational,
   local-runtime, balance-only, and analytics-only placeholders are skipped, so
   sparklines stay meaningful.
 - The store is trimmed, so export it to keep long-term data: use the

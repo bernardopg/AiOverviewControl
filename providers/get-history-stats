@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+count=0
+trimmed=0
+if [[ -f "$dir/usage-history.jsonl" ]]; then
+  count="$(jq -Rsc 'split("\n") | map(fromjson? | select(type == "object")) | length' "$dir/usage-history.jsonl" 2>/dev/null || printf 0)"
+fi
+if [[ -f "$dir/history-trim.json" ]]; then
+  trimmed="$(jq -r '.trimmed | select(type == "number" and . >= 0)' "$dir/history-trim.json" 2>/dev/null || true)"
+fi
+jq -cn --argjson count "${count:-0}" --argjson trimmed "${trimmed:-0}" '{count:$count,trimmed:$trimmed}'

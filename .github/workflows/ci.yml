@@ -29,6 +29,19 @@ env:
   CROWDIN_CLI_SHA256: "c159ee285c354aad96efa60a797e9dd029bf6cf1b2154a97417c8a8d389a52ad"
 
 jobs:
+  qml-runtime:
+    name: Quickshell component smoke
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    steps:
+      - name: Install runtime prerequisites
+        run: pacman -Syu --noconfirm git python quickshell
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Instantiate extracted QML fetch component headlessly
+        run: tests/test-qml-smoke.sh
+
   # ─── workflow lint ───────────────────────────────────────────────────────────
   actionlint:
     name: Workflow lint
@@ -61,6 +74,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Shared offline metadata gates
+        run: scripts/check-metadata
       - name: Validate plugin.json (syntax + semver)
         run: |
           jq --exit-status . plugin.json >/dev/null
@@ -188,7 +203,7 @@ jobs:
         run: |
           find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
           find tests -maxdepth 1 -name '*.sh' -type f -print0 | xargs -0 bash -n
-          bash -n scripts/package-release
+          bash -n scripts/package-release scripts/check-metadata scripts/reload-plugin .githooks/pre-push
           bash -n scripts/render-contributors
 
       - name: Confirm all scripts are executable
@@ -225,7 +240,7 @@ jobs:
           /tmp/shellcheck --version
 
       - name: shellcheck — all provider, test, and packaging scripts (warning level)
-        run: /tmp/shellcheck -S warning providers/* tests/*.sh scripts/package-release scripts/render-contributors
+        run: /tmp/shellcheck -S warning providers/* tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/reload-plugin .githooks/pre-push
 
       - name: Provider dispatch coverage
         run: |
@@ -408,9 +423,9 @@ jobs:
           echo "$OUT" | jq --exit-status '
             length == 1 and .[0].provider == "codex" and
             .[0].usage.primary.usedPercent == 25 and
-            .[0].usage.primary.resetDescription == "Session" and
+            .[0].usage.primary.windowMinutes == 300 and (.[0].usage.primary | has("resetDescription") | not) and
             .[0].usage.secondary.usedPercent == 50 and
-            .[0].usage.secondary.resetDescription == "Weekly" and
+            .[0].usage.secondary.windowMinutes == 10080 and (.[0].usage.secondary | has("resetDescription") | not) and
             .[0].credits.remaining == "12"
           ' >/dev/null
 
@@ -421,7 +436,7 @@ jobs:
             length == 1 and .[0].provider == "codex" and
             .[0].usage.primary.usedPercent == 79 and
             .[0].usage.primary.windowMinutes == 10080 and
-            .[0].usage.primary.resetDescription == "Weekly" and
+            (.[0].usage.primary | has("resetDescription") | not) and
             .[0].usage.secondary == null and
             .[0].credits.remaining == "1"
           ' >/dev/null
@@ -565,6 +580,14 @@ jobs:
       - name: Integration test — third-party network opt-outs
         run: tests/test-network-opt-outs.sh
 
+      - name: Integration test — Codex credit history
+        run: tests/test-credit-history.sh
+      - name: Integration test — running DMS discovery
+        run: tests/test-dms-reload.sh
+      - name: Integration test — locale lookup and interpolation coverage
+        run: tests/test-i18n.sh
+      - name: Integration test — offline metadata gates
+        run: tests/test-metadata.sh
       - name: Integration test — Codex app-server usage
         run: tests/test-codex-usage.sh
 
@@ -690,6 +713,7 @@ jobs:
             AiOverviewControlI18n.qml \
             AiOverviewSettingsWindow.qml \
             HeaderAction.qml \
+            LocalAnalyticsReader.qml \
             ProviderLogo.qml
 
       - name: No hardcoded install path in QML

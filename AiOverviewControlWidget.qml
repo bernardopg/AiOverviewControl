@@ -176,7 +176,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"]
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"]
 
     ListModel {
         id: claudeModelList
@@ -257,6 +257,8 @@ PluginComponent {
             const bPin = pinnedProviders.indexOf(b.provider) >= 0 ? 0 : 1;
             if (aPin !== bPin)
                 return aPin - bPin;
+            if (aPin === 0)
+                return pinnedProviders.indexOf(a.provider) - pinnedProviders.indexOf(b.provider);
             const aErr = a.error ? 1 : 0;
             const bErr = b.error ? 1 : 0;
             if (aErr !== bErr)
@@ -635,6 +637,7 @@ PluginComponent {
             "9router": "9Router",
             deepseek: "DeepSeek",
             kimi: "Kimi",
+            "kimi-code": "Kimi Code",
             moonshot: "Kimi",
             mistral: "Mistral",
             glm: "GLM",
@@ -939,7 +942,7 @@ PluginComponent {
             return Theme.secondary;
         if (providerId === "deepseek")
             return Theme.primary;
-        if (providerId === "kimi" || providerId === "moonshot")
+        if (providerId === "kimi" || providerId === "kimi-code" || providerId === "moonshot")
             return Theme.secondary;
         if (providerId === "mistral")
             return Theme.warning;
@@ -1553,8 +1556,8 @@ PluginComponent {
     }
 
     function providerConsoleUrl(providerId, providerSource) {
-        if ((providerId === "kimi" || providerId === "moonshot") && providerSource === "kimi-code") {
-            return "https://www.kimi.ai/code/console";
+        if ((providerId === "kimi" || providerId === "kimi-code" || providerId === "moonshot") && providerSource === "kimi-code") {
+            return "https://www.kimi.com/code/console";
         }
         const urls = {
             claude: "https://claude.ai/settings/usage",
@@ -1615,6 +1618,22 @@ PluginComponent {
 
     function isPinned(providerId) {
         return pinnedProviders.indexOf(normalizeProviderId(providerId)) >= 0;
+    }
+
+    function reorderedPins(pins, source, target) {
+        const from = pins.indexOf(source);
+        const to = pins.indexOf(target);
+        if (from < 0 || to < 0 || source === target)
+            return pins.slice();
+        const next = pins.filter(id => id !== source);
+        next.splice(next.indexOf(target), 0, source);
+        return next;
+    }
+
+    function movePinnedBefore(source, target) {
+        const next = reorderedPins(pinnedProviders, source, target);
+        pinnedProvidersCsv = next.join(",");
+        PluginService.savePluginData("aiOverviewControl", "pinnedProviders", pinnedProvidersCsv);
     }
 
     function togglePin(providerId) {
@@ -2058,55 +2077,37 @@ PluginComponent {
         }
     }
 
-    component LocalAnalyticsReader: Item {
-        id: localReader
+    // Load by URL: an already-running DMS engine can cache the old qmldir
+    // before a plugin update adds a new exported type.
+    component AnalyticsReaderHost: Item {
+        id: host
         required property string providerId
-        property var data: null
-        property string buffer: ""
+        readonly property var snapshot: readerLoader.item ? readerLoader.item.result : null
+        property bool refreshPending: false
         visible: false
         function refresh() {
-            if (readerProcess.running)
-                return;
-            buffer = "";
-            readerProcess.running = true;
-            readerTimeout.restart();
+            if (readerLoader.item)
+                readerLoader.item.refresh();
+            else
+                refreshPending = true;
         }
-        Process {
-            id: readerProcess
-            command: ["bash", root._pluginDir + "/providers/get-local-analytics", localReader.providerId]
-            stdout: SplitParser {
-                splitMarker: ""
-                onRead: chunk => localReader.buffer += chunk
-            }
-            onExited: code => {
-                readerTimeout.stop();
-                try {
-                    const parsed = code === 0 ? JSON.parse(localReader.buffer) : null;
-                    localReader.data = parsed && !parsed.error ? parsed : null;
-                } catch (error) {
-                    localReader.data = null;
+        Loader {
+            id: readerLoader
+            Component.onCompleted: setSource(Qt.resolvedUrl("LocalAnalyticsReader.qml"), {
+                providerId: host.providerId,
+                scriptPath: root._pluginDir + "/providers/get-local-analytics",
+                timeoutMs: root.fetchTimeoutMs
+            })
+            onLoaded: {
+                if (host.refreshPending) {
+                    host.refreshPending = false;
+                    item.refresh();
                 }
-                localReader.buffer = "";
-            }
-        }
-        Timer {
-            id: readerTimeout
-            interval: root.fetchTimeoutMs
-            onTriggered: {
-                readerProcess.running = false;
-                localReader.buffer = "";
-                localReader.data = null;
             }
         }
     }
-    LocalAnalyticsReader {
-        id: codexReader
-        providerId: "codex"
-    }
-    LocalAnalyticsReader {
-        id: opencodeReader
-        providerId: "opencode"
-    }
+    AnalyticsReaderHost { id: codexReader; providerId: "codex" }
+    AnalyticsReaderHost { id: opencodeReader; providerId: "opencode" }
 
     Process {
         id: nineStatsProcess
@@ -3400,6 +3401,19 @@ PluginComponent {
 
     component ProviderDashboardCard: StyledRect {
         id: card
+        DropArea {
+            anchors.fill: parent
+            keys: ["application/x-aioc-provider"]
+            onDropped: drop => {
+                if (!root.isPinned(card.provider.provider))
+                    return;
+                const source = drop.getDataAsString("application/x-aioc-provider");
+                if (root.isPinned(source)) {
+                    root.movePinnedBefore(source, card.provider.provider);
+                    drop.acceptProposedAction();
+                }
+            }
+        }
         required property var provider
         property bool expanded: root.allExpanded || (!!provider && provider.provider === root.focusedProviderId)
         property bool hasUsage: !!provider && !!provider.usage && !provider.error
@@ -3535,6 +3549,23 @@ PluginComponent {
                 width: parent.width
                 spacing: card.compact ? Theme.spacingS : Theme.spacingL
 
+                Item {
+                    id: pinDrag
+                    visible: root.isPinned(card.provider.provider)
+                    implicitWidth: 20
+                    implicitHeight: 28
+                    Drag.mimeData: ({ "application/x-aioc-provider": card.provider.provider })
+                    Drag.supportedActions: Qt.MoveAction
+                    StyledText { anchors.centerIn: parent; text: "↕"; color: Theme.surfaceVariantText }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.OpenHandCursor
+                        onPressAndHold: pinDrag.Drag.startDrag()
+                    }
+                    ToolTip.visible: pinHover.hovered
+                    ToolTip.text: root.t("card.reorder_pinned", "Hold and drag to reorder pinned providers")
+                    HoverHandler { id: pinHover }
+                }
                 Item {
                     Layout.alignment: Qt.AlignTop
                     visible: !card.veryCompact
@@ -4251,7 +4282,7 @@ PluginComponent {
                 }
 
                 StyledRect {
-                    visible: (card.provider.provider === "pi" && root.piStats !== null) || (card.provider.provider === "codex" && codexReader.data !== null) || (card.provider.provider === "opencode" && opencodeReader.data !== null)
+                    visible: (card.provider.provider === "pi" && root.piStats !== null) || (card.provider.provider === "codex" && codexReader.snapshot !== null) || (card.provider.provider === "opencode" && opencodeReader.snapshot !== null)
                     width: parent.width
                     radius: Theme.cornerRadius + 2
                     color: Theme.withAlpha(Theme.success, 0.08)
@@ -4265,7 +4296,7 @@ PluginComponent {
                         anchors.margins: Theme.spacingL
                         spacing: Theme.spacingL
 
-                        readonly property var stats: (card.provider.provider === "codex" ? codexReader.data : card.provider.provider === "opencode" ? opencodeReader.data : root.piStats) || ({})
+                        readonly property var stats: (card.provider.provider === "codex" ? codexReader.snapshot : card.provider.provider === "opencode" ? opencodeReader.snapshot : root.piStats) || ({})
                         readonly property var piToday: stats.today || ({})
                         readonly property var piWeek: stats.week || ({})
                         readonly property var piMonth: stats.month || ({})

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Internal best-effort snapshot writer; argv contains normalized adapter JSON files.
+set -euo pipefail
+history_dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+mkdir -p "$history_dir"
+chmod 700 "$history_dir"
+history_file="$history_dir/usage-history.jsonl"
+max_lines="${AIOC_HISTORY_MAX:-2000}"
+case "$max_lines" in ''|*[!0-9]*|??????????*) max_lines=2000 ;; esac
+max_lines=$((10#$max_lines))
+(( max_lines >= 50 )) || max_lines=50
+# Serialize append + retention across concurrent refreshes; lock inode is stable.
+exec 9>"$history_dir/usage-history.lock"
+flock -x 9
+umask 077
+now="$(date +%s)"
+for file in "$@"; do
+    [[ -s "$file" ]] || continue
+    line="$(jq -c --argjson ts "$now" '
+      (.usage.primary.usedPercent // 0) as $pct
+      | (if .provider == "codex" then
+           ((.credits.balance | tonumber?) // null)
+         else null end) as $balance
+      | select(($pct | type) == "number")
+      | select($pct > 0 or ($balance != null and $balance >= 0))
+      | {ts:$ts, provider:.provider}
+        + (if $pct > 0 then {pct:$pct} else {} end)
+        + (if $balance != null and $balance >= 0 then {creditBalance:$balance} else {} end)
+    ' "$file" 2>/dev/null || true)"
+    [[ -z "$line" ]] || printf '%s\n' "$line" >> "$history_file"
+done
+if [[ -f "$history_file" ]] && (( $(wc -l < "$history_file") > max_lines * 2 )); then
+    tmp="$(mktemp "$history_dir/.usage-history.XXXXXX")"
+    trap 'rm -f "$tmp"' EXIT
+    before="$(wc -l < "$history_file")"
+    tail -n "$max_lines" "$history_file" > "$tmp"
+    mv "$tmp" "$history_file"
+    jq -cn --argjson ts "$now" --argjson trimmed "$((before - max_lines))" '{ts:$ts,trimmed:$trimmed}' > "$tmp"
+    mv "$tmp" "$history_dir/history-trim.json"
+fi

@@ -54,9 +54,9 @@ for required in \
   plugin.json qmldir \
   AiOverviewControlWidget.qml AiOverviewControlSettings.qml \
   AiOverviewControlI18n.qml ProviderLogo.qml \
-  HeaderAction.qml AiOverviewSettingsWindow.qml assets/logo.png \
+  HeaderAction.qml AiOverviewSettingsWindow.qml LocalAnalyticsReader.qml assets/logo.png \
   assets/provider-logos/SOURCES.md \
-  providers/get-provider-usage providers/get-provider-health \
+  providers/get-provider-usage providers/get-provider-health providers/record-usage-history providers/get-history-stats providers/get-kimi-code-usage \
   providers/get-local-analytics providers/local-cost-common \
   scripts/local-analytics.jq \
   providers/send-quota-alert i18n/en.json; do

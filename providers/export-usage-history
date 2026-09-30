@@ -76,13 +76,14 @@ fi
 if [ "$format" = "csv" ]; then
   csv_tmp="${tmp}.csv"
   {
-    printf 'timestamp_iso,timestamp_epoch,provider,percent\n'
+    printf 'timestamp_iso,timestamp_epoch,provider,percent,credit_balance\n'
     jq -r '
       [
         ((.ts // 0) | if . > 0 then (todate) else "" end),
         (.ts // 0),
         (.provider // ""),
-        (((.pct // 0) * 100 | round) / 100)
+        (if (.pct | type) == "number" then ((.pct * 100 | round) / 100) else null end),
+        (.creditBalance // null)
       ]
       | @csv
     ' "$tmp"

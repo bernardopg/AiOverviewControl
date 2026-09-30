@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Shared offline metadata gate for CI and the opt-in pre-push hook.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+python3 - <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+errors = []
+def require(condition, message):
+    if not condition:
+        errors.append(message)
+
+def load(path):
+    try:
+        return json.loads(path.read_text())
+    except (ValueError, OSError) as error:
+        errors.append(f'{path}: {error}')
+        return {}
+
+manifest = load(Path('plugin.json'))
+version = manifest.get('version', '')
+require(isinstance(version, str) and re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version),
+        'plugin.json version must be major.minor.patch')
+changelog = Path('CHANGELOG.md').read_text()
+require(isinstance(version, str) and re.search(r'^## (?:' + re.escape(version) + r'|\[' + re.escape(version) + r'\])(?:\s|$)', changelog, re.M),
+        f'CHANGELOG.md needs an exact heading for {version}')
+base = set(load(Path('i18n/en.json')))
+for path in sorted(Path('i18n').glob('*.json')):
+    keys = set(load(path))
+    require(keys == base, f'{path}: missing {sorted(base - keys)}, extra {sorted(keys - base)}')
+
+for path in sorted(set(Path('tests').glob('*.sh')) | set(Path('providers').glob('get-*'))):
+    require(path.is_file() and bool(path.stat().st_mode & 0o111), f'Not executable: {path}')
+workflow = Path('.github/workflows/ci.yml').read_text()
+# Require an actual run command, not a mention in a comment or step name.
+registered = set(re.findall(r'^\s*(?:-\s*)?run:\s*(?:bash\s+)?(tests/test-[\w-]+\.sh)\s*$', workflow, re.M))
+for path in sorted(Path('tests').glob('test-*.sh')):
+    require(path.as_posix() in registered, f'Integration test absent from ci.yml run steps: {path}')
+for path in sorted(registered):
+    require(Path(path).is_file(), f'CI references missing test: {path}')
+if errors:
+    sys.exit('\n'.join(errors))
+print(f'Metadata OK: {version}, {len(base)} locale keys, {len(registered)} tests')
+PY

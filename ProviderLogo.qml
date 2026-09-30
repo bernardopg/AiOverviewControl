@@ -19,6 +19,7 @@ Item {
         const aliases = {
             agy: "antigravity",
             moonshot: "kimi",
+            "kimi-code": "kimi",
             zhipu: "glm",
             dashscope: "qwen",
             alibaba: "qwen",

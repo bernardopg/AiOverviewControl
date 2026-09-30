@@ -54,7 +54,7 @@ version. Release tags are gated on the full reusable CI workflow.
 ## Reload after QML edits
 
 ```bash
-qs -p ~/.config/quickshell/dms ipc call plugins reload aiOverviewControl
+scripts/reload-plugin   # discovers the live instance (dms run often uses /run/user/...)
 ```
 
 Note: `AiOverviewControlI18n.qml` is a qmldir singleton; a DMS restart (not just

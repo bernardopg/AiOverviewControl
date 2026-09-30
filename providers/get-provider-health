@@ -101,6 +101,11 @@ status_for() {
     9router) [ -f "$HOME/.9router/db/data.sqlite" ] || [ -f "$HOME/.9router/usage.json" ] || { status="missing"; detail="9Router usage database"; } ;;
     openrouter) has_any_env OPENROUTER_API_KEY || [ -f "$HOME/.9router/db/data.sqlite" ] || { status="missing"; detail="OPENROUTER_API_KEY or 9Router data"; } ;;
     deepseek) has_any_env DEEPSEEK_API_KEY || { status="missing"; detail="DEEPSEEK_API_KEY"; } ;;
+    kimi-code)
+      if ! has_any_env KIMI_CODING_API_KEY && [[ "${MOONSHOT_API_KEY:-${KIMI_API_KEY:-}}" != sk-kimi-* ]]; then
+        status="missing"; detail="KIMI_CODING_API_KEY or sk-kimi- key"
+      fi
+      ;;
     kimi|moonshot) has_any_env MOONSHOT_API_KEY KIMI_API_KEY KIMI_CODING_API_KEY || { status="missing"; detail="MOONSHOT_API_KEY, KIMI_API_KEY, or KIMI_CODING_API_KEY"; } ;;
     minimax) has_any_env MINIMAX_API_KEY MINIMAX_TOKEN_PLAN_KEY || { status="missing"; detail="MINIMAX_API_KEY or MINIMAX_TOKEN_PLAN_KEY"; } ;;
     commandcode|cmd|cmdcode) has_commandcode_credentials || { status="missing"; detail="COMMAND_CODE_API_KEY or ~/.commandcode/auth.json"; } ;;

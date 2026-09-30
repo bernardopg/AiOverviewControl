@@ -37,6 +37,16 @@ Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#
 - [x] **heroGlow infinite animation** — bind `running` to popout visibility
   via injected `parentPopout.shouldBeVisible`. `S · ★★`
 
+- [ ] **Registry PR follow-up** — track AvengeMedia/dms-plugin-registry#961
+  until the maintainers merge it, then close this section. `S · ★★`
+
+## 🧭 Roadmap after 1.17.3 (recommended order)
+
+1. Codex window labels i18n (below) — quick, user-visible.
+2. QML smoke test (Next up) — the safety net that makes step 3 safe.
+3. Split the two god files (Quality / CI) — in slices, each covered by step 2.
+4. Everything else as capacity allows; blocked items stay blocked.
+
 ## ⚡ Next up (prioritized)
 
 The v1.6.0 audit is **closed**: every P0/P1 finding was verified fixed in the
@@ -47,35 +57,37 @@ Fireworks `/quotas`, AI21 auth probe, `pipefail` in `get-claude-usage`,
 hard gate, and the docs rewrites). The report itself was never tracked by git
 — it is `.gitignore`d — so nothing shipped with it and no carry-over remains.
 
-- [ ] **Kimi Code `/usages` live schema verification** — the parser added in 1.8.0 handles two payload shapes from community sources (`Golden0Voyager/kimi-code-usage`), not an official spec. Validate against a real `sk-kimi-` key, pin the actual field names, and trim the defensive dual-shape jq once the live shape is confirmed. **Blocked:** needs a paid Kimi Code subscription key. `M · ★★★`
-- [ ] **Simultaneous Kimi cards** — key-routing means a user with BOTH an Open Platform `sk-xxx` balance key and a Kimi Code `sk-kimi-` subscription key sees only one. Emit two cards (balance + coding) when both creds exist. **Blocked** on the same missing credentials. `M · ★★`
+- [x] **Kimi Code `/usages` live schema verification** — the parser added in 1.8.0 handles two payload shapes from community sources (`Golden0Voyager/kimi-code-usage`), not an official spec. Validate against a real `sk-kimi-` key, pin the actual field names, and trim the defensive dual-shape jq once the live shape is confirmed. **Verified 2026-09-29:** system `KIMI_CODING_API_KEY` returned HTTP 200 on the first-party `.com` endpoint. Sanitized live fixture pins detailed-limit precedence; legacy shapes remain supported. See `docs/kimi-domains-research.md`. `M · ★★★`
+- [x] **Simultaneous Kimi cards** — key-routing means a user with BOTH an Open Platform `sk-xxx` balance key and a Kimi Code `sk-kimi-` subscription key sees only one. Emit two cards (balance + coding) when both creds exist. Implemented independent `kimi` and `kimi-code` cards when both credentials exist, explicit Code selection and deduplication tests. Code was live-verified; dual-key behavior is fixture-tested. `M · ★★`
 - [ ] **Notification click action** — open the popout focused on the offending provider (`focusedProviderId` already exists). **Blocked on a design decision:** `notify-send` only reports an invoked action from a process that stays alive for the notification's lifetime, so the fire-and-forget `send-quota-alert` would have to keep one background process per armed alert, or be rewritten onto `gdbus` `Notify` + an `ActionInvoked` monitor. Routing the click back into the right widget instance also needs an IPC target that multi-monitor bars can share without duplicate `IpcHandler` registrations. `L · ★★★`
 - [x] ~~**Multi-window quota notifications**~~ — done: `notifyWindowScope` (`displayed` / `all` / `primary`), `checkNotifications()` iterates `notifyWindowsFor()`.
 - [x] ~~**DankBar pill tooltip**~~ — done: hovering the pill reads "Claude · 7 day · 31% · resets in 2d", gated by the `pillTooltip` setting.
 - [x] ~~**Icon reconciliation** (audit 2.16)~~ — done in 1.8.1: `ProviderLogo.defaultIcon` is the single source; widget `iconForProvider()` and settings `fallbackIcon` overrides removed.
 - [x] ~~**Finish UI i18n**~~ — done in 1.8.1: `"5h"` (2.9), pill `ERR`/`N/A` (2.11) localized; 3 dead keys removed (2.20). Non-issues: `notify.body` is live (not dead); the `String.replace` `$`-bug (2.19) is already avoided via function-replacement `() => value`. **Skipped (WONTFIX):** `formatTier()` names (2.10) — `Max 20x`/`Pro`/`Free` are brand plan names, not UI chrome.
-- [ ] **QML smoke test** — headless instantiate the three QML files with stub data to catch binding-loop / undefined-property regressions before a tag ships. Highest-leverage safety net for third-party distribution. Needs a Quickshell runtime with the `qs.*` modules in CI, which is why Qt5 `qmllint` is still the hard gate. `L · ★★`
+- [x] **Codex window labels i18n** — `get-codex-usage` still emits raw "Session"/"Weekly" through `resetDescription`, which the widget shows untranslated. Emit only `windowMinutes` (like the kimi-code adapter) so `getWindowLabel()` localizes it; add a fixture assertion. `S · ★★★`
+- [ ] **QML smoke test** — Initial slice implemented: headless `LocalAnalyticsReader.qml` smoke in CI covers parsing, failures, timeout, retry and duplicate refresh. Full widget/settings/window smoke remains pending; see `docs/development-gates.md`. — headless instantiate the three QML files with stub data to catch binding-loop / undefined-property regressions before a tag ships. Highest-leverage safety net for third-party distribution. Needs a Quickshell runtime with the `qs.*` modules in CI, which is why Qt5 `qmllint` is still the hard gate. `scripts/qmlls-setup` (1.17.3) already materializes the `qs.*` modules and can seed this. `L · ★★`
 
 ## Dashboard — UX
 
-- [ ] **Drag-to-reorder pinned providers** in the dashboard (beyond star pin). `L · ★`
+- [x] **Drag-to-reorder pinned providers** — Hold the ↕ handle and drop onto another pinned card; persisted ordering and reorder invariants are tested. Native drag gesture still needs a manual desktop check. in the dashboard (beyond star pin). `L · ★`
 
 ## Providers — Data & Auth
 
 - [ ] **NVIDIA** — surface quota-window info if NIM adds a balance endpoint (monitor changelog). `M · ★★`
 - [ ] **Mistral** — surface `is_default_key` flag and rate-limit headers when a quota endpoint exists. `M · ★★`
 - [ ] **BytePlus/Ark** — surface `remaining_tokens` per model when the API exposes per-model quotas. `M · ★★`
-- [ ] **Codex** — record credit-balance history alongside rate-limit snapshots. `M · ★★`
+- [x] **Codex** — record credit-balance history alongside rate-limit snapshots. Reset-credit balances (zero included), serialized writer, CSV/JSONL exports and fixture tests are implemented; individual quota limits are not mistaken for balances. `M · ★★`
 - [ ] **Hermes** — surface real quota/spend for the provider half if [Nous Portal](https://portal.nousresearch.com) publishes a read-only usage endpoint; today only the local agent half (`~/.hermes/state.db`) is measurable. `M · ★★`
 - [ ] **Hermes** — resolve per-model pricing so the telemetry card can chart cost instead of tokens (`estimated_cost_usd` is frequently `0` because Hermes prices upstream). `M · ★`
 
 ## Telemetry & History
 
 - [x] ~~**History export**~~ — done: `providers/export-usage-history csv|jsonl` plus CSV/JSONL buttons in Settings.
-- [ ] **History retention trim feedback** — the trim is silent; Settings could report how many snapshots the store currently holds next to the retention dropdown. `S · ★`
+- [x] **History retention trim feedback** — Settings now displays snapshot count and last-trim removal count; writer/status tests cover the contract. — the trim is silent; Settings could report how many snapshots the store currently holds next to the retention dropdown. `S · ★`
 
 ## Claude Analytics
 
+- [ ] **Incremental transcript parse** — the per-file cache (1.17.3) re-parses a changed transcript in full (`ponytail:` note in `get-claude-usage`). Parse only from the previous byte size if long active sessions ever make refreshes slow; measure first. `M · ★`
 - [ ] **Cost currency option** — USD-only today; reintroduce currency conversion only with a real `costCurrency` setting wired end to end (the old Frankfurter EUR lookup was removed as dead code). `M · ★`
 
 ## Settings
@@ -85,6 +97,8 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 
 ## Quality / CI
 
+- [ ] **Split the god files** — Initial slices implemented: extracted `LocalAnalyticsReader.qml` and `providers/record-usage-history`, with independent tests. Hero/cards and other fetch pairs remain pending. — `AiOverviewControlWidget.qml` (~266 KB) and `providers/get-provider-usage` (~145 KB) dominate maintenance and registry-review cost. Start by extracting the fetch `Process`/`Timer` pairs into a component, then hero and cards into their own files. Incremental slices, each gated by the QML smoke test. `L · ★★★`
+- [x] **Pre-push hook mirroring CI metadata gates** — the first 1.17.2 push failed CI (missing CHANGELOG entry, non-executable tests). Reuse the `ci.yml` checks locally: plugin.json semver, `## <version>` in CHANGELOG, i18n key parity, executable `tests/*.sh` and `providers/get-*`, every `tests/test-*.sh` listed in `ci.yml`. `S · ★★`
 - [x] ~~**Flow/anchor lint**~~ — done in 1.12.0: CI gate fails any direct child of `Flow` that sets `anchors.*` (verified to catch the Hermes regression).
 
 ## Packaging / Marketplace

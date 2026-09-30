@@ -78,7 +78,12 @@ Two caveats that cost real debugging time:
   generic usage stub.
 - Scripts must be executable (`chmod +x`) and pass `shellcheck`.
 
-## CI gates (run these locally before pushing)
+## CI
+
+Run `scripts/check-metadata` for the shared CI/pre-push metadata checks.
+See [development gates](docs/development-gates.md) for opt-in hook installation,
+Quickshell runtime smoke coverage, and the extracted history-writer contract.
+ gates (run these locally before pushing)
 
 | Gate | Local command |
 | --- | --- |

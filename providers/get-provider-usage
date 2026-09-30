@@ -1499,7 +1499,7 @@ fetch_kimi_native() {
   if [ -z "$coding_key" ]; then
     case "$key" in sk-kimi-*) coding_key="$key" ;; esac
   fi
-  if [ -n "$coding_key" ]; then
+  if [ -n "$coding_key" ] && { [ -z "$key" ] || [[ "$key" == sk-kimi-* ]]; }; then
     fetch_kimi_code_native "$coding_key"
     return 0
   fi
@@ -3336,6 +3336,18 @@ fetch_provider() {
     kimi|moonshot)
       fetch_kimi_native
       ;;
+    kimi-code)
+      local coding_key="${KIMI_CODING_API_KEY:-}"
+      if [ -z "$coding_key" ]; then
+        local candidate="${MOONSHOT_API_KEY:-${KIMI_API_KEY:-}}"
+        [[ "$candidate" != sk-kimi-* ]] || coding_key="$candidate"
+      fi
+      if [ -z "$coding_key" ]; then
+        json_error kimi-code kimi-code 2 provider "Kimi Code subscription key is not configured."
+      else
+        fetch_kimi_code_native "$coding_key" | jq -c '.provider = "kimi-code" | if .usage then .usage.identity.providerID = "kimi-code" else . end'
+      fi
+      ;;
     minimax)
       fetch_minimax_native
       ;;
@@ -3420,6 +3432,14 @@ fetch_provider() {
   esac
 }
 
+# Both credentials describe independent accounts. Preserve the legacy `kimi`
+# selection while adding the subscription card, without fetching it twice.
+open_kimi_key="${MOONSHOT_API_KEY:-${KIMI_API_KEY:-}}"
+if [[ ",${PROVIDERS_CSV}," == *,kimi,* || ",${PROVIDERS_CSV}," == *,moonshot,* ]] &&
+   [[ -n "${KIMI_CODING_API_KEY:-}" && -n "$open_kimi_key" && "$open_kimi_key" != sk-kimi-* && ",${PROVIDERS_CSV}," != *,kimi-code,* ]]; then
+  PROVIDERS_CSV+=",kimi-code"
+fi
+unset open_kimi_key
 IFS=',' read -r -a providers <<< "$PROVIDERS_CSV"
 normalized_providers=()
 result_files=()
@@ -3447,38 +3467,7 @@ done
 
 # Append one usage snapshot per healthy provider so the widget can render
 # trend arrows and history sparklines. Best-effort: never block the response.
-record_history() {
-  local history_dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
-  local history_file="$history_dir/usage-history.jsonl"
-  mkdir -p "$history_dir" 2>/dev/null || return 0
-  # Retention: AIOC_HISTORY_MAX snapshots kept after trim (default 2000); the
-  # trim itself only kicks in past 2x that to avoid rewriting on every run.
-  local max_lines="${AIOC_HISTORY_MAX:-2000}"
-  case "$max_lines" in ''|*[!0-9]*) max_lines=2000 ;; esac
-  [ "$max_lines" -ge 50 ] || max_lines=50
-
-  local now idx file line
-  now="$(date +%s)"
-  for idx in "${!normalized_providers[@]}"; do
-    file="${result_files[$idx]}"
-    [ -s "$file" ] || continue
-    # Only snapshot providers that report a real, non-zero quota/spend
-    # percentage. Balance, analytics (e.g. Cloudflare neurons), and
-    # informational cards all carry usedPercent:0 — recording those produced
-    # flat-zero sparklines that polluted history and meant nothing. A genuine
-    # 0% quota reading adds no trend signal either, so the line simply starts
-    # at the first measurable datapoint.
-    line="$(jq -c --argjson ts "$now" \
-      'select((.usage.primary.usedPercent // 0) > 0) | {ts:$ts, provider:.provider, pct:(.usage.primary.usedPercent)}' \
-      "$file" 2>/dev/null || true)"
-    [ -n "$line" ] && printf '%s\n' "$line" >> "$history_file"
-  done
-  if [ -f "$history_file" ] && [ "$(wc -l < "$history_file")" -gt "$((max_lines * 2))" ]; then
-    tail -n "$max_lines" "$history_file" > "$history_file.tmp" && mv -f "$history_file.tmp" "$history_file"
-  fi
-  return 0
-}
-record_history
+bash "$(dirname "${BASH_SOURCE[0]}")/record-usage-history" "${result_files[@]}" 2>/dev/null || true
 
 printf '['
 for index in "${!normalized_providers[@]}"; do

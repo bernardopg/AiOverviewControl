@@ -187,27 +187,11 @@ fi
 result="$(jq -cn --argjson account "$account" --argjson response "$limits" '
   def iso($seconds):
     if $seconds == null then null else ($seconds | todateiso8601) end;
-  def counted($value; $unit):
-    ($value | floor) as $count
-    | (($count | tostring) + " " + $unit + (if $count == 1 then "" else "s" end));
-  def window_label($minutes):
-    if $minutes == null then "Quota"
-    elif $minutes == 300 then "Session"
-    elif $minutes == 10080 then "Weekly"
-    elif ($minutes >= 10080 and ($minutes % 10080) == 0) then
-      counted($minutes / 10080; "week")
-    elif ($minutes >= 1440 and ($minutes % 1440) == 0) then
-      counted($minutes / 1440; "day")
-    elif ($minutes >= 60 and ($minutes % 60) == 0) then
-      counted($minutes / 60; "hour")
-    else counted($minutes; "minute")
-    end;
   def window($value):
     if $value == null then null else {
       usedPercent: ($value.usedPercent // 0),
       windowMinutes: ($value.windowDurationMins // null),
-      resetsAt: iso($value.resetsAt),
-      resetDescription: window_label($value.windowDurationMins // null)
+      resetsAt: iso($value.resetsAt)
     } end;
   $response.rateLimits as $limits
   | ($response.rateLimitResetCredits // {}) as $reset_credits
@@ -228,6 +212,7 @@ result="$(jq -cn --argjson account "$account" --argjson response "$limits" '
         updatedAt:(now | todateiso8601)
       },
       credits:{
+        balance: (($reset_credits.availableCount | tonumber?) // null),
         remaining:(
           if ($reset_credits.availableCount // null) != null then
             ($reset_credits.availableCount | tostring)

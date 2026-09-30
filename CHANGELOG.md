@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Discover the real running DMS instance for hot reload, and avoid cached-qmldir / Item.data collisions in the extracted reader.
+- Verify Kimi Code against the live first-party `.com` quota endpoint; support independent balance/subscription cards when both keys are present.
+- Localize all selectable provider descriptions in the five supported languages; gate QML lookup coverage and placeholder parity in CI.
+- Add persisted drag-to-reorder for pinned cards and local snapshot/last-trim feedback in Settings.
+
+- Localize Codex quota-window labels through `windowMinutes` instead of raw English adapter descriptions.
+- Record Codex reset-credit balances alongside quota history, including zero balances; export an optional `credit_balance` CSV column without creating false percentage sparklines.
+- Extract history persistence into a concurrency-safe, independently tested writer and local analytics fetches into `LocalAnalyticsReader.qml`.
+- Add shared offline metadata gates, an opt-in pre-push hook, and headless Quickshell component smoke coverage in CI.
+
 ## 1.17.3 - 2026-09-29
 
 ### Claude analytics: incremental transcript cache

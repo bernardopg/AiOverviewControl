@@ -1,4 +1,5 @@
 singleton AiOverviewControlI18n 1.0 AiOverviewControlI18n.qml
 ProviderLogo 1.0 ProviderLogo.qml
 HeaderAction 1.0 HeaderAction.qml
+LocalAnalyticsReader 1.0 LocalAnalyticsReader.qml
 AiOverviewSettingsWindow 1.0 AiOverviewSettingsWindow.qml
