@@ -25,6 +25,7 @@
 
 - Audit current workflow toolchain releases; migrate Crowdin CLI to checksum-verified native 5.3.0, pin the QML smoke checkout consistently, and enforce offline dependency contracts.
 - Require substantive changelog entries in PRs and release sections through a dedicated `Changelog integrity` CI check; reject headings/comments/placeholders alone, duplicate version sections and version rollback. Packaging validates the archived changelog, and release publication extracts the exact version section with tag-pinned documentation links rather than relying on generated notes.
+- Update the expanded-card CI contract to inspect the extracted dashboard and lint every root QML component, including the new formatter/view modules.
 - Keep contributor-avatar automation read-only: report renderer diffs for normal PR delivery instead of granting a bot bypass or pushing directly to protected main.
 - Document migration/privacy, runtime boundaries, complete validation and protected PR/tag delivery in the [1.18.0 release guide](./docs/releases/1.18.0.md), [currency guide](./docs/currency.md) and [repository rules](./docs/repository-rules.md).
 

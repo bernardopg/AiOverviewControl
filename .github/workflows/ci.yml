@@ -741,14 +741,7 @@ jobs:
 
       - name: QML lint (hard gate)
         run: |
-          "${{ steps.qmllint.outputs.bin }}" \
-            AiOverviewControlWidget.qml \
-            AiOverviewControlSettings.qml \
-            AiOverviewControlI18n.qml \
-            AiOverviewSettingsWindow.qml \
-            HeaderAction.qml \
-            LocalAnalyticsReader.qml \
-            ProviderLogo.qml
+          "${{ steps.qmllint.outputs.bin }}" ./*.qml
 
       - name: No hardcoded install path in QML
         run: |
@@ -774,7 +767,7 @@ jobs:
           # section that lands one brace too early also renders on the collapsed
           # card — a regression qmllint cannot see, because the file stays
           # syntactically valid either way.
-          source = Path('AiOverviewControlWidget.qml').read_text().splitlines()
+          source = Path('DashboardContent.qml').read_text().splitlines()
 
           depth = 0
           expanded_open_depth = None
