@@ -75,28 +75,17 @@ jobs:
 
       - name: Extract release notes from CHANGELOG
         run: |
-          # Releases are pushed straight to main (no PRs), so generated notes
-          # are empty; the CHANGELOG section is the real release body.
-          # Relative links are rewritten to the tag, since a release page
-          # does not resolve them against the repository.
-          awk -v v="$VERSION" '
-            $0 ~ "^## " v "( |$)" { on = 1; next }
-            on && /^## / { exit }
-            on { print }
-          ' CHANGELOG.md \
-            | sed "s#](\./#](https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/#g" \
-            > dist/RELEASE_NOTES.md
-          if ! grep -q '[^[:space:]]' dist/RELEASE_NOTES.md; then
-            echo "::error::CHANGELOG.md section for ${VERSION} is empty" >&2
-            exit 1
-          fi
+          # The same executable contract gates PRs, packaging and publication.
+          # Use the exact version section; relative links point at the immutable tag.
+          scripts/check-changelog --notes --repository "$GITHUB_REPOSITORY" \
+            --tag "$TAG" > dist/RELEASE_NOTES.md
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: ${{ env.TAG }}
           body_path: dist/RELEASE_NOTES.md
-          generate_release_notes: true
+          generate_release_notes: false
           fail_on_unmatched_files: true
           files: |
             dist/${{ env.DIST_NAME }}.zip

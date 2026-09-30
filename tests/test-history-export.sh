@@ -42,7 +42,7 @@ case "$csv" in
   *) echo "unexpected CSV name: $csv" >&2; exit 1 ;;
 esac
 [ "$(stat -c '%a' "$csv")" = "600" ] || { echo "CSV is not 0600" >&2; exit 1; }
-[ "$(head -1 "$csv")" = "timestamp_iso,timestamp_epoch,provider,percent" ] || {
+[ "$(head -1 "$csv")" = "timestamp_iso,timestamp_epoch,provider,percent,credit_balance" ] || {
   echo "unexpected CSV header" >&2; exit 1;
 }
 # header + 3 valid rows; the unparsable line is dropped.
@@ -51,7 +51,7 @@ grep -q '"2025-06-15T15:06:40Z",1750000000,"claude",54' "$csv" || {
   echo "CSV lost the ISO timestamp or the first row" >&2; exit 1;
 }
 # Float noise from percentage math is rounded to two decimals.
-grep -q '"codex",19.1$' "$csv" || { echo "CSV percent was not rounded" >&2; exit 1; }
+grep -q '"codex",19.1,$' "$csv" || { echo "CSV percent was not rounded" >&2; exit 1; }
 
 # ── unreadable history ──────────────────────────────────────────────────────
 printf 'not json at all\n' > "$HISTORY_DIR/usage-history.jsonl"

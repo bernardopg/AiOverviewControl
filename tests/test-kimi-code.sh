@@ -73,4 +73,12 @@ out="$(run env -u MOONSHOT_API_KEY -u KIMI_CODING_API_KEY KIMI_API_KEY=sk-kimi-a
 out="$(run env -u KIMI_API_KEY -u KIMI_CODING_API_KEY MOONSHOT_API_KEY=sk-openplat)"
 [ "$(jq -r '.[0].source' <<<"$out")" = "kimi-api" ] || fail "open key -> balance"
 
+# Observed first-party live schema: authoritative limits win over stale ratios.
+out="$(run env -u MOONSHOT_API_KEY -u KIMI_API_KEY KIMI_CODING_API_KEY=sk-kimi-test KIMI_TEST_FIXTURE=kimi-code-live-usages.json)"
+jq -e '.[0].usage.primary.usedPercent == 68 and .[0].usage.secondary.usedPercent == 22.52 and .[0].usage.tertiary == null' <<<"$out" >/dev/null || fail "live schema precedence"
+# Independent Open Platform + Code credentials produce separate cards.
+out="$(run env -u KIMI_API_KEY MOONSHOT_API_KEY=sk-openplat KIMI_CODING_API_KEY=sk-kimi-test)"
+jq -e 'length == 2 and any(.provider == "kimi" and .source == "kimi-api") and any(.provider == "kimi-code" and .source == "kimi-code")' <<<"$out" >/dev/null || fail "simultaneous cards"
+out="$(PATH="$TMP/bin:$PATH" env -u KIMI_API_KEY MOONSHOT_API_KEY=sk-openplat KIMI_CODING_API_KEY=sk-kimi-test "$ROOT/providers/get-provider-usage" kimi,kimi-code)"
+jq -e 'length == 2' <<<"$out" >/dev/null || fail "explicit Code selection duplicated"
 echo "OK: test-kimi-code"

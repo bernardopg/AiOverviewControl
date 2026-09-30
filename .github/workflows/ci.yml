@@ -25,10 +25,49 @@ env:
   ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
   SHELLCHECK_VERSION: "v0.11.0"
   SHELLCHECK_SHA256: "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6"
-  CROWDIN_CLI_VERSION: "4.15.0"
-  CROWDIN_CLI_SHA256: "c159ee285c354aad96efa60a797e9dd029bf6cf1b2154a97417c8a8d389a52ad"
+  CROWDIN_CLI_VERSION: "5.3.0"
+  CROWDIN_CLI_SHA256: "d3f8e74471b98d47c0964e85c992a04eb411d06138c4239118a4c94d29e3e9e4"
 
 jobs:
+  changelog:
+    name: Changelog integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reject missing or empty release and PR notes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$BASE_SHA" && ! "$BASE_SHA" =~ ^0+$ ]]; then
+            scripts/check-changelog --base "$BASE_SHA"
+          else
+            scripts/check-changelog
+          fi
+      - name: Exercise changelog rejection and release-body contracts
+        run: tests/test-changelog.sh
+
+  qml-runtime:
+    name: Quickshell component smoke
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    steps:
+      - name: Install runtime prerequisites
+        run: pacman -Syu --noconfirm git python quickshell
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Instantiate extracted QML fetch component headlessly
+        run: tests/test-qml-smoke.sh
+      - name: Exercise currency module headlessly
+        run: tests/test-currency-qml.sh
+      - name: Exercise full DMS UI when native prerequisites exist
+        # Reports SKIP without DMS imports and a native Wayland backend.
+        run: tests/test-widget-runtime.sh
+
   # ─── workflow lint ───────────────────────────────────────────────────────────
   actionlint:
     name: Workflow lint
@@ -61,6 +100,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Shared offline metadata gates
+        run: scripts/check-metadata
       - name: Validate plugin.json (syntax + semver)
         run: |
           jq --exit-status . plugin.json >/dev/null
@@ -186,9 +227,9 @@ jobs:
 
       - name: Syntax check — provider, test, and packaging scripts
         run: |
-          find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
-          find tests -maxdepth 1 -name '*.sh' -type f -print0 | xargs -0 bash -n
-          bash -n scripts/package-release
+          find providers -type f -print0 | xargs -0 -n 1 bash -n
+          find tests -maxdepth 1 -name '*.sh' -type f -print0 | xargs -0 -n 1 bash -n
+          printf '%s\0' scripts/package-release scripts/check-metadata scripts/reload-plugin .githooks/pre-push | xargs -0 -n 1 bash -n
           bash -n scripts/render-contributors
 
       - name: Confirm all scripts are executable
@@ -225,7 +266,9 @@ jobs:
           /tmp/shellcheck --version
 
       - name: shellcheck — all provider, test, and packaging scripts (warning level)
-        run: /tmp/shellcheck -S warning providers/* tests/*.sh scripts/package-release scripts/render-contributors
+        run: |
+          find providers -type f -print0 | xargs -0 /tmp/shellcheck -S warning
+          /tmp/shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/reload-plugin .githooks/pre-push
 
       - name: Provider dispatch coverage
         run: |
@@ -408,9 +451,9 @@ jobs:
           echo "$OUT" | jq --exit-status '
             length == 1 and .[0].provider == "codex" and
             .[0].usage.primary.usedPercent == 25 and
-            .[0].usage.primary.resetDescription == "Session" and
+            .[0].usage.primary.windowMinutes == 300 and (.[0].usage.primary | has("resetDescription") | not) and
             .[0].usage.secondary.usedPercent == 50 and
-            .[0].usage.secondary.resetDescription == "Weekly" and
+            .[0].usage.secondary.windowMinutes == 10080 and (.[0].usage.secondary | has("resetDescription") | not) and
             .[0].credits.remaining == "12"
           ' >/dev/null
 
@@ -421,7 +464,7 @@ jobs:
             length == 1 and .[0].provider == "codex" and
             .[0].usage.primary.usedPercent == 79 and
             .[0].usage.primary.windowMinutes == 10080 and
-            .[0].usage.primary.resetDescription == "Weekly" and
+            (.[0].usage.primary | has("resetDescription") | not) and
             .[0].usage.secondary == null and
             .[0].credits.remaining == "1"
           ' >/dev/null
@@ -565,6 +608,20 @@ jobs:
       - name: Integration test — third-party network opt-outs
         run: tests/test-network-opt-outs.sh
 
+      - name: Integration test — Codex credit history
+        run: tests/test-credit-history.sh
+      - name: Integration test — running DMS discovery
+        run: tests/test-dms-reload.sh
+      - name: Integration test — locale lookup and interpolation coverage
+        run: tests/test-i18n.sh
+      - name: Integration test — native adapter module contracts
+        run: tests/test-native-adapters.sh
+      - name: Integration test — currency cache and fallback
+        run: tests/test-currency.sh
+      - name: Integration test — workflow dependency contracts
+        run: tests/test-workflow-dependencies.sh
+      - name: Integration test — offline metadata gates
+        run: tests/test-metadata.sh
       - name: Integration test — Codex app-server usage
         run: tests/test-codex-usage.sh
 
@@ -684,13 +741,7 @@ jobs:
 
       - name: QML lint (hard gate)
         run: |
-          "${{ steps.qmllint.outputs.bin }}" \
-            AiOverviewControlWidget.qml \
-            AiOverviewControlSettings.qml \
-            AiOverviewControlI18n.qml \
-            AiOverviewSettingsWindow.qml \
-            HeaderAction.qml \
-            ProviderLogo.qml
+          "${{ steps.qmllint.outputs.bin }}" ./*.qml
 
       - name: No hardcoded install path in QML
         run: |
@@ -716,7 +767,7 @@ jobs:
           # section that lands one brace too early also renders on the collapsed
           # card — a regression qmllint cannot see, because the file stays
           # syntactically valid either way.
-          source = Path('AiOverviewControlWidget.qml').read_text().splitlines()
+          source = Path('DashboardContent.qml').read_text().splitlines()
 
           depth = 0
           expanded_open_depth = None
@@ -927,43 +978,44 @@ jobs:
       - name: Install Crowdin CLI (verified checksum)
         id: crowdin_cli
         run: |
-          ARCHIVE="/tmp/crowdin-cli.zip"
-          curl -fsSL \
-            "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-cli.zip" \
-            -o "$ARCHIVE"
-          echo "${CROWDIN_CLI_SHA256}  ${ARCHIVE}" | sha256sum --check --strict
-          unzip -q "$ARCHIVE" -d /tmp/crowdin-cli
-          JAR="/tmp/crowdin-cli/${CROWDIN_CLI_VERSION}/crowdin-cli.jar"
+          BINARY="/tmp/crowdin"
+          curl -fsSL --retry 3 --max-time 180 \
+            "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-linux-x64" \
+            -o "$BINARY"
+          echo "${CROWDIN_CLI_SHA256}  ${BINARY}" | sha256sum --check --strict
+          chmod +x "$BINARY"
+          "$BINARY" --version | grep -Fx "$CROWDIN_CLI_VERSION"
           OFFLINE_IDENTITY="/tmp/crowdin-offline-identity.yml"
-          test -f "$JAR"
+          umask 077
           printf 'api_token: offline-lint-placeholder\n' > "$OFFLINE_IDENTITY"
-          chmod 600 "$OFFLINE_IDENTITY"
           {
-            echo "jar=$JAR"
+            echo "binary=$BINARY"
             echo "offline_identity=$OFFLINE_IDENTITY"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate Crowdin config (hard gate, no secret required)
         run: |
-          java -jar "${{ steps.crowdin_cli.outputs.jar }}" \
+          "${{ steps.crowdin_cli.outputs.binary }}" \
             config lint --config .github/crowdin.yml \
             --identity "${{ steps.crowdin_cli.outputs.offline_identity }}"
 
       - name: Validate Crowdin project remotely (requires secret)
         env:
           CROWDIN_API_TOKEN: ${{ secrets.CROWDIN_API_TOKEN }}
-          CROWDIN_JAR: ${{ steps.crowdin_cli.outputs.jar }}
+          CROWDIN_BINARY: ${{ steps.crowdin_cli.outputs.binary }}
         run: |
           if [ -z "${CROWDIN_API_TOKEN:-}" ]; then
             echo "Crowdin token not available — skipping remote project validation."
             exit 0
           fi
 
+          umask 077
           python3 - <<'PY'
+          import json
           import os
           from pathlib import Path
           Path('/tmp/crowdin-identity.yml').write_text(
-              'api_token: ' + os.environ['CROWDIN_API_TOKEN'] + '\n'
+              json.dumps({'api_token': os.environ['CROWDIN_API_TOKEN']}) + '\n'
           )
           PY
 
@@ -971,7 +1023,7 @@ jobs:
           # reasons outside this repository (service issues, token scope, rate
           # limiting). The offline config lint remains the hard gate.
           for check in sources translations; do
-            if ! timeout 60 java -jar "$CROWDIN_JAR" config "$check" \
+            if ! timeout 60 "$CROWDIN_BINARY" config "$check" \
               --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml; then
               echo "::warning::Crowdin remote '${check}' validation failed or timed out; skipping as non-blocking."
             fi

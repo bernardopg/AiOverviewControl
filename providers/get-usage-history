@@ -11,8 +11,9 @@ if [ ! -f "$HISTORY_FILE" ]; then
   exit 0
 fi
 
-jq -cs '
-  group_by(.provider)
+jq -cRs '
+  split("\n") | map(fromjson? | select(type == "object" and (.pct | type) == "number"))
+  | group_by(.provider)
   | map({key: .[0].provider, value: (sort_by(.ts) | map({t: .ts, p: .pct}) | .[-30:])})
   | from_entries
 ' "$HISTORY_FILE" 2>/dev/null || printf '{}'

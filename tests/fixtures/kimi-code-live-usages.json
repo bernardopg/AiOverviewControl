@@ -1,0 +1,8 @@
+{
+  "limits": [{"window": {"duration": 300, "timeUnit": "TIME_UNIT_MINUTE"}, "detail": {"limit": "100", "used": "68", "remaining": "32", "resetTime": "2026-09-30T04:20:09.284739Z"}}],
+  "usages": {
+    "limit_5h": {"used_ratio": 0, "reset_time": "2026-09-30T04:20:09Z"},
+    "limit_month_total": {"used_ratio": 0.2252, "reset_time": "2026-10-21T00:00:00Z"},
+    "limit_month_code": {"used_ratio": 0, "reset_time": "2026-10-21T00:00:00Z"}
+  }
+}

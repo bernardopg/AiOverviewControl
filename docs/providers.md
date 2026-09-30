@@ -207,7 +207,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ Kimi Code (tempo tiers)</td>
 <td>✅ per token (USD/CNY)</td>
 <td><code>MOONSHOT_API_KEY</code>, <code>KIMI_API_KEY</code>, or <code>KIMI_CODING_API_KEY</code></td>
-<td><a href="https://www.kimi.ai/code/console">Kimi Code console</a> / <a href="https://platform.kimi.ai/console">Open Platform</a></td>
+<td><a href="https://www.kimi.com/code/console">Kimi Code console</a> / <a href="https://platform.kimi.ai/console">Open Platform</a></td>
 <td><a href="https://github.com/MoonshotAI/kimi-code/blob/main/packages/oauth/src/managed-usage.ts">Kimi Code CLI usage client</a> / <a href="https://platform.kimi.ai/docs/intro">Open Platform docs</a></td>
 </tr>
 <tr>
@@ -629,6 +629,12 @@ force the Zen path.
 | **Adapter** | `fetch_opencode_native` (API branch) — `/zen/go/v1/usage`, with `/zen/go/v1/models` fallback. |
 
 ### Kimi (Moonshot AI)
+
+See [domain and live-schema verification](kimi-domains-research.md) for the
+first-party `.com` Code endpoint and separate Moonshot Open Platform hosts.
+`kimi-code` is independently selectable; selecting `kimi` with both an Open
+Platform key and `KIMI_CODING_API_KEY` returns separate balance/subscription
+cards. A single subscription key preserves the legacy `kimi` behavior.
 
 | | |
 | --- | --- |

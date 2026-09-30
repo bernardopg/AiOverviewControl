@@ -1,15 +1,23 @@
 # Architecture
 
+Module contracts and test boundaries: [refactoring.md](refactoring.md).
+Currency policy and monetary units: [currency.md](currency.md).
+
 ## Components
 
 ```text
-AiOverviewControlWidget.qml       Runtime orchestration and dashboard
+AiOverviewControlWidget.qml       Runtime controller and bar pills
+DashboardContent.qml             Dashboard/hero/cards presentation
+LocalAnalyticsReader.qml         Bounded JSON subprocess lifecycle
+CurrencyFormatter.qml            Display-only monetary conversion
 AiOverviewControlSettings.qml     Settings, provider selection, health UI
 AiOverviewControlI18n.qml         Locale loading and interpolation
 ProviderLogo.qml                  Local provider-logo resolution and fallback icons
 HeaderAction.qml                  Icon-only capsule button shared by the popout, cards, and windows
 AiOverviewSettingsWindow.qml      Standalone settings window and About window (hosts the settings page)
-providers/get-provider-usage      Multi-provider dispatcher and history writer
+providers/get-provider-usage      Multi-provider dispatcher and normalization
+providers/native/*.bash          Native provider fetch implementations
+providers/get-exchange-rates     Validated/cache-backed daily USD rate quotes
 providers/get-provider-health     Prerequisite checks for settings
 providers/get-usage-history       Local usage history reader
 providers/export-usage-history    Usage history export (CSV/JSONL)
@@ -159,7 +167,7 @@ Legacy settings unknown to the current code are ignored.
 - Provider failures are data, not dispatcher failures.
 - Temporary files live in one per-run directory and are removed on exit.
 - Informational, local-runtime, balance-only, and analytics-only providers may return a valid `usage` object with a truthful `0%` placeholder; those placeholders are rendered but not written to history.
-- `usage-history.jsonl` records only non-zero quota/spend pressure, so sparklines and trends are not polluted by flat informational cards.
+- `usage-history.jsonl` records non-zero quota/spend pressure and optional Codex reset-credit balances (including zero); credit-only records have no percentage and are excluded from sparklines. Persistence is handled by `providers/record-usage-history` with serialized append/retention. See [development gates](development-gates.md).
 - Fixture-backed test suites export a sandboxed `XDG_CACHE_HOME` before invoking the real dispatcher, so they never append snapshots to a real history store.
 - The dashboard marks data stale after two refresh intervals.
 - Process command arrays are snapshotted before execution to avoid reactive mutation.
@@ -181,7 +189,8 @@ Legacy settings unknown to the current code are ignored.
 find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
-shellcheck -S warning providers/* tests/*.sh scripts/package-release
+find providers -type f -print0 | xargs -0 shellcheck -S warning
+shellcheck -S warning tests/*.sh scripts/package-release
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
 ./providers/get-provider-health "codex,claude,copilot,pi" | jq .
 ./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .

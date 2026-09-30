@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Install explicitly with: git config core.hooksPath .githooks
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+exec bash "$ROOT/scripts/check-metadata"

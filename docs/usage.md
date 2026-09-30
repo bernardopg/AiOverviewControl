@@ -1,5 +1,21 @@
 # Using the dashboard
 
+## Reordering pinned providers
+
+Click and drag the ↕ handle onto another pinned provider card to place it before
+that card. No long press is necessary. Dragging the handle does not scroll the
+page; scroll or drag elsewhere in the dashboard as usual. Pin a provider with the
+star button to expose its reorder handle. The pin order is saved automatically.
+
+## Estimated cost currency
+
+In Settings, choose **Estimated cost currency** (USD by default). Daily reference
+rates convert analytics costs for display in EUR, BRL, GBP, CAD, CNY, JPY, AUD or
+CHF. The dashboard identifies the quote date and stale cache; missing rates show
+USD, never an unconverted amount under another currency label. Storage, exports,
+credits and native provider balances remain unchanged. Set `AIOC_NO_FX=1` to
+prevent rate requests. See [currency.md](currency.md) for cache and precision.
+
 How the popout, provider cards, settings window, and IPC commands behave once
 AiOverviewControl is installed. For the setting keys themselves see
 [Configuration](./configuration.md).
@@ -84,9 +100,14 @@ bind = SUPER, U, exec, dms ipc call aiOverviewControl toggle
 
 ## Usage history
 
+Codex reset-credit balances are also retained as optional `creditBalance`
+readings, including zero. They do not create percentage sparklines. CSV exports
+append `credit_balance`; unavailable percentages/balances are empty rather than
+fabricated zeroes. See [the persistence contract](development-gates.md#codex-credit-snapshots).
+
 - Snapshots are stored in `~/.cache/AiOverviewControl/usage-history.jsonl` and
   trimmed to the configured retention.
-- Only real non-zero quota or spend pressure is recorded. Informational,
+- Percentage snapshots record only real non-zero quota or spend pressure; Codex reset-credit readings are stored separately within each snapshot. Informational,
   local-runtime, balance-only, and analytics-only placeholders are skipped, so
   sparklines stay meaningful.
 - The store is trimmed, so export it to keep long-term data: use the

@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -34,13 +34,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: scripts/render-contributors
 
-      - name: Commit when the grid changed
+      - name: Report grid changes for protected PR delivery
         run: |
           if git diff --quiet -- README.md docs/README.pt-BR.md; then
             echo "Contributor avatars already up to date."
             exit 0
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'chore(readme): refresh contributor avatars' -- README.md docs/README.pt-BR.md
-          git push
+          echo "::notice::Avatar changes are available; run scripts/render-contributors on a PR branch and add an Unreleased note."
+          {
+            echo '## Contributor avatar update proposal'
+            echo 'Apply this renderer output through a regular PR; protected main has no bot bypass.'
+            echo '```diff'
+            git diff -- README.md docs/README.pt-BR.md
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

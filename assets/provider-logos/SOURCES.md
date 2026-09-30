@@ -4,6 +4,8 @@ All marks are stored locally so the plugin never depends on a network request at
 
 ## Sources
 
+- `kimi-code.svg` reuses the same Kimi SVG as `kimi.svg` (Lobe Icons, MIT); the two cards represent independent billing products, not different brands.
+
 - Most SVGs: [Lobe Icons `@lobehub/icons-static-svg` 1.91.0](https://github.com/lobehub/lobe-icons), MIT. The exact upstream slugs are the provider filename except: `glm` uses `zhipu-color`, `kilo` uses `kilocode`, and `ai21` uses `ai21-brand-color`. The mapping rule is "upstream slug = stored filename"; when upgrading the pinned package version, re-verify the slugs still match before trusting silent renames.
 - 9Router: [official `public/favicon.svg`](https://github.com/decolua/9router/blob/master/public/favicon.svg), MIT.
 - BytePlus Ark: [official BytePlus favicon](https://sf-bpcms.bytepluscdn.com/obj/byteplus-public-aiso/portal/assets/favicon.png), discovered from the ModelArk product page.

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+python3 scripts/check-changelog
 
 VERSION="$(jq --exit-status --raw-output '.version' plugin.json)"
 TAG="${1:-v${VERSION}}"
@@ -50,18 +51,28 @@ fi
 
 tar -xzf "$DIST_DIR/${DIST_NAME}.tar.gz" -C "$TMP"
 PACKAGE="$TMP/$DIST_NAME"
+# Validate the archived notes, not just uncommitted working-copy documentation.
+python3 "$PACKAGE/scripts/check-changelog"
 for required in \
   plugin.json qmldir \
   AiOverviewControlWidget.qml AiOverviewControlSettings.qml \
   AiOverviewControlI18n.qml ProviderLogo.qml \
-  HeaderAction.qml AiOverviewSettingsWindow.qml assets/logo.png \
+  HeaderAction.qml AiOverviewSettingsWindow.qml LocalAnalyticsReader.qml CurrencyFormatter.qml DashboardContent.qml assets/logo.png \
   assets/provider-logos/SOURCES.md \
-  providers/get-provider-usage providers/get-provider-health \
-  providers/get-local-analytics providers/local-cost-common \
+  providers/get-provider-usage providers/get-provider-health providers/record-usage-history providers/get-history-stats providers/get-kimi-code-usage \
+  providers/get-local-analytics providers/local-cost-common providers/get-exchange-rates \
   scripts/local-analytics.jq \
   providers/send-quota-alert i18n/en.json; do
   if [ ! -f "$PACKAGE/$required" ]; then
     printf 'Release archive is missing %s\n' "$required" >&2
+    exit 1
+  fi
+done
+
+# Native source modules are required at runtime, even though they are not executables.
+for module in providers/native/*.bash; do
+  if [ ! -f "$PACKAGE/$module" ]; then
+    printf 'Release archive missing native adapter %s\n' "$module" >&2
     exit 1
   fi
 done

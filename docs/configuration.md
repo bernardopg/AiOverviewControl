@@ -26,6 +26,14 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `showClaudeProjects` | `true` / `false` | `true` | Shows Claude local project analytics. |
 | `showAntigravityModelDetails` | `true` / `false` | `false` | In expanded Antigravity cards, replaces concise Gemini / Claude & OpenAI family rows with individual model rows. |
 
+### Analytics currency
+
+`costCurrency` defaults to `USD` and accepts `USD`, `EUR`, `BRL`, `GBP`, `CAD`,
+`CNY`, `JPY`, `AUD` or `CHF`. It changes estimated analytics cost display only;
+amounts stored/exported and provider-native balances remain unchanged. Missing
+exchange rates fall back to explicitly labeled USD. `AIOC_NO_FX=1` prevents rate
+requests. See [currency.md](currency.md).
+
 ## Exporting usage history
 
 The local store (`${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/usage-history.jsonl`)

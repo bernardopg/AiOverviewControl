@@ -150,6 +150,10 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
+O [guia do release 1.18.0](./releases/1.18.0.md) reúne mudanças, migração e limitações (em inglês).
+Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
+e [regras de PR e publicação](./repository-rules.md).
+
 A documentação detalhada está em inglês.
 
 | | |

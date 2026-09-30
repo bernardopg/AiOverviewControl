@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Resolve the running shell, not a guessed ~/.config/quickshell/dms path.
+set -euo pipefail
+plugin="${1:-aiOverviewControl}"
+[[ "$plugin" =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'Invalid plugin ID' >&2; exit 1; }
+found=0
+while IFS= read -r instance; do
+  list="$(qs ipc -i "$instance" call plugins list 2>/dev/null || true)"
+  if grep -qE "^${plugin} \[loaded\]$" <<< "$list"; then
+    result="$(qs ipc -i "$instance" call plugins reload "$plugin")"
+    printf '%s: %s\n' "$instance" "$result"
+    [[ "$result" == "PLUGIN_RELOAD_SUCCESS: $plugin" ]] || exit 1
+    found=1
+  fi
+done < <(qs list --all 2>/dev/null | awk '/^Instance / { gsub(/:/, "", $2); print $2 }')
+(( found )) || { echo "No running shell with $plugin loaded was found" >&2; exit 1; }

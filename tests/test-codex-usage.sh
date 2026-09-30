@@ -32,7 +32,7 @@ if [ "$1" = "app-server" ] && [ "$#" -eq 1 ]; then
     case "$id" in
       0) printf '{"id":0,"result":{}}\n';;
       1) if [ "${CODEX_STUB_NO_ACCOUNT:-0}" = "1" ]; then printf '{"id":1,"result":{"account":null}}\n'; else printf '{"id":1,"result":{"account":{"email":"t@example.com","planType":"plus"}}}\n'; fi;;
-      2) if [ "${CODEX_STUB_NO_ACCOUNT:-0}" = "1" ]; then printf '{"id":2,"result":{}}\n'; else printf '{"id":2,"result":{"rateLimits":{"primary":{"usedPercent":10,"windowDurationMins":300,"resetsAt":1790000000},"secondary":{"usedPercent":5,"windowDurationMins":10080,"resetsAt":1790000000}},"planType":"plus"}}\n'; fi;;
+      2) if [ "${CODEX_STUB_NO_ACCOUNT:-0}" = "1" ]; then printf '{"id":2,"result":{}}\n'; else printf '{"id":2,"result":{"rateLimits":{"primary":{"usedPercent":10,"windowDurationMins":300,"resetsAt":1790000000},"secondary":{"usedPercent":5,"windowDurationMins":10080,"resetsAt":1790000000}},"rateLimitResetCredits":{"availableCount":0},"planType":"plus"}}\n'; fi;;
     esac
   done
   exit 0
@@ -52,6 +52,7 @@ out="$(run_adapter)"
 grep -q '^app-server$' "$STUB_LOG" || fail "stdio backend not used"
 [ "$(jq -r '.usage.primary.usedPercent' <<<"$out")" = "10" ] || fail "primary window missing"
 [ "$(jq -r '.usage.secondary.windowMinutes' <<<"$out")" = "10080" ] || fail "secondary window missing"
+jq -e '.credits.balance == 0 and .usage.primary.windowMinutes == 300 and ([.usage.primary, .usage.secondary] | all(has("resetDescription") | not))' <<<"$out" >/dev/null || fail "window labels must be localized by QML, not emitted as English"
 
 # 2. Freshness gate: an immediate second run serves the cache and launches
 #    nothing at all.
@@ -63,7 +64,8 @@ out="$(run_adapter)"
 # 3. A refresh already in flight: with the gate disabled and the lock held,
 #    the stale cache is served rather than starting a second backend. Same
 #    without any cache: bounded wait, then a structured error.
-sleep 61 2>/dev/null || { jq -cn --argjson d "$(jq '.data' "$XDG_CACHE_HOME/AiOverviewControl/codex-usage.json")" '{cached_at:(now|floor - 120),data:$d}' >"$XDG_CACHE_HOME/AiOverviewControl/codex-usage.json"; }
+jq -cn --argjson d "$(jq '.data' "$XDG_CACHE_HOME/AiOverviewControl/codex-usage.json")" '{cached_at:(now|floor - 120),data:$d}' >"$TMP/stale-cache.json"
+mv "$TMP/stale-cache.json" "$XDG_CACHE_HOME/AiOverviewControl/codex-usage.json"
 flock "$TMP/cache/AiOverviewControl/codex-usage.lock" sleep 3 &
 holder=$!
 sleep 0.3

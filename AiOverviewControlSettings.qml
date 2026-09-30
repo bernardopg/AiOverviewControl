@@ -195,6 +195,7 @@ PluginSettings {
         refreshInterval: "120000",
         showErrorProviders: "true",
         showClaudeProjects: "true",
+        costCurrency: "USD",
         showAntigravityModelDetails: "false",
         pillTooltip: "true",
         quotaNotifications: "true",
@@ -272,6 +273,7 @@ PluginSettings {
         { id:"openrouter", name:"OpenRouter", icon:"route", mode:"telemetry", requirement:"API key or 9Router data", envVar:"OPENROUTER_API_KEY", note:"Official key usage and limits" },
         { id:"deepseek", name:"DeepSeek", icon:"search", mode:"telemetry", requirement:"API key", envVar:"DEEPSEEK_API_KEY", note:"Official account balance" },
         { id:"kimi", name:"Kimi", icon:"language", mode:"telemetry", requirement:"API key", envVar:"MOONSHOT_API_KEY", note:"Account balance (USD/CNY), or Kimi Code subscription quota with a sk-kimi- key / KIMI_CODING_API_KEY" },
+        { id:"kimi-code", name:"Kimi Code", icon:"language", mode:"telemetry", requirement:"API key", envVar:"KIMI_CODING_API_KEY", note:"Independent Kimi Code subscription quota" },
         { id:"minimax", name:"MiniMax", icon:"bar_chart", mode:"telemetry", requirement:"API key or Token Plan key", envVar:"MINIMAX_API_KEY", note:"Token Plan quota (5h + weekly) via MINIMAX_TOKEN_PLAN_KEY or sk-cp MINIMAX_API_KEY; pay-as-you-go keys use models API authentication" },
         { id:"commandcode", name:"Command Code", icon:"terminal", mode:"telemetry", requirement:"API key or cmd login", envVar:"COMMAND_CODE_API_KEY", note:"Uses COMMAND_CODE_API_KEY or the credential saved by cmd login. Reads /alpha/billing/credits for 5h/weekly/monthly quota; falls back to /provider/v1/models on alpha failure." },
         { id:"glm", name:"GLM", icon:"memory", mode:"telemetry", requirement:"API key", envVar:"GLM_API_KEY", note:"China (Zhipu) quota windows and plan; falls back to models authentication" },
@@ -431,6 +433,29 @@ PluginSettings {
 
     // Usage-history export. The script prints the file it wrote on stdout and
     // a short reason on stderr, so both outcomes have something to show.
+    property int historySnapshotCount: 0
+    property int historyLastTrimmed: 0
+    Process {
+        id: historyStatsProcess
+        command: ["bash", decodeURIComponent(Qt.resolvedUrl("providers/get-history-stats").toString().replace("file://", ""))]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const result = JSON.parse(text);
+                    root.historySnapshotCount = result.count || 0;
+                    root.historyLastTrimmed = result.trimmed || 0;
+                } catch (error) {}
+            }
+        }
+    }
+    Timer {
+        interval: 5000
+        running: root.visible
+        repeat: true
+        onTriggered: { if (!historyStatsProcess.running) historyStatsProcess.running = true; }
+    }
+
     property string exportScript: ""
     property string exportBuffer: ""
     property string exportErrorBuffer: ""
@@ -932,6 +957,16 @@ PluginSettings {
         }
     }
 
+    ValueDropdown {
+        width: parent.width
+        text: t("settings.cost_currency", "Estimated cost currency")
+        description: t("settings.cost_currency_desc", "Convert USD analytics for display using daily exchange rates. Balances and stored amounts stay unchanged; unavailable rates fall back to USD.")
+        selected: { root.settingsEpoch; return loadValue("costCurrency", "USD"); }
+        values: ["USD", "EUR", "BRL", "GBP", "CAD", "CNY", "JPY", "AUD", "CHF"]
+        labels: values
+        onPicked: function(value) { saveValue("costCurrency", value); }
+    }
+
     DankToggle {
         // DankToggle insets its text by spacingM; bleed out to align with the other rows.
         x: -Theme.spacingM
@@ -1062,7 +1097,7 @@ PluginSettings {
     ValueDropdown {
         width: parent.width
         text: t("settings.history_retention", "Usage history retention")
-        description: t("settings.history_retention_desc", "Snapshots kept per trim of the local usage history (sparklines and trends).")
+        description: t("settings.history_retention_desc", "Snapshots kept per trim of the local usage history (sparklines and trends).") + "\n" + t("settings.history_count", "{count} snapshots stored · last trim removed {trimmed}", { count: root.historySnapshotCount, trimmed: root.historyLastTrimmed })
         selected: { root.settingsEpoch; return loadValue("historyRetention", "2000"); }
         values: ["500", "2000", "10000"]
         labels: [500, 2000, 10000].map(n => t("settings.option.snapshots", "{count} snapshots", { count: n.toLocaleString(Qt.locale(root.i18nLocale), "f", 0) }))
@@ -1629,7 +1664,7 @@ PluginSettings {
                         }
 
                         StyledText { Layout.preferredWidth:100; text:modelData.name; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeSmall; font.weight:Font.Medium; elide:Text.ElideRight }
-                        StyledText { Layout.fillWidth:true; text:modelData.note; wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall - 1 }
+                        StyledText { Layout.fillWidth:true; text:root.t("provider.note." + modelData.id, modelData.note); wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall - 1 }
 
                         DankActionButton {
                             Layout.alignment: Qt.AlignVCenter
