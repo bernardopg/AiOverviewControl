@@ -60,6 +60,10 @@ PluginComponent {
     // with barWindowOverrides the percentage is not necessarily the primary
     // window, so "31%" alone is ambiguous.
     property bool pillTooltipEnabled: String(pluginData.pillTooltip ?? "true") === "true"
+    // Crowded bars (issue #33): hide names to keep logo + percentage, and
+    // tighten the separator gap. Only the DankBar pill changes.
+    property bool pillShowNames: String(pluginData.pillShowNames ?? "true") === "true"
+    property bool pillCompact: String(pluginData.pillCompact ?? "false") === "true"
     property bool showClaudeProjects: String(pluginData.showClaudeProjects ?? "true") === "true"
     readonly property var moneyFormatter: currencyLoader.item
     readonly property string costCurrency: {
@@ -2266,11 +2270,15 @@ PluginComponent {
                         required property var modelData
                         required property int index
                         readonly property color usageColor: root.getUsageColor(root.pillPercentFor(modelData))
-                        spacing: 4
+                        objectName: "pill-entry-" + modelData.provider
+                        spacing: root.pillCompact ? 2 : 4
 
                         StyledText {
                             visible: pillEntry.index > 0
-                            text: " · "
+                            // Compact drops the padding spaces; leftPadding mirrors
+                            // the entry spacing on the right of the dot.
+                            text: root.pillCompact ? "·" : " · "
+                            leftPadding: root.pillCompact ? 2 : 0
                             color: Theme.withAlpha(Theme.surfaceText, 0.3)
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.DemiBold
@@ -2285,6 +2293,8 @@ PluginComponent {
                         }
 
                         StyledText {
+                            objectName: "pill-name-" + pillEntry.modelData.provider
+                            visible: root.pillShowNames
                             text: root.providerName(pillEntry.modelData.provider)
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
@@ -2317,7 +2327,7 @@ PluginComponent {
     verticalBarPill: Component {
         Column {
             id: verticalPillContent
-            spacing: Theme.spacingXS
+            spacing: root.pillCompact ? 2 : Theme.spacingXS
 
             readonly property var pillHost: root.pillHostFor(verticalPillContent)
             readonly property bool pillHovered: pillHost ? pillHost.isMouseHovered : false

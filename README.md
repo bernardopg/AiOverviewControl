@@ -59,7 +59,8 @@ of average load, hottest provider, and next reset.
 
 **🎯 A pill that tells the truth**<br />
 Pick which quota window each provider shows in the bar, or follow the
-most-constrained one. Hover for the window and reset time.
+most-constrained one. Hover for the window and reset time. Crowded bar?
+Drop the names and tighten the spacing.
 
 </td>
 </tr>

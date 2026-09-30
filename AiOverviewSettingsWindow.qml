@@ -263,7 +263,11 @@ FloatingWindow {
             id: settingsFlick
             anchors.top: windowHeader.bottom
             anchors.topMargin: Theme.spacingM
+            // DankToggle rows bleed spacingM left to align their text; widen
+            // the clip by the same amount so their hover shape keeps its
+            // rounded left edge. The Loader offset keeps content in place.
             anchors.left: parent.left
+            anchors.leftMargin: -Theme.spacingM
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             contentWidth: width
@@ -287,8 +291,8 @@ FloatingWindow {
             Loader {
                 id: settingsPage
                 // URL loading also works with an already-cached plugin qmldir.
-                x: 0
-                width: settingsFlick.width - win.gutter
+                x: Theme.spacingM
+                width: settingsFlick.width - Theme.spacingM - win.gutter
                 Component.onCompleted: setSource(Qt.resolvedUrl("AiOverviewControlSettings.qml"), {
                     pluginService: PluginService,
                     showBrand: false

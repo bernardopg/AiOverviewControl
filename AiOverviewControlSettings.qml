@@ -198,6 +198,8 @@ PluginSettings {
         costCurrency: "USD",
         showAntigravityModelDetails: "false",
         pillTooltip: "true",
+        pillShowNames: "true",
+        pillCompact: "false",
         quotaNotifications: "true",
         notifyThreshold: "85",
         notifyCooldownMinutes: "0",
@@ -817,6 +819,26 @@ PluginSettings {
         description: t("settings.pill_tooltip_desc", "Hovering the bar pill spells out the provider, which quota window the percentage came from, and when it resets.")
         checked: { root.settingsEpoch; return loadValue("pillTooltip", "true") === "true"; }
         onToggled: function(checked) { saveValue("pillTooltip", checked ? "true" : "false"); }
+    }
+
+    // Pill footprint controls (issue #33): logo + percentage only, and a
+    // tighter gap around the separator dot for crowded bars.
+    DankToggle {
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
+        text: t("settings.pill_show_names", "Provider names in pill")
+        description: t("settings.pill_show_names_desc", "Turn off to keep only each provider's logo and percentage. The tooltip still names them.")
+        checked: { root.settingsEpoch; return loadValue("pillShowNames", "true") === "true"; }
+        onToggled: function(checked) { saveValue("pillShowNames", checked ? "true" : "false"); }
+    }
+
+    DankToggle {
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
+        text: t("settings.pill_compact", "Compact pill spacing")
+        description: t("settings.pill_compact_desc", "Tightens the gap around the dot between providers and inside each entry.")
+        checked: { root.settingsEpoch; return loadValue("pillCompact", "false") === "true"; }
+        onToggled: function(checked) { saveValue("pillCompact", checked ? "true" : "false"); }
     }
 
     // Per-provider DankBar window selection (issue #17). The tracked-provider

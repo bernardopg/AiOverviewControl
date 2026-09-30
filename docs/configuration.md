@@ -15,6 +15,8 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `pillProviders` | comma-separated IDs | provider selection | Strict provider subset used by `custom` pill mode. The settings UI exposes this as provider chips and never falls back to every tracked provider. |
 | `barWindowOverrides` | `provider:slot,...` | empty | Per-provider DankBar usage window, for example `claude:secondary`. Slot is `primary` (default), `secondary`, `tertiary`, or `highest` (most-constrained). Dashboard cards and history keep the primary window. Notifications follow this choice by default (`notifyWindowScope` = `displayed`). Providers whose payload lacks the chosen slot fall back to the primary window. |
 | `pillTooltip` | `true` / `false` | `true` | Hovering the DankBar pill shows the provider, the quota window the percentage came from, and the reset. With one provider in the pill it also appends `resets in ...`. |
+| `pillShowNames` | `true` / `false` | `true` | Show each provider's name in the horizontal DankBar pill. `false` keeps only the logo and percentage; the tooltip still names the provider. Vertical bars never show names. |
+| `pillCompact` | `true` / `false` | `false` | Tighter DankBar pill: drops the padding spaces around the `·` separator between providers and shrinks the gap between logo, name, and percentage (vertical bars: the gap between providers). |
 | `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
 | `providerLogoColor` | QML color string | current DMS primary color | Monochrome tint used for provider logos and notification icons. |
 | `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |

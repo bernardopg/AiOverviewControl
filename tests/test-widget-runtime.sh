@@ -38,6 +38,18 @@ ShellRoot {
     property int step: 0
     property bool pointerTest: Quickshell.env("AIOC_TEST_POINTER") === "1"
     property real dragScrollY: 0
+    property real pillWidth: 0
+    property real pillHeight: 0
+    // Positioners lay out on polish, which never runs in the hidden scene.
+    function pillSize() {
+        const entries = input.findChild(hPill.item, "pill-entry-codex").parent;
+        for (const entry of entries.children)
+            if (entry.forceLayout) entry.forceLayout();
+        entries.forceLayout();
+        hPill.item.forceLayout();
+        vPill.item.forceLayout();
+        return {width: hPill.item.implicitWidth, height: vPill.item.implicitHeight};
+    }
     QtObject {
         id: service
         property var data: ({providerSelection: "codex", costCurrency: "USD"})
@@ -55,8 +67,8 @@ ShellRoot {
         id: scene
         visible: false; implicitWidth: 1000; implicitHeight: 900
         Loader { sourceComponent: widget.popoutContent; width: parent.width; height: parent.height }
-        Loader { sourceComponent: widget.horizontalBarPill }
-        Loader { sourceComponent: widget.verticalBarPill }
+        Loader { id: hPill; sourceComponent: widget.horizontalBarPill }
+        Loader { id: vPill; sourceComponent: widget.verticalBarPill }
         Plugin.AiOverviewControlSettings { id: settings; visible: false; pluginService: service }
     }
     Plugin.AiOverviewSettingsWindow { visible: false }
@@ -136,8 +148,36 @@ ShellRoot {
                     if (!item || Math.abs(item.mapToItem(view, 0, item.height / 2).y - center) > 1)
                         console.error("SMOKE FAIL: provider header misaligned: " + role);
                 }
-                console.warn("FULL_UI_SMOKE_OK");
+                // Issue #33: names on by default, then flip both pill toggles
+                // through Settings so persistence and the widget binding run.
+                const name = input.findChild(hPill.item, "pill-name-codex");
+                if (!name || !name.visible) { console.error("SMOKE FAIL: pill name hidden by default"); return; }
+                const before = root.pillSize();
+                root.pillWidth = before.width;
+                root.pillHeight = before.height;
+                for (const key of ["settings.pill_show_names", "settings.pill_compact"]) {
+                    const label = widget.t(key, "");
+                    const toggle = settings.content.find(item => item.text === label && item.toggled);
+                    if (!toggle) { console.error("SMOKE FAIL: missing toggle " + key); return; }
+                    toggle.toggled(key === "settings.pill_compact");
+                }
+                if (service.data.pillShowNames !== "false" || service.data.pillCompact !== "true") {
+                    console.error("SMOKE FAIL: pill toggles did not persist"); return;
+                }
+                widget.pluginData = service.data;
                 root.step = 6;
+            } else if (root.step === 6) {
+                const name = input.findChild(hPill.item, "pill-name-codex");
+                const entry = input.findChild(hPill.item, "pill-entry-codex");
+                if (!name || name.visible) console.error("SMOKE FAIL: pillShowNames=false still renders the name");
+                if (!entry || entry.spacing !== 2) console.error("SMOKE FAIL: pillCompact did not tighten entry spacing");
+                const after = root.pillSize();
+                if (!(after.width < root.pillWidth))
+                    console.error(`SMOKE FAIL: compact pill not narrower (${after.width} >= ${root.pillWidth})`);
+                if (!(after.height < root.pillHeight))
+                    console.error("SMOKE FAIL: compact vertical pill not shorter");
+                console.warn("FULL_UI_SMOKE_OK");
+                root.step = 7;
             }
         }
     }
@@ -160,7 +200,7 @@ if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::
     printf '%s\n' "$(<"$TMP/log")" >&2
     exit 1
 fi
-echo 'OK: full widget, pills, dashboard alignment, settings/window and currency bindings'
+echo 'OK: full widget, pills (names/compact), dashboard alignment, settings/window and currency bindings'
 if [[ "${AIOC_TEST_POINTER:-0}" == 1 ]]; then
     echo 'OK: fast pointer drag reorders pinned cards without scrolling the page'
 fi
