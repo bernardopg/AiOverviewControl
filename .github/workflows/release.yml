@@ -77,11 +77,15 @@ jobs:
         run: |
           # Releases are pushed straight to main (no PRs), so generated notes
           # are empty; the CHANGELOG section is the real release body.
+          # Relative links are rewritten to the tag, since a release page
+          # does not resolve them against the repository.
           awk -v v="$VERSION" '
             $0 ~ "^## " v "( |$)" { on = 1; next }
             on && /^## / { exit }
             on { print }
-          ' CHANGELOG.md > dist/RELEASE_NOTES.md
+          ' CHANGELOG.md \
+            | sed "s#](\./#](https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/#g" \
+            > dist/RELEASE_NOTES.md
           if ! grep -q '[^[:space:]]' dist/RELEASE_NOTES.md; then
             echo "::error::CHANGELOG.md section for ${VERSION} is empty" >&2
             exit 1
