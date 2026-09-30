@@ -40,7 +40,7 @@ Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#
 - [ ] **Registry PR follow-up** — track AvengeMedia/dms-plugin-registry#961
   until the maintainers merge it, then close this section. `S · ★★`
 
-## 🧭 Roadmap after 1.17.3 (recommended order)
+## 🧭 Roadmap after 1.18.0 (recommended order)
 
 1. Codex window labels i18n (below) — quick, user-visible.
 2. QML smoke test (Next up) — the safety net that makes step 3 safe.
@@ -70,7 +70,7 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 
 ## Dashboard — UX
 
-- [x] **Drag-to-reorder pinned providers** — Hold the ↕ handle and drop onto another pinned card; persisted ordering and reorder invariants are tested. Native drag gesture still needs a manual desktop check. in the dashboard (beyond star pin). `L · ★`
+- [x] **Drag-to-reorder pinned providers** — Immediate ↕ handle drag inserts before another pinned card, persists ordering and cannot be stolen by page scrolling. Native QtTest pointer regression verifies fast drag and unchanged scroll position; header/logo/action alignment is covered. Other touch/monitor configurations remain manual. `L · ★`
 
 ## Providers — Data & Auth
 
@@ -176,6 +176,6 @@ content shipped in 1.6.0).
 - [x] Integration test for `get-usage-history`; smoke tests for claude/provider scripts.
 - [x] es_ES + de_DE bundles with parity, wired into CI/release checks.
 - [x] `shellcheck` in CI; Actions pinned to SHAs; i18n parity in release workflow.
-- [x] Release checklist (`docs/release-checklist.md`); release workflow publishes zip/tar.gz/sha256.
+- [x] Release checklist (`docs/release-checklist.md`); release workflow publishes zip/tar.gz/sha256 with validated exact-version notes. Dedicated PR changelog integrity and main/tag rulesets prevent empty-note delivery and mutable release tags.
 
 </details>

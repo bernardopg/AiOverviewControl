@@ -1,125 +1,118 @@
 # Release checklist
 
-CI and the release workflow enforce the checks explicitly noted below; the
-functional smoke test and publishing sequence remain manual. Work top to bottom —
-the tag push is the last action.
+Deliver through a PR, verify main CI, then push an immutable release tag. The
+published notes must describe the release, not merely contain its heading. See
+[repository rules](repository-rules.md) for the protected-branch/check contract.
 
-## 0. Preflight
+## 1. Scope and version
 
-- [ ] Start from a clean, current `main`; do not release a local-only commit or
-  an already-published tag:
-
-  ```bash
-  git status --short --branch
-  git fetch origin
-  git pull --ff-only origin main
-  git describe --tags --abbrev=0
-  git log --oneline "$(git describe --tags --abbrev=0)..HEAD"
-  ```
-
-- [ ] Choose the semantic version deliberately: patch for fixes/UI-only changes,
-  minor for features, major only for breaking behavior. Confirm the target tag
-  does not already exist with `git rev-parse -q --verify "refs/tags/vX.Y.Z"`
-  and `gh release view vX.Y.Z` (both must report absent).
-
-## 1. Version bump
-
-- [ ] `plugin.json` → `version` (release workflow rejects a tag that differs). This is the **only** place a release version is written: the Settings hero pill and the popout header pill both read `plugin.json` at runtime, and `providers/get-codex-usage` reads it for `clientInfo.version`.
-- [ ] Confirm the QML still sources the version dynamically (CI enforces both greps):
-
-  ```bash
-  VERSION="$(jq -r .version plugin.json)"
-  printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
-  grep -qF 'text: "v" + root.pluginVersion' AiOverviewControlSettings.qml
-  grep -qF '"/plugin.json"' AiOverviewControlWidget.qml
-  ```
-
-## 2. Changelog
-
-- [ ] Move `Unreleased` content into a new `## 1.x.y - YYYY-MM-DD` section (release workflow requires the entry).
-- [ ] Leave an empty `## Unreleased` heading on top.
-
-## 3. Local validation (core CI-equivalent checks)
+- Inspect `git status`, fetch origin/tags and preserve unrelated changes.
+- Branch from the intended source head; do not push feature work directly to main.
+- Choose semver: patch for fixes, minor for features, major for breaking contracts.
+- Change the version in **plugin.json only**; QML reads it dynamically.
+- Confirm the tag and release do not already exist. Do not overwrite published tags.
+- Move substantive Unreleased notes into `## X.Y.Z - YYYY-MM-DD`, leaving an empty
+  `## Unreleased` heading. Organize user changes, maintenance, privacy/migration and
+  validation limitations; link relevant guides. Document behavior changes together
+  with their code, including updated translations.
+- Validate the exact section and PR delta:
 
 ```bash
-git diff --check
-jq --exit-status . plugin.json >/dev/null
+scripts/check-changelog
+scripts/check-changelog --base origin/main
 VERSION="$(jq -r .version plugin.json)"
-printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
-grep -qF "## ${VERSION}" CHANGELOG.md || grep -qF "## [${VERSION}]" CHANGELOG.md
-find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
-for test in tests/*.sh; do bash -n "$test"; done
-bash -n scripts/package-release
-shellcheck -S warning providers/* tests/*.sh scripts/package-release
-QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
-for f in i18n/*.json; do jq -e . "$f" >/dev/null; done
-./providers/get-provider-health "codex,claude,copilot" | jq .
-./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage | jq .
-./providers/get-usage-history | jq .
-for test in tests/*.sh; do bash "$test"; done
-scripts/package-release
+scripts/check-changelog --notes --repository OWNER/REPO --tag "v$VERSION"
 ```
 
-The generated `dist/` directory is ignored by Git.
-
-- [ ] i18n parity: every locale has exactly the keys of `i18n/en.json` (CI enforces exact parity; the release workflow rejects missing keys; locales: pt_BR, zh_CN, es_ES, de_DE).
-- [ ] All provider, test, and packaging scripts are executable (CI and the release workflow enforce).
-- [ ] Run `actionlint -color` if installed. CI always runs the pinned actionlint binary.
-- [ ] Inspect the generated `dist/` filenames and checksum manifest; the tag
-  workflow rebuilds these artifacts from the immutable tag, so do not upload a
-  locally built archive manually.
-
-CI also runs fixture-backed integration contracts, provider dispatch coverage,
-QML script-reference checks, Crowdin configuration checks, and packaging. Do
-not describe the local smoke commands above as a substitute for a green CI run.
-
-## 4. Functional smoke
-
-- [ ] Reload the plugin and open the popout:
-      `qs -p ~/.config/quickshell/dms ipc call plugins reload aiOverviewControl`
-- [ ] Hero ring renders; provider cards expand; Claude card shows analytics.
-- [ ] Local-telemetry cards render their expanded sections (pi, 9Router, Hermes) or hide them cleanly when the tool is not installed.
-- [ ] Version pill shows the freshly bumped version in both the popout header and Settings (both read `plugin.json`).
-- [ ] Settings opens without QML errors and health chips populate.
-- [ ] If the release changes a provider, verify its card/icon and its documented
-  credential/fallback state; do not use a real credential in logs or screenshots.
-
-## 5. Commit, tag, push
-
-Rules: no AI co-author trailers; tag must be `v` + `plugin.json` version.
+## 2. Local gates
 
 ```bash
-git add -A && git commit
-git push origin main
-# Wait for the push CI on this exact commit before creating the tag.
-HEAD_SHA="$(git rev-parse HEAD)"
-RUN_ID="$(gh run list --workflow CI --commit "$HEAD_SHA" --limit 1 --json databaseId --jq '.[0].databaseId')"
-test -n "$RUN_ID" && gh run watch "$RUN_ID" --exit-status
-git tag -a v1.x.y -m "v1.x.y"
-git push origin v1.x.y
+scripts/check-metadata
+find providers -type f -print0 | xargs -0 -n 1 bash -n
+find providers -type f -print0 | xargs -0 shellcheck -S warning
+find tests -name '*.sh' -print0 | xargs -0 -n 1 bash -n
+shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors \
+  scripts/check-metadata scripts/reload-plugin .githooks/pre-push
+for test in tests/*.sh; do bash "$test"; done
+QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
+actionlint
+for f in i18n/*.json; do jq -e . "$f" >/dev/null; done
+git diff --check
 ```
 
-The tag workflow re-runs the complete reusable CI gate at the tagged commit and only publishes after it passes. It also rejects tags that are not reachable from `main`.
+The metadata gate checks locale key/placeholder parity, executable entrypoints,
+registered integration suites and release notes. Sourced native `.bash` modules
+need syntax/lint/packaging checks, not executable permissions.
 
-## 6. Post-release
+- If QML interactions changed, materialize DMS imports with `scripts/qmlls-setup`
+  and run `AIOC_TEST_POINTER=1 tests/test-widget-runtime.sh`. It briefly opens a
+  fixture window. Native Wayland/DMS requirements may cause the default full-UI
+  test to SKIP in generic CI; report that honestly.
+- Reload with `scripts/reload-plugin` (discovers the live instance). Check the
+  popout, both version pills, settings, empty/error cards, expanded analytics,
+  currency fallback and pin ordering as applicable. Keep credentials out of logs.
+- Commit before `scripts/package-release`: archives come from HEAD. When testing
+  uncommitted candidates, use an isolated Git snapshot so those files are included.
+  Verify zip/tar.gz/checksums, including dashboard, formatter, native modules and
+  the archived nonempty changelog. `dist/` is ignored; do not publish local files
+  as a substitute for the tag workflow's artifacts.
 
-- [ ] Wait for the **Release** workflow to finish green; it reruns the complete
-  reusable CI gate at the tag and then publishes `.zip`, `.tar.gz`, and
-  `.sha256`:
+## 3. PR and protected merge
 
-  ```bash
-  gh run list --workflow Release --limit 1
-  gh run watch RUN_ID --exit-status
-  ```
+- Commit task changes using Conventional Commits, without AI co-author trailers.
+- Push the feature/release branch and open a PR against main with scope, migration,
+  testing and explicit limitations. Reference the release guide and changelog.
+- Confirm the live rulesets match `.github/repository-rules/*.json`, with no bypass.
+- Wait for **all required checks on the exact PR head**, including Changelog
+  integrity. Resolve review conversations and any real findings before merging.
+- If base/main advanced, update the branch and revalidate. Never disable a check
+  or use an admin merge to work around missing notes.
+- Merge the verified head via the PR. Record its merge SHA and fetch main; wait for
+  its new main push CI as well. The release workflow will repeat full CI on the tag.
 
-- [ ] Verify the published release targets the tag and independently validate
-  the downloaded artifacts against the published checksum manifest:
+```bash
+gh pr checks PR_NUMBER --watch
+# Merge only the reviewed SHA, after the required checks have passed.
+gh pr merge PR_NUMBER --merge --match-head-commit PR_HEAD_SHA
+git fetch origin main
+MAIN_SHA="$(git rev-parse origin/main)"
+# Identify the CI push run for MAIN_SHA and await its successful conclusion.
+gh run list --workflow CI --commit "$MAIN_SHA" --json databaseId,headSha,status,conclusion
+```
 
-  ```bash
-  gh release view v1.x.y
-  mkdir -p /tmp/AiOverviewControl-v1.x.y
-  gh release download v1.x.y --dir /tmp/AiOverviewControl-v1.x.y
-  (cd /tmp/AiOverviewControl-v1.x.y && sha256sum -c AiOverviewControl-v1.x.y.sha256)
-  ```
+## 4. Tag and publish
 
-- [ ] Update DMS plugin registry listing when the registry format is finalized (see TODO).
+- The manifest version, release notes and tag must agree exactly.
+- Create the annotated `vX.Y.Z` tag on the verified main merge SHA, never on an
+  unmerged feature commit. Push only that new tag.
+- Await the Release workflow. It rejects a tag outside main ancestry, mismatched
+  manifest or empty notes, runs reusable CI and publishes validated notes plus
+  `.zip`, `.tar.gz` and `.sha256` assets. Generated notes are disabled: the
+  changelog section is the authoritative body.
+
+```bash
+git tag -a "v$VERSION" "$MAIN_SHA" -m "v$VERSION"
+git push origin "v$VERSION"
+gh run list --workflow Release --commit "$MAIN_SHA" --json databaseId,status,conclusion
+# gh run watch RELEASE_RUN_ID --exit-status
+```
+
+## 5. Independent published-artifact verification
+
+- Check the release is published, the tag resolves to the verified merge SHA and
+  the body matches `scripts/check-changelog --notes --repository OWNER/REPO --tag`.
+- Download all three assets to a fresh directory, verify SHA-256 and inspect their
+  archived manifest/version and nonempty changelog. Check that new modules and
+  assets are actually present, not just listed in source documentation.
+
+```bash
+DOWNLOAD="$(mktemp -d)"
+gh release download "v$VERSION" --dir "$DOWNLOAD"
+(cd "$DOWNLOAD" && sha256sum -c "AiOverviewControl-v$VERSION.sha256")
+gh release view "v$VERSION" --json tagName,isDraft,isPrerelease,body,assets,url
+```
+
+- Finish with PR/release links, commit/tag, CI evidence, checksum result and any
+  SKIP/manual-coverage limitations. Do not label a release perfect because a
+  workflow merely queued; publication and downloaded assets must be verified.
+- Update the plugin registry when its accepted metadata format is available.

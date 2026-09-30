@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+python3 scripts/check-changelog
 
 VERSION="$(jq --exit-status --raw-output '.version' plugin.json)"
 TAG="${1:-v${VERSION}}"
@@ -50,6 +51,8 @@ fi
 
 tar -xzf "$DIST_DIR/${DIST_NAME}.tar.gz" -C "$TMP"
 PACKAGE="$TMP/$DIST_NAME"
+# Validate the archived notes, not just uncommitted working-copy documentation.
+python3 "$PACKAGE/scripts/check-changelog"
 for required in \
   plugin.json qmldir \
   AiOverviewControlWidget.qml AiOverviewControlSettings.qml \

@@ -157,6 +157,10 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 
 ## 📚 Documentation
 
+For this feature release, start with the [1.18.0 changes and migration guide](./docs/releases/1.18.0.md).
+See [cost currency and privacy](./docs/currency.md), [runtime module boundaries](./docs/refactoring.md),
+and [protected PR/release rules](./docs/repository-rules.md).
+
 | | |
 | --- | --- |
 | [Usage](./docs/usage.md) | Pill, popout, cards, keyboard, IPC, history, privacy |

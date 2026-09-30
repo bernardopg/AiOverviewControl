@@ -2,6 +2,7 @@
 # Shared offline metadata gate for CI and the opt-in pre-push hook.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+python3 scripts/check-changelog
 python3 - <<'PY'
 import json
 import re

@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Validate the release-note contract; optionally compare a PR and emit its notes."""
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+class InvalidChangelog(ValueError):
+    pass
+
+
+def section(text, version):
+    pattern = re.compile(r"^## (?:" + re.escape(version) + r"|\[" + re.escape(version) + r"\])(?:\s|$)", re.M)
+    matches = list(pattern.finditer(text))
+    if len(matches) != 1:
+        raise InvalidChangelog(f"Expected exactly one CHANGELOG section for {version}; found {len(matches)}")
+    start = text.find("\n", matches[0].start())
+    if start < 0:
+        return ""
+    end = re.search(r"^##\s", text[start + 1:], re.M)
+    return text[start + 1:start + 1 + end.start() if end else len(text)].strip()
+
+
+def entries(body):
+    # Comments/headings/fenced snippets are not a description of shipped changes.
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+    body = re.sub(r"^```[^\n]*\n.*?^```\s*$", "", body, flags=re.M | re.S)
+    result = set()
+    for line in body.splitlines():
+        match = re.match(r"\s*[-*]\s+(.+)", line)
+        if not match:
+            continue
+        value = re.sub(r"\s+", " ", match[1]).strip()
+        plain = re.sub(r"[*_`.]", "", value).strip().casefold()
+        if plain in {"todo", "tbd", "pending", "placeholder", "no changes", "nothing yet"}:
+            continue
+        if sum(char.isalnum() for char in plain) >= 3:
+            result.add(value)
+    return result
+
+
+def git(root, *args):
+    return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
+
+
+def version_of(text):
+    version = json.loads(text).get("version", "")
+    if not isinstance(version, str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+        raise InvalidChangelog("plugin.json version must be major.minor.patch")
+    return version
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent)
+    parser.add_argument("--base", help="PR base commit/ref: require a substantive new note")
+    parser.add_argument("--notes", action="store_true", help="Print the validated current-version section")
+    parser.add_argument("--repository", help="owner/repo for rewriting relative Markdown links")
+    parser.add_argument("--tag", help="Immutable tag for links; defaults to v<manifest version>")
+    args = parser.parse_args()
+    root = args.root.resolve()
+    version = version_of((root / "plugin.json").read_text())
+    text = (root / "CHANGELOG.md").read_text()
+    body = section(text, version)
+    if not entries(body):
+        raise InvalidChangelog(f"CHANGELOG section {version} has no substantive change bullets")
+    if args.tag and args.tag != f"v{version}":
+        raise InvalidChangelog(f"Tag {args.tag} does not match v{version}")
+    if args.base:
+        base_version = version_of(git(root, "show", f"{args.base}:plugin.json"))
+        base_text = git(root, "show", f"{args.base}:CHANGELOG.md")
+        if version != base_version:
+            if tuple(map(int, version.split("."))) <= tuple(map(int, base_version.split("."))):
+                raise InvalidChangelog("Release version must advance beyond the PR base")
+            try:
+                section(base_text, version)
+            except InvalidChangelog:
+                pass
+            else:
+                raise InvalidChangelog(f"Release version {version} already appears in the PR base changelog")
+        else:
+            new_entries = entries(section(text, "Unreleased"))
+            try:
+                old_entries = entries(section(base_text, "Unreleased"))
+            except InvalidChangelog:
+                old_entries = set()
+            if not new_entries - old_entries:
+                raise InvalidChangelog("PR needs a new substantive Unreleased change bullet (not just a heading/comment/reorder)")
+    if args.notes:
+        if args.repository:
+            if not re.fullmatch(r"[\w.-]+/[\w.-]+", args.repository):
+                raise InvalidChangelog("Repository must be owner/repo")
+            tag = args.tag or f"v{version}"
+            prefix = f"https://github.com/{args.repository}/blob/{tag}/"
+            body = re.sub(r"\]\((?:\./)?(?![a-zA-Z][\w+.-]*:|#|/)([^\s)]+)\)", lambda m: "](" + prefix + m[1] + ")", body)
+        print(body)
+    else:
+        print(f"Changelog OK: {version}" + ("; new PR notes validated" if args.base else ""))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (InvalidChangelog, OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f"Changelog validation failed: {error}", file=sys.stderr)
+        sys.exit(1)

@@ -2,14 +2,31 @@
 
 ## Unreleased
 
+## 1.18.0 - 2026-09-30
+
+### Dashboard and interaction
+
 - Fix pinned-provider drag handles: immediate internal drag captures the mouse instead of scrolling the dashboard; keep the drag proxy outside layout positioning. Add optional fast-pointer regression coverage that checks order and unchanged scroll position.
 - Vertically center provider header handles, larger logos, percentage and actions; align the collapsed animated accent stripe with the same header axis.
 - Extract dashboard hero/cards/manager into `DashboardContent.qml`, keeping focus/scrolling view-local and reducing the widget controller to about 2,450 lines. Exercise real DMS widget, bar pills, dashboard, settings persistence/reset and settings window with isolated runtime fixtures; report native-backend prerequisites explicitly when skipped.
 - Fix the currency dropdown's actual values/labels interface, dynamically load the settings window body, and guard empty-provider dashboard bindings.
+
+### Currency, quota and history
+
 - Add configurable USD/EUR/BRL/GBP/CAD/CNY/JPY/AUD/CHF analytics cost display, locale-aware precision, daily exchange-rate caching, a network opt-out and honest USD fallback without altering balances or stored costs.
+- Label Codex quota windows from actual durations, preserve zero credit balances, and record/export `credit_balance` without generating misleading percentage sparklines from credit-only history.
+- Serialize usage-history writes and retention trimming atomically; tolerate malformed history lines and show snapshot/last-trim feedback in Settings.
+- Verify Kimi Code quota schema with sanitized fixtures, prefer detailed limits over conflicting ratio pools, retain the official `.com` Code API, update the console link, and keep Code/Open Platform cards and billing independent.
+- Localize selectable-provider descriptions and duration-based quota labels across all five languages; enforce 318-key and placeholder parity.
+
+### Runtime, tooling and release safety
+
 - Move 33 native provider fetchers into 31 source modules; share bounded JSON readers across five analytics providers while preserving transient-failure snapshots and testing setting changes during currency requests.
 
 - Audit current workflow toolchain releases; migrate Crowdin CLI to checksum-verified native 5.3.0, pin the QML smoke checkout consistently, and enforce offline dependency contracts.
+- Require substantive changelog entries in PRs and release sections through a dedicated `Changelog integrity` CI check; reject headings/comments/placeholders alone, duplicate version sections and version rollback. Packaging validates the archived changelog, and release publication extracts the exact version section with tag-pinned documentation links rather than relying on generated notes.
+- Keep contributor-avatar automation read-only: report renderer diffs for normal PR delivery instead of granting a bot bypass or pushing directly to protected main.
+- Document migration/privacy, runtime boundaries, complete validation and protected PR/tag delivery in the [1.18.0 release guide](./docs/releases/1.18.0.md), [currency guide](./docs/currency.md) and [repository rules](./docs/repository-rules.md).
 
 - Discover the real running DMS instance for hot reload, and avoid cached-qmldir / Item.data collisions in the extracted reader.
 - Verify Kimi Code against the live first-party `.com` quota endpoint; support independent balance/subscription cards when both keys are present.

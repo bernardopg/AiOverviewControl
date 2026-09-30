@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP"/{scripts,i18n,tests,providers,.github/workflows}
-cp "$ROOT/scripts/check-metadata" "$TMP/scripts/"
+cp "$ROOT/scripts/check-metadata" "$ROOT/scripts/check-changelog" "$TMP/scripts/"
 cp "$ROOT/plugin.json" "$ROOT/CHANGELOG.md" "$TMP/"
 cp "$ROOT"/i18n/*.json "$TMP/i18n/"
 printf '#!/bin/bash\n' > "$TMP/tests/test-example.sh"

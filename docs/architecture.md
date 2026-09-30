@@ -189,7 +189,8 @@ Legacy settings unknown to the current code are ignored.
 find providers -maxdepth 1 -type f -print0 | xargs -0 bash -n
 for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
-shellcheck -S warning providers/* tests/*.sh scripts/package-release
+find providers -type f -print0 | xargs -0 shellcheck -S warning
+shellcheck -S warning tests/*.sh scripts/package-release
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
 ./providers/get-provider-health "codex,claude,copilot,pi" | jq .
 ./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .
