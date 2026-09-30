@@ -65,7 +65,8 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 - [x] ~~**Icon reconciliation** (audit 2.16)~~ — done in 1.8.1: `ProviderLogo.defaultIcon` is the single source; widget `iconForProvider()` and settings `fallbackIcon` overrides removed.
 - [x] ~~**Finish UI i18n**~~ — done in 1.8.1: `"5h"` (2.9), pill `ERR`/`N/A` (2.11) localized; 3 dead keys removed (2.20). Non-issues: `notify.body` is live (not dead); the `String.replace` `$`-bug (2.19) is already avoided via function-replacement `() => value`. **Skipped (WONTFIX):** `formatTier()` names (2.10) — `Max 20x`/`Pro`/`Free` are brand plan names, not UI chrome.
 - [x] **Codex window labels i18n** — `get-codex-usage` still emits raw "Session"/"Weekly" through `resetDescription`, which the widget shows untranslated. Emit only `windowMinutes` (like the kimi-code adapter) so `getWindowLabel()` localizes it; add a fixture assertion. `S · ★★★`
-- [ ] **QML smoke test** — Initial slice implemented: headless `LocalAnalyticsReader.qml` smoke in CI covers parsing, failures, timeout, retry and duplicate refresh. Full widget/settings/window smoke remains pending; see `docs/development-gates.md`. — headless instantiate the three QML files with stub data to catch binding-loop / undefined-property regressions before a tag ships. Highest-leverage safety net for third-party distribution. Needs a Quickshell runtime with the `qs.*` modules in CI, which is why Qt5 `qmllint` is still the hard gate. `scripts/qmlls-setup` (1.17.3) already materializes the `qs.*` modules and can seed this. `L · ★★`
+- [x] **QML smoke test** — Mandatory offscreen CI suites cover reader and currency lifecycles. Full real-DMS widget/pills/dashboard/settings/window construction and reactive BRL→USD bindings run in `tests/test-widget-runtime.sh`, with isolated fixture data and no visible windows. Passed locally; explicitly SKIPs when Wayland/DMS imports are absent. See `docs/development-gates.md` and `docs/refactoring.md`. `L · ★★`
+- [ ] **Native DMS UI smoke in generic CI** — Provision an isolated layer-shell Wayland backend and matching DMS imports; Qt offscreen cannot construct native PanelWindow types. The current CI full-UI fixture reports SKIP until these prerequisites are supplied. `M · ★★`
 
 ## Dashboard — UX
 
@@ -88,7 +89,7 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 ## Claude Analytics
 
 - [ ] **Incremental transcript parse** — the per-file cache (1.17.3) re-parses a changed transcript in full (`ponytail:` note in `get-claude-usage`). Parse only from the previous byte size if long active sessions ever make refreshes slow; measure first. `M · ★`
-- [ ] **Cost currency option** — USD-only today; reintroduce currency conversion only with a real `costCurrency` setting wired end to end (the old Frankfurter EUR lookup was removed as dead code). `M · ★`
+- [x] **Cost currency option** — `costCurrency` is wired through Settings/reset, all common USD analytics cost displays, daily reference-rate cache, locale precision and explicit USD fallback. Nine currencies; stored amounts and provider balances are unchanged. Cache/concurrency and offscreen/native DMS binding tests pass. See `docs/currency.md`. `M · ★`
 
 ## Settings
 
@@ -97,7 +98,7 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 
 ## Quality / CI
 
-- [ ] **Split the god files** — Initial slices implemented: extracted `LocalAnalyticsReader.qml` and `providers/record-usage-history`, with independent tests. Hero/cards and other fetch pairs remain pending. — `AiOverviewControlWidget.qml` (~266 KB) and `providers/get-provider-usage` (~145 KB) dominate maintenance and registry-review cost. Start by extracting the fetch `Process`/`Timer` pairs into a component, then hero and cards into their own files. Incremental slices, each gated by the QML smoke test. `L · ★★★`
+- [x] **Split the god files** — Native provider implementations moved into 31 source modules (33 fetchers); dispatcher reduced to about 1,200 lines. Hero/cards/manager and 13 visual components moved into `DashboardContent.qml`; widget controller reduced to about 2,450 lines. Five analytics readers share bounded process lifecycle; currency display is an independent module. Existing contracts, complete local DMS UI construction, offscreen suites and provider fixtures pass. See `docs/refactoring.md`. `L · ★★★`
 - [x] **Pre-push hook mirroring CI metadata gates** — the first 1.17.2 push failed CI (missing CHANGELOG entry, non-executable tests). Reuse the `ci.yml` checks locally: plugin.json semver, `## <version>` in CHANGELOG, i18n key parity, executable `tests/*.sh` and `providers/get-*`, every `tests/test-*.sh` listed in `ci.yml`. `S · ★★`
 - [x] ~~**Flow/anchor lint**~~ — done in 1.12.0: CI gate fails any direct child of `Flow` that sets `anchors.*` (verified to catch the Hermes regression).
 

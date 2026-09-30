@@ -284,13 +284,15 @@ FloatingWindow {
                 }
             }
 
-            AiOverviewControlSettings {
+            Loader {
                 id: settingsPage
-                // The body stops where the header stops.
+                // URL loading also works with an already-cached plugin qmldir.
                 x: 0
                 width: settingsFlick.width - win.gutter
-                pluginService: PluginService
-                showBrand: false
+                Component.onCompleted: setSource(Qt.resolvedUrl("AiOverviewControlSettings.qml"), {
+                    pluginService: PluginService,
+                    showBrand: false
+                })
             }
         }
     }

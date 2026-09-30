@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extract dashboard hero/cards/manager into `DashboardContent.qml`, keeping focus/scrolling view-local and reducing the widget controller to about 2,450 lines. Exercise real DMS widget, bar pills, dashboard, settings persistence/reset and settings window with isolated runtime fixtures; report native-backend prerequisites explicitly when skipped.
+- Fix the currency dropdown's actual values/labels interface, dynamically load the settings window body, and guard empty-provider dashboard bindings.
+- Add configurable USD/EUR/BRL/GBP/CAD/CNY/JPY/AUD/CHF analytics cost display, locale-aware precision, daily exchange-rate caching, a network opt-out and honest USD fallback without altering balances or stored costs.
+- Move 33 native provider fetchers into 31 source modules; share bounded JSON readers across five analytics providers while preserving transient-failure snapshots and testing setting changes during currency requests.
+
+- Audit current workflow toolchain releases; migrate Crowdin CLI to checksum-verified native 5.3.0, pin the QML smoke checkout consistently, and enforce offline dependency contracts.
+
 - Discover the real running DMS instance for hot reload, and avoid cached-qmldir / Item.data collisions in the extracted reader.
 - Verify Kimi Code against the live first-party `.com` quota endpoint; support independent balance/subscription cards when both keys are present.
 - Localize all selectable provider descriptions in the five supported languages; gate QML lookup coverage and placeholder parity in CI.

@@ -1,15 +1,23 @@
 # Architecture
 
+Module contracts and test boundaries: [refactoring.md](refactoring.md).
+Currency policy and monetary units: [currency.md](currency.md).
+
 ## Components
 
 ```text
-AiOverviewControlWidget.qml       Runtime orchestration and dashboard
+AiOverviewControlWidget.qml       Runtime controller and bar pills
+DashboardContent.qml             Dashboard/hero/cards presentation
+LocalAnalyticsReader.qml         Bounded JSON subprocess lifecycle
+CurrencyFormatter.qml            Display-only monetary conversion
 AiOverviewControlSettings.qml     Settings, provider selection, health UI
 AiOverviewControlI18n.qml         Locale loading and interpolation
 ProviderLogo.qml                  Local provider-logo resolution and fallback icons
 HeaderAction.qml                  Icon-only capsule button shared by the popout, cards, and windows
 AiOverviewSettingsWindow.qml      Standalone settings window and About window (hosts the settings page)
-providers/get-provider-usage      Multi-provider dispatcher and history writer
+providers/get-provider-usage      Multi-provider dispatcher and normalization
+providers/native/*.bash          Native provider fetch implementations
+providers/get-exchange-rates     Validated/cache-backed daily USD rate quotes
 providers/get-provider-health     Prerequisite checks for settings
 providers/get-usage-history       Local usage history reader
 providers/export-usage-history    Usage history export (CSV/JSONL)

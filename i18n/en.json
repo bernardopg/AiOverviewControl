@@ -1,4 +1,9 @@
 {
+  "settings.cost_currency": "Estimated cost currency",
+  "settings.cost_currency_desc": "Convert USD analytics for display using daily exchange rates. Balances and stored amounts stay unchanged; unavailable rates fall back to USD.",
+  "currency.status.unavailable": "Exchange rate unavailable; costs shown in USD",
+  "currency.status.current": "Estimated {currency} costs · FX {date}",
+  "currency.status.stale": "Estimated {currency} costs · cached FX {date}",
   "app.title": "AI Usage Control",
   "card.account": "Account",
   "card.account_errors_count": "{count} account(s) unavailable",

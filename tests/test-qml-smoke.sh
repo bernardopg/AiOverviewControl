@@ -17,7 +17,8 @@ Path(sys.argv[2]).write_text('.pragma library\n' + function.group(0) + '\n')
 PY
 printf 'LocalAnalyticsReader 1.0 LocalAnalyticsReader.qml\n' > "$TMP/qmldir"
 cat > "$TMP/adapter" <<'SH'
-case "$1" in
+case "${1:-empty}" in
+  empty) [[ $# == 0 ]] || exit 1; printf '{"tokens":7}\n' ;;
   success) printf '{"tokens":42}\n' ;;
   malformed) printf 'not json\n' ;;
   error) printf '{"error":"fixture"}\n' ;;
@@ -33,6 +34,9 @@ ShellRoot {
     id: root
     FloatingWindow { visible: true; implicitWidth: 1; implicitHeight: 1 }
     property int step: 0
+    property bool readerDone: false
+    property bool retainedDone: false
+    function finish() { if (readerDone && retainedDone) console.warn("QML_SMOKE_OK"); }
     property var cases: ["success", "malformed", "error", "failed", "hang", "success"]
     LocalAnalyticsReader {
         id: reader
@@ -47,7 +51,8 @@ ShellRoot {
             }
             root.step++;
             if (root.step === root.cases.length) {
-                console.warn("QML_SMOKE_OK");
+                root.readerDone = true;
+                root.finish();
             } else {
                 providerId = root.cases[root.step];
                 next.start();
@@ -55,6 +60,31 @@ ShellRoot {
         }
     }
     Timer { id: next; interval: 20; onTriggered: { reader.refresh(); reader.refresh(); } }
+    property int retainedStep: 0
+    property var retainedCases: ["success", "malformed", "failed", "hang", "error", "success", "empty"]
+    LocalAnalyticsReader {
+        id: retained
+        providerId: root.retainedCases[root.retainedStep] || "success"
+        commandArguments: providerId === "empty" ? [] : [providerId]
+        scriptPath: reader.scriptPath
+        timeoutMs: 250
+        retainOnFailure: true
+        onCompleted: {
+            const expected = providerId === "error" ? null : (providerId === "empty" ? 7 : 42);
+            if ((expected === null && result !== null) || (expected !== null && (!result || result.tokens !== expected))) {
+                console.error("SMOKE FAIL: retention " + providerId);
+                return;
+            }
+            root.retainedStep++;
+            if (root.retainedStep === root.retainedCases.length) {
+                root.retainedDone = true;
+                root.finish();
+            } else {
+                nextRetained.start();
+            }
+        }
+    }
+    Timer { id: nextRetained; interval: 20; onTriggered: { retained.refresh(); retained.refresh(); } }
     Component.onCompleted: {
         const pins = ["codex", "claude", "kimi-code"];
         if (ProviderOrder.reorderedPins(pins, "kimi-code", "codex").join(",") !== "kimi-code,codex,claude"
@@ -66,6 +96,7 @@ ShellRoot {
             return;
         }
         next.start();
+        nextRetained.start();
     }
 }
 QML
@@ -78,4 +109,4 @@ for _ in {1..100}; do
 done
 grep -q 'QML_SMOKE_OK' "$TMP/log" || { printf '%s\n' "$(<"$TMP/log")" >&2; exit 1; }
 if grep -Ei 'SMOKE FAIL|ReferenceError|TypeError|binding loop|Failed to load configuration' "$TMP/log"; then exit 1; fi
-echo 'OK: QML runtime JSON parsing, errors, timeout, retry and refresh deduplication'
+echo 'OK: QML JSON parsing, failure retention, timeout, retry, empty arguments and refresh deduplication'

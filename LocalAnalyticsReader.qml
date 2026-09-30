@@ -6,6 +6,8 @@ Item {
     id: reader
     required property string providerId
     required property string scriptPath
+    property var commandArguments: [providerId]
+    property bool retainOnFailure: false
     property int timeoutMs: 45000
     property var result: null
     readonly property bool running: process.running
@@ -19,13 +21,13 @@ Item {
             return;
         buffer = "";
         timedOut = false;
+        process.command = ["bash", scriptPath].concat(commandArguments);
         process.running = true;
         deadline.restart();
     }
 
     Process {
         id: process
-        command: ["bash", reader.scriptPath, reader.providerId]
         stdout: SplitParser {
             splitMarker: ""
             onRead: chunk => reader.buffer += chunk
@@ -33,10 +35,15 @@ Item {
         onExited: code => {
             deadline.stop();
             try {
-                const parsed = code === 0 && !reader.timedOut ? JSON.parse(reader.buffer) : null;
-                reader.result = parsed && !parsed.error ? parsed : null;
+                if (code === 0 && !reader.timedOut && reader.buffer.length > 0) {
+                    const parsed = JSON.parse(reader.buffer);
+                    reader.result = parsed && !parsed.error ? parsed : null;
+                } else if (!reader.retainOnFailure) {
+                    reader.result = null;
+                }
             } catch (error) {
-                reader.result = null;
+                if (!reader.retainOnFailure)
+                    reader.result = null;
             }
             reader.buffer = "";
             reader.completed();
@@ -49,7 +56,8 @@ Item {
             reader.timedOut = true;
             process.running = false;
             reader.buffer = "";
-            reader.result = null;
+            if (!reader.retainOnFailure)
+                reader.result = null;
         }
     }
 }

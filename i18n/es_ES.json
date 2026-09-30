@@ -1,4 +1,9 @@
 {
+  "settings.cost_currency": "Moneda de los costes estimados",
+  "settings.cost_currency_desc": "Convierte las estadísticas en USD para mostrarlas con tipos de cambio diarios. Los saldos y datos guardados no cambian; sin tipo de cambio se muestra USD.",
+  "currency.status.unavailable": "Tipo de cambio no disponible; costes en USD",
+  "currency.status.current": "Costes estimados en {currency} · cambio del {date}",
+  "currency.status.stale": "Costes estimados en {currency} · cambio en caché del {date}",
   "app.title": "Control de uso de IA",
   "card.account": "Cuenta",
   "card.account_errors_count": "{count} cuenta(s) no disponible(s)",

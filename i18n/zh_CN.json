@@ -1,4 +1,9 @@
 {
+  "settings.cost_currency": "估算费用货币",
+  "settings.cost_currency_desc": "使用每日汇率换算美元统计数据，仅用于显示。余额和存储金额保持不变；无可用汇率时以美元显示。",
+  "currency.status.unavailable": "汇率不可用；费用以美元显示",
+  "currency.status.current": "估算费用：{currency} · 汇率日期：{date}",
+  "currency.status.stale": "估算费用：{currency} · 缓存汇率日期：{date}",
   "app.title": "AI 用量控制",
   "card.account": "账户",
   "card.account_errors_count": "{count} 个账户不可用",

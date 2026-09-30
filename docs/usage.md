@@ -1,5 +1,14 @@
 # Using the dashboard
 
+## Estimated cost currency
+
+In Settings, choose **Estimated cost currency** (USD by default). Daily reference
+rates convert analytics costs for display in EUR, BRL, GBP, CAD, CNY, JPY, AUD or
+CHF. The dashboard identifies the quote date and stale cache; missing rates show
+USD, never an unconverted amount under another currency label. Storage, exports,
+credits and native provider balances remain unchanged. Set `AIOC_NO_FX=1` to
+prevent rate requests. See [currency.md](currency.md) for cache and precision.
+
 How the popout, provider cards, settings window, and IPC commands behave once
 AiOverviewControl is installed. For the setting keys themselves see
 [Configuration](./configuration.md).

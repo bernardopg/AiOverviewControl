@@ -1,4 +1,9 @@
 {
+  "settings.cost_currency": "Moeda dos custos estimados",
+  "settings.cost_currency_desc": "Converte as análises em USD para exibição usando câmbio diário. Saldos e valores armazenados não mudam; sem cotação, os custos aparecem em USD.",
+  "currency.status.unavailable": "Câmbio indisponível; custos exibidos em USD",
+  "currency.status.current": "Custos estimados em {currency} · câmbio de {date}",
+  "currency.status.stale": "Custos estimados em {currency} · câmbio em cache de {date}",
   "app.title": "Controle de Uso de IA",
   "card.account": "Conta",
   "card.account_errors_count": "{count} conta(s) indisponível(is)",

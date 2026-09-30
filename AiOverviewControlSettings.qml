@@ -195,6 +195,7 @@ PluginSettings {
         refreshInterval: "120000",
         showErrorProviders: "true",
         showClaudeProjects: "true",
+        costCurrency: "USD",
         showAntigravityModelDetails: "false",
         pillTooltip: "true",
         quotaNotifications: "true",
@@ -954,6 +955,16 @@ PluginSettings {
                 onClicked: root.openProviderLogoColorPicker()
             }
         }
+    }
+
+    ValueDropdown {
+        width: parent.width
+        text: t("settings.cost_currency", "Estimated cost currency")
+        description: t("settings.cost_currency_desc", "Convert USD analytics for display using daily exchange rates. Balances and stored amounts stay unchanged; unavailable rates fall back to USD.")
+        selected: { root.settingsEpoch; return loadValue("costCurrency", "USD"); }
+        values: ["USD", "EUR", "BRL", "GBP", "CAD", "CNY", "JPY", "AUD", "CHF"]
+        labels: values
+        onPicked: function(value) { saveValue("costCurrency", value); }
     }
 
     DankToggle {

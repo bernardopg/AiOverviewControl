@@ -1,4 +1,9 @@
 {
+  "settings.cost_currency": "Währung der geschätzten Kosten",
+  "settings.cost_currency_desc": "USD-Statistiken mit täglichen Wechselkursen für die Anzeige umrechnen. Guthaben und gespeicherte Beträge bleiben unverändert; ohne Wechselkurs erfolgt die Anzeige in USD.",
+  "currency.status.unavailable": "Wechselkurs nicht verfügbar; Kosten in USD",
+  "currency.status.current": "Geschätzte Kosten in {currency} · Wechselkurs vom {date}",
+  "currency.status.stale": "Geschätzte Kosten in {currency} · gespeicherter Wechselkurs vom {date}",
   "app.title": "KI-Nutzungsübersicht",
   "card.account": "Konto",
   "card.account_errors_count": "{count} Konto/Konten nicht verfügbar",

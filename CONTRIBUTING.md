@@ -92,8 +92,8 @@ Quickshell runtime smoke coverage, and the extracted history-writer contract.
 | **i18n key parity** (all locales == `en`) | `for locale in pt_BR zh_CN es_ES de_DE; do diff <(jq -r 'keys[]' i18n/en.json) <(jq -r 'keys[]' "i18n/$locale.json") || exit 1; done` |
 | CHANGELOG has the `plugin.json` version | `VERSION="$(jq -r .version plugin.json)"; grep -qF "## $VERSION" CHANGELOG.md \|\| grep -qF "## [$VERSION]" CHANGELOG.md` |
 | **QML lint (hard gate)** | `QT_FORCE_STDERR_LOGGING=1 qmllint *.qml` |
-| Shell syntax | `find providers -maxdepth 1 -type f -print0 \| xargs -0 bash -n; for test in tests/*.sh; do bash -n "$test"; done; bash -n scripts/package-release` |
-| Shell lint | `shellcheck -S warning providers/* tests/*.sh scripts/package-release` |
+| Shell syntax | `find providers -type f -print0 \| xargs -0 -n 1 bash -n; for test in tests/*.sh; do bash -n "$test"; done; bash -n scripts/package-release` |
+| Shell lint | `find providers -type f -print0 \| xargs -0 shellcheck -S warning; shellcheck -S warning tests/*.sh scripts/package-release` |
 | Release package | `scripts/package-release` |
 
 Parity is strict: every key in `en.json` must exist in `pt_BR`, `zh_CN`,

@@ -21,6 +21,15 @@ configured, integrate the call into that hook instead of overwriting it.
 `tests/test-metadata.sh` exercises rejection cases in a temporary fixture;
 it never changes repository metadata or permissions.
 
+## Workflow dependencies
+
+See [update-audit.md](update-audit.md) for verified upstream versions and the
+scope of repository-managed tooling.
+`tests/test-workflow-dependencies.sh` guards immutable external action references,
+downloaded-tool checksums and the Crowdin 5 native launcher. This offline test
+does not discover future releases; Dependabot covers actions, while pinned binary
+versions still need explicit upstream review.
+
 ## Pinned order and retention feedback
 
 Hold the ↕ handle on a pinned card, drag to another pinned card, and drop to
@@ -41,7 +50,7 @@ platform. CI provides it in an Arch Linux container. A temporary shell loads the
 actual `LocalAnalyticsReader.qml`, with a deterministic bash adapter replacing
 network/local account access. The suite checks pinned-order invariants, valid JSON, malformed JSON,
 adapter errors, nonzero exit status, deadline cancellation, retry after timeout,
-and suppression of duplicate refreshes. All subprocesses are bounded and the
+failure-retention policy, empty-argument scripts, and suppression of duplicate refreshes. All subprocesses are bounded and the
 shell instance is stopped during cleanup. This test does not reload your DMS.
 
 The extracted component receives its provider, script path, and timeout from the
@@ -50,10 +59,23 @@ widget. It does not depend on DMS services or dashboard state. The widget expose
 Neither overrides QtQuick Item's default `data` property. The component is loaded
 by URL so an existing DMS engine's cached qmldir cannot break hot reload.
 
-**Coverage boundary:** this is a runtime smoke for the extracted fetch component,
-not yet a smoke for the complete widget/settings/window. Those require a stable
-DMS import fixture; lint of all root QML files remains mandatory. Do not mark the
-full-roadmap QML smoke or god-file split complete based on this initial slice.
+`tests/test-currency-qml.sh` also runs offscreen and verifies conversion, locale,
+precision, unavailable-rate fallback and currency changes during an active request.
+
+`tests/test-widget-runtime.sh` instantiates the actual widget, both bar pills,
+extracted dashboard, settings body and settings window with real DMS imports and
+fixture-only provider scripts. Its isolated HOME/no-credential environment never
+opens visible windows. It checks empty-provider bindings and live BRL→USD changes.
+Use `scripts/qmlls-setup` first, or supply the import-tree parent with
+`AIOC_DMS_IMPORTS`. It needs a native Wayland connection because Qt offscreen
+cannot construct DMS PanelWindow types; without these prerequisites it reports
+**SKIP**. The full suite passed locally; generic CI still needs an isolated
+layer-shell backend before this can become a mandatory native gate.
+
+See [refactoring.md](refactoring.md) for the controller/dashboard/native-adapter
+boundaries and [currency.md](currency.md) for monetary units and network policy.
+Lint of all root QML files and recursive syntax/ShellCheck of `providers/` remain
+mandatory.
 
 ## Running DMS discovery
 
