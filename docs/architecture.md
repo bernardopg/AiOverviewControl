@@ -156,6 +156,8 @@ All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode,
 | `pinnedProviders` | empty | Provider IDs sorted before unpinned cards. |
 | `providerLogoColor` | current DMS primary color | Monochrome tint for provider logos and notification icons. |
 | `pillTooltip` | `true` | Show the hover tooltip describing the DankBar pill's provider, window, percentage, and reset. |
+| `pillShowNames` | `true` | Render provider names in the horizontal DankBar pill; `false` keeps logo + percentage. |
+| `pillCompact` | `false` | Tighten the separator and entry spacing of the DankBar pill. |
 | `showClaudeProjects` | `true` | Show Claude local project analytics. |
 | `showAntigravityModelDetails` | `false` | Replace Antigravity family rows with per-model rows in expanded cards. |
 

@@ -31,6 +31,10 @@ AiOverviewControl is installed. For the setting keys themselves see
   **DankBar usage window**, or choose `highest` to follow the most-constrained
   window.
 - Hover the pill to see which window each number comes from and when it resets.
+- Crowded bar? In **Settings → Interface**, turn off **Provider names in pill**
+  to keep only the logo and percentage, and turn on **Compact pill spacing** to
+  tighten the gap around the `·` between providers. Hovering still names each
+  provider.
 
 ## The popout
 

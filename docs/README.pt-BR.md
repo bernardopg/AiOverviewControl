@@ -59,7 +59,8 @@ carga média, provedor mais usado e próximo reset.
 
 **🎯 Uma pílula que diz a verdade**<br />
 Escolha qual janela de cota cada provedor mostra na barra, ou siga a mais
-apertada. Passe o mouse para ver a janela e o reset.
+apertada. Passe o mouse para ver a janela e o reset. Barra lotada? Esconda
+os nomes e compacte o espaçamento.
 
 </td>
 </tr>
