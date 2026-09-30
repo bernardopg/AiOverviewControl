@@ -315,6 +315,6 @@
   "provider.note.kiro": "IDE por assinatura; sem API pública",
   "provider.note.warp": "Sem API pública de cota somente leitura",
   "provider.note.amp": "Sem API pública de cota somente leitura",
-  "card.reorder_pinned": "Segure e arraste para reordenar os provedores fixados",
+  "card.reorder_pinned": "Arraste para reordenar os provedores fixados",
   "settings.history_count": "{count} registros armazenados · última limpeza removeu {trimmed}"
 }

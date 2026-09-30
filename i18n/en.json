@@ -315,6 +315,6 @@
   "provider.note.kiro": "Subscription-only IDE; no public API",
   "provider.note.warp": "No public read-only quota API",
   "provider.note.amp": "No public read-only quota API",
-  "card.reorder_pinned": "Hold and drag to reorder pinned providers",
+  "card.reorder_pinned": "Drag to reorder pinned providers",
   "settings.history_count": "{count} snapshots stored · last trim removed {trimmed}"
 }

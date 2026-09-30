@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix pinned-provider drag handles: immediate internal drag captures the mouse instead of scrolling the dashboard; keep the drag proxy outside layout positioning. Add optional fast-pointer regression coverage that checks order and unchanged scroll position.
+- Vertically center provider header handles, larger logos, percentage and actions; align the collapsed animated accent stripe with the same header axis.
 - Extract dashboard hero/cards/manager into `DashboardContent.qml`, keeping focus/scrolling view-local and reducing the widget controller to about 2,450 lines. Exercise real DMS widget, bar pills, dashboard, settings persistence/reset and settings window with isolated runtime fixtures; report native-backend prerequisites explicitly when skipped.
 - Fix the currency dropdown's actual values/labels interface, dynamically load the settings window body, and guard empty-provider dashboard bindings.
 - Add configurable USD/EUR/BRL/GBP/CAD/CNY/JPY/AUD/CHF analytics cost display, locale-aware precision, daily exchange-rate caching, a network opt-out and honest USD fallback without altering balances or stored costs.

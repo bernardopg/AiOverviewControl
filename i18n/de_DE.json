@@ -315,6 +315,6 @@
   "provider.note.kiro": "Abonnement-IDE; keine öffentliche API",
   "provider.note.warp": "Keine öffentliche Kontingent-API mit Lesezugriff",
   "provider.note.amp": "Keine öffentliche Kontingent-API mit Lesezugriff",
-  "card.reorder_pinned": "Gedrückt halten und ziehen, um angeheftete Anbieter umzuordnen",
+  "card.reorder_pinned": "Ziehen, um angeheftete Anbieter umzuordnen",
   "settings.history_count": "{count} Einträge gespeichert · zuletzt {trimmed} Einträge entfernt"
 }

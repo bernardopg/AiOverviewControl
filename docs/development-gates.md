@@ -32,11 +32,18 @@ versions still need explicit upstream review.
 
 ## Pinned order and retention feedback
 
-Hold the ↕ handle on a pinned card, drag to another pinned card, and drop to
-insert before it. The persisted pin list also controls the dashboard sort.
+Drag the ↕ handle on a pinned card onto another pinned card to insert before
+it; no long press is required. The handle captures the gesture rather than
+letting the page's Flickable scroll. Other card areas retain normal scrolling.
 Unknown/self drops cannot add or remove pins; the runtime suite exercises forward
-and backward moves and nonmutation. Native desktop drag-and-drop should still be
-checked manually across monitor/scale configurations.
+and backward moves and nonmutation.
+
+`AIOC_TEST_POINTER=1 tests/test-widget-runtime.sh` opens a temporary fixture window
+and sends a fast synthetic mouse drag (without a hold). It checks that pin order
+changes while page scroll position does not. The default invocation keeps windows
+hidden and checks common header-center alignment for handle, logo, percentage,
+actions and collapsed accent stripe. QtTest is required for the optional pointer
+exercise. Other monitor/scale and touch configurations still need manual checks.
 
 Settings displays the number of valid history snapshots and the number removed
 by the latest trim. `providers/get-history-stats` reads only local files; the
@@ -55,7 +62,7 @@ shell instance is stopped during cleanup. This test does not reload your DMS.
 
 The extracted component receives its provider, script path, and timeout from the
 widget. It does not depend on DMS services or dashboard state. The widget exposes
-`codexReader.snapshot`/`opencodeReader.snapshot` from the reader's `result`.
+`codexStats`/`opencodeStats` snapshots from the reader's `result`.
 Neither overrides QtQuick Item's default `data` property. The component is loaded
 by URL so an existing DMS engine's cached qmldir cannot break hot reload.
 

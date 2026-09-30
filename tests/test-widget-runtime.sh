@@ -31,10 +31,13 @@ chmod +x "$TMP/bin/curl" "$TMP/plugin/providers/get-exchange-rates"
 cat > "$TMP/shell.qml" <<'QML'
 import QtQuick
 import Quickshell
+import QtTest
 import "plugin" as Plugin
 ShellRoot {
     id: root
     property int step: 0
+    property bool pointerTest: Quickshell.env("AIOC_TEST_POINTER") === "1"
+    property real dragScrollY: 0
     QtObject {
         id: service
         property var data: ({providerSelection: "codex", costCurrency: "USD"})
@@ -47,7 +50,9 @@ ShellRoot {
     }
     Plugin.AiOverviewControlWidget { id: widget; pluginId: "fixture"; pluginService: service }
     // Real DMS controls and all visual components, but no visible desktop windows.
+    TestCase { id: input; when: false; parent: scene.contentItem }
     FloatingWindow {
+        id: scene
         visible: false; implicitWidth: 1000; implicitHeight: 900
         Loader { sourceComponent: widget.popoutContent; width: parent.width; height: parent.height }
         Loader { sourceComponent: widget.horizontalBarPill }
@@ -89,8 +94,50 @@ ShellRoot {
                 widget.focusProvider("codex");
                 root.step = 3;
             } else if (root.step === 3) {
-                console.warn("FULL_UI_SMOKE_OK");
+                widget.focusedProviderId = "";
+                widget.allExpanded = false;
+                widget.pinnedProvidersCsv = "codex,opencode";
+                widget.providers = ["codex", "opencode", "copilot", "claude", "deepseek", "groq", "nvidia"].map(id => ({
+                    provider: id, name: id, usage: {provider: id, primary: {usedPercent: 25, windowMinutes: 300}}
+                }));
+                scene.visible = root.pointerTest;
                 root.step = 4;
+            } else if (root.step === 4) {
+                const view = widget.dashboardView;
+                const handle = input.findChild(view, "provider-drag-opencode");
+                const target = input.findChild(view, "provider-drag-codex");
+                if (!handle || !target) { console.error("SMOKE FAIL: reorder handles missing"); return; }
+                const end = target.mapToItem(handle, target.width / 2, target.height / 2);
+                const scroll = input.findChild(view, "provider-dashboard-scroll");
+                if (root.pointerTest && (!scroll || scroll.contentHeight <= scroll.height)) {
+                    console.error("SMOKE FAIL: drag fixture must have scrollable content"); return;
+                }
+                root.dragScrollY = scroll.contentY;
+                if (root.pointerTest) {
+                    root.step = -1;
+                    input.mousePress(handle, handle.width / 2, handle.height / 2, Qt.LeftButton, Qt.NoModifier, 1);
+                    input.mouseMove(handle, handle.width / 2, handle.height / 2 - 20, 1);
+                    input.mouseMove(handle, end.x, end.y, 1);
+                    input.mouseRelease(handle, end.x, end.y, Qt.LeftButton, Qt.NoModifier, 1);
+                }
+                root.step = 5;
+            } else if (root.step === 5) {
+                scene.visible = false;
+                if (root.pointerTest && widget.pinnedProvidersCsv !== "opencode,codex")
+                    console.error("SMOKE FAIL: dragging handle did not reorder pins: " + widget.pinnedProvidersCsv);
+                const view = widget.dashboardView;
+                const scroll = input.findChild(view, "provider-dashboard-scroll");
+                if (root.pointerTest && Math.abs(scroll.contentY - root.dragScrollY) > 1)
+                    console.error("SMOKE FAIL: reorder gesture scrolled the page");
+                const header = input.findChild(view, "provider-header-codex");
+                const center = header.mapToItem(view, 0, header.height / 2).y;
+                for (const role of ["drag", "logo", "percent", "actions", "accent"]) {
+                    const item = input.findChild(view, "provider-" + role + "-codex");
+                    if (!item || Math.abs(item.mapToItem(view, 0, item.height / 2).y - center) > 1)
+                        console.error("SMOKE FAIL: provider header misaligned: " + role);
+                }
+                console.warn("FULL_UI_SMOKE_OK");
+                root.step = 6;
             }
         }
     }
@@ -98,6 +145,7 @@ ShellRoot {
 QML
 # No provider keys, real user settings, session bus or external HTTP in this fixture.
 env -i HOME="$TMP/home" PATH="$TMP/bin:$PATH" LANG=en_US.UTF-8 AIOC_TEST_PLUGIN_DIR="$TMP/plugin" \
+    AIOC_TEST_POINTER="${AIOC_TEST_POINTER:-0}" \
     XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
     WAYLAND_DISPLAY="$WAYLAND_DISPLAY" QT_QPA_PLATFORM=wayland \
     QML_XHR_ALLOW_FILE_READ=1 QML_IMPORT_PATH="$IMPORTS" \
@@ -108,8 +156,11 @@ for _ in {1..120}; do
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.1
 done
-if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|TypeError|ReferenceError|binding loop|Failed to load configuration|Cannot assign|Unable to assign|Invalid property assignment|is not a type' "$TMP/log"; then
+if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::fail|TypeError|ReferenceError|binding loop|Failed to load configuration|Cannot assign|Unable to assign|Invalid property assignment|is not a type' "$TMP/log"; then
     printf '%s\n' "$(<"$TMP/log")" >&2
     exit 1
 fi
-echo 'OK: full widget, horizontal/vertical pills, dashboard, settings/window and live currency bindings'
+echo 'OK: full widget, pills, dashboard alignment, settings/window and currency bindings'
+if [[ "${AIOC_TEST_POINTER:-0}" == 1 ]]; then
+    echo 'OK: fast pointer drag reorders pinned cards without scrolling the page'
+fi

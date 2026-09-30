@@ -315,6 +315,6 @@
   "provider.note.kiro": "IDE por suscripción; sin API pública",
   "provider.note.warp": "Sin API pública de cuota de solo lectura",
   "provider.note.amp": "Sin API pública de cuota de solo lectura",
-  "card.reorder_pinned": "Mantenga pulsado y arrastre para reordenar proveedores fijados",
+  "card.reorder_pinned": "Arrastre para reordenar proveedores fijados",
   "settings.history_count": "{count} registros almacenados · la última limpieza eliminó {trimmed}"
 }

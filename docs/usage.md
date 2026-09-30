@@ -1,5 +1,12 @@
 # Using the dashboard
 
+## Reordering pinned providers
+
+Click and drag the ↕ handle onto another pinned provider card to place it before
+that card. No long press is necessary. Dragging the handle does not scroll the
+page; scroll or drag elsewhere in the dashboard as usual. Pin a provider with the
+star button to expose its reorder handle. The pin order is saved automatically.
+
 ## Estimated cost currency
 
 In Settings, choose **Estimated cost currency** (USD by default). Daily reference

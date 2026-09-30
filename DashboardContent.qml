@@ -311,6 +311,7 @@ PopoutComponent {
 
                 Flickable {
                     id: contentFlick
+                    objectName: "provider-dashboard-scroll"
                     anchors.fill: parent
                     anchors.leftMargin: popout.width < 620 ? Theme.spacingS : Theme.spacingL
                     anchors.rightMargin: popout.width < 620 ? Theme.spacingS : Theme.spacingL
@@ -1986,7 +1987,9 @@ PopoutComponent {
             onDropped: drop => {
                 if (!root.isPinned(card.provider.provider))
                     return;
-                const source = drop.getDataAsString("application/x-aioc-provider");
+                const source = drop.source && drop.source.providerId
+                    ? String(drop.source.providerId)
+                    : drop.getDataAsString("application/x-aioc-provider");
                 if (root.isPinned(source)) {
                     root.movePinnedBefore(source, card.provider.provider);
                     drop.acceptProposedAction();
@@ -2078,8 +2081,10 @@ PopoutComponent {
         Rectangle {
             anchors.left: parent.left
             anchors.leftMargin: Theme.spacingXS
-            anchors.verticalCenter: parent.verticalCenter
+            y: card.expanded ? (card.height - height) / 2
+                : cardColumn.y + cardHeader.y + (cardHeader.height - height) / 2
             width: 3
+            objectName: "provider-accent-" + card.provider.provider
             height: expanded ? parent.height - Theme.spacingM * 2 : parent.height * 0.34
             radius: width / 2
             visible: expanded || card.hovered || card.activeFocus
@@ -2125,28 +2130,56 @@ PopoutComponent {
             spacing: expanded ? (card.dense ? Theme.spacingS : Theme.spacingM) : Theme.spacingS
 
             RowLayout {
+                id: cardHeader
+                objectName: "provider-header-" + card.provider.provider
                 width: parent.width
                 spacing: card.compact ? Theme.spacingS : Theme.spacingL
 
                 Item {
                     id: pinDrag
+                    objectName: "provider-drag-" + card.provider.provider
+                    readonly property string providerId: card.provider.provider
+                    Layout.alignment: Qt.AlignVCenter
                     visible: root.isPinned(card.provider.provider)
                     implicitWidth: 20
                     implicitHeight: 28
-                    Drag.mimeData: ({ "application/x-aioc-provider": card.provider.provider })
-                    Drag.supportedActions: Qt.MoveAction
+                    // Move a layout-independent proxy, never the RowLayout child.
+                    Item {
+                        id: pinDragProxy
+                        width: pinDrag.width
+                        height: pinDrag.height
+                        Drag.active: pinMouse.drag.active
+                        Drag.keys: ["application/x-aioc-provider"]
+                        Drag.source: pinDrag
+                        Drag.supportedActions: Qt.MoveAction
+                        Drag.hotSpot.x: width / 2
+                        Drag.hotSpot.y: height / 2
+                    }
                     StyledText { anchors.centerIn: parent; text: "↕"; color: Theme.surfaceVariantText }
                     MouseArea {
+                        id: pinMouse
                         anchors.fill: parent
-                        cursorShape: Qt.OpenHandCursor
-                        onPressAndHold: pinDrag.Drag.startDrag()
+                        preventStealing: true
+                        drag.target: pinDragProxy
+                        cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        onReleased: {
+                            pinDragProxy.Drag.drop();
+                            pinDragProxy.x = 0;
+                            pinDragProxy.y = 0;
+                        }
+                        onCanceled: {
+                            pinDragProxy.Drag.cancel();
+                            pinDragProxy.x = 0;
+                            pinDragProxy.y = 0;
+                        }
                     }
                     ToolTip.visible: pinHover.hovered
-                    ToolTip.text: root.t("card.reorder_pinned", "Hold and drag to reorder pinned providers")
+                    ToolTip.text: root.t("card.reorder_pinned", "Drag to reorder pinned providers")
                     HoverHandler { id: pinHover }
                 }
                 Item {
-                    Layout.alignment: Qt.AlignTop
+                    objectName: "provider-logo-" + card.provider.provider
+                    Layout.alignment: Qt.AlignVCenter
                     visible: !card.veryCompact
                     width: card.dense ? 34 : (card.compact ? 38 : 46)
                     height: width
@@ -2176,7 +2209,7 @@ PopoutComponent {
                         ProviderLogo {
                             anchors.centerIn: parent
                             providerId: card.provider.provider
-                            logoSize: card.dense ? 15 : (card.compact ? 17 : 20)
+                            logoSize: card.dense ? 19 : (card.compact ? 22 : 26)
                             tintColor: root.providerLogoColor
                         }
                     }
@@ -2252,6 +2285,7 @@ PopoutComponent {
                 }
 
                 Row {
+                    objectName: "provider-percent-" + card.provider.provider
                     Layout.alignment: Qt.AlignVCenter
                     spacing: 3
 
@@ -2275,6 +2309,7 @@ PopoutComponent {
 
                 // Card actions share the popout header's capsule language.
                 Row {
+                    objectName: "provider-actions-" + card.provider.provider
                     Layout.alignment: Qt.AlignVCenter
                     z: 2
                     spacing: 2

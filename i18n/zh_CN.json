@@ -315,6 +315,6 @@
   "provider.note.kiro": "订阅制 IDE；无公开 API",
   "provider.note.warp": "无公开只读配额 API",
   "provider.note.amp": "无公开只读配额 API",
-  "card.reorder_pinned": "长按并拖动以调整已固定提供商的顺序",
+  "card.reorder_pinned": "拖动以调整已固定提供商的顺序",
   "settings.history_count": "已存储 {count} 条记录 · 上次清理删除 {trimmed} 条"
 }
