@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 1.17.3 - 2026-09-29
+
+### Claude analytics: incremental transcript cache
+
+- **Active sessions no longer force a full rescan.** 1.17.2 reused aggregates only while no transcript changed, so with any Claude Code session running every refresh re-read the whole 31-day history (~4 s on a 270 MB `~/.claude/projects`). Transcripts are now parsed once per file (keyed by size + mtime) into `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/claude-transcripts.tsv`; a refresh re-parses only the files that changed and aggregates the cached rows (~0.3 s with an active session). The weekly top-projects list comes from the same rows, removing the second 8-day scan. The 1.17.2 `claude-local-stats.json` cache is deleted on first run.
+- A timezone or DST offset change rebuilds the cache, and a failed parse is retried on the next refresh instead of being cached as empty.
+
+### Release and CI
+
+- GitHub release pages now carry this changelog's section for the version. Generated notes were empty because changes land on `main` without pull requests; v1.17.0–v1.17.2 were backfilled.
+- CI now runs five integration tests that existed but never ran there: `test-claude-cache`, `test-network-opt-outs`, `test-codex-usage`, `test-opencode`, and `test-local-analytics`.
+- Dev-only `scripts/qmlls-setup` lets qmlls/qmllint resolve DMS `qs.*` imports in editors.
+
 ## 1.17.2 - 2026-09-29
 
 ### Registry review remediation ([dms-plugin-registry#358](https://github.com/AvengeMedia/dms-plugin-registry/issues/358))
