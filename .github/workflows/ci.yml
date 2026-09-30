@@ -559,6 +559,21 @@ jobs:
       - name: Integration test — usage-history export (CSV/JSONL round-trip)
         run: tests/test-history-export.sh
 
+      - name: Integration test — Claude cache placement, migration, fingerprint
+        run: tests/test-claude-cache.sh
+
+      - name: Integration test — third-party network opt-outs
+        run: tests/test-network-opt-outs.sh
+
+      - name: Integration test — Codex app-server usage
+        run: tests/test-codex-usage.sh
+
+      - name: Integration test — OpenCode usage
+        run: tests/test-opencode.sh
+
+      - name: Integration test — Codex/OpenCode local analytics
+        run: tests/test-local-analytics.sh
+
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |
           FAIL=0
