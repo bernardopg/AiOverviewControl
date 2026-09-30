@@ -12,16 +12,17 @@ stay one release cycle, then move to `CHANGELOG.md`.
 ## 🔧 Registry review remediation (AvengeMedia/dms-plugin-registry#358)
 
 Automated Claude review on `6d37548` flagged 6 issues, all verified legitimate.
-Tracked here until 1.17.2 ships and the registry PR lands.
+Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#961) awaits merge.
 
 - [x] **Move Claude caches out of `~/.claude`** — `pricing-cache.json` and
   `usage-cache.json` relocate to `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/`
   with one-time migration of stale files. `stats-cache.json` stays read-only
   from `~/.claude` (Claude Code's own file). `S · ★★★`
-- [x] **Content-addressed transcript aggregates** — fingerprint
-  `~/.claude/projects` (file count + newest mtime) and skip the 31-day and
-  8-day `cat | jq | awk` passes when unchanged; `claude --version` gets a
-  daily TTL cache. `M · ★★★`
+- [x] **Incremental transcript analytics** — per-transcript extraction cache
+  (`claude-transcripts.tsv`, keyed by size + mtime) re-parses only changed
+  files, so an active Claude Code session no longer forces a full rescan;
+  `claude --version` gets a daily TTL cache. Shipped in 1.17.2 as a
+  whole-tree fingerprint, made per-file in 1.17.3. `M · ★★★`
 - [x] **Document + opt-out third-party calls** — LiteLLM pricing fetch
   (`AIOC_NO_LITELLM=1`) and Copilot dns.google DoH fallback
   (`AIOC_NO_DOH_FALLBACK=1`) documented in README/docs with env opt-outs.

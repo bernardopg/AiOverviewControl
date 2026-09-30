@@ -11,7 +11,7 @@ PROJECTS_DIR="${CLAUDE_DIR}/projects"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
 PRICING_CACHE="${CACHE_DIR}/claude-pricing-cache.json"
 USAGE_CACHE="${CACHE_DIR}/claude-usage-cache.json"
-LOCAL_STATS_CACHE="${CACHE_DIR}/claude-local-stats.json"
+TRANSCRIPTS_CACHE="${CACHE_DIR}/claude-transcripts.tsv"
 VERSION_CACHE="${CACHE_DIR}/claude-version-cache.json"
 USAGE_CACHE_TTL=120  # seconds
 VERSION_CACHE_TTL=86400  # seconds: the CLI version changes on upgrade, not per refresh
@@ -26,6 +26,8 @@ for legacy in pricing-cache usage-cache; do
             || rm -f "${CLAUDE_DIR}/${legacy}.json"
     fi
 done
+# 1.17.2 kept a whole-aggregate cache here; per-transcript rows replace it.
+rm -f "${CACHE_DIR}/claude-local-stats.json"
 
 # The CLI version only matters for the User-Agent header; probe it at most
 # once a day instead of spawning `claude --version` on every refresh.
@@ -233,39 +235,57 @@ else
 fi
 
 # --- Token consumption from JSONL session files ---
-# Content-addressed aggregation: a fingerprint of the projects dir (jsonl count
-# + newest mtime within the 31-day window, today's date, and the pricing table
-# — all three shift the date buckets and costs) gates reuse of the cached
-# aggregates. Unchanged transcripts cost one find(1) instead of re-reading
-# every session file through jq+awk on each refresh.
-LOCAL_STATS_HIT=false
+# Per-transcript extraction cache: jq parses each session file once per
+# (size, mtime) and its assistant-message rows are kept in
+# claude-transcripts.tsv. A refresh re-parses only files that changed —
+# normally just the active session — and awk aggregates the cached rows.
+# Rows carry the local date, so a UTC-offset change rebuilds the cache.
+# ponytail: a changed file is re-parsed whole; parse from the previous size
+# if long active sessions ever make that slow.
 if [ -d "$PROJECTS_DIR" ]; then
-    read -r JSONL_COUNT JSONL_NEWEST < <(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -31 -printf '%T@\n' 2>/dev/null \
-        | awk '{ c++; if ($1+0 > m) m = $1 } END { printf "%d %d\n", c+0, m+0 }')
-    TRANSCRIPTS_FP="${JSONL_COUNT}:${JSONL_NEWEST}:${TODAY}:$(printf '%s' "$PRICING_AWK" | cksum | awk '{print $1}')"
-    if [ -f "$LOCAL_STATS_CACHE" ] \
-        && [ "$(jq -r '.fingerprint // ""' "$LOCAL_STATS_CACHE" 2>/dev/null)" = "$TRANSCRIPTS_FP" ]; then
-        LOCAL_STATS_HIT=true
-        while IFS='=' read -r key value; do
-            case "$key" in
-                WEEK_TOKENS) WEEK_TOKENS="$value" ;;
-                WEEK_MESSAGES) WEEK_MESSAGES="$value" ;;
-                WEEK_SESSIONS) WEEK_SESSIONS="$value" ;;
-                MONTH_TOKENS) MONTH_TOKENS="$value" ;;
-                DAILY) DAILY="$value" ;;
-                WEEK_MODELS) WEEK_MODELS="$value" ;;
-                WEEK_MODEL_COSTS) WEEK_MODEL_COSTS="$value" ;;
-                TODAY_COST) TODAY_COST="$value" ;;
-                WEEK_COST) WEEK_COST="$value" ;;
-                MONTH_COST) MONTH_COST="$value" ;;
-                DAILY_COSTS) DAILY_COSTS="$value" ;;
-            esac
-        done < <(jq -r '.kv // ""' "$LOCAL_STATS_CACHE" 2>/dev/null)
-        WEEK_PROJECTS=$(jq -r '.projects // ""' "$LOCAL_STATS_CACHE" 2>/dev/null || echo "")
-    fi
-fi
+    TX_HEADER="#aioc-claude-transcripts v1 $(date +%z)"
+    TX_NEW=$(mktemp "${TRANSCRIPTS_CACHE}.XXXXXX")
+    TX_CURRENT=$(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -31 -printf '%P\t%s:%T@\n' 2>/dev/null || true)
 
-if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
+    echo "$TX_HEADER" > "$TX_NEW"
+    if [ -f "$TRANSCRIPTS_CACHE" ] && [ "$(head -n 1 "$TRANSCRIPTS_CACHE")" = "$TX_HEADER" ]; then
+        # Keep rows whose file is still in the window with an unchanged stamp.
+        tail -n +2 "$TRANSCRIPTS_CACHE" \
+            | awk -F'\t' 'NR == FNR { cur[$1] = $2; next } ($1 in cur) && cur[$1] == $2' \
+                <(printf '%s\n' "$TX_CURRENT") - >> "$TX_NEW" || true
+    fi
+
+    # Stale = in the window but without any kept row (every parsed file leaves
+    # at least a "#" sentinel row, so empty transcripts are not re-parsed).
+    # Unreadable files are skipped, not cached, so they are retried later.
+    TX_STALE=$(awk -F'\t' 'NR == FNR { if (FNR > 1) kept[$1 FS $2] = 1; next }
+            $1 != "" && !(($1 FS $2) in kept) { print $1 FS $2 }' "$TX_NEW" <(printf '%s\n' "$TX_CURRENT") \
+        | while IFS=$'\t' read -r path stamp; do
+            [ -r "${PROJECTS_DIR}/${path}" ] && printf '%s\t%s\n' "$path" "$stamp"
+        done || true)
+
+    # Paths get a "./" prefix: Claude project dirs start with "-", which
+    # jq would otherwise parse as options.
+    # Rows: path, stamp, local date, model, in, out, cache read, cache write, session, cwd.
+    # Timestamps in session JSONL are UTC; convert to the local day so
+    # buckets line up with WEEK_START/TODAY — raw UTC prefix as fallback.
+    # Rows (and the "#" sentinels) are only cached when every jq call
+    # succeeded; a failed batch is dropped and retried on the next refresh.
+    if [ -n "$TX_STALE" ] && TX_ROWS=$(cd "$PROJECTS_DIR" \
+        && printf '%s\n' "$TX_STALE" | cut -f1 | sed 's|^|./|' | xargs -r -d '\n' jq -r -R '
+            fromjson? | select(.type == "assistant" and (.timestamp | type == "string") and (.message.model? != "<synthetic>"))
+            | ((.timestamp | sub("\\.[0-9]+"; "") | fromdateiso8601?) // null) as $ts
+            | (if $ts != null then ($ts | strflocaltime("%Y-%m-%d")) else .timestamp[:10] end) as $date
+            | [(input_filename | ltrimstr("./")), $date, (.message.model // "unknown"),
+               (.message.usage.input_tokens // 0), (.message.usage.output_tokens // 0),
+               (.message.usage.cache_read_input_tokens // 0), (.message.usage.cache_creation_input_tokens // 0),
+               (.sessionId // "unknown"), ((.cwd // "unknown") | gsub("[,:\t]"; "_"))] | @tsv' 2>/dev/null); then
+        printf '%s\n' "$TX_ROWS" \
+            | awk -F'\t' -v OFS='\t' 'NR == FNR { stamp[$1] = $2; print $1, $2, "#"; next }
+                ($1 in stamp) { path = $1; $1 = ""; print path, stamp[path] $0 }' <(printf '%s\n' "$TX_STALE") - >> "$TX_NEW"
+    fi
+    mv "$TX_NEW" "$TRANSCRIPTS_CACHE" 2>/dev/null || rm -f "$TX_NEW"
+
     # Calendar week dates: Monday (index 1) to Sunday (index 7)
     DAY_DATES=""
     for i in $(seq 0 6); do
@@ -273,12 +293,12 @@ if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
         DAY_DATES="${DAY_DATES:+${DAY_DATES},}${d}"
     done
 
-    # Single pass: extract granular tokens per message, aggregate with awk
     while IFS='=' read -r key value; do
         case "$key" in
             WEEK_TOKENS) WEEK_TOKENS="$value" ;;
             WEEK_MESSAGES) WEEK_MESSAGES="$value" ;;
             WEEK_SESSIONS) WEEK_SESSIONS="$value" ;;
+            WEEK_PROJECTS) WEEK_PROJECTS="$value" ;;
             MONTH_TOKENS) MONTH_TOKENS="$value" ;;
             DAILY) DAILY="$value" ;;
             WEEK_MODELS) WEEK_MODELS="$value" ;;
@@ -288,16 +308,8 @@ if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
             MONTH_COST) MONTH_COST="$value" ;;
             DAILY_COSTS) DAILY_COSTS="$value" ;;
         esac
-    done < <(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -31 -exec cat {} + 2>/dev/null \
-        | jq -r -R '
-            # Timestamps in session JSONL are UTC; WEEK_START/TODAY above are
-            # local dates. Convert to the local day so buckets line up — with
-            # the raw UTC prefix as fallback if parsing ever fails.
-            fromjson? | select(.type == "assistant" and (.timestamp | type == "string") and (.message.model? != "<synthetic>"))
-            | ((.timestamp | sub("\\.[0-9]+"; "") | fromdateiso8601?) // null) as $ts
-            | (if $ts != null then ($ts | strflocaltime("%Y-%m-%d")) else .timestamp[:10] end) as $date
-            | "\($date) \(.message.model // "unknown") \(.message.usage.input_tokens // 0) \(.message.usage.output_tokens // 0) \(.message.usage.cache_read_input_tokens // 0) \(.message.usage.cache_creation_input_tokens // 0) \(.sessionId // "unknown")"' \
-        | awk -v week_start="$WEEK_START" -v month_start="$MONTH_START" -v today="$TODAY" -v day_dates="$DAY_DATES" -v pricing="$PRICING_AWK" '
+    done < <(tail -n +2 "$TRANSCRIPTS_CACHE" 2>/dev/null \
+        | awk -F'\t' -v week_start="$WEEK_START" -v month_start="$MONTH_START" -v today="$TODAY" -v day_dates="$DAY_DATES" -v pricing="$PRICING_AWK" '
         BEGIN {
             split(day_dates, dates, ",")
             # Parse pricing: "opus:in:out:cr:cw,sonnet:in:out:cr:cw,haiku:in:out:cr:cw"
@@ -314,23 +326,26 @@ if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
                 has_pricing = 1
             }
         }
+        $3 == "#" { next }
         {
-            date = $1; model = $2
-            inp = $3 + 0; out = $4 + 0; cr = $5 + 0; cw = $6 + 0
-            sess = $7
+            date = $3; model = $4
+            inp = $5 + 0; out = $6 + 0; cr = $7 + 0; cw = $8 + 0
+            sess = $9; proj = $10
             total = inp + out + cr + cw
 
             # Extract family from model name (claude-{family}-{version...})
             n_parts = split(model, mparts, "-")
             family = (n_parts >= 3 && mparts[1] == "claude") ? mparts[2] : model
 
-            # Token aggregation (same as before)
             day[date] += total
             if (date >= week_start) {
                 week_model[family] += total
                 week_tokens += total
                 week_msgs++
                 week_sess[sess] = 1
+                # Top projects: each session line carries its real working
+                # directory in .cwd (commas/colons stripped for the CSV).
+                week_proj[proj] += total
             }
             if (date >= month_start) month_tokens += total
 
@@ -379,6 +394,17 @@ if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
             }
             printf "WEEK_MODEL_COSTS=%s\n", model_costs
 
+            # Top 5 projects by tokens, descending
+            projects = ""
+            for (k = 1; k <= 5; k++) {
+                best = ""
+                for (p in week_proj) if (best == "" || week_proj[p] > week_proj[best]) best = p
+                if (best == "") break
+                projects = projects (k > 1 ? "," : "") best ":" sprintf("%d", week_proj[best])
+                delete week_proj[best]
+            }
+            printf "WEEK_PROJECTS=%s\n", projects
+
             # Cost outputs
             daily_costs = ""
             for (i = 1; i <= 7; i++) {
@@ -390,50 +416,6 @@ if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
             printf "WEEK_COST=%.2f\n", week_cost + 0
             printf "MONTH_COST=%.2f\n", month_cost + 0
         }')
-
-fi
-
-# --- Top projects this week. Separate 8-day pass: each session line carries
-# its real working directory in .cwd, which beats decoding the project dir
-# name. Commas/colons in paths would break the CSV contract, so strip them. ---
-if [ "$LOCAL_STATS_HIT" = false ] && [ -d "$PROJECTS_DIR" ]; then
-    WEEK_PROJECTS=$(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -8 -exec cat {} + 2>/dev/null \
-        | jq -r -R '
-            fromjson?
-            | select(.type == "assistant" and (.timestamp | type == "string") and (.message.model? != "<synthetic>"))
-            | ((.timestamp | sub("\\.[0-9]+"; "") | fromdateiso8601?) // null) as $ts
-            | (if $ts != null then ($ts | strflocaltime("%Y-%m-%d")) else (.timestamp[:10]) end) as $date
-            | ((.cwd // "unknown") | gsub("[,:]"; "_")) as $proj
-            | "\($date)\t\($proj)\t\(((.message.usage.input_tokens // 0) + (.message.usage.output_tokens // 0) + (.message.usage.cache_read_input_tokens // 0) + (.message.usage.cache_creation_input_tokens // 0)))"
-        ' 2>/dev/null \
-        | awk -F'\t' -v ws="$WEEK_START" '
-            $1 >= ws { tok[$2] += $3 }
-            END {
-                for (p in tok) printf "%s\t%d\n", p, tok[p]
-            }' \
-        | sort -t"$(printf '\t')" -k2,2nr \
-        | head -5 \
-        | awk -F'\t' '{printf "%s%s:%d", (NR > 1 ? "," : ""), $1, $2}')
-fi
-
-# Persist fresh aggregates keyed by the fingerprint computed above.
-if [ -d "$PROJECTS_DIR" ] && [ "$LOCAL_STATS_HIT" = false ]; then
-    LOCAL_KV_OUT=$(printf '%s\n' \
-        "WEEK_TOKENS=$WEEK_TOKENS" \
-        "WEEK_MESSAGES=$WEEK_MESSAGES" \
-        "WEEK_SESSIONS=$WEEK_SESSIONS" \
-        "MONTH_TOKENS=$MONTH_TOKENS" \
-        "DAILY=$DAILY" \
-        "WEEK_MODELS=$WEEK_MODELS" \
-        "WEEK_MODEL_COSTS=$WEEK_MODEL_COSTS" \
-        "TODAY_COST=$TODAY_COST" \
-        "WEEK_COST=$WEEK_COST" \
-        "MONTH_COST=$MONTH_COST" \
-        "DAILY_COSTS=$DAILY_COSTS")
-    jq -n --arg fp "$TRANSCRIPTS_FP" --arg kv "$LOCAL_KV_OUT" --arg projects "$WEEK_PROJECTS" \
-        '{fingerprint: $fp, kv: $kv, projects: $projects}' > "${LOCAL_STATS_CACHE}.tmp" 2>/dev/null \
-        && mv "${LOCAL_STATS_CACHE}.tmp" "$LOCAL_STATS_CACHE" 2>/dev/null \
-        || rm -f "${LOCAL_STATS_CACHE}.tmp"
 fi
 
 # --- All-time from stats cache (supplementary) ---
