@@ -84,6 +84,7 @@
   "kind.gateway": "Pasarela",
   "kind.local": "Local",
   "kind.provider": "Proveedor",
+  "notify.action_open": "Abrir panel",
   "notify.body": "Cuota {window} · {percent}% usada",
   "notify.body_exhausted": "No queda cuota en la ventana {window}.",
   "notify.resets_in": "se reinicia en {time}",

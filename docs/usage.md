@@ -94,7 +94,16 @@ Bind these to compositor shortcuts:
 dms ipc call aiOverviewControl toggle    # open or close the popout
 dms ipc call aiOverviewControl settings  # open the settings window
 dms ipc call aiOverviewControl about     # open the About window
+dms ipc call aiOverviewControl focus claude  # open the popout on one provider's card
 ```
+
+`focus <provider-id>` opens the popout if it is closed (it never closes an open
+one), expands that provider's card and scrolls to it. It returns
+`PROVIDER_FOCUSED`, or `UNKNOWN_PROVIDER` for an id that is not on the
+dashboard. Quota notifications use it: clicking an alert, or its **Open
+dashboard** button, jumps straight to the provider that crossed the threshold.
+With several bars, the popout opens on the bar instance that owns the IPC
+target, as with `toggle`.
 
 Hyprland example:
 

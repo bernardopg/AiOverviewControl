@@ -52,6 +52,7 @@ ShellRoot {
         vPill.item.forceLayout();
         return {width: hPill.item.implicitWidth, height: vPill.item.implicitHeight};
     }
+    QtObject { id: fakePopout; property bool shouldBeVisible: true }
     QtObject {
         id: service
         property var data: ({providerSelection: "codex", costCurrency: "USD"})
@@ -68,7 +69,13 @@ ShellRoot {
     FloatingWindow {
         id: scene
         visible: false; implicitWidth: 1000; implicitHeight: 900
-        Loader { sourceComponent: widget.popoutContent; width: parent.width; height: parent.height }
+        // Stands in for DMS's PluginPopout so openProvider() sees an open
+        // popout and never opens a real one.
+        Loader {
+            id: dashboard
+            sourceComponent: widget.popoutContent; width: parent.width; height: parent.height
+            onLoaded: item.parentPopout = fakePopout
+        }
         Loader { id: hPill; sourceComponent: widget.horizontalBarPill }
         Loader { id: vPill; sourceComponent: widget.verticalBarPill }
         Plugin.AiOverviewControlSettings { id: settings; visible: false; pluginService: service }
@@ -178,6 +185,16 @@ ShellRoot {
                     console.error(`SMOKE FAIL: compact pill not narrower (${after.width} >= ${root.pillWidth})`);
                 if (!(after.height < root.pillHeight))
                     console.error("SMOKE FAIL: compact vertical pill not shorter");
+                // Notification click target: unknown ids are rejected, a known
+                // id expands its card on the already-open popout.
+                widget.focusedProviderId = "";
+                if (widget.openProvider("nope") !== "UNKNOWN_PROVIDER" || widget.focusedProviderId !== "")
+                    console.error("SMOKE FAIL: openProvider accepted an unknown provider");
+                if (widget.openProvider("claude") !== "PROVIDER_FOCUSED" || widget.focusedProviderId !== "claude")
+                    console.error("SMOKE FAIL: openProvider did not focus the provider");
+                if (!fakePopout.shouldBeVisible || widget.dashboardView.parentPopout !== fakePopout)
+                    console.error("SMOKE FAIL: openProvider toggled an open popout");
+                widget.focusedProviderId = "";
                 console.warn("FULL_UI_SMOKE_OK");
                 root.step = 7;
             }
@@ -202,7 +219,17 @@ if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::
     printf '%s\n' "$(<"$TMP/log")" >&2
     exit 1
 fi
+# The same handler DMS exposes: `dms ipc call aiOverviewControl focus <id>`.
+ipc() {
+    env -i HOME="$TMP/home" PATH="$PATH" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
+        timeout 5 qs ipc -p "$TMP/shell.qml" call aiOverviewControl "$@" 2>&1
+}
+if [[ "$(ipc focus nope)" != UNKNOWN_PROVIDER || "$(ipc focus codex)" != PROVIDER_FOCUSED ]]; then
+    printf 'IPC focus failed: %s / %s\n' "$(ipc focus nope)" "$(ipc focus codex)" >&2
+    exit 1
+fi
 echo 'OK: full widget, pills (names/compact), dashboard alignment, settings/window and currency bindings'
+echo 'OK: notification click IPC focuses a provider without toggling an open popout'
 if [[ "${AIOC_TEST_POINTER:-0}" == 1 ]]; then
     echo 'OK: fast pointer drag reorders pinned cards without scrolling the page'
 fi

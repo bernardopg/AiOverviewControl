@@ -21,7 +21,7 @@ providers/get-exchange-rates     Validated/cache-backed daily USD rate quotes
 providers/get-provider-health     Prerequisite checks for settings
 providers/get-usage-history       Local usage history reader
 providers/export-usage-history    Usage history export (CSV/JSONL)
-providers/send-quota-alert        Deduplicated quota notification sender
+providers/send-quota-alert        Deduplicated quota notification sender; click opens the provider via IPC `focus`
 providers/get-codex-usage         Codex app-server protocol bridge
 providers/get-claude-usage        Claude local analytics and quota bridge
 providers/get-copilot-usage       Authenticated GitHub Copilot quota bridge

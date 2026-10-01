@@ -84,6 +84,7 @@
   "kind.gateway": "网关",
   "kind.local": "本地",
   "kind.provider": "供应商",
+  "notify.action_open": "打开仪表板",
   "notify.body": "{window} 配额 · 已使用 {percent}%",
   "notify.body_exhausted": "{window} 窗口已无剩余配额。",
   "notify.resets_in": "{time}后重置",

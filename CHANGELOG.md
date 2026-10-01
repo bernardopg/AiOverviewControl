@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Notifications
+
+- Clicking a quota notification (or its **Open dashboard** button) opens the popout on that provider's card. `send-quota-alert` keeps one `notify-send` waiter per alert, replaces it when the alert is updated and calls the new IPC function `dms ipc call aiOverviewControl focus <provider>`, which opens the popout without toggling an open one shut. Localized in all five languages; covered by `tests/test-quota-alert.sh` (click routing, lock release, stale-waiter kill, unsafe ids) and the native UI suite (real `qs ipc` call).
+
 ### DankBar pill
 
 - Add `pillShowNames` and `pillCompact` settings under Interface ([#33](https://github.com/bernardopg/AiOverviewControl/issues/33)): hide provider names to keep only the logo and percentage, and tighten the spacing around the separator dot and inside each entry. Both only change the DankBar pill; the tooltip keeps naming providers. Localized in all five languages and covered by the widget runtime test.

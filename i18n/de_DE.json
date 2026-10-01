@@ -84,6 +84,7 @@
   "kind.gateway": "Gateway",
   "kind.local": "Lokal",
   "kind.provider": "Anbieter",
+  "notify.action_open": "Dashboard öffnen",
   "notify.body": "{window}-Kontingent · {percent} % genutzt",
   "notify.body_exhausted": "Im {window}-Fenster ist kein Kontingent mehr verfügbar.",
   "notify.resets_in": "zurückgesetzt in {time}",
