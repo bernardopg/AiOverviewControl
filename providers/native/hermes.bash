@@ -13,36 +13,35 @@ fetch_hermes_native() {
 
   # shellcheck source=providers/local-cost-common
   source "$SCRIPT_DIR/local-cost-common"
-  local cost_sum
-  cost_sum="$(hermes_cost_sum "$state_db")"
+  local usage_columns price_file
+  usage_columns="$(hermes_usage_columns "$state_db")"
+  price_file="$(hermes_price_file)"
   local today_key week_epoch today_row week_row
   today_key=$(date +%Y-%m-%d)
   week_epoch=$(date -d '6 days ago 00:00' +%s 2>/dev/null || date -v-6d +%s 2>/dev/null || echo 0)
-  # Today vs trailing-7-day totals straight from the usage ledger. Column
-  # order: tokens (in+out+cache), cost (actual, else estimated), api calls.
-  # Both windows bucket by session start day, matching get-hermes-analytics.
+  # Today vs trailing-7-day per-model rows straight from the usage ledger
+  # (hermes_usage_columns; unpriced rows are priced in jq below). Both windows
+  # bucket by session start day, matching get-hermes-analytics.
   # A failed query (locked, corrupt, or a schema without the usage ledger) must
   # surface as a provider error — reporting zeros would render a healthy-looking
   # card that silently hides a broken database.
   if ! today_row="$(sqlite3 -readonly -separator $'\t' "$state_db" "
-    SELECT SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens),
-           $cost_sum,
-           SUM(u.api_call_count)
+    SELECT $usage_columns
     FROM session_model_usage u
     JOIN sessions s ON s.id = u.session_id
-    WHERE date(s.started_at, 'unixepoch', 'localtime') = '$today_key';
+    WHERE date(s.started_at, 'unixepoch', 'localtime') = '$today_key'
+    GROUP BY u.model;
   " 2>/dev/null)"; then
     json_error hermes hermes-local 1 provider \
       "hermes state database could not be read (locked, corrupt, or unsupported schema)."
     return 0
   fi
   if ! week_row="$(sqlite3 -readonly -separator $'\t' "$state_db" "
-    SELECT SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens),
-           $cost_sum,
-           SUM(u.api_call_count)
+    SELECT $usage_columns
     FROM session_model_usage u
     JOIN sessions s ON s.id = u.session_id
-    WHERE CAST(s.started_at AS INTEGER) >= CAST('$week_epoch' AS INTEGER);
+    WHERE CAST(s.started_at AS INTEGER) >= CAST('$week_epoch' AS INTEGER)
+    GROUP BY u.model;
   " 2>/dev/null)"; then
     json_error hermes hermes-local 1 provider \
       "hermes state database could not be read (locked, corrupt, or unsupported schema)."
@@ -69,10 +68,14 @@ fetch_hermes_native() {
     --argjson sessions_total "$sessions_total" \
     --arg today "$today_row" \
     --arg week "$week_row" \
-    '
-    def num($s; $i): ($s | split("\n")[0] | split("\t")[$i] | tonumber? // 0);
+    --slurpfile prices "${price_file:-/dev/null}" \
+    "$HERMES_PRICE_JQ"'
+    # Window totals: tokens summed; cost null when any model stays unpriced.
+    def window($s):
+      [$s | split("\n")[] | select(length > 0) | split("\t") | hermes_row(0; $prices[0].models // {})]
+      | {tokens: (map(.tokens) | add // 0),
+         cost: (if any(.[]; .cost == null) then null else (map(.cost) | add // 0) end)};
     def money($v): if $v == null then "—" elif $v > 0 and $v < 0.01 then "<$0.01" else ("$" + ((($v * 100) | round) / 100 | tostring)) end;
-    def cost($s): ($s | split("\n")[0] | split("\t")[1] | tonumber? // null);
     def compact($v):
       (($v // 0)) as $n
       | if $n >= 1000000000 then (((($n / 100000000) | round) / 10) | tostring) + "B"
@@ -92,14 +95,14 @@ fetch_hermes_native() {
           windowMinutes: null,
           resetsAt: null,
           resetDescription: "Today",
-          displayValue: (money(cost($today)) + " · " + compact(num($today; 0)) + " tok")
+          displayValue: (window($today) | money(.cost) + " · " + compact(.tokens) + " tok")
         },
         secondary: {
           usedPercent: 0,
           windowMinutes: null,
           resetsAt: null,
           resetDescription: "Week",
-          displayValue: (money(cost($week)) + " · " + compact(num($week; 0)) + " tok")
+          displayValue: (window($week) | money(.cost) + " · " + compact(.tokens) + " tok")
         },
         tertiary: null,
         updatedAt: (now | todateiso8601)

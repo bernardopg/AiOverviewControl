@@ -44,10 +44,9 @@ Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#
 
 The 1.18.0 plan (Codex labels i18n, QML smoke test, god-file split) shipped,
 as did the compact pill (#34), the transcript-parse measurement, the native
-DMS UI CI gate and the notification click action.
+DMS UI CI gate, the notification click action and Hermes per-model pricing.
 
-1. Hermes per-model pricing (Providers) — reuse the LiteLLM table.
-2. Upstream-blocked items (NVIDIA, Mistral, BytePlus, Hermes portal,
+1. Upstream-blocked items (NVIDIA, Mistral, BytePlus, Hermes portal,
    marketplace metadata): check monthly, no active work.
 
 ## ⚡ Next up (prioritized)
@@ -82,7 +81,7 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 - [ ] **BytePlus/Ark** — surface `remaining_tokens` per model when the API exposes per-model quotas. `M · ★★`
 - [x] **Codex** — record credit-balance history alongside rate-limit snapshots. Reset-credit balances (zero included), serialized writer, CSV/JSONL exports and fixture tests are implemented; individual quota limits are not mistaken for balances. `M · ★★`
 - [ ] **Hermes** — surface real quota/spend for the provider half if [Nous Portal](https://portal.nousresearch.com) publishes a read-only usage endpoint; today only the local agent half (`~/.hermes/state.db`) is measurable. `M · ★★`
-- [ ] **Hermes** — resolve per-model pricing so the telemetry card can chart cost instead of tokens (`estimated_cost_usd` is frequently `0` because Hermes prices upstream). `M · ★`
+- [x] **Hermes** — per-model pricing: rows with an unresolved cost are priced from a daily trimmed LiteLLM table (`litellm-prices.json`); included rows stay free, ledger costs are kept, and an unpriced model leaves totals unknown. The 7-day chart plots cost when every day is priced and some of it is paid. `M · ★`
 
 ## Telemetry & History
 

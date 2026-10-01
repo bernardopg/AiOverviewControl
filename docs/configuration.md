@@ -99,7 +99,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST`; requires the `ollama` CLI in PATH |
-| Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`) |
+| Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`); `AIOC_NO_LITELLM=1` disables the daily LiteLLM fetch that prices rows the ledger left unresolved (they then reuse the last snapshot, or stay unknown with none) |
 | Claude Code | optional `CLAUDE_CONFIG_DIR` (defaults to `~/.claude`); `AIOC_NO_LITELLM=1` disables the daily LiteLLM pricing fetch from `raw.githubusercontent.com` (cost fields then reuse the last cached snapshot, or report 0.00 with none) |
 | NVIDIA | `NVIDIA_API_KEY` |
 | Cloudflare | `CLOUDFLARE_AI_TOKEN` or `CLOUDFLARE_API_TOKEN`; optional `CLOUDFLARE_ACCOUNT_ID` |

@@ -3261,16 +3261,20 @@ PopoutComponent {
                             }
                         }
 
-                        // 7-day token chart, trailing window (today is the last
-                        // bar). Hermes costs are often unpriced locally, so the
-                        // bars carry tokens; hover still shows both.
+                        // 7-day chart, trailing window (today is the last bar).
+                        // Bars carry cost once every day is priced (ledger or
+                        // LiteLLM list price) and some of it is paid; an unpriced
+                        // model or an all-included week falls back to tokens.
+                        // Hover always shows both.
                         DailyBarChart {
+                            readonly property bool byCost: hermesCol.hDays.some(day => Number(day.cost) > 0)
+                                && hermesCol.hDays.every(day => day.cost !== null && day.cost !== undefined)
                             width: parent.width
                             accent: Theme.primary
                             bars: hermesCol.hDays.map((day, i) => ({
-                                        value: Number(day.tokens || 0),
-                                        primary: root.formatTokens(Number(day.tokens || 0)),
-                                        secondary: root.formatCost(day.cost),
+                                        value: byCost ? Number(day.cost) : Number(day.tokens || 0),
+                                        primary: byCost ? root.formatCost(day.cost) : root.formatTokens(Number(day.tokens || 0)),
+                                        secondary: byCost ? root.formatTokens(Number(day.tokens || 0)) : root.formatCost(day.cost),
                                         label: root.weekdayLabel(day),
                                         today: i === hermesCol.hDays.length - 1
                                     }))

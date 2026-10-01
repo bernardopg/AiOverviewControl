@@ -765,7 +765,7 @@ find ~/.codex/.tmp -mindepth 1 -maxdepth 1 -type d -name 'git-*' -exec rm -rf {}
 Beyond the per-provider adapters, `providers/` ships these utilities:
 
 - `get-local-analytics <codex|opencode>` — local harness telemetry (7-day chart, top models, top projects, per-window token breakdown), cached 120s. Shares its windowing with `scripts/local-analytics.jq`.
-- `local-cost-common` — sourced helper building the Hermes cost SQL, so the summary and analytics adapters cannot drift on which ledger rows count as a known cost.
+- `local-cost-common` — sourced helper building the Hermes cost SQL and the LiteLLM per-model pricing (`litellm-prices.json`), so the summary and analytics adapters cannot drift on which ledger rows count as a known cost or how the rest is priced.
 - `get-usage-history` — prints the local usage history written by the dispatcher (`~/.cache/AiOverviewControl/usage-history.jsonl`), trimmed by `AIOC_HISTORY_MAX`.
 - `export-usage-history` — copies that history to CSV or JSONL (see [configuration](configuration.md#exporting-usage-history)).
 - `get-provider-wrapper` — shared single-provider wrapper behind the `get-<id>-usage` entrypoints.

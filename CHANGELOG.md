@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Hermes
+
+- Price Hermes usage per model: ledger rows with an unresolved cost (`cost_status = 'unknown'`, or zero costs in older ledgers) are priced at LiteLLM list price from a daily trimmed table (`litellm-prices.json`, same `AIOC_NO_LITELLM=1` opt-out as Claude). Included rows stay free and ledger costs are kept; a model with no price leaves the total unknown rather than partial. The card summary and analytics share the pricing, and the 7-day chart now plots cost when every day is priced and some of it is paid. Covered by `tests/test-local-analytics.sh` and `tests/test-network-opt-outs.sh`; the Hermes fixture test runs offline.
+
 ### Notifications
 
 - Clicking a quota notification (or its **Open dashboard** button) opens the popout on that provider's card. `send-quota-alert` keeps one `notify-send` waiter per alert, replaces it when the alert is updated and calls the new IPC function `dms ipc call aiOverviewControl focus <provider>`, which opens the popout without toggling an open one shut. Localized in all five languages; covered by `tests/test-quota-alert.sh` (click routing, lock release, stale-waiter kill, unsafe ids) and the native UI suite (real `qs ipc` call).

@@ -116,7 +116,7 @@ Hermes reads `$HERMES_HOME/state.db` (default `~/.hermes/state.db`) read-only, s
 
 - **Card reports "state database not found"** — Hermes has not created its state database yet, or it lives elsewhere. Start Hermes once (`hermes`), or export `HERMES_HOME` for a custom install (native Windows installs live under `%LOCALAPPDATA%\hermes`).
 - **Card reports "sqlite3 is required"** — install the `sqlite3` command-line binary; the adapter uses it instead of linking a SQLite library.
-- **Cost shows `$0` while tokens grow** — expected. Hermes resolves pricing upstream, so `estimated_cost_usd` / `actual_cost_usd` are frequently `0` for routed providers. Tokens and API calls carry the real signal, which is why the 7-day chart plots tokens.
+- **Cost shows `—` or the chart plots tokens** — a model has no LiteLLM price (a local Ollama tag, or a name LiteLLM does not list), so the total stays unknown instead of undercounting. Rows Hermes left unpriced are otherwise priced at LiteLLM list price; the price table needs one successful download (`AIOC_NO_LITELLM=1` blocks it). Subscription (`included`) usage is free, so an all-included week also charts tokens.
 - **"Top projects" is empty** — only sessions that recorded a working directory appear there. Gateway sessions (Telegram, WhatsApp, Discord) have no `cwd`, so a week of chat-only usage legitimately shows no projects; the session-source badges still break the traffic down.
 - **Numbers look stale right after a conversation** — the expanded telemetry is cached for 120s (matching the default refresh interval). Press **Refresh** twice, or wait one cycle.
 
