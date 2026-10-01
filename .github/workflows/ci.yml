@@ -56,7 +56,13 @@ jobs:
     container: archlinux:base
     steps:
       - name: Install runtime prerequisites
-        run: pacman -Syu --noconfirm git python quickshell sway
+        # Retried: a single flaky Arch mirror read otherwise fails the job.
+        run: |
+          for attempt in 1 2 3; do
+            pacman -Syu --noconfirm git python quickshell sway && exit 0
+            sleep $((attempt * 10))
+          done
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -80,16 +86,18 @@ jobs:
           XDG_RUNTIME_DIR: /tmp/aioc-runtime
           AIOC_REQUIRE_NATIVE_UI: "1"
           AIOC_TEST_POINTER: "1"
+          WAYLAND_DISPLAY: wayland-1
         run: |
           scripts/qmlls-setup "$PWD/.dms/quickshell"
           install -d -m 700 "$XDG_RUNTIME_DIR"
           # Containers drop file capabilities, so sway's cap_sys_nice blocks exec.
           setcap -r "$(command -v sway)"
-          WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+          # Unset WAYLAND_DISPLAY so sway serves wayland-1 instead of nesting.
+          env -u WAYLAND_DISPLAY WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
             sway -c /dev/null > /tmp/sway.log 2>&1 &
-          for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/wayland-1" ] && break; sleep 0.1; done
-          [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || { cat /tmp/sway.log; exit 1; }
-          WAYLAND_DISPLAY=wayland-1 tests/test-widget-runtime.sh
+          for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
+          [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { cat /tmp/sway.log; exit 1; }
+          tests/test-widget-runtime.sh
 
   # ─── workflow lint ───────────────────────────────────────────────────────────
   actionlint:

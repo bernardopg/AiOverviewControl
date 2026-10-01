@@ -83,7 +83,10 @@ out="$(run_env bash "$ROOT/providers/get-hermes-analytics")"
 [ "$(jq -r '.days[5].tokens' <<<"$out")" = "2000" ] || fail "yesterday bucket tokens"
 [ "$(jq -r '.today.tokens' <<<"$out")" = "1500" ] || fail "today total"
 [ "$(jq -r '.week.tokens' <<<"$out")" = "3500" ] || fail "week total (today + yesterday)"
-[ "$(jq -r '.month.tokens' <<<"$out")" = "3500" ] || fail "month total excludes last-month session"
+# Calendar month: on the 1st, yesterday's session belongs to the previous one.
+month_expected=1500
+[ "$(date -d "@$YESTERDAY" +%Y-%m)" = "$(date -d "@$NOW" +%Y-%m)" ] && month_expected=3500
+[ "$(jq -r '.month.tokens' <<<"$out")" = "$month_expected" ] || fail "month total excludes last-month session"
 [ "$(jq -r '.topModels[0].model' <<<"$out")" = "gpt-5.4" ] || fail "top model by tokens"
 [ "$(jq -r '.topProjects[0].cwd' <<<"$out")" = "/home/user/project-a" ] || fail "top project cwd"
 jq -e 'any(.meta.sources[]; .source == "cli" and .sessions == 1)' <<<"$out" >/dev/null || fail "sources breakdown"

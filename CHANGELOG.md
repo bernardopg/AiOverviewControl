@@ -10,6 +10,7 @@
 ### Quality / CI
 
 - Run the full native DMS UI suite (`tests/test-widget-runtime.sh`, including the pointer-drag pass) as a mandatory CI gate: the `qml-runtime` job checks out DankMaterialShell at a pinned tag, builds the import tree with `scripts/qmlls-setup` and starts headless sway. `AIOC_REQUIRE_NATIVE_UI=1` turns the local SKIP into a failure there.
+- The metadata gate also accepts a test run as a bare line inside a multi-line `run: |` block (comments and step names still do not count), the Arch package install retries flaky mirrors, and the Hermes analytics test no longer fails on the first day of a month.
 
 ## 1.18.0 - 2026-09-30
 

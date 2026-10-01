@@ -38,6 +38,9 @@ for path in sorted(set(Path('tests').glob('*.sh')) | set(Path('providers').glob(
 workflow = Path('.github/workflows/ci.yml').read_text()
 # Require an actual run command, not a mention in a comment or step name.
 registered = set(re.findall(r'^\s*(?:-\s*)?run:\s*(?:bash\s+)?(tests/test-[\w-]+\.sh)\s*$', workflow, re.M))
+# A multi-line `run: |` block counts when one of its lines is the bare test.
+for block in re.finditer(r'^([ \t]*)(?:-\s*)?run:\s*\|[^\n]*\n((?:\1[ \t]+[^\n]*\n|[ \t]*\n)*)', workflow, re.M):
+    registered |= set(re.findall(r'^\s*(?:bash\s+)?(tests/test-[\w-]+\.sh)\s*$', block.group(2), re.M))
 for path in sorted(Path('tests').glob('test-*.sh')):
     require(path.as_posix() in registered, f'Integration test absent from ci.yml run steps: {path}')
 for path in sorted(registered):
