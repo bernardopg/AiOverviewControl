@@ -7,6 +7,10 @@
 - Add `pillShowNames` and `pillCompact` settings under Interface ([#33](https://github.com/bernardopg/AiOverviewControl/issues/33)): hide provider names to keep only the logo and percentage, and tighten the spacing around the separator dot and inside each entry. Both only change the DankBar pill; the tooltip keeps naming providers. Localized in all five languages and covered by the widget runtime test.
 - Fix the standalone settings window clipping the left edge of toggle rows on hover, so the highlight keeps its rounded corners.
 
+### Quality / CI
+
+- Run the full native DMS UI suite (`tests/test-widget-runtime.sh`, including the pointer-drag pass) as a mandatory CI gate: the `qml-runtime` job checks out DankMaterialShell at a pinned tag, builds the import tree with `scripts/qmlls-setup` and starts headless sway. `AIOC_REQUIRE_NATIVE_UI=1` turns the local SKIP into a failure there.
+
 ## 1.18.0 - 2026-09-30
 
 ### Dashboard and interaction

@@ -54,8 +54,8 @@ BRL→USD bindings in an isolated fixture HOME with provider scripts replaced an
 no inherited credentials. No visible test windows are opened.
 
 The full suite requires Wayland and the import tree from `scripts/qmlls-setup`.
-It reports **SKIP**, not a fake pass, without these prerequisites. Native
-PanelWindow provisioning in generic headless CI is a distinct follow-up; the
-mandatory offscreen suites do not cover that backend. Neither fixture tests nor
+It reports **SKIP**, not a fake pass, without these prerequisites locally. CI
+provisions both (pinned DankMaterialShell checkout plus headless sway) and sets
+`AIOC_REQUIRE_NATIVE_UI=1`, so there the native suite is a mandatory gate. Neither fixture tests nor
 module extraction certify undocumented external billing APIs or every native
 pointer gesture.

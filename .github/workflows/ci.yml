@@ -56,7 +56,7 @@ jobs:
     container: archlinux:base
     steps:
       - name: Install runtime prerequisites
-        run: pacman -Syu --noconfirm git python quickshell
+        run: pacman -Syu --noconfirm git python quickshell sway
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -64,9 +64,32 @@ jobs:
         run: tests/test-qml-smoke.sh
       - name: Exercise currency module headlessly
         run: tests/test-currency-qml.sh
-      - name: Exercise full DMS UI when native prerequisites exist
-        # Reports SKIP without DMS imports and a native Wayland backend.
-        run: tests/test-widget-runtime.sh
+      # The full widget needs real DMS imports and a layer-shell Wayland
+      # compositor (Qt offscreen cannot build PanelWindow types).
+      - name: Fetch DankMaterialShell imports
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AvengeMedia/DankMaterialShell
+          ref: 2db7646fe3ab47fddfdb8723f2da07d61a0d47ac # v1.6.2
+          path: .dms
+          submodules: true
+          persist-credentials: false
+      - name: Exercise full DMS UI under headless sway
+        env:
+          XDG_CACHE_HOME: /tmp/aioc-cache
+          XDG_RUNTIME_DIR: /tmp/aioc-runtime
+          AIOC_REQUIRE_NATIVE_UI: "1"
+          AIOC_TEST_POINTER: "1"
+        run: |
+          scripts/qmlls-setup "$PWD/.dms/quickshell"
+          install -d -m 700 "$XDG_RUNTIME_DIR"
+          # Containers drop file capabilities, so sway's cap_sys_nice blocks exec.
+          setcap -r "$(command -v sway)"
+          WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+            sway -c /dev/null > /tmp/sway.log 2>&1 &
+          for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/wayland-1" ] && break; sleep 0.1; done
+          [ -S "$XDG_RUNTIME_DIR/wayland-1" ] || { cat /tmp/sway.log; exit 1; }
+          WAYLAND_DISPLAY=wayland-1 tests/test-widget-runtime.sh
 
   # ─── workflow lint ───────────────────────────────────────────────────────────
   actionlint:

@@ -46,8 +46,8 @@ need syntax/lint/packaging checks, not executable permissions.
 
 - If QML interactions changed, materialize DMS imports with `scripts/qmlls-setup`
   and run `AIOC_TEST_POINTER=1 tests/test-widget-runtime.sh`. It briefly opens a
-  fixture window. Native Wayland/DMS requirements may cause the default full-UI
-  test to SKIP in generic CI; report that honestly.
+  fixture window. CI runs the same suite under headless sway against a pinned
+  DankMaterialShell checkout and fails rather than skipping.
 - Reload with `scripts/reload-plugin` (discovers the live instance). Check the
   popout, both version pills, settings, empty/error cards, expanded analytics,
   currency fallback and pin ordering as applicable. Keep credentials out of logs.
