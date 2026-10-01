@@ -42,10 +42,15 @@ Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#
 
 ## 🧭 Roadmap after 1.18.0 (recommended order)
 
-1. Codex window labels i18n (below) — quick, user-visible.
-2. QML smoke test (Next up) — the safety net that makes step 3 safe.
-3. Split the two god files (Quality / CI) — in slices, each covered by step 2.
-4. Everything else as capacity allows; blocked items stay blocked.
+The 1.18.0 plan (Codex labels i18n, QML smoke test, god-file split) shipped,
+as did the compact pill (#34), the transcript-parse measurement and the native
+DMS UI CI gate.
+
+1. Notification click action (Next up) — `gdbus` `Notify` + `ActionInvoked`,
+   covered by the native UI gate.
+2. Hermes per-model pricing (Providers) — reuse the LiteLLM table.
+3. Upstream-blocked items (NVIDIA, Mistral, BytePlus, Hermes portal,
+   marketplace metadata): check monthly, no active work.
 
 ## ⚡ Next up (prioritized)
 
@@ -66,7 +71,7 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 - [x] ~~**Finish UI i18n**~~ — done in 1.8.1: `"5h"` (2.9), pill `ERR`/`N/A` (2.11) localized; 3 dead keys removed (2.20). Non-issues: `notify.body` is live (not dead); the `String.replace` `$`-bug (2.19) is already avoided via function-replacement `() => value`. **Skipped (WONTFIX):** `formatTier()` names (2.10) — `Max 20x`/`Pro`/`Free` are brand plan names, not UI chrome.
 - [x] **Codex window labels i18n** — `get-codex-usage` still emits raw "Session"/"Weekly" through `resetDescription`, which the widget shows untranslated. Emit only `windowMinutes` (like the kimi-code adapter) so `getWindowLabel()` localizes it; add a fixture assertion. `S · ★★★`
 - [x] **QML smoke test** — Mandatory offscreen CI suites cover reader and currency lifecycles. Full real-DMS widget/pills/dashboard/settings/window construction and reactive BRL→USD bindings run in `tests/test-widget-runtime.sh`, with isolated fixture data and no visible windows. Passed locally; explicitly SKIPs when Wayland/DMS imports are absent. See `docs/development-gates.md` and `docs/refactoring.md`. `L · ★★`
-- [ ] **Native DMS UI smoke in generic CI** — Provision an isolated layer-shell Wayland backend and matching DMS imports; Qt offscreen cannot construct native PanelWindow types. The current CI full-UI fixture reports SKIP until these prerequisites are supplied. `M · ★★`
+- [x] **Native DMS UI smoke in generic CI** — the `qml-runtime` job checks out DankMaterialShell at a pinned tag, builds imports with `scripts/qmlls-setup`, starts headless sway and runs `tests/test-widget-runtime.sh` (pointer pass included) with `AIOC_REQUIRE_NATIVE_UI=1`, so a missing prerequisite fails instead of skipping. `M · ★★`
 
 ## Dashboard — UX
 
@@ -88,7 +93,7 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 
 ## Claude Analytics
 
-- [ ] **Incremental transcript parse** — the per-file cache (1.17.3) re-parses a changed transcript in full (`ponytail:` note in `get-claude-usage`). Parse only from the previous byte size if long active sessions ever make refreshes slow; measure first. `M · ★`
+- [x] **Incremental transcript parse** — the per-file cache (1.17.3) re-parses a changed transcript in full (`ponytail:` note in `get-claude-usage`). Parse only from the previous byte size if long active sessions ever make refreshes slow; measure first. **WONTFIX (measured 2026-09-30):** 805 transcripts / 288 MB; warm refresh 0.26 s, refresh after the 20 MB active transcript changed 0.43 s. Revisit only if a changed-file refresh passes ~2 s. `M · ★`
 - [x] **Cost currency option** — `costCurrency` is wired through Settings/reset, all common USD analytics cost displays, daily reference-rate cache, locale precision and explicit USD fallback. Nine currencies; stored amounts and provider balances are unchanged. Cache/concurrency and offscreen/native DMS binding tests pass. See `docs/currency.md`. `M · ★`
 
 ## Settings

@@ -76,8 +76,13 @@ opens visible windows. It checks empty-provider bindings and live BRL→USD chan
 Use `scripts/qmlls-setup` first, or supply the import-tree parent with
 `AIOC_DMS_IMPORTS`. It needs a native Wayland connection because Qt offscreen
 cannot construct DMS PanelWindow types; without these prerequisites it reports
-**SKIP**. The full suite passed locally; generic CI still needs an isolated
-layer-shell backend before this can become a mandatory native gate.
+**SKIP** locally. CI makes it mandatory: the `qml-runtime` job checks out
+DankMaterialShell at a pinned tag (with its `dank-qml-common` submodule), builds
+the import tree with `scripts/qmlls-setup`, starts headless sway
+(`WLR_BACKENDS=headless`, pixman renderer) and runs the suite, including the
+pointer-drag pass, with `AIOC_REQUIRE_NATIVE_UI=1` so a missing prerequisite
+fails instead of skipping. Bump the pinned DMS ref when the plugin targets a
+newer DMS.
 
 See [refactoring.md](refactoring.md) for the controller/dashboard/native-adapter
 boundaries and [currency.md](currency.md) for monetary units and network policy.

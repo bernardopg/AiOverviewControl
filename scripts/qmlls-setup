@@ -6,12 +6,14 @@
 # plugin's (gitignored) .qmlls.ini at it. Re-run after a DMS update.
 set -euo pipefail
 
-src=${1:-$(ls -d /run/user/"$(id -u)"/danklinux-shell/*/ 2>/dev/null | head -n1)}
+running=(/run/user/"$(id -u)"/danklinux-shell/*/)
+src=${1:-${running[0]}}
 [[ -d $src ]] || { echo "DMS shell dir not found; pass it as \$1" >&2; exit 1; }
 
 out=${XDG_CACHE_HOME:-$HOME/.cache}/dms-qmlls
 rm -rf "$out" && mkdir -p "$out/qs"
-cp -rL "$src"/. "$out/qs/" && chmod -R u+w "$out/qs"
+cp -rL "$src"/. "$out/qs/"
+chmod -R u+w "$out/qs"
 
 find "$out/qs" -type d | while read -r dir; do
   qmls=("$dir"/*.qml)

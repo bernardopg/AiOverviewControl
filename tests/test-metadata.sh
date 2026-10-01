@@ -20,6 +20,12 @@ reject 'non-executable test'
 chmod +x "$TMP/tests/test-example.sh"
 printf '# tests/test-example.sh\n' > "$TMP/.github/workflows/ci.yml"
 reject 'test mentioned only in a comment'
+printf '      - name: tests/test-example.sh\n' > "$TMP/.github/workflows/ci.yml"
+reject 'test mentioned only in a step name'
+printf '      - run: |\n          setup\n          tests/test-example.sh\n' > "$TMP/.github/workflows/ci.yml"
+check || { echo 'FAIL: rejected a test run inside a run block' >&2; exit 1; }
+printf '      - run: |\n          setup\n      # tests/test-example.sh\n' > "$TMP/.github/workflows/ci.yml"
+reject 'test in a comment after a run block'
 printf 'run: tests/test-example.sh\n' > "$TMP/.github/workflows/ci.yml"
 cp "$TMP/i18n/en.json" "$TMP/i18n/en.backup"
 printf '{}\n' > "$TMP/i18n/en.json"

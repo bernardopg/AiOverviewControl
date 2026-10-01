@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMPORTS="${AIOC_DMS_IMPORTS:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-qmlls}"
 if [[ -z "${WAYLAND_DISPLAY:-}" || ! -f "$IMPORTS/qs/Modules/Plugins/PluginComponent.qml" ]]; then
     echo 'SKIP: full widget runtime requires Wayland and DMS imports (scripts/qmlls-setup)'
+    # CI provisions both; a missing prerequisite there is a failure, not a skip.
+    [[ "${AIOC_REQUIRE_NATIVE_UI:-0}" == 1 ]] && exit 1
     exit 0
 fi
 TMP="$(mktemp -d)"
