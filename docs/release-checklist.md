@@ -12,7 +12,7 @@ published notes must describe the release, not merely contain its heading. See
 - Change the version in **plugin.json only**; QML reads it dynamically.
 - Confirm the tag and release do not already exist. Do not overwrite published tags.
 - Move substantive Unreleased notes into `## X.Y.Z - YYYY-MM-DD`, leaving an empty
-  `## Unreleased` heading. Organize user changes, maintenance, privacy/migration and
+  `## Unreleased` heading, and add the long-form `docs/releases/X.Y.Z.md`. Organize user changes, maintenance, privacy/migration and
   validation limitations; link relevant guides. Document behavior changes together
   with their code, including updated translations.
 - Validate the exact section and PR delta:
@@ -59,7 +59,9 @@ need syntax/lint/packaging checks, not executable permissions.
 
 ## 3. PR and protected merge
 
-- Commit task changes using Conventional Commits, without AI co-author trailers.
+- Commit task changes using Conventional Commits. Do not attribute work to an AI
+  assistant, harness or model anywhere (co-author trailers, "Generated with"
+  footers in PRs, release notes or tag messages).
 - Push the feature/release branch and open a PR against main with scope, migration,
   testing and explicit limitations. Reference the release guide and changelog.
 - Confirm the live rulesets match `.github/repository-rules/*.json`, with no bypass.

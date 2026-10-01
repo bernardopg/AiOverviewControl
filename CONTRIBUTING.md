@@ -101,6 +101,12 @@ Parity is strict: every key in `en.json` must exist in `pt_BR`, `zh_CN`,
 calls so a missing translation degrades gracefully, but the key must still be
 present in all five bundles.
 
+## Commits and PRs
+
+Use Conventional Commits with a scope (`feat(pill): …`). Commit messages, PR
+descriptions and release notes describe the change itself; do not add AI
+co-author trailers or "generated with" footers.
+
 ## Release
 
 See [`docs/release-checklist.md`](docs/release-checklist.md). In short: bump
