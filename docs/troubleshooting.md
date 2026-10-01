@@ -146,6 +146,21 @@ bash "$PLUGIN/providers/send-quota-alert" \
 
 Adjust `PLUGIN` for a plugin-store install as described at the top of this page.
 
+## Clicking a notification does nothing
+
+The click runs `dms ipc call aiOverviewControl focus <provider>`, so `dms` must
+be on the `PATH` of the DMS process. Check the IPC target directly:
+
+```bash
+dms ipc call aiOverviewControl focus claude   # expect PROVIDER_FOCUSED
+```
+
+While an alert is on screen the helper keeps one `notify-send` process per
+alert waiting for the click (its pid is stored as `waiter` in
+`notify-state.json`). It exits when the notification is closed, expires or is
+replaced. A click on an entry in the DMS notification history after that
+process exited is not routed back.
+
 ## A quota window never alerts
 
 By default only the window the DankBar shows for that provider raises alerts

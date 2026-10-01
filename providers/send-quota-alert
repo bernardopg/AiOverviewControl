@@ -4,13 +4,20 @@ export LC_ALL=C
 
 # Cross-instance deduplicated quota notification.
 #
-# Usage: send-quota-alert <key> <cooldown_seconds> <urgency> <icon_source> <icon_color> <title> <body>
+# Usage: send-quota-alert <key> <cooldown_seconds> <urgency> <icon_source> <icon_color> <title> <body> [<action_label> <provider>]
 #
 # State lives in one JSON file shared by every widget instance (multi-monitor
 # bars, plugin reloads, shell restarts), guarded by flock so two instances
 # firing in the same refresh tick cannot both emit. Re-sends reuse the daemon
 # notification id (notify-send -r), so a reminder or a critical escalation
 # replaces the existing DMS popup instead of stacking a new entry.
+#
+# With an action label and provider id, the notification gets a default
+# action. notify-send only reports an invoked action while it stays alive, so
+# the helper keeps one waiter per dedupe key (a re-send kills the previous
+# one) and, on click, calls `dms ipc call aiOverviewControl focus <provider>`
+# to open the popout on that provider's card. The waiter exits when the
+# notification closes or expires.
 
 state_dir_for_clear="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
 # --migrate: remove state written by the pre-1.7 dedupe key format. That
@@ -55,6 +62,10 @@ icon_source="${4:-dialog-warning}"
 icon_color="${5:-#6750A4}"
 title="${6:?missing title}"
 body="${7:-}"
+action_label="${8:-}"
+provider="${9:-}"
+# The provider id ends up as an IPC argument; accept only plain ids.
+[[ "$provider" =~ ^[A-Za-z0-9_.-]+$ ]] || action_label=""
 
 case "$cooldown" in
   ''|*[!0-9]*) cooldown=21600 ;;
@@ -122,15 +133,18 @@ now="$(date +%s)"
 last=0
 prev_id=0
 previous_level=1
+prev_waiter=0
 if [ -s "$state_file" ]; then
   last="$(jq -r --arg k "$key" '.[$k].last // 0' "$state_file" 2>/dev/null || echo 0)"
   prev_id="$(jq -r --arg k "$key" '.[$k].id // 0' "$state_file" 2>/dev/null || echo 0)"
   # State written before level tracking existed represents a normal alert.
   previous_level="$(jq -r --arg k "$key" '.[$k].level // 1' "$state_file" 2>/dev/null || echo 1)"
+  prev_waiter="$(jq -r --arg k "$key" '.[$k].waiter // 0' "$state_file" 2>/dev/null || echo 0)"
 fi
 case "$last" in ''|*[!0-9]*) last=0 ;; esac
 case "$prev_id" in ''|*[!0-9]*) prev_id=0 ;; esac
 case "$previous_level" in ''|*[!0-9]*) previous_level=1 ;; esac
+case "$prev_waiter" in ''|*[!0-9]*) prev_waiter=0 ;; esac
 
 level=1
 [ "$urgency" = "critical" ] && level=2
@@ -144,12 +158,34 @@ if [ "$last" -gt 0 ] && [ "$level" -le "$previous_level" ] && [ $((now - last)) 
   exit 0
 fi
 
-notify_id="$(notify-send -p -r "$prev_id" \
-  -a "AiOverviewControl" \
-  -u "$urgency" \
-  -i "$(render_monochrome_icon "$icon_source" "$icon_color" || printf '%s' 'dialog-warning')" \
-  -h "string:x-canonical-private-synchronous:aioverviewcontrol-${key}" \
-  "$title" "$body" 2>/dev/null || echo 0)"
+notify_args=(-p -r "$prev_id"
+  -a "AiOverviewControl"
+  -u "$urgency"
+  -i "$(render_monochrome_icon "$icon_source" "$icon_color" || printf '%s' 'dialog-warning')"
+  -h "string:x-canonical-private-synchronous:aioverviewcontrol-${key}")
+
+waiter=0
+if [ -n "$action_label" ]; then
+  # The replaced notification keeps its id, so the old waiter would also
+  # react to a click on the new one. Only kill a pid that is still ours.
+  if [ "$prev_waiter" -gt 0 ] && [ "$(cat "/proc/${prev_waiter}/comm" 2>/dev/null)" = "notify-send" ]; then
+    kill -KILL "$prev_waiter" 2>/dev/null || true
+  fi
+  waiter_out="$(mktemp "${state_dir}/.notify-waiter.XXXXXX")"
+  # 9>&- keeps the waiter from holding the state lock for its lifetime.
+  notify-send "${notify_args[@]}" -A "default=${action_label}" \
+    "$title" "$body" >"$waiter_out" 2>/dev/null 9>&- &
+  waiter=$!
+  # -p prints the id as soon as the daemon accepts the notification.
+  for _ in $(seq 50); do
+    [ -s "$waiter_out" ] && break
+    kill -0 "$waiter" 2>/dev/null || break
+    sleep 0.1
+  done
+  notify_id="$(head -n 1 "$waiter_out")"
+else
+  notify_id="$(notify-send "${notify_args[@]}" "$title" "$body" 2>/dev/null || echo 0)"
+fi
 case "$notify_id" in ''|*[!0-9]*) notify_id=0 ;; esac
 
 tmp="$(mktemp "${state_dir}/.notify-state.XXXXXX")"
@@ -163,8 +199,18 @@ jq -n \
   --arg k "$key" \
   --argjson now "$now" \
   --argjson id "$notify_id" \
-  --argjson level "$level" '
+  --argjson level "$level" \
+  --argjson waiter "$waiter" '
   ($state | with_entries(select(($now - (.value.last // 0)) < 5184000)))
-  + {($k): {last: $now, id: $id, level: $level}}
+  + {($k): ({last: $now, id: $id, level: $level} + (if $waiter > 0 then {waiter: $waiter} else {} end))}
 ' >"$tmp"
 mv "$tmp" "$state_file"
+
+[ "$waiter" -gt 0 ] || exit 0
+exec 9>&-
+wait "$waiter" 2>/dev/null || true
+action="$(sed -n '2p' "$waiter_out")"
+rm -f "$waiter_out"
+if [ "$action" = "default" ] && command -v dms >/dev/null 2>&1; then
+  dms ipc call aiOverviewControl focus "$provider" >/dev/null 2>&1 || true
+fi

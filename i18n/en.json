@@ -84,6 +84,7 @@
   "kind.gateway": "Gateway",
   "kind.local": "Local",
   "kind.provider": "Provider",
+  "notify.action_open": "Open dashboard",
   "notify.body": "{window} quota · {percent}% used",
   "notify.body_exhausted": "No quota remains in the {window} window.",
   "notify.resets_in": "resets in {time}",

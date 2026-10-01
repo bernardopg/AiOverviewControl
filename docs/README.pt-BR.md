@@ -76,7 +76,7 @@ gráfico de sete dias — lidos de dados que já estão no seu disco.
 
 **🔔 Alertas de cota**<br />
 Notificações em 75, 85 ou 95% — ou limites por provedor — atualizadas no
-lugar, sem enxurrada.
+lugar, sem enxurrada. Clique numa para abrir o card do provedor.
 
 </td>
 </tr>

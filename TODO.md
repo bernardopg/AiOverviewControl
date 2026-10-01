@@ -43,13 +43,11 @@ Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#
 ## 🧭 Roadmap after 1.18.0 (recommended order)
 
 The 1.18.0 plan (Codex labels i18n, QML smoke test, god-file split) shipped,
-as did the compact pill (#34), the transcript-parse measurement and the native
-DMS UI CI gate.
+as did the compact pill (#34), the transcript-parse measurement, the native
+DMS UI CI gate and the notification click action.
 
-1. Notification click action (Next up) — `gdbus` `Notify` + `ActionInvoked`,
-   covered by the native UI gate.
-2. Hermes per-model pricing (Providers) — reuse the LiteLLM table.
-3. Upstream-blocked items (NVIDIA, Mistral, BytePlus, Hermes portal,
+1. Hermes per-model pricing (Providers) — reuse the LiteLLM table.
+2. Upstream-blocked items (NVIDIA, Mistral, BytePlus, Hermes portal,
    marketplace metadata): check monthly, no active work.
 
 ## ⚡ Next up (prioritized)
@@ -64,7 +62,7 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 
 - [x] **Kimi Code `/usages` live schema verification** — the parser added in 1.8.0 handles two payload shapes from community sources (`Golden0Voyager/kimi-code-usage`), not an official spec. Validate against a real `sk-kimi-` key, pin the actual field names, and trim the defensive dual-shape jq once the live shape is confirmed. **Verified 2026-09-29:** system `KIMI_CODING_API_KEY` returned HTTP 200 on the first-party `.com` endpoint. Sanitized live fixture pins detailed-limit precedence; legacy shapes remain supported. See `docs/kimi-domains-research.md`. `M · ★★★`
 - [x] **Simultaneous Kimi cards** — key-routing means a user with BOTH an Open Platform `sk-xxx` balance key and a Kimi Code `sk-kimi-` subscription key sees only one. Emit two cards (balance + coding) when both creds exist. Implemented independent `kimi` and `kimi-code` cards when both credentials exist, explicit Code selection and deduplication tests. Code was live-verified; dual-key behavior is fixture-tested. `M · ★★`
-- [ ] **Notification click action** — open the popout focused on the offending provider (`focusedProviderId` already exists). **Blocked on a design decision:** `notify-send` only reports an invoked action from a process that stays alive for the notification's lifetime, so the fire-and-forget `send-quota-alert` would have to keep one background process per armed alert, or be rewritten onto `gdbus` `Notify` + an `ActionInvoked` monitor. Routing the click back into the right widget instance also needs an IPC target that multi-monitor bars can share without duplicate `IpcHandler` registrations. `L · ★★★`
+- [x] **Notification click action** — clicking an alert (or its **Open dashboard** action) opens the popout on the offending provider. Chose the `notify-send -A` waiter over a `gdbus` `ActionInvoked` monitor: the DMS daemon delivers the action to the waiter that owns the notification, there is no shared monitor to elect across bars, and each waiter is killed when its alert is replaced and exits when the notification closes. The click reuses the existing `aiOverviewControl` IPC target via the new `focus <provider>` function, so multi-monitor routing matches `toggle`. Covered by `tests/test-quota-alert.sh` and the native UI suite. `L · ★★★`
 - [x] ~~**Multi-window quota notifications**~~ — done: `notifyWindowScope` (`displayed` / `all` / `primary`), `checkNotifications()` iterates `notifyWindowsFor()`.
 - [x] ~~**DankBar pill tooltip**~~ — done: hovering the pill reads "Claude · 7 day · 31% · resets in 2d", gated by the `pillTooltip` setting.
 - [x] ~~**Icon reconciliation** (audit 2.16)~~ — done in 1.8.1: `ProviderLogo.defaultIcon` is the single source; widget `iconForProvider()` and settings `fallbackIcon` overrides removed.

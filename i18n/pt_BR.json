@@ -84,6 +84,7 @@
   "kind.gateway": "Gateway",
   "kind.local": "Local",
   "kind.provider": "Provedor",
+  "notify.action_open": "Abrir painel",
   "notify.body": "Cota {window} · {percent}% usada",
   "notify.body_exhausted": "Não resta cota na janela {window}.",
   "notify.resets_in": "reseta em {time}",

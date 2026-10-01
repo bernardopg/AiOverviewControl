@@ -1751,7 +1751,9 @@ PluginComponent {
                 // widget instances, plugin reloads and shell restarts cannot
                 // re-fire inside the cooldown window. At 100%, it replaces the
                 // prior provider toast with a critical, branded update.
-                Quickshell.execDetached(["bash", notifyAlertScript, dedupeKey, String(notifyCooldownSecs), exhausted ? "critical" : "normal", notificationIconPath(provider.provider), providerLogoColor.toString(), title, bodyParts.join(" · ")]);
+                // The trailing action label + provider id make a click open the
+                // popout on this provider (IPC `focus`, see the handler below).
+                Quickshell.execDetached(["bash", notifyAlertScript, dedupeKey, String(notifyCooldownSecs), exhausted ? "critical" : "normal", notificationIconPath(provider.provider), providerLogoColor.toString(), title, bodyParts.join(" · "), t("notify.action_open", "Open dashboard"), provider.provider]);
             }
         }
         notifiedMap = seen;
@@ -2203,6 +2205,19 @@ PluginComponent {
         scrollFocusTimer.restart();
     }
 
+    // Notification click / IPC entry point: open the popout if it is closed,
+    // then expand and scroll to the provider's card. Reopening never toggles
+    // an already-visible popout shut.
+    function openProvider(id) {
+        if (!(root.providers || []).some(p => p && p.provider === id))
+            return "UNKNOWN_PROVIDER";
+        const popout = root.dashboardView ? root.dashboardView.parentPopout : null;
+        if (!popout || !popout.shouldBeVisible)
+            root.triggerPopout();
+        root.focusProvider(id);
+        return "PROVIDER_FOCUSED";
+    }
+
     Timer {
         // Wait out the card's implicitHeight expand/collapse animation (220ms)
         // so positions are settled before we measure and scroll.
@@ -2214,8 +2229,11 @@ PluginComponent {
             if (!id || id.length === 0) {
                 return;
             }
-            if (root.dashboardView)
+            // A dashboard that is still loading picks the id up in onLoaded.
+            if (root.dashboardView) {
                 root.dashboardView.scrollToProvider(id);
+                root.pendingScrollProviderId = "";
+            }
         }
     }
 
@@ -2431,6 +2449,12 @@ PluginComponent {
             return "SETTINGS_OPENED";
         }
 
+        // Quota notification click target:
+        // dms ipc call aiOverviewControl focus claude
+        function focus(provider: string): string {
+            return root.openProvider(provider);
+        }
+
         function about(): string {
             root.openSettingsWindow();
             if (root._settingsWindow)
@@ -2447,7 +2471,11 @@ PluginComponent {
             id: dashboardHost
             property var parentPopout: null
             property var closePopout: null
-            onLoaded: root.dashboardView = item
+            onLoaded: {
+                root.dashboardView = item;
+                if (root.pendingScrollProviderId.length > 0)
+                    scrollFocusTimer.restart();
+            }
             Component.onDestruction: {
                 if (root.dashboardView === item)
                     root.dashboardView = null;

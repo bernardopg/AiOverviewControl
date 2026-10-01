@@ -76,7 +76,7 @@ with a seven-day chart — read from data already on your disk.
 
 **🔔 Quota alerts**<br />
 Desktop notifications at 75, 85, or 95% — or per-provider thresholds — updated
-in place instead of spamming.
+in place instead of spamming. Click one to open that provider's card.
 
 </td>
 </tr>
