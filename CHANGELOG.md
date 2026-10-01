@@ -2,23 +2,36 @@
 
 ## Unreleased
 
-### Hermes
+## 1.19.0 - 2026-09-30
 
-- Price Hermes usage per model: ledger rows with an unresolved cost (`cost_status = 'unknown'`, or zero costs in older ledgers) are priced at LiteLLM list price from a daily trimmed table (`litellm-prices.json`, same `AIOC_NO_LITELLM=1` opt-out as Claude). Included rows stay free and ledger costs are kept; a model with no price leaves the total unknown rather than partial. The card summary and analytics share the pricing, and the 7-day chart now plots cost when every day is priced and some of it is paid. Covered by `tests/test-local-analytics.sh` and `tests/test-network-opt-outs.sh`; the Hermes fixture test runs offline.
-
-### Notifications
-
-- Clicking a quota notification (or its **Open dashboard** button) opens the popout on that provider's card. `send-quota-alert` keeps one `notify-send` waiter per alert, replaces it when the alert is updated and calls the new IPC function `dms ipc call aiOverviewControl focus <provider>`, which opens the popout without toggling an open one shut. Localized in all five languages; covered by `tests/test-quota-alert.sh` (click routing, lock release, stale-waiter kill, unsafe ids) and the native UI suite (real `qs ipc` call).
+A feature release: a smaller DankBar pill, quota notifications that open the
+provider's card when clicked, and real costs for Hermes. No credential or
+settings migration is needed; every new setting defaults to the 1.18.0
+behavior. Long-form notes: [docs/releases/1.19.0.md](docs/releases/1.19.0.md).
 
 ### DankBar pill
 
 - Add `pillShowNames` and `pillCompact` settings under Interface ([#33](https://github.com/bernardopg/AiOverviewControl/issues/33)): hide provider names to keep only the logo and percentage, and tighten the spacing around the separator dot and inside each entry. Both only change the DankBar pill; the tooltip keeps naming providers. Localized in all five languages and covered by the widget runtime test.
 - Fix the standalone settings window clipping the left edge of toggle rows on hover, so the highlight keeps its rounded corners.
 
+### Notifications
+
+- Clicking a quota notification (or its **Open dashboard** button) opens the popout on that provider's card. `send-quota-alert` keeps one `notify-send` waiter per alert, replaces it when the alert is updated and calls the new IPC function `dms ipc call aiOverviewControl focus <provider>`, which opens the popout without toggling an open one shut. See [usage](docs/usage.md#ipc-commands) and [troubleshooting](docs/troubleshooting.md#clicking-a-notification-does-nothing). Localized in all five languages; covered by `tests/test-quota-alert.sh` (click routing, lock release, stale-waiter kill, unsafe ids) and the native UI suite (real `qs ipc` call).
+
+### Hermes
+
+- Price Hermes usage per model: ledger rows with an unresolved cost (`cost_status = 'unknown'`, or zero costs in older ledgers) are priced at LiteLLM list price from a daily trimmed table (`litellm-prices.json`, same `AIOC_NO_LITELLM=1` opt-out as Claude). Included rows stay free and ledger costs are kept; a model with no price leaves the total unknown rather than partial. The card summary and analytics share the pricing, and the 7-day chart now plots cost when every day is priced and some of it is paid. Covered by `tests/test-local-analytics.sh` and `tests/test-network-opt-outs.sh`; the Hermes fixture test runs offline.
+
 ### Quality / CI
 
 - Run the full native DMS UI suite (`tests/test-widget-runtime.sh`, including the pointer-drag pass) as a mandatory CI gate: the `qml-runtime` job checks out DankMaterialShell at a pinned tag, builds the import tree with `scripts/qmlls-setup` and starts headless sway. `AIOC_REQUIRE_NATIVE_UI=1` turns the local SKIP into a failure there.
 - The metadata gate also accepts a test run as a bare line inside a multi-line `run: |` block (comments and step names still do not count), the Arch package install retries flaky mirrors, and the Hermes analytics test no longer fails on the first day of a month.
+- Rewrite `AGENTS.md` with the current runtime contracts (IPC, notifications, cost semantics, caches, network opt-outs), gates and release flow, and state the no-attribution rule for commits, PRs and release notes in `CONTRIBUTING.md` and the release checklist.
+
+### Limitations
+
+- A notification click is routed only while the alert is on screen; clicking an expired entry in the DMS notification history does nothing.
+- Hermes models without a LiteLLM entry (local Ollama tags, for example) keep their totals unknown. Prices are list prices and do not reflect negotiated or subscription rates.
 
 ## 1.18.0 - 2026-09-30
 
