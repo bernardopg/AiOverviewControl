@@ -52,17 +52,14 @@ fi
 
 # shellcheck source=providers/local-cost-common
 source "$(dirname "${BASH_SOURCE[0]}")/local-cost-common"
-cost_sum="$(hermes_cost_sum "$STATE_DB")"
+usage_columns="$(hermes_usage_columns "$STATE_DB")"
+price_file="$(hermes_price_file)"
 
-# --- per-day, per-model usage rows (TSV: date, model, tokens, cost, calls) ---
+# --- per-day, per-model usage rows (TSV: date, then hermes_usage_columns) ---
 # This is the load-bearing query: if it fails the database is locked, corrupt,
 # or predates the usage ledger, and reporting zeros would be a silent lie.
 if ! usage_rows="$(sqlite3 -readonly -separator $'\t' "$STATE_DB" "
-  SELECT date(s.started_at, 'unixepoch', 'localtime'),
-         u.model,
-         SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens),
-         $cost_sum,
-         SUM(u.api_call_count)
+  SELECT date(s.started_at, 'unixepoch', 'localtime'), $usage_columns
   FROM session_model_usage u
   JOIN sessions s ON s.id = u.session_id
   GROUP BY 1, 2
@@ -123,19 +120,16 @@ result="$(jq -cn \
   --arg default_model "$default_model" \
   --arg model_provider "$model_provider" \
   --argjson sessions_total "${sessions_total:-0}" \
-  --argjson messages_total "${messages_total:-0}" '
+  --argjson messages_total "${messages_total:-0}" \
+  --slurpfile prices "${price_file:-/dev/null}" "$HERMES_PRICE_JQ"'
   # ---- parse each TSV block independently (no arity-based guessing) ----
   def tsv($block):
     ($block | split("\n") | map(select(length > 0)) | map(split("\t")));
-  (tsv($usage)) as $usage_tsv      # date model tokens cost calls
+  ($prices[0].models // {}) as $price_index
+  | (tsv($usage)) as $usage_tsv      # date, then hermes_usage_columns
   | (tsv($projects)) as $projects  # cwd tokens
   | (tsv($sources)) as $sources    # source sessions
-  | ($usage_tsv | map({
-      date: .[0], model: .[1],
-      tokens: (.[2] | tonumber? // 0),
-      cost: (.[3] | tonumber? // null),
-      calls: (.[4] | tonumber? // 0)
-    })) as $rows
+  | ($usage_tsv | map({date: .[0]} + hermes_row(1; $price_index))) as $rows
   | ($today | strptime("%Y-%m-%d") | mktime) as $today_epoch
   # ---- trailing 7 days ending today (not Mon-Sun aligned) ----
   | ([ range(6; -1; -1) as $offset

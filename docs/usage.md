@@ -146,11 +146,12 @@ fabricated zeroes. See [the persistence contract](development-gates.md#codex-cre
 Every credential is sent only to its own provider's official API. Beyond those,
 the plugin contacts exactly two third-party hosts, both optional:
 
-- **`raw.githubusercontent.com`** — the Claude adapter refreshes LiteLLM's
-  public pricing table (`model_prices_and_context_window.json`) once a day to
-  price local session tokens. No credential or usage data is sent; the request
+- **`raw.githubusercontent.com`** — the Claude and Hermes adapters refresh
+  LiteLLM's public pricing table (`model_prices_and_context_window.json`) once
+  a day to price local session tokens. No credential or usage data is sent; the request
   is a plain unauthenticated GET. On failure the last cached snapshot is used;
-  without any snapshot, cost fields report 0.00. Set `AIOC_NO_LITELLM=1` to
+  without any snapshot, Claude cost fields report 0.00 and unresolved Hermes
+  costs stay unknown. Set `AIOC_NO_LITELLM=1` to
   disable this fetch entirely.
 - **`dns.google`** — the Copilot adapter uses DNS-over-HTTPS only as a
   fallback after a regional `api.github.com` route fails before HTTP, to

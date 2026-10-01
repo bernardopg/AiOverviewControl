@@ -63,8 +63,47 @@ sqlite3 "$TMP/hermes.db" "CREATE TABLE session_model_usage(cost_status TEXT, act
 INSERT INTO session_model_usage VALUES('estimated',0,1.25),('included',0,5),('unknown',0,999999);"
 expression="$(hermes_cost_expression "$TMP/hermes.db")"
 sqlite3 -json "$TMP/hermes.db" "SELECT $expression AS cost FROM session_model_usage u;" | check '.[0].cost == 1.25 and .[1].cost == 0 and .[2].cost == null' 'Hermes excludes unknown estimates'
-sum="$(hermes_cost_sum "$TMP/hermes.db")"
-sqlite3 -json "$TMP/hermes.db" "SELECT $sum AS cost FROM session_model_usage u;" | check '.[0].cost == null' 'Hermes incomplete total'
+
+# Unpriced Hermes rows get LiteLLM list prices; known and included costs stay.
+# Offline: a same-day price snapshot is served, the download never runs.
+export HERMES_HOME="$TMP/hermes-home" AIOC_NO_LITELLM=1
+mkdir -p "$HERMES_HOME" "$XDG_CACHE_HOME/AiOverviewControl"
+jq -n --arg today "$(date +%Y-%m-%d)" '{updated: $today, models: {
+  "claude-opus-4-7": [0.000005, 0.000025, 0.0000005, 0.00000625],
+  "glm-4.6": [0.0000006, 0.0000022, 0.0000006, 0.0000006]}}' \
+  >"$XDG_CACHE_HOME/AiOverviewControl/litellm-prices.json"
+now="$(date +%s)"
+sqlite3 "$HERMES_HOME/state.db" "CREATE TABLE sessions(id TEXT, source TEXT, started_at REAL, cwd TEXT, git_repo_root TEXT);
+CREATE TABLE messages(id TEXT);
+CREATE TABLE session_model_usage(session_id TEXT, model TEXT, api_call_count INT, input_tokens INT, output_tokens INT,
+  cache_read_tokens INT, cache_write_tokens INT, estimated_cost_usd REAL, actual_cost_usd REAL, cost_status TEXT);
+INSERT INTO sessions VALUES('s1','cli',$now,'/p',NULL);
+INSERT INTO session_model_usage VALUES
+  ('s1','cc/claude-opus-4.7',1,1000000,100000,2000000,0,0,0,'unknown'),
+  ('s1','glm-4.6',1,500,500,0,0,0.5,0,'estimated'),
+  ('s1','glm-4.6',1,1000000,0,0,0,0,0,'unknown'),
+  ('s1','nvidia/nemotron-x:free',1,999,1,0,0,0,0,'unknown'),
+  ('s1','claude-opus-4-7',1,7,7,0,0,0,0,'included');"
+# opus: 1M*5e-6 + 100k*25e-6 + 2M*0.5e-6 = 5 + 2.5 + 1 = 8.5
+# glm-4.6: known 0.5 + 1M*0.6e-6 = 1.1; ":free" route = 0; included = 0
+bash "$ROOT/providers/get-hermes-analytics" | check '
+  (.today.cost * 1000 | round) == 9600 and .today.tokens == 4102014
+  and (.topModels | map({(.model): (.cost * 1000 | round)}) | add)
+      == {"cc/claude-opus-4.7": 8500, "glm-4.6": 1100, "nvidia/nemotron-x:free": 0, "claude-opus-4-7": 0}' \
+  'Hermes prices unknown rows from LiteLLM and keeps known and included costs'
+# shellcheck disable=SC2016 # "$9.6" is literal output, not an expansion
+bash "$ROOT/providers/get-provider-usage" hermes '' \
+  | check '.[0].usage.primary.displayValue | startswith("$9.6 · 4.1M tok")' 'Hermes card total uses the same pricing'
+# A model with no price keeps the total honest: unknown, not partial.
+rm -f "$XDG_CACHE_HOME/AiOverviewControl/hermes-analytics-v2-cache.json"
+sqlite3 "$HERMES_HOME/state.db" "INSERT INTO session_model_usage VALUES('s1','gemma4:31b',1,10,10,0,0,0,0,'unknown');"
+bash "$ROOT/providers/get-hermes-analytics" \
+  | check '.today.cost == null and (.topModels | any(.model == "glm-4.6" and (.cost * 1000 | round) == 1100))' \
+    'Hermes unpriced model makes the total unknown'
+# Without any snapshot (opted out, never downloaded) unknown rows stay unknown.
+rm -f "$XDG_CACHE_HOME/AiOverviewControl/hermes-analytics-v2-cache.json" "$XDG_CACHE_HOME/AiOverviewControl/litellm-prices.json"
+bash "$ROOT/providers/get-hermes-analytics" | check '.today.cost == null' 'Hermes without prices stays unknown'
+unset HERMES_HOME AIOC_NO_LITELLM
 # A cached snapshot belongs to the source it was taken from; a source that has
 # gone away must not be answered from cache.
 CODEX_HOME=/nonexistent bash "$ROOT/providers/get-local-analytics" codex \

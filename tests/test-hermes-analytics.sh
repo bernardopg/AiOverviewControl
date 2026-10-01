@@ -58,7 +58,7 @@ YAML
 echo '{"active_provider": "openrouter"}' > "$HOME_FIX/auth.json"
 
 run_env() {
-  env HERMES_HOME="$HOME_FIX" XDG_CACHE_HOME="$CACHE" \
+  env HERMES_HOME="$HOME_FIX" XDG_CACHE_HOME="$CACHE" AIOC_NO_LITELLM=1 \
     HOME="$TMP" PATH="$PATH" "$@"
 }
 fail() { echo "FAIL: $1" >&2; exit 1; }

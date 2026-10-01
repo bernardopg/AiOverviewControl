@@ -61,7 +61,7 @@ stable contract surface.
 
 Transcript analytics over `~/.claude/projects/**/*.jsonl` (31-day window) use a per-transcript extraction cache, `claude-transcripts.tsv`: jq parses each session file once per (size, mtime) and keeps only its assistant-message rows (local date, model, token counts, session, cwd). A refresh re-parses only files that changed — normally just the active session — and awk aggregates the cached rows, so daily buckets, costs and pricing updates never need a re-parse. Rows carry the local date, so a UTC-offset change (timezone or DST) rebuilds the cache; a batch whose jq call fails is not cached and is retried on the next refresh. The `claude --version` probe used for the API User-Agent is cached for 24h in `claude-version-cache.json` instead of spawning the CLI per refresh.
 
-Model pricing comes from LiteLLM's public `model_prices_and_context_window.json` on `raw.githubusercontent.com`, refreshed at most once per day into `claude-pricing-cache.json`; on fetch failure the last snapshot is reused, and without any snapshot cost fields report 0.00. `AIOC_NO_LITELLM=1` disables this third-party fetch entirely.
+Model pricing comes from LiteLLM's public `model_prices_and_context_window.json` on `raw.githubusercontent.com`, refreshed at most once per day into `claude-pricing-cache.json`; on fetch failure the last snapshot is reused, and without any snapshot cost fields report 0.00. `AIOC_NO_LITELLM=1` disables this third-party fetch entirely. Hermes reuses the same table, trimmed to per-token prices for every chat model, in `litellm-prices.json` (also daily, same opt-out).
 
 ## Provider contract
 
@@ -129,7 +129,7 @@ Every account request captures HTTP status and validates the response schema. Pa
 | Agent harness | `state.db` — `sessions` joined to `session_model_usage` | Today/Week/Month tokens + cost, 7-day chart, top models, top projects, session sources, session/message/API-call counters |
 | Provider front | `config.yaml` (`model.default`, `model.provider`) and `auth.json` (`active_provider`) | Card identity line (`<billing provider> · <default model>`), login method, "Open console" → [Nous Portal](https://portal.nousresearch.com) |
 
-Coverage is Analytics-only: Hermes exposes no local quota API, and cost columns are frequently `0` because pricing resolution happens upstream — tokens and API calls carry the real signal, so the expanded chart plots tokens rather than cost.
+Coverage is Analytics-only: Hermes exposes no local quota API. Its ledger often leaves cost unresolved (`cost_status = 'unknown'`, or zero costs in older ledgers) because pricing happens upstream. Those rows are priced per model at LiteLLM list price; `included` rows stay free and ledger costs are kept. A model with no LiteLLM entry (a local Ollama tag, for example) leaves its totals unknown rather than partial. The expanded chart plots cost when every day is priced and some of it is paid, and tokens otherwise.
 
 All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode, and the adapter must never take a write lock on a database the agent is actively using. Usage rows bucket to each session's **local start day** (`date(started_at,'unixepoch','localtime')`), matching the pi adapter's convention — sessions spanning midnight are not split.
 
@@ -183,7 +183,7 @@ Legacy settings unknown to the current code are ignored.
 - Cards: collapsed preview, expanded windows, identity, credits, source, and timestamps.
 - Claude details: token/cost history and model distribution.
 - pi details: token/cost history, 7-day chart, top models, top projects (same expanded-card slot pattern as 9Router).
-- Hermes details: identity pills (default model, billing provider, session/message/API-call counters, version), token/cost tiles, 7-day token chart, top models, top projects, and session-source badges.
+- Hermes details: identity pills (default model, billing provider, session/message/API-call counters, version), token/cost tiles, 7-day cost (or token) chart, top models, top projects, and session-source badges.
 
 ## Validation
 

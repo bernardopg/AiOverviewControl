@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# SQL expression shared by the Hermes summary and analytics adapters.
+# SQL and jq shared by the Hermes summary and analytics adapters, so they
+# cannot drift on which ledger rows carry a known cost or how others are priced.
 hermes_cost_expression() {
   local db="$1"
   if sqlite3 -readonly "$db" 'PRAGMA table_info(session_model_usage);' 2>/dev/null | grep -q '|cost_status|'; then
@@ -14,8 +15,91 @@ hermes_cost_expression() {
     printf '%s' 'COALESCE(NULLIF(u.actual_cost_usd, 0), NULLIF(u.estimated_cost_usd, 0))'
   fi
 }
-hermes_cost_sum() {
+
+# --- LiteLLM per-model pricing for rows the Hermes ledger left unpriced ---
+# Hermes prices upstream, so `cost_status = 'unknown'` rows (and zero costs in
+# old ledgers) carry no usable cost. Those rows are priced from LiteLLM's
+# public table at list price; `included` rows stay free and known costs are
+# kept. The trimmed table is cached daily and shared by the summary and
+# analytics adapters. AIOC_NO_LITELLM=1 skips the download and keeps the last
+# snapshot; without one, unpriced rows stay unknown (null), as before.
+HERMES_LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+
+# Prints the path of a usable price index, or nothing. Read it with
+# `jq --slurpfile prices "${file:-/dev/null}"`: it exceeds the 128 KiB limit
+# for a single command-line argument.
+hermes_price_file() {
+  local dir="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+  local file="$dir/litellm-prices.json" today raw tmp
+  today="$(date +%Y-%m-%d)"
+  if [ "$(jq -r '.updated // ""' "$file" 2>/dev/null)" != "$today" ] \
+    && [ "${AIOC_NO_LITELLM:-0}" != "1" ] \
+    && raw="$(curl -sf --max-time 10 "$HERMES_LITELLM_URL" 2>/dev/null)"; then
+    mkdir -p "$dir" 2>/dev/null
+    tmp="$(mktemp "$dir/.litellm-prices.XXXXXX" 2>/dev/null)" || tmp=""
+    # {model: [input, output, cache_read, cache_write]} per token, keyed by the
+    # lowercased full name and by the bare name after the last "/". A bare name
+    # from an unprefixed key wins over one derived from a provider-prefixed key.
+    if [ -n "$tmp" ] && jq -c --arg today "$today" '
+        [to_entries[]
+          | select((.value | type) == "object" and (.value.mode // "chat") == "chat"
+              and (.value.input_cost_per_token // 0) > 0)
+          | {key: (.key | ascii_downcase),
+             p: [.value.input_cost_per_token, (.value.output_cost_per_token // 0),
+                 (.value.cache_read_input_token_cost // .value.input_cost_per_token),
+                 (.value.cache_creation_input_token_cost // .value.input_cost_per_token)]}]
+        | sort_by(.key)
+        | (map({(.key): .p}) | add) as $full
+        | (map(select(.key | contains("/")) | {(.key | split("/") | last): .p}) | reverse | add) as $bare
+        | {updated: $today, models: (($bare // {}) + $full)}
+        | select(.models | length > 0)' <<<"$raw" >"$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+      mv "$tmp" "$file"
+    else
+      rm -f "$tmp"
+    fi
+  fi
+  jq -e '.models | type == "object"' "$file" >/dev/null 2>&1 && printf '%s' "$file"
+}
+
+# SELECT for per-model usage. Columns after the caller's leading group columns:
+# model, tokens, known cost, unpriced rows, unpriced input/output/cache-read/
+# cache-write tokens, api calls. Price the unpriced part with HERMES_PRICE_JQ.
+hermes_usage_columns() {
   local expression
   expression="$(hermes_cost_expression "$1")"
-  printf 'CASE WHEN COUNT(*) = COUNT(%s) THEN COALESCE(SUM(%s), 0) ELSE NULL END' "$expression" "$expression"
+  printf '%s' "u.model,
+    SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens),
+    COALESCE(SUM($expression), 0),
+    SUM(CASE WHEN ($expression) IS NULL THEN 1 ELSE 0 END),
+    SUM(CASE WHEN ($expression) IS NULL THEN u.input_tokens ELSE 0 END),
+    SUM(CASE WHEN ($expression) IS NULL THEN u.output_tokens ELSE 0 END),
+    SUM(CASE WHEN ($expression) IS NULL THEN u.cache_read_tokens ELSE 0 END),
+    SUM(CASE WHEN ($expression) IS NULL THEN u.cache_write_tokens ELSE 0 END),
+    SUM(u.api_call_count)"
 }
+
+# jq defs. hermes_price: LiteLLM entry for a Hermes model name (":free"
+# OpenRouter routes are free; tries the full name, the bare name, then the
+# bare name with "4.7" <-> "4-7" version separators). hermes_row: one
+# hermes_usage_columns row (array of strings from offset $i) to
+# {model, tokens, cost, calls}; cost is null when an unpriced part has no price.
+# shellcheck disable=SC2016,SC2034 # jq source, used by the sourcing adapters
+HERMES_PRICE_JQ='
+def hermes_price($prices):
+  ascii_downcase as $m
+  | if ($m | endswith(":free")) then [0, 0, 0, 0]
+    else ($m | split("/") | last) as $bare
+    | [$m, $bare,
+       ($bare | gsub("(?<a>[0-9])\\.(?<b>[0-9])"; "\(.a)-\(.b)")),
+       ($bare | gsub("(?<a>[0-9])-(?<b>[0-9])"; "\(.a).\(.b)"))]
+    | map($prices[.] // empty) | first // null
+    end;
+def hermes_row($i; $prices):
+  (.[$i:] | map(tonumber? // .)) as $c
+  | ($c[0] | tostring | hermes_price($prices)) as $p
+  | {model: ($c[0] | tostring), tokens: ($c[1] // 0), calls: ($c[8] // 0),
+     cost: (if ($c[3] // 0) == 0 then ($c[2] // 0)
+            elif $p == null then null
+            else ($c[2] // 0) + $c[4] * $p[0] + $c[5] * $p[1] + $c[6] * $p[2] + $c[7] * $p[3]
+            end)};
+'
