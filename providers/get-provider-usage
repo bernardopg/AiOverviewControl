@@ -153,6 +153,8 @@ source "$SCRIPT_DIR/native/qwen.bash"
 source "$SCRIPT_DIR/native/xai.bash"
 # shellcheck source=providers/native/kilo.bash
 source "$SCRIPT_DIR/native/kilo.bash"
+# shellcheck source=providers/native/cursor.bash
+source "$SCRIPT_DIR/native/cursor.bash"
 
 
 # The `~/.pi/agent/sessions` strings below are labels shown in the card, not
@@ -1110,7 +1112,7 @@ fetch_provider() {
       json_note_usage perplexity perplexity-web "Perplexity account" "subscription" "No public quota API; usage is available in Perplexity settings" "perplexity.ai/settings"
       ;;
     cursor)
-      json_note_usage cursor cursor-local "Cursor account" "subscription" "No public quota API; usage is available in Cursor settings" "cursor.com/settings"
+      fetch_cursor_native
       ;;
     kilo)
       fetch_kilo_native

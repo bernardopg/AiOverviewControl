@@ -52,7 +52,9 @@ This document records the upstream surface used by each adapter. It was reviewed
 
 ## No documented read-only quota endpoint
 
-AI21, Perplexity, Cursor, Cline, Kiro, Warp, and Amp do not currently provide a public, stable, read-only quota endpoint suitable for this widget. Kiro additionally has **no public API at all** (subscription-only IDE/CLI/Web with SSO login). The plugin therefore reports configured/authenticated status where possible or displays an informational card. It does not scrape dashboards or claim synthetic percentages.
+AI21, Perplexity, Cline, Kiro, Warp, and Amp do not currently provide a public, stable, read-only quota endpoint suitable for this widget. Kiro additionally has **no public API at all** (subscription-only IDE/CLI/Web with SSO login). The plugin therefore reports configured/authenticated status where possible or displays an informational card. It does not scrape dashboards or claim synthetic percentages.
+
+Cursor documents team and Enterprise admin APIs, not an individual quota API. The adapter reads the session the Cursor IDE or `cursor-agent` already stored and calls `GET https://cursor.com/api/usage-summary`, the same route the cursor.com dashboard uses. Plan is `individualUsage.plan.used / limit`. Cursor Models and Other Models are `autoPercentUsed` and `apiPercentUsed`. `totalPercentUsed` is a different figure and is not the Plan bar. Older request-quota accounts fall back to `GET /api/usage`.
 
 ## Local verification
 

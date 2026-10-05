@@ -560,7 +560,10 @@ PluginComponent {
             "ai credits": ["window.ai_credits", "AI credits"],
             "gemini models": ["window.gemini_models", "Gemini models"],
             "claude & openai models": ["window.claude_openai_models", "Claude & OpenAI models"],
+            "plan": ["window.plan", "Plan"],
+            "cursor models": ["window.cursor_models", "Cursor models"],
             "other models": ["window.other_models", "Other models"],
+            "on-demand": ["window.on_demand", "On-demand"],
             "1 hour": ["window.hourly", "Hourly"],
             "1 day": ["window.daily", "Daily"],
             "1 week": ["window.weekly", "Weekly"]

@@ -659,6 +659,9 @@ jobs:
       - name: Integration test — OpenCode usage
         run: tests/test-opencode.sh
 
+      - name: Integration test — Cursor plan usage
+        run: tests/test-cursor-usage.sh
+
       - name: Integration test — Codex/OpenCode local analytics
         run: tests/test-local-analytics.sh
 
