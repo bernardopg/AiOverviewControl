@@ -18,6 +18,9 @@ export LC_ALL=C
 # one) and, on click, calls `dms ipc call aiOverviewControl focus <provider>`
 # to open the popout on that provider's card. The waiter exits when the
 # notification closes or expires.
+#
+# Without notify-send the alert falls back to `dms notify`: same dedupe and
+# cooldown, but no in-place replacement, urgency or click action.
 
 state_dir_for_clear="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
 # --migrate: remove state written by the pre-1.7 dedupe key format. That
@@ -158,14 +161,22 @@ if [ "$last" -gt 0 ] && [ "$level" -le "$previous_level" ] && [ $((now - last)) 
   exit 0
 fi
 
+icon="$(render_monochrome_icon "$icon_source" "$icon_color" || printf '%s' 'dialog-warning')"
 notify_args=(-p -r "$prev_id"
   -a "AiOverviewControl"
   -u "$urgency"
-  -i "$(render_monochrome_icon "$icon_source" "$icon_color" || printf '%s' 'dialog-warning')"
+  -i "$icon"
   -h "string:x-canonical-private-synchronous:aioverviewcontrol-${key}")
 
 waiter=0
-if [ -n "$action_label" ]; then
+if ! command -v notify-send >/dev/null 2>&1; then
+  # ponytail: `dms notify` has no replace id, urgency or custom action, so
+  # without notify-send a re-send stacks a new popup and a click does not
+  # focus the provider card. Install libnotify for those.
+  command -v dms >/dev/null 2>&1 || exit 0
+  dms notify --app "AiOverviewControl" --icon "$icon" "$title" "$body" >/dev/null 2>&1 9>&- || exit 0
+  notify_id=0
+elif [ -n "$action_label" ]; then
   # The replaced notification keeps its id, so the old waiter would also
   # react to a click on the new one. Only kill a pid that is still ours.
   if [ "$prev_waiter" -gt 0 ] && [ "$(cat "/proc/${prev_waiter}/comm" 2>/dev/null)" = "notify-send" ]; then

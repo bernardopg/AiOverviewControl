@@ -226,8 +226,8 @@ extract_antigravity_idedb_refresh() {
     | while IFS= read -r value; do
         # direct, then single base64 layer, then a nested base64 blob.
         printf '%s' "$value" | grep -aoE '1//[A-Za-z0-9_-]{30,}'
-        printf '%s' "$value" | base64 -d 2>/dev/null | strings | grep -aoE '1//[A-Za-z0-9_-]{30,}'
-        printf '%s' "$value" | base64 -d 2>/dev/null | strings | grep -oE 'Co[A-Za-z0-9+/=]{40,}' \
+        printf '%s' "$value" | base64 -d 2>/dev/null | tr -c '[:print:]' '\n' | grep -aoE '1//[A-Za-z0-9_-]{30,}'
+        printf '%s' "$value" | base64 -d 2>/dev/null | tr -c '[:print:]' '\n' | grep -oE 'Co[A-Za-z0-9+/=]{40,}' \
           | while IFS= read -r blob; do printf '%s' "$blob" | base64 -d 2>/dev/null | grep -aoE '1//[A-Za-z0-9_-]{30,}'; done
       done | grep -aoE '1//[A-Za-z0-9_-]{30,}' | head -1
 }

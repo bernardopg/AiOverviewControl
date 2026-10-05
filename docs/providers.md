@@ -769,7 +769,7 @@ Beyond the per-provider adapters, `providers/` ships these utilities:
 - `get-usage-history` — prints the local usage history written by the dispatcher (`~/.cache/AiOverviewControl/usage-history.jsonl`), trimmed by `AIOC_HISTORY_MAX`.
 - `export-usage-history` — copies that history to CSV or JSONL (see [configuration](configuration.md#exporting-usage-history)).
 - `get-provider-wrapper` — shared single-provider wrapper behind the `get-<id>-usage` entrypoints.
-- `send-quota-alert` — deduplicated desktop notification sender used by quota alerts (`flock` + `notify-send`).
+- `send-quota-alert` — deduplicated desktop notification sender used by quota alerts (`flock` + `notify-send`, falling back to `dms notify`).
 
 ## Direct tests
 
