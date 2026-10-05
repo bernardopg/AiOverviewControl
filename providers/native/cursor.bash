@@ -129,7 +129,7 @@ cursor_map_summary() {
     def clamp($n):
       if $n == null then null else ([0, $n] | max | [100, .] | min) end;
     def ts_ms($v):
-      if ($v | type) == "number" and ((. | isnan) or (. | isinfinite) | not) then
+      if ($v | type) == "number" and (($v | isnan) or ($v | isinfinite) | not) then
         if $v > 1000000000000 then $v else $v * 1000 end
       elif ($v | type) == "string" and ($v | test("^[0-9]+$")) then ts_ms($v | tonumber)
       elif ($v | type) == "string" and ($v | length) > 0 then

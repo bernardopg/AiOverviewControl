@@ -62,6 +62,11 @@ cat >"$TMP/fixtures/summary-ondemand.json" <<'EOF'
 }
 EOF
 
+cat >"$TMP/fixtures/summary-numeric.json" <<'EOF'
+{"billingCycleStart":1758219726000,"billingCycleEnd":1760811726,"membershipType":"pro",
+ "individualUsage":{"plan":{"enabled":true,"autoPercentUsed":7,"apiPercentUsed":2}}}
+EOF
+
 cat >"$TMP/fixtures/summary-empty.json" <<'EOF'
 {"membershipType":"pro","individualUsage":{"plan":{"enabled":false,"autoPercentUsed":0,"apiPercentUsed":0,"totalPercentUsed":0}}}
 EOF
@@ -93,6 +98,7 @@ case "$url" in
   *api/usage-summary*)
     case "${CURSOR_MODE:-ok}" in
       ok) cp "${CURSOR_FIXTURES}/summary.json" "$out" ;;
+      numeric) cp "${CURSOR_FIXTURES}/summary-numeric.json" "$out" ;;
       ondemand) cp "${CURSOR_FIXTURES}/summary-ondemand.json" "$out" ;;
       empty) cp "${CURSOR_FIXTURES}/summary-empty.json" "$out" ;;
       unlimited) cp "${CURSOR_FIXTURES}/unlimited.json" "$out" ;;
@@ -147,6 +153,12 @@ out="$(CURSOR_MODE=ondemand run)"
 [ "$(jq -r '.[0].usage.secondary.usedPercent' <<<"$out")" = "1" ] || fail "ondemand other models"
 [ "$(jq -r '.[0].usage.tertiary.resetDescription' <<<"$out")" = "On-demand" ] || fail "ondemand label"
 [ "$(jq -r '.[0].usage.tertiary.usedPercent' <<<"$out")" = "90" ] || fail "ondemand percent"
+
+# 2b. Epoch timestamps (milliseconds or seconds) set the reset and cycle length.
+out="$(CURSOR_MODE=numeric run)"
+[ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "7" ] || fail "numeric cursor models"
+[ "$(jq -r '.[0].usage.primary.resetsAt' <<<"$out")" = "2025-10-18T18:22:06Z" ] || fail "numeric reset $(jq -r '.[0].usage.primary.resetsAt' <<<"$out")"
+[ "$(jq -r '.[0].usage.primary.windowMinutes' <<<"$out")" = "43200" ] || fail "numeric cycle minutes"
 
 # 3. A plan the account does not own falls through to the request-quota route.
 out="$(CURSOR_MODE=empty run)"

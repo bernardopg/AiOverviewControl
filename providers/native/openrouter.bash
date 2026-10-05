@@ -62,8 +62,20 @@ fetch_openrouter_native() {
     | (if ($d.include_byok_in_limit // false) then num($d.byok_usage) else 0 end) as $byok_usage
     | (if ($d.include_byok_in_limit // false) then num($d.byok_usage_daily) else 0 end) as $byok_daily
     | (if ($d.include_byok_in_limit // false) then num($d.byok_usage_weekly) else 0 end) as $byok_weekly
+    | (if ($d.include_byok_in_limit // false) then num($d.byok_usage_monthly) else 0 end) as $byok_monthly
+    # $d.usage is the key lifetime spend, while $limit resets with limit_reset
+    # (daily/weekly/monthly). Lifetime / limit reads 100% forever once lifetime
+    # spend passes the cap, so measure the current window instead: limit minus
+    # limit_remaining, else the usage_* counter matching limit_reset. A key with
+    # no reset is a lifetime cap and keeps the lifetime figure.
+    | (if $limit == null then null
+       elif $d.limit_remaining != null then (num($limit) - num($d.limit_remaining))
+       elif $d.limit_reset == "daily" then (num($d.usage_daily) + $byok_daily)
+       elif $d.limit_reset == "weekly" then (num($d.usage_weekly) + $byok_weekly)
+       elif $d.limit_reset == "monthly" then (num($d.usage_monthly) + $byok_monthly)
+       else (num($d.usage) + $byok_usage) end) as $window_used
     | (if $d.limit_remaining != null then num($d.limit_remaining)
-       elif $limit != null then (num($limit) - num($d.usage) - $byok_usage)
+       elif $limit != null then (num($limit) - $window_used)
        else null end) as $remaining
     | {
       provider:"openrouter",
@@ -77,13 +89,13 @@ fetch_openrouter_native() {
         accountEmail:$label,
         loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end),
         primary:{
-          usedPercent:pct((num($d.usage) + $byok_usage); $limit),
+          usedPercent:pct($window_used; $limit),
           windowMinutes:null,
           resetsAt:($d.limit_reset // null),
           resetDescription:"Key limit",
           displayValue:(
             if $limit == null then (money(num($d.usage) + $byok_usage) + " used")
-            else (money(num($d.usage) + $byok_usage) + " / " + money($limit))
+            else (money($window_used) + " / " + money($limit))
             end
           )
         },
