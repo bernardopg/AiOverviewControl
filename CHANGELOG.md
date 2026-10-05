@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Quota alerts fall back to `dms notify` when `notify-send` is not installed, so libnotify is now optional. The fallback keeps deduplication and cooldowns but cannot replace a popup in place, set urgency or focus the provider card on click. The Antigravity IDE session reader no longer needs `strings` from binutils. Covered by `tests/test-quota-alert.sh`.
+
 ## 1.20.0 - 2026-10-05
 
 A feature release: real included usage for Cursor and a fixed OpenRouter

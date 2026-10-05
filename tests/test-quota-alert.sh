@@ -127,4 +127,21 @@ if grep -q -- '-A' "$NOTIFY_LOG"; then echo 'unsafe provider got an action' >&2;
 [ "$(jq -r '.["click:primary:300:window"].waiter // "none"' "$state")" = none ]
 [ -z "$(find "$XDG_CACHE_HOME/AiOverviewControl" -name '.notify-waiter.*')" ]
 
+# Without notify-send the alert falls back to `dms notify`, still deduped.
+mkdir -p "$TMP/nolibnotify"
+for tool in env bash jq flock date mktemp mv cat sed awk sha256sum cut rm mkdir head; do
+  ln -s "$(command -v "$tool")" "$TMP/nolibnotify/$tool"
+done
+ln -s "$TMP/bin/dms" "$TMP/nolibnotify/dms"
+: > "$DMS_LOG"
+fallback_alert() {
+  PATH="$TMP/nolibnotify" "$ROOT/providers/send-quota-alert" fallback:primary:300:window 3600 critical \
+    dialog-warning '#6750A4' 'Quota test' 'Fixture body' 'Open dashboard' claude
+}
+fallback_alert
+fallback_alert
+[ "$(wc -l < "$DMS_LOG")" -eq 1 ]
+grep -qF 'notify --app AiOverviewControl --icon dialog-warning Quota test Fixture body' "$DMS_LOG"
+[ "$(jq -r '.["fallback:primary:300:window"].id' "$state")" = 0 ]
+
 echo 'Quota alert deduplication and click action: OK'

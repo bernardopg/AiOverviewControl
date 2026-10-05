@@ -125,4 +125,4 @@ The settings page executes `providers/get-provider-health` for selected provider
 
 Health checks do not send network requests and never print secret values.
 
-Quota notifications require `notify-send` and `flock` in the DMS process environment. Antigravity readiness accepts a valid `agy` token file, `secret-tool` for keyring-backed sessions, or `sqlite3` plus a readable IDE state database.
+Quota notifications require `flock` in the DMS process environment. They use `notify-send` (libnotify) when it is installed and fall back to `dms notify` otherwise; the fallback cannot replace an earlier popup in place, set urgency or open the provider card on click. Antigravity readiness accepts a valid `agy` token file, `secret-tool` for keyring-backed sessions, or `sqlite3` plus a readable IDE state database.

@@ -126,11 +126,11 @@ The widget has a 45-second total timeout. Each network adapter also has a shorte
 
 ## Notifications do not appear
 
-Quota alerts require `notify-send` and `flock` in the environment that starts
+Quota alerts require `flock`, plus `notify-send` or `dms`, in the environment that starts
 DMS:
 
 ```bash
-command -v notify-send flock
+command -v flock notify-send dms
 ```
 
 The helper stores deduplication state under
