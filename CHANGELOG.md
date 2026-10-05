@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.20.0 - 2026-10-05
+
+A feature release: real included usage for Cursor and a fixed OpenRouter
+key-limit bar. No credential or settings migration is needed; Cursor stays
+opt-in. Thanks to @SkippySteve and @gtheys for this release. Long-form notes:
+[docs/releases/1.20.0.md](docs/releases/1.20.0.md).
+
 ### Providers
 
 - **Cursor** reports the signed-in included usage instead of a placeholder card ([#39](https://github.com/bernardopg/AiOverviewControl/pull/39), thanks [@SkippySteve](https://github.com/SkippySteve)). The adapter reads the local Cursor IDE or `cursor-agent` session and calls the same `cursor.com/api/usage-summary` route the dashboard uses. The card shows Cursor Models (`autoPercentUsed`) and Other Models (`apiPercentUsed`), both resetting with the billing cycle, plus On-demand when that spend is enabled. The included `used / limit` ratio is not a bar: it can read 100% while those pools are still partly unused. Accounts still on request quotas fall back to `GET /api/usage`. Covered by `tests/test-cursor-usage.sh`.
@@ -11,6 +18,10 @@
 ### Contributors
 
 - Add [@SkippySteve](https://github.com/SkippySteve) to the README contributor grid.
+
+### Documentation
+
+- Add the [1.20.0 release guide](docs/releases/1.20.0.md) and point both READMEs at it.
 
 ## 1.19.0 - 2026-09-30
 
