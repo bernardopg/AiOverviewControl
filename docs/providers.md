@@ -21,12 +21,12 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key) |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `xai` (Management API prepaid) |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota) |
 | **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
-| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `kiro`, `warp`, `amp` |
+| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cline`, `kiro`, `warp`, `amp` |
 
 ## Provider kinds
 
@@ -422,14 +422,14 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>cursor</code></td>
-<td>Informational</td>
-<td>❌</td>
-<td>❌</td>
+<td>Quota</td>
+<td>local IDE session or <code>cursor-agent</code> <code>auth.json</code></td>
+<td>✅ billing-cycle Cursor Models and Other Models</td>
 <td>✅ Hobby / Pro / Business</td>
-<td>—</td>
+<td>✅ on-demand when enabled</td>
 <td>—</td>
 <td><a href="https://cursor.com/settings">cursor.com/settings</a></td>
-<td><a href="https://cursor.com">cursor.com</a></td>
+<td><code>cursor.com/api/usage-summary</code> (dashboard session)</td>
 </tr>
 <tr>
 <td><code>cline</code></td>

@@ -2,7 +2,15 @@
 
 ## Unreleased
 
-- Fix the **OpenRouter** key-limit bar reading 100% forever once a key's lifetime spend passed a daily, weekly or monthly limit ([#40](https://github.com/bernardopg/AiOverviewControl/issues/40)). `/api/v1/key` reports `usage` as lifetime spend, so the bar, its `$used / $limit` value and the remaining fallback now use the current window: `limit - limit_remaining`, else the `usage_*` counter matching `limit_reset`. Keys without a reset keep lifetime spend. Covered by `tests/test-openrouter.sh`.
+### Providers
+
+- **Cursor** reports the signed-in included usage instead of a placeholder card ([#39](https://github.com/bernardopg/AiOverviewControl/pull/39), thanks [@SkippySteve](https://github.com/SkippySteve)). The adapter reads the local Cursor IDE or `cursor-agent` session and calls the same `cursor.com/api/usage-summary` route the dashboard uses. The card shows Cursor Models (`autoPercentUsed`) and Other Models (`apiPercentUsed`), both resetting with the billing cycle, plus On-demand when that spend is enabled. The included `used / limit` ratio is not a bar: it can read 100% while those pools are still partly unused. Accounts still on request quotas fall back to `GET /api/usage`. Covered by `tests/test-cursor-usage.sh`.
+- Fix the **OpenRouter** key-limit bar reading 100% forever once a key's lifetime spend passed a daily, weekly or monthly limit ([#40](https://github.com/bernardopg/AiOverviewControl/issues/40), [#41](https://github.com/bernardopg/AiOverviewControl/pull/41), thanks [@gtheys](https://github.com/gtheys) for the report and fix). `/api/v1/key` reports `usage` as lifetime spend, so the bar, its `$used / $limit` value and the remaining fallback now use the current window: `limit - limit_remaining`, else the `usage_*` counter matching `limit_reset`. Keys without a reset keep lifetime spend. Covered by `tests/test-openrouter.sh`.
+- Cursor billing-cycle timestamps given as numbers are validated against the timestamp itself rather than the response body.
+
+### Contributors
+
+- Add [@SkippySteve](https://github.com/SkippySteve) to the README contributor grid.
 
 ## 1.19.0 - 2026-09-30
 

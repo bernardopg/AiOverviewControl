@@ -45,6 +45,31 @@ has_grok_cli() {
   return 1
 }
 
+cursor_auth_has_token() {
+  local auth_file="$1"
+  [ -r "$auth_file" ] || return 1
+  jq -e '(.accessToken | type) == "string" and (.accessToken | length) > 0' "$auth_file" >/dev/null 2>&1
+}
+
+cursor_db_has_token() {
+  local db="$1"
+  [ -r "$db" ] || return 1
+  command -v sqlite3 >/dev/null 2>&1 || return 1
+  [ -n "$(sqlite3 "file:${db}?mode=ro" "SELECT value FROM ItemTable WHERE key='cursorAuth/accessToken' LIMIT 1;" 2>/dev/null || true)" ]
+}
+
+has_cursor_session() {
+  if [ -n "${CURSOR_AUTH_FILE+x}" ] || [ -n "${CURSOR_STATE_DB+x}" ]; then
+    cursor_auth_has_token "${CURSOR_AUTH_FILE:-}" && return 0
+    cursor_db_has_token "${CURSOR_STATE_DB:-}" && return 0
+    return 1
+  fi
+  cursor_auth_has_token "${XDG_CONFIG_HOME:-$HOME/.config}/cursor/auth.json" && return 0
+  cursor_auth_has_token "$HOME/.cursor/auth.json" && return 0
+  cursor_db_has_token "${XDG_CONFIG_HOME:-$HOME/.config}/Cursor/User/globalStorage/state.vscdb" && return 0
+  cursor_db_has_token "$HOME/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
+}
+
 has_xai_credentials() {
   local auth_file="${GROK_HOME:-$HOME/.grok}/auth.json"
   has_any_env XAI_API_KEY XAI_MANAGEMENT_KEY XAI_MANAGEMENT_API_KEY && return 0
@@ -134,7 +159,16 @@ status_for() {
     ai21) has_any_env AI21_API_KEY || { status="missing"; detail="AI21_API_KEY"; } ;;
     pi) command -v pi >/dev/null 2>&1 || [ -d "$HOME/.pi/agent/sessions" ] || { status="missing"; detail="pi CLI or ~/.pi/agent/sessions"; } ;;
     hermes) [ -f "${HERMES_HOME:-$HOME/.hermes}/state.db" ] || command -v hermes >/dev/null 2>&1 || { status="missing"; detail="hermes CLI or ~/.hermes/state.db"; } ;;
-    perplexity|cursor|cline|kiro|warp|amp)
+    cursor)
+      if has_cursor_session; then
+        status="ready"
+        detail="Configured"
+      else
+        status="missing"
+        detail="Cursor IDE session or cursor-agent auth.json"
+      fi
+      ;;
+    perplexity|cline|kiro|warp|amp)
       status="info"
       detail="No public read-only quota API"
       ;;
