@@ -158,7 +158,7 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 
 ## 📚 Documentation
 
-For this feature release, start with the [1.18.0 changes and migration guide](./docs/releases/1.18.0.md).
+For this feature release, start with the [1.20.0 changes guide](./docs/releases/1.20.0.md).
 See [cost currency and privacy](./docs/currency.md), [runtime module boundaries](./docs/refactoring.md),
 and [protected PR/release rules](./docs/repository-rules.md).
 
