@@ -65,6 +65,12 @@ fetch_openrouter_native() {
     | (if $d.limit_remaining != null then num($d.limit_remaining)
        elif $limit != null then (num($limit) - num($d.usage) - $byok_usage)
        else null end) as $remaining
+    # AIDEV-NOTE: $d.usage is the key LIFETIME spend while $limit is a windowed
+    # (daily/weekly/monthly) limit; mixing them showed 100% forever after the
+    # first window. Window usage = limit - limit_remaining when present.
+    | (if $limit == null then null
+       elif $d.limit_remaining != null then (num($limit) - num($d.limit_remaining))
+       else (num($d.usage) + $byok_usage) end) as $window_used
     | {
       provider:"openrouter",
       source:"openrouter-api",
@@ -77,13 +83,13 @@ fetch_openrouter_native() {
         accountEmail:$label,
         loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end),
         primary:{
-          usedPercent:pct((num($d.usage) + $byok_usage); $limit),
+          usedPercent:pct($window_used; $limit),
           windowMinutes:null,
           resetsAt:($d.limit_reset // null),
           resetDescription:"Key limit",
           displayValue:(
             if $limit == null then (money(num($d.usage) + $byok_usage) + " used")
-            else (money(num($d.usage) + $byok_usage) + " / " + money($limit))
+            else (money($window_used) + " / " + money($limit))
             end
           )
         },
