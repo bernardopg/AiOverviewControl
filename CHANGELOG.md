@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Correct the MIT license copyright holder from the stale `zak` placeholder to `Bernardo Pinto Gomes`; the placeholder had been present since the initial project commit.
+
 - Quota alerts fall back to `dms notify` when `notify-send` is not installed, so libnotify is now optional. The fallback keeps deduplication and cooldowns but cannot replace a popup in place, set urgency or focus the provider card on click. The Antigravity IDE session reader no longer needs `strings` from binutils. Covered by `tests/test-quota-alert.sh`.
 
 ## 1.20.0 - 2026-10-05
