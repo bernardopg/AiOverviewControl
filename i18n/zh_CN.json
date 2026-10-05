@@ -317,7 +317,7 @@
   "provider.note.kilo": "密钥已配置；公开模型查询仅供参考",
   "provider.note.ai21": "已检测配置；无文档化只读用量 API",
   "provider.note.perplexity": "无公开只读配额 API",
-  "provider.note.cursor": "来自已登录 Cursor 会话的计划、Cursor 模型和其他模型用量",
+  "provider.note.cursor": "来自已登录 Cursor 会话的 Cursor 模型和其他模型用量",
   "provider.note.cline": "无公开只读配额 API",
   "provider.note.opencode": "OPENCODE_API_KEY 或 opencode auth login；Zen 5 小时/周/月配额、余额回退与模型验证",
   "provider.note.kiro": "订阅制 IDE；无公开 API",

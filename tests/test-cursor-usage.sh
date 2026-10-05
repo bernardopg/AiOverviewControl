@@ -121,18 +121,19 @@ make_db "$TMP/state.vscdb" "$TOKEN"
 export CURSOR_STATE_DB="$TMP/state.vscdb"
 export CURSOR_AUTH_FILE=""
 
-# 1. Plan is the included allowance (2000/2000), not totalPercentUsed (12.96).
+# 1. The included screen is the two pools. used/limit is 2000/2000 here and
+#    must not become a 100% Plan bar over a 14% Cursor Models pool.
 : >"$HDR_LOG"
 out="$(CURSOR_MODE=ok run)"
 [ "$(jq -r '.[0].source' <<<"$out")" = "cursor-dashboard" ] || fail "source"
-[ "$(jq -r '.[0].usage.primary.resetDescription' <<<"$out")" = "Plan" ] || fail "plan label"
-[ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "100" ] || fail "plan percent $(jq -r '.[0].usage.primary.usedPercent' <<<"$out")"
+[ "$(jq -r '.[0].usage.primary.resetDescription' <<<"$out")" = "Cursor Models" ] || fail "cursor models label"
+awk 'BEGIN{exit !(ARGV[1] > 14 && ARGV[1] < 14.1)}' "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" || fail "cursor models percent"
 [ "$(jq -r '.[0].usage.primary.windowMinutes' <<<"$out")" = "43200" ] || fail "cycle minutes"
 [ "$(jq -r '.[0].usage.primary.resetsAt' <<<"$out")" = "2026-10-18T18:22:06Z" ] || fail "reset $(jq -r '.[0].usage.primary.resetsAt' <<<"$out")"
-[ "$(jq -r '.[0].usage.secondary.resetDescription' <<<"$out")" = "Cursor Models" ] || fail "cursor models label"
-awk 'BEGIN{exit !(ARGV[1] > 14 && ARGV[1] < 14.1)}' "$(jq -r '.[0].usage.secondary.usedPercent' <<<"$out")" || fail "cursor models percent"
-[ "$(jq -r '.[0].usage.tertiary.resetDescription' <<<"$out")" = "Other Models" ] || fail "other models label"
-[ "$(jq -r '.[0].usage.tertiary.usedPercent' <<<"$out")" = "0" ] || fail "other models percent"
+[ "$(jq -r '.[0].usage.secondary.resetDescription' <<<"$out")" = "Other Models" ] || fail "other models label"
+[ "$(jq -r '.[0].usage.secondary.usedPercent' <<<"$out")" = "0" ] || fail "other models percent"
+[ "$(jq -r '.[0].usage.tertiary' <<<"$out")" = "null" ] || fail "no plan bar"
+jq -e '[.[0].usage.primary, .[0].usage.secondary, .[0].usage.tertiary] | map(select(. != null) | .usedPercent) | all(. < 50)' <<<"$out" >/dev/null || fail "allowance ratio leaked into a bar"
 [ "$(jq -r '.[0].usage.identity.accountEmail' <<<"$out")" = "dev@example.com" ] || fail "email"
 [ "$(jq -r '.[0].usage.identity.loginMethod' <<<"$out")" = "pro" ] || fail "plan name"
 grep -q '^Cookie: WorkosCursorSessionToken=auth0%7Cuser_test%3A%3A'"$TOKEN"'$' "$HDR_LOG" || fail "session cookie"
@@ -140,11 +141,12 @@ grep -q '^Origin: https://cursor.com$' "$HDR_LOG" || fail "origin"
 ! grep -q 'Authorization:' "$HDR_LOG" || fail "bearer header"
 jq -e '.[0] | tostring | contains("user_test") | not' <<<"$out" >/dev/null || fail "token leaked into output"
 
-# 2. On-demand fills the third slot only when the plan did not already use it.
-#    Both pools are present here, so on-demand is dropped (three-window ceiling).
+# 2. On-demand is the third bar, after the two included pools.
 out="$(CURSOR_MODE=ondemand run)"
-[ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "10" ] || fail "ondemand plan"
-[ "$(jq -r '.[0].usage.tertiary.resetDescription' <<<"$out")" = "Other Models" ] || fail "ondemand did not keep other models"
+[ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "4" ] || fail "ondemand cursor models"
+[ "$(jq -r '.[0].usage.secondary.usedPercent' <<<"$out")" = "1" ] || fail "ondemand other models"
+[ "$(jq -r '.[0].usage.tertiary.resetDescription' <<<"$out")" = "On-demand" ] || fail "ondemand label"
+[ "$(jq -r '.[0].usage.tertiary.usedPercent' <<<"$out")" = "90" ] || fail "ondemand percent"
 
 # 3. A plan the account does not own falls through to the request-quota route.
 out="$(CURSOR_MODE=empty run)"

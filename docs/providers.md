@@ -424,7 +424,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>cursor</code></td>
 <td>Quota</td>
 <td>local IDE session or <code>cursor-agent</code> <code>auth.json</code></td>
-<td>✅ billing-cycle Plan, Cursor Models, and Other Models</td>
+<td>✅ billing-cycle Cursor Models and Other Models</td>
 <td>✅ Hobby / Pro / Business</td>
 <td>✅ on-demand when enabled</td>
 <td>—</td>

@@ -317,7 +317,7 @@
   "provider.note.kilo": "Configured-key status; the no-auth models endpoint is only a best-effort probe",
   "provider.note.ai21": "Configured status; no documented read-only usage API",
   "provider.note.perplexity": "No public read-only quota API",
-  "provider.note.cursor": "Plan, Cursor Models, and Other Models from the signed-in Cursor session",
+  "provider.note.cursor": "Cursor Models and Other Models from the signed-in Cursor session",
   "provider.note.cline": "No public read-only quota API",
   "provider.note.opencode": "Uses OPENCODE_API_KEY or the credential saved by `opencode auth login` to ~/.local/share/opencode/auth.json. Reads OpenCode Zen's /zen/go/v1/usage for live 5h/weekly/monthly quota; shows when balance fallback is enabled; falls back to /zen/go/v1/models on failure.",
   "provider.note.kiro": "Subscription-only IDE; no public API",

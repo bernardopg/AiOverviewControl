@@ -317,7 +317,7 @@
   "provider.note.kilo": "Chave configurada; consulta pública de modelos é apenas indicativa",
   "provider.note.ai21": "Configuração detectada; sem API documentada de uso somente leitura",
   "provider.note.perplexity": "Sem API pública de cota somente leitura",
-  "provider.note.cursor": "Plano, modelos do Cursor e outros modelos da sessão do Cursor",
+  "provider.note.cursor": "Modelos do Cursor e outros modelos da sessão do Cursor",
   "provider.note.cline": "Sem API pública de cota somente leitura",
   "provider.note.opencode": "OPENCODE_API_KEY ou opencode auth login; cotas Zen 5h/semanal/mensal, saldo alternativo e validação de modelos",
   "provider.note.kiro": "IDE por assinatura; sem API pública",

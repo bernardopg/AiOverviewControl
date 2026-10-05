@@ -317,7 +317,7 @@
   "provider.note.kilo": "Schlüssel konfiguriert; öffentliche Modellabfrage nur als Indiz",
   "provider.note.ai21": "Konfiguration erkannt; keine dokumentierte Nutzungs-API mit Lesezugriff",
   "provider.note.perplexity": "Keine öffentliche Kontingent-API mit Lesezugriff",
-  "provider.note.cursor": "Plan, Cursor-Modelle und andere Modelle aus der angemeldeten Cursor-Sitzung",
+  "provider.note.cursor": "Cursor-Modelle und andere Modelle aus der angemeldeten Cursor-Sitzung",
   "provider.note.cline": "Keine öffentliche Kontingent-API mit Lesezugriff",
   "provider.note.opencode": "OPENCODE_API_KEY oder opencode auth login; Zen-5h-/Wochen-/Monatskontingente, Guthabenrückfall und Modellprüfung",
   "provider.note.kiro": "Abonnement-IDE; keine öffentliche API",

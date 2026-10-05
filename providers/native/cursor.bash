@@ -5,9 +5,10 @@
 # cursor-agent already stored. This adapter only reads that session and
 # sends it to cursor.com. It never writes, refreshes, or logs the token.
 #
-# ponytail: the card has three windows, so an enabled on-demand pool is
-# dropped when Plan, Cursor Models, and Other Models are all present.
-# A fourth window in the usage schema is the upgrade path.
+# The included-usage screen is two pools, Cursor Models and Other Models.
+# plan.used / plan.limit can read 100 while those pools are still partly
+# unused, so that ratio is not a bar. On-demand is a third bar only after
+# the user turns that spend on.
 
 cursor_jwt_payload() {
   local token="$1" payload pad i
@@ -134,8 +135,9 @@ cursor_map_summary() {
       elif ($v | type) == "string" and ($v | length) > 0 then
         try (($v | sub("[.][0-9]+"; "") | sub("[+]00:00$"; "Z") | fromdateiso8601) * 1000) catch null
       else null end;
-    # Included allowance. totalPercentUsed is a different Cursor figure and
-    # can stay near 13% after used/limit is already 100 and remaining is 0.
+    # On-demand is a spend cap the user enabled. The included pools are not:
+    # their used/limit ratio can hit 100 while autoPercentUsed is still ~16,
+    # which is the number the Cursor included-usage screen shows.
     def allowance($pool):
       if $pool == null then null
       else
@@ -144,6 +146,8 @@ cursor_map_summary() {
           else clamp(num($pool.totalPercentUsed))
           end
       end;
+    def reported($pool; $field):
+      if $pool == null then null else clamp(num($pool[$field])) end;
     def window($pct; $minutes; $resets; $label):
       {usedPercent:$pct, windowMinutes:$minutes, resetsAt:$resets, resetDescription:$label};
 
@@ -162,13 +166,16 @@ cursor_map_summary() {
     | (if $end == null then null else ($end / 1000 | todate) end) as $resets
     | (if $plan != null and ($plan.enabled != false) then $plan else null end) as $owned
     | [
-        (allowance($owned) as $pct | if $pct == null then empty else window($pct; $minutes; $resets; "Plan") end),
-        (if $owned == null then empty else (clamp(num($owned.autoPercentUsed)) as $pct | if $pct == null then empty else window($pct; $minutes; $resets; "Cursor Models") end) end),
-        (if $owned == null then empty else (clamp(num($owned.apiPercentUsed)) as $pct | if $pct == null then empty else window($pct; $minutes; $resets; "Other Models") end) end),
+        (reported($owned; "autoPercentUsed") as $pct | if $pct == null then empty else window($pct; $minutes; $resets; "Cursor Models") end),
+        (reported($owned; "apiPercentUsed") as $pct | if $pct == null then empty else window($pct; $minutes; $resets; "Other Models") end),
         (if $demand != null and $demand.enabled == true then
            (allowance($demand) as $pct | if $pct == null then empty else window($pct; $minutes; $resets; "On-demand") end)
          else empty end)
-      ] as $windows
+      ] as $pools
+    | (if ($pools | length) > 0 then $pools
+       elif $owned != null then
+         (reported($owned; "totalPercentUsed") as $pct | if $pct == null then [] else [window($pct; $minutes; $resets; "Plan")] end)
+       else [] end) as $windows
     | (if ($email | length) > 0 then $email else "Cursor account" end) as $account
     | (if ($plan_name | length) > 0 then $plan_name else "session" end) as $login
     | if $unlimited then

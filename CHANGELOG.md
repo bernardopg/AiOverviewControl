@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Cursor** reports the signed-in plan allowance instead of a placeholder card. The adapter reads the local Cursor IDE or `cursor-agent` session and calls the same `cursor.com/api/usage-summary` route the dashboard uses. The card shows Plan (`used / limit`), Cursor Models, and Other Models, all resetting with the billing cycle. `totalPercentUsed` is left unused because it can stay low after the included allowance is already gone. Accounts still on request quotas fall back to `GET /api/usage`. Covered by `tests/test-cursor-usage.sh`.
+- **Cursor** reports the signed-in included usage instead of a placeholder card. The adapter reads the local Cursor IDE or `cursor-agent` session and calls the same `cursor.com/api/usage-summary` route the dashboard uses. The card shows Cursor Models (`autoPercentUsed`) and Other Models (`apiPercentUsed`), both resetting with the billing cycle, plus On-demand when that spend is enabled. The included `used / limit` ratio is not a bar: it can read 100% while those pools are still partly unused. Accounts still on request quotas fall back to `GET /api/usage`. Covered by `tests/test-cursor-usage.sh`.
 
 ## 1.19.0 - 2026-09-30
 
