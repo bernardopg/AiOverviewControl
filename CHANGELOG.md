@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix the **OpenRouter** key-limit bar reading 100% forever once a key's lifetime spend passed a daily, weekly or monthly limit ([#40](https://github.com/bernardopg/AiOverviewControl/issues/40)). `/api/v1/key` reports `usage` as lifetime spend, so the bar, its `$used / $limit` value and the remaining fallback now use the current window: `limit - limit_remaining`, else the `usage_*` counter matching `limit_reset`. Keys without a reset keep lifetime spend. Covered by `tests/test-openrouter.sh`.
+
 ## 1.19.0 - 2026-09-30
 
 A feature release: a smaller DankBar pill, quota notifications that open the

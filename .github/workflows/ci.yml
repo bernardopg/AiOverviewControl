@@ -621,6 +621,10 @@ jobs:
 
       - name: Integration test — xAI Grok CLI billing and Management API
         run: tests/test-xai.sh
+
+      - name: Integration test — OpenRouter windowed key limit
+        run: tests/test-openrouter.sh
+
       - name: Integration test — MiniMax Token Plan routing and quota fixtures
         run: tests/test-minimax-token-plan.sh
 
