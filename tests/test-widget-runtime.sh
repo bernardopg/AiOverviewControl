@@ -28,6 +28,13 @@ cat > "$TMP/plugin/providers/get-provider-usage" <<'SH'
 printf '[{"provider":"codex","name":"Codex","usage":{"provider":"codex","identity":{"providerID":"codex"},"primary":{"usedPercent":25,"windowMinutes":300},"secondary":{"usedPercent":15,"windowMinutes":10080}}}]\n'
 SH
 chmod +x "$TMP/plugin/providers/get-provider-usage"
+# Ready for whichever provider is checked first, so the settings health status
+# can be asserted after a selection change.
+cat > "$TMP/plugin/providers/get-provider-health" <<'SH'
+#!/usr/bin/env bash
+printf '[{"provider":"%s","status":"ready","detail":"Ready"}]\n' "${1%%,*}"
+SH
+chmod +x "$TMP/plugin/providers/get-provider-health"
 printf '#!/bin/bash\nexit 1\n' > "$TMP/bin/curl"
 chmod +x "$TMP/bin/curl" "$TMP/plugin/providers/get-exchange-rates"
 cat > "$TMP/shell.qml" <<'QML'
@@ -81,6 +88,9 @@ ShellRoot {
         Plugin.AiOverviewControlSettings { id: settings; visible: false; pluginService: service }
     }
     Plugin.AiOverviewSettingsWindow { visible: false }
+    // DMS injects pluginService after the component is built; this instance
+    // starts without it to mirror that first-load path.
+    Plugin.AiOverviewControlSettings { id: lateSettings; visible: false }
     Timer {
         interval: 1000; running: true; repeat: true
         onTriggered: {
@@ -88,6 +98,7 @@ ShellRoot {
                 // Empty-provider construction catches bindings that visibility cannot guard.
                 // Real DMS injects a physical plugin path; qs directory imports use a VFS URL.
                 widget._pluginDir = Quickshell.env("AIOC_TEST_PLUGIN_DIR");
+                lateSettings.pluginService = service;
                 const choice = settings.content.find(item => item.values && item.values.indexOf("BRL") >= 0);
                 if (!choice) { console.error("SMOKE FAIL: missing currency control"); return; }
                 choice.picked("BRL");
@@ -195,8 +206,20 @@ ShellRoot {
                 if (!fakePopout.shouldBeVisible || widget.dashboardView.parentPopout !== fakePopout)
                     console.error("SMOKE FAIL: openProvider toggled an open popout");
                 widget.focusedProviderId = "";
-                console.warn("FULL_UI_SMOKE_OK");
+                // Changing the selection must re-run the readiness check even
+                // though the initial check already completed (regression: the
+                // status stuck on "Checking…" until a manual re-check).
+                settings.selectedIds = ["claude"];
                 root.step = 7;
+            } else if (root.step === 7) {
+                const health = settings.providerHealth["claude"];
+                if (!health || health.status !== "ready")
+                    console.error("SMOKE FAIL: selection change did not re-run health: " + JSON.stringify(settings.providerHealth));
+                if (lateSettings.selectedIds.join(",") !== "codex" || !lateSettings.providerHealth["codex"])
+                    console.error("SMOKE FAIL: late pluginService did not load selection and health: "
+                        + JSON.stringify({ids: lateSettings.selectedIds, health: lateSettings.providerHealth}));
+                console.warn("FULL_UI_SMOKE_OK");
+                root.step = 8;
             }
         }
     }

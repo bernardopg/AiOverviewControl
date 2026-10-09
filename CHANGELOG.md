@@ -8,6 +8,8 @@
 
 - Fix the checkout install instructions, which copied only four of the nine root QML files and omitted `scripts/`. `qmldir` resolves `HeaderAction`, `LocalAnalyticsReader`, `CurrencyFormatter`, `AiOverviewSettingsWindow` and `DashboardContent` by name, and `providers/get-local-analytics` reads `scripts/local-analytics.jq`, so a partial copy loaded but failed at runtime — the provider card stuck on "the local database could not be read" even though the database and adapter were fine. The command now copies every root `.qml` and `scripts/`, and `scripts/check-metadata` fails if the list drops one.
 
+- Re-run the provider readiness check when the settings selection changes. `pluginService` (and with it the saved `providerSelection`) is injected after the settings component is built, so the check started in `Component.onCompleted` ran against the default set and never refreshed — the list showed `Checking…` until "Re-check health" was pressed. Covered by `tests/test-widget-runtime.sh`.
+
 ## 1.20.0 - 2026-10-05
 
 A feature release: real included usage for Cursor and a fixed OpenRouter
