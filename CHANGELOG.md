@@ -6,6 +6,8 @@
 
 - Quota alerts fall back to `dms notify` when `notify-send` is not installed, so libnotify is now optional. The fallback keeps deduplication and cooldowns but cannot replace a popup in place, set urgency or focus the provider card on click. The Antigravity IDE session reader no longer needs `strings` from binutils. Covered by `tests/test-quota-alert.sh`.
 
+- Support the OpenCode v2 (2026) local database alongside v1. v2 moves the `message`/`session` tables to `session_message`/`session_v2` and nests the model under `model.{id,providerID}`, which made the old query report "OpenCode local database could not be read" at the same database path. The local telemetry reader now detects the schema at runtime and reads either shape; a v1 install is unchanged and a stale v1 `message` table beside v2 data is ignored rather than double-counted. Covered by `tests/test-local-analytics.sh`.
+
 ## 1.20.0 - 2026-10-05
 
 A feature release: real included usage for Cursor and a fixed OpenRouter
