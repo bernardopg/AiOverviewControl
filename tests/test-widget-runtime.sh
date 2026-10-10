@@ -244,7 +244,10 @@ if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::
 fi
 # The same handler DMS exposes: `dms ipc call aiOverviewControl focus <id>`.
 ipc() {
-    env -i HOME="$TMP/home" PATH="$PATH" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
+    # env -i also drops the locale; Qt warns on stdout for the resulting ASCII
+    # locale, which would corrupt the exact IPC response asserted below.
+    env -i HOME="$TMP/home" PATH="$PATH" LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+        WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
         timeout 5 qs ipc -p "$TMP/shell.qml" call aiOverviewControl "$@" 2>&1
 }
 if [[ "$(ipc focus nope)" != UNKNOWN_PROVIDER || "$(ipc focus codex)" != PROVIDER_FOCUSED ]]; then
