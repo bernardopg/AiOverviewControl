@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 1.20.1 - 2026-10-10
+## 1.20.1 - 2026-10-09
 
 A compatibility and reliability patch for OpenCode v2, checkout installs,
 provider health and desktop notifications. No settings, credential or history
