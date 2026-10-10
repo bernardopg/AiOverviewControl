@@ -17,8 +17,26 @@ PluginSettings {
 
     readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
     property var selectedIds: normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"))
+    // pluginService (and with it the saved selection) arrives after this
+    // component is constructed, so the runHealth() in Component.onCompleted
+    // can check the default provider set instead of the user's. Re-run the
+    // check whenever the effective selection changes; runHealth() queues an
+    // overlapping call rather than dropping it.
+    onSelectedIdsChanged: runHealth()
     property var pinnedIds: normalizeCsvList(loadValue("pinnedProviders", ""))
     property var pillIds: normalizePillSelection(loadValue("pillProviders", selectedIds.join(",")))
+    // DMS sets pluginService from Loader.onLoaded, after this component is
+    // built, so the loadValue() bindings above capture the defaults. Re-read
+    // the saved selection once the service arrives, then check its health.
+    Connections {
+        target: root
+        function onPluginServiceChanged() {
+            selectedIds = normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"));
+            pinnedIds = normalizeCsvList(loadValue("pinnedProviders", ""));
+            pillIds = normalizePillSelection(loadValue("pillProviders", selectedIds.join(",")));
+            // Assigning selectedIds triggers onSelectedIdsChanged -> runHealth().
+        }
+    }
     // Stored empty means "follow the theme accent" — the same contract the
     // widget uses, so an empty value must never reach the color property.
     property color providerLogoColor: {
@@ -220,7 +238,6 @@ PluginSettings {
         // providerLogoColor defaults to "", which the widget reads as "follow
         // the theme accent"; the local property mirrors that for the swatch.
         settingsEpoch++;
-        runHealth();
     }
     // Resolved imperatively in Component.onCompleted — Qt.resolvedUrl is only reliable
     // when called from the file's own execution context, not from a declarative binding.
@@ -337,7 +354,6 @@ PluginSettings {
         else if (index < 0) result.push(id);
         selectedIds = result;
         saveValue("providerSelection", result.join(","));
-        runHealth();
     }
 
     function healthFor(id) {

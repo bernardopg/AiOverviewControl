@@ -15,13 +15,18 @@ directory `ls ~/.config/DankMaterialShell/plugins` actually shows.
 
 ## Install from a checkout
 
+Run this from the checkout root. Copy **all** root `.qml` files and the
+`scripts/` directory, not a hand-picked subset: `qmldir` resolves the root QML
+components by name, and `providers/get-local-analytics` reads
+`scripts/local-analytics.jq`. A partial copy loads but fails at runtime.
+
 ```bash
-mkdir -p ~/.config/DankMaterialShell/plugins/AiOverviewControl
-cp -a AiOverviewControlWidget.qml AiOverviewControlSettings.qml AiOverviewControlI18n.qml \
-  ProviderLogo.qml plugin.json qmldir providers assets README.md CHANGELOG.md LICENSE \
-  docs i18n screenshot.png \
-  ~/.config/DankMaterialShell/plugins/AiOverviewControl/
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
+PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
+mkdir -p "$PLUGIN"
+cp -a ./*.qml plugin.json qmldir providers scripts assets \
+  README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
+  "$PLUGIN"/
+chmod +x "$PLUGIN"/providers/get-*
 dms restart
 ```
 

@@ -33,6 +33,21 @@ for path in sorted(Path('i18n').glob('*.json')):
     keys = set(load(path))
     require(keys == base, f'{path}: missing {sorted(base - keys)}, extra {sorted(keys - base)}')
 
+# The checkout install copies files by hand. A partial copy loads but fails at
+# runtime (qmldir types missing, or get-local-analytics without its jq filter),
+# so the documented command must cover every root QML file and scripts/.
+install = Path('docs/installation.md').read_text()
+checkout = re.search(r'## Install from a checkout\b(.*?)(?:\n## |\Z)', install, re.S)
+require(checkout is not None, 'docs/installation.md: missing "Install from a checkout" section')
+if checkout:
+    fence = re.search(r'```(?:bash)?\n(.*?)```', checkout.group(1), re.S)
+    command = fence.group(1) if fence else checkout.group(1)
+    globs_qml = re.search(r'(?<!\w)\*\.qml(?!\w)', command) is not None
+    for name in sorted(p.name for p in Path('.').glob('*.qml')):
+        require(globs_qml or name in command, f'checkout install omits {name}')
+    require('scripts' in command,
+            'checkout install omits scripts/ (get-local-analytics needs scripts/local-analytics.jq)')
+
 for path in sorted(set(Path('tests').glob('*.sh')) | set(Path('providers').glob('get-*'))):
     require(path.is_file() and bool(path.stat().st_mode & 0o111), f'Not executable: {path}')
 workflow = Path('.github/workflows/ci.yml').read_text()
