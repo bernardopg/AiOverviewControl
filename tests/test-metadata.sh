@@ -4,9 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$TMP"/{scripts,i18n,tests,providers,.github/workflows}
+mkdir -p "$TMP"/{scripts,i18n,tests,providers,docs,.github/workflows}
 cp "$ROOT/scripts/check-metadata" "$ROOT/scripts/check-changelog" "$TMP/scripts/"
-cp "$ROOT/plugin.json" "$ROOT/CHANGELOG.md" "$TMP/"
+cp "$ROOT/plugin.json" "$ROOT/CHANGELOG.md" "$ROOT"/*.qml "$TMP/"
+cp "$ROOT/docs/installation.md" "$TMP/docs/"
 cp "$ROOT"/i18n/*.json "$TMP/i18n/"
 printf '#!/bin/bash\n' > "$TMP/tests/test-example.sh"
 printf '#!/bin/bash\n' > "$TMP/providers/get-example"
@@ -15,6 +16,24 @@ printf 'jobs:\n  integration:\n    steps:\n      - run: tests/test-example.sh\n'
 check() { bash "$TMP/scripts/check-metadata" >/dev/null 2>&1; }
 reject() { if check; then echo "FAIL: accepted $1" >&2; exit 1; fi; }
 check
+cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
+python3 - "$TMP/docs/installation.md" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace('./*.qml', 'AiOverviewControlWidget.qml'))
+PY
+reject 'checkout install missing root QML files'
+mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
+cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
+python3 - "$TMP/docs/installation.md" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace('providers scripts assets', 'providers assets'))
+PY
+reject 'checkout install missing scripts directory'
+mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
 chmod -x "$TMP/tests/test-example.sh"
 reject 'non-executable test'
 chmod +x "$TMP/tests/test-example.sh"
