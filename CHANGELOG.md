@@ -10,6 +10,8 @@
 
 - Re-run the provider readiness check when the settings selection changes. `pluginService` (and with it the saved `providerSelection`) is injected after the settings component is built, so the check started in `Component.onCompleted` ran against the default set and never refreshed — the list showed `Checking…` until "Re-check health" was pressed. Covered by `tests/test-widget-runtime.sh`.
 
+- Support the OpenCode v2 (2026) local database alongside v1. v2 moves the `message`/`session` tables to `session_message`/`session_v2` and nests the model under `model.{id,providerID}`, which made the old query report "OpenCode local database could not be read" at the same database path. The local telemetry reader now detects the schema at runtime and reads either shape; a v1 install is unchanged, legacy-only v1 sessions remain visible after an upgrade, and sessions present in both generations are read from v2 alone rather than double-counted. Covered by `tests/test-local-analytics.sh`.
+
 ## 1.20.0 - 2026-10-05
 
 A feature release: real included usage for Cursor and a fixed OpenRouter

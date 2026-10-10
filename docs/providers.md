@@ -611,7 +611,7 @@ force the Zen path.
 
 | | |
 | --- | --- |
-| **Local source** | `${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db` (SQLite, read-only). Assistant messages carry `providerID`, `modelID`, `tokens` and `cost`; only usage metadata is read, never message content. Costs come from whatever OpenCode recorded — a missing cost makes the window unknown (`—`) rather than `$0`. |
+| **Local source** | `${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db` (SQLite, read-only). The schema is detected per database. v1 assistant rows live in `message` joined to `session`, carrying flat `providerID`/`modelID`; v2 (2026) uses `session_message` (`type = 'assistant'`) joined to `session_v2`, with the model nested under `model.{id,providerID}`. Both shapes carry `tokens` and `cost`. In an upgraded database, legacy-only v1 sessions remain visible, while a session id also present in v2 is read from v2 alone rather than double-counted. Only usage metadata is read, never message content. Costs come from whatever OpenCode recorded — a missing cost makes the window unknown (`—`) rather than `$0`. |
 | **Local adapter** | `fetch_opencode_native` (local branch) + `providers/get-local-analytics opencode`, cached 120s. |
 
 #### OpenCode Go (Zen quota mode)
