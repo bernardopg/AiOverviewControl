@@ -36,47 +36,65 @@ case "$provider" in
     db="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db"
     [ -f "$db" ] || fail 'OpenCode local database not found'
     command -v sqlite3 >/dev/null || fail 'sqlite3 is required for OpenCode telemetry'
-    # OpenCode v2 (2026) replaced the v1 `session`/`message` tables with
-    # `session_v2`/`session_message`, and nests the model under `model.{id,
-    # providerID}` instead of the flat `modelID`/`providerID`. The database
-    # lives at the same path, so detect the schema at runtime and support a v1
-    # and a v2 install concurrently; v2 wins if a database somehow has both.
+    # OpenCode v2 (2026) writes `session_v2`/`session_message` and nests the
+    # model under `model.{id,providerID}`. Upgraded databases can retain frozen
+    # v1 tables, including legacy-only sessions, so read both generations and
+    # let v2 own any session id present there rather than double-counting it.
     schema_tables="$(sqlite3 -readonly -cmd '.timeout 1500' "$db" \
       "SELECT name FROM sqlite_master WHERE type='table';" 2>/dev/null)" || schema_tables=""
-    if grep -qx 'session_message' <<<"$schema_tables"; then
-      msg_table=session_message; sess_table=session_v2
-      assistant_pred="m.type = 'assistant'"
-    elif grep -qx 'message' <<<"$schema_tables"; then
-      msg_table=message; sess_table=session
-      assistant_pred="json_extract(m.data, '$.role') = 'assistant'"
-    else
+    has_table() { grep -Fqx "$1" <<<"$schema_tables"; }
+    has_v1=false
+    has_v2=false
+    if has_table message && has_table session; then has_v1=true; fi
+    if has_table session_message && has_table session_v2; then has_v2=true; fi
+    if [ "$has_v1" = false ] && [ "$has_v2" = false ]; then
       fail 'OpenCode database could not be read (locked, corrupt or unsupported schema)'
     fi
     # Message IDs are unique; reasoning is a subset of output, cache is separate
     # from input in OpenCode. Prefer its total when present; v2 drops the total
-    # and nests the model, so read both shapes through COALESCE.
-    sqlite3 -readonly -cmd '.timeout 1500' -json "$db" "
-      SELECT m.id, m.session_id AS session, s.directory AS cwd,
-        date(m.time_created / 1000, 'unixepoch', 'localtime') AS date,
-        COALESCE(json_extract(m.data, '$.model.providerID'), json_extract(m.data, '$.providerID'), 'unknown') || '/' ||
-        COALESCE(json_extract(m.data, '$.model.id'), json_extract(m.data, '$.modelID'), 'unknown') AS model,
-        COALESCE(json_extract(m.data, '$.tokens.total'),
-          COALESCE(json_extract(m.data, '$.tokens.input'), 0) +
-          COALESCE(json_extract(m.data, '$.tokens.output'), 0) +
-          COALESCE(json_extract(m.data, '$.tokens.cache.read'), 0) +
-          COALESCE(json_extract(m.data, '$.tokens.cache.write'), 0)) AS tokens,
-        json_extract(m.data, '$.tokens.input') AS input,
-        json_extract(m.data, '$.tokens.output') AS output,
-        json_extract(m.data, '$.tokens.cache.read') AS cacheRead,
-        json_extract(m.data, '$.tokens.reasoning') AS reasoning,
-        CASE WHEN json_type(m.data, '$.cost') IN ('integer','real')
-          AND json_extract(m.data, '$.cost') >= 0 THEN json_extract(m.data, '$.cost') END AS cost,
-        1 AS calls
-      FROM $msg_table m JOIN $sess_table s ON s.id = m.session_id
-      WHERE json_valid(m.data) AND $assistant_pred
-        AND json_type(m.data, '$.tokens') = 'object'
-        AND m.time_created >= unixepoch('now', '-32 days') * 1000;
-    " >"$rows" 2>/dev/null || fail 'OpenCode database could not be read (locked, corrupt or unsupported schema)'
+    # and nests the model, so read both shapes through one projection.
+    select_columns="SELECT m.id, m.session_id AS session, s.directory AS cwd,
+      date(m.time_created / 1000, 'unixepoch', 'localtime') AS date,
+      COALESCE(json_extract(m.data, '$.model.providerID'), json_extract(m.data, '$.providerID'), 'unknown') || '/' ||
+      COALESCE(json_extract(m.data, '$.model.id'), json_extract(m.data, '$.modelID'), 'unknown') AS model,
+      COALESCE(json_extract(m.data, '$.tokens.total'),
+        COALESCE(json_extract(m.data, '$.tokens.input'), 0) +
+        COALESCE(json_extract(m.data, '$.tokens.output'), 0) +
+        COALESCE(json_extract(m.data, '$.tokens.cache.read'), 0) +
+        COALESCE(json_extract(m.data, '$.tokens.cache.write'), 0)) AS tokens,
+      json_extract(m.data, '$.tokens.input') AS input,
+      json_extract(m.data, '$.tokens.output') AS output,
+      json_extract(m.data, '$.tokens.cache.read') AS cacheRead,
+      json_extract(m.data, '$.tokens.reasoning') AS reasoning,
+      CASE WHEN json_type(m.data, '$.cost') IN ('integer','real')
+        AND json_extract(m.data, '$.cost') >= 0 THEN json_extract(m.data, '$.cost') END AS cost,
+      1 AS calls"
+    usage_query=""
+    if [ "$has_v2" = true ]; then
+      usage_query="$select_columns
+        FROM session_message m JOIN session_v2 s ON s.id = m.session_id
+        WHERE json_valid(m.data) AND m.type = 'assistant'
+          AND json_type(m.data, '$.tokens') = 'object'
+          AND m.time_created >= unixepoch('now', '-32 days') * 1000"
+    fi
+    if [ "$has_v1" = true ]; then
+      legacy_query="$select_columns
+        FROM message m JOIN session s ON s.id = m.session_id
+        WHERE json_valid(m.data) AND json_extract(m.data, '$.role') = 'assistant'
+          AND json_type(m.data, '$.tokens') = 'object'
+          AND m.time_created >= unixepoch('now', '-32 days') * 1000"
+      if [ "$has_v2" = true ]; then
+        legacy_query="$legacy_query
+          AND NOT EXISTS (SELECT 1 FROM session_v2 current WHERE current.id = m.session_id)"
+      fi
+      if [ -n "$usage_query" ]; then
+        usage_query="$usage_query UNION ALL $legacy_query"
+      else
+        usage_query="$legacy_query"
+      fi
+    fi
+    sqlite3 -readonly -cmd '.timeout 1500' -json "$db" "$usage_query;" \
+      >"$rows" 2>/dev/null || fail 'OpenCode database could not be read (locked, corrupt or unsupported schema)'
     # sqlite3 emits no bytes for an empty result set.
     [ -s "$rows" ] || printf '[]' >"$rows"
     ;;

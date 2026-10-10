@@ -49,8 +49,8 @@ bash "$ROOT/providers/get-local-analytics" opencode \
 # OpenCode v2 (2026) replaced session/message with session_v2/session_message
 # and nests the model under model.{id,providerID}. The database path is
 # unchanged, so both schemas must coexist behind runtime detection. A stale v1
-# `message` table left beside v2 data must be ignored, not double-counted, and
-# an errored assistant message carries no tokens and is not a call.
+# session duplicated in v2 must be ignored, while a legacy-only session remains
+# visible; an errored assistant message carries no tokens and is not a call.
 rm -f "$XDG_CACHE_HOME/AiOverviewControl/local-analytics-opencode-cache.json"
 export OPENCODE_DATA_DIR="$TMP/opencode-v2"
 mkdir -p "$OPENCODE_DATA_DIR"
@@ -59,8 +59,9 @@ CREATE TABLE session_v2(id TEXT PRIMARY KEY, directory TEXT);
 CREATE TABLE session_message(id TEXT PRIMARY KEY, session_id TEXT, type TEXT, time_created INTEGER, data TEXT);
 CREATE TABLE session(id TEXT PRIMARY KEY, directory TEXT);
 CREATE TABLE message(id TEXT PRIMARY KEY, session_id TEXT, time_created INTEGER, data TEXT);
-INSERT INTO session VALUES('s','/stale');
+INSERT INTO session VALUES('s','/stale'),('legacy','/legacy');
 INSERT INTO message VALUES('stale','s',unixepoch()*1000, '{\"role\":\"assistant\",\"providerID\":\"stale\",\"modelID\":\"stale\",\"tokens\":{\"total\":9999}}');
+INSERT INTO message VALUES('legacy','legacy',unixepoch()*1000, '{\"role\":\"assistant\",\"providerID\":\"other\",\"modelID\":\"legacy\",\"cost\":0,\"tokens\":{\"total\":7}}');
 INSERT INTO session_v2 VALUES('s','/local');
 INSERT INTO session_message VALUES('a','s','assistant',unixepoch()*1000, '{\"model\":{\"id\":\"free\",\"providerID\":\"other\"},\"cost\":0,\"tokens\":{\"input\":10,\"output\":5,\"reasoning\":2,\"cache\":{\"read\":20,\"write\":3}}}');
 INSERT INTO session_message VALUES('b','s','assistant',unixepoch()*1000, '{\"model\":{\"id\":\"paid\",\"providerID\":\"other\"},\"cost\":0.001,\"tokens\":{\"total\":50,\"input\":30,\"output\":20}}');
@@ -68,8 +69,8 @@ INSERT INTO session_message VALUES('user','s','user',unixepoch()*1000, '{\"token
 INSERT INTO session_message VALUES('err','s','assistant',unixepoch()*1000, '{\"model\":{\"id\":\"free\",\"providerID\":\"other\"},\"error\":\"boom\"}');
 "
 result="$(bash "$ROOT/providers/get-local-analytics" opencode)"
-printf '%s' "$result" | check '.today.tokens == 88 and .today.cost == 0.001 and .today.calls == 2 and .today.cacheRead == 20' 'OpenCode v2 tokens/cost and stale v1 table ignored'
-printf '%s' "$result" | check '.topModels[0].model == "other/paid" and .topProjects[0].cwd == "/local"' 'OpenCode v2 model/project attribution'
+printf '%s' "$result" | check '.today.tokens == 95 and .today.cost == 0.001 and .today.calls == 3 and .today.sessions == 2 and .today.cacheRead == 20' 'OpenCode v2 tokens/cost, legacy retention and duplicate suppression'
+printf '%s' "$result" | check '.topModels[0].model == "other/paid" and .topProjects[0].cwd == "/local" and any(.topProjects[]; .cwd == "/legacy") and all(.topModels[]; .model != "stale/stale")' 'OpenCode v2 model/project attribution and generation precedence'
 bash "$ROOT/providers/get-provider-usage" opencode | check '.[0].source == "opencode-local" and .[0].error == null' 'OpenCode v2 card without any API credentials'
 # The same unknown-vs-recorded-zero rule holds on the v2 schema.
 rm -f "$XDG_CACHE_HOME/AiOverviewControl/local-analytics-opencode-cache.json"
