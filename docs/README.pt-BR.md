@@ -151,7 +151,7 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-O [guia do release 1.20.0](./releases/1.20.0.md) reúne mudanças, privacidade e limitações (em inglês).
+O [guia do release 1.20.1](./releases/1.20.1.md) reúne mudanças, privacidade e limitações (em inglês).
 Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
 e [regras de PR e publicação](./repository-rules.md).
 
@@ -202,6 +202,7 @@ Achou um bug ou tem uma ideia? [Abra uma issue](https://github.com/bernardopg/Ai
 <a href="https://github.com/goulartdev" title="goulartdev"><img src="https://avatars.githubusercontent.com/u/16469407?v=4&s=112" width="56" height="56" alt="goulartdev" /></a>
 <a href="https://github.com/emmsixx" title="emmsixx"><img src="https://avatars.githubusercontent.com/u/56744133?v=4&s=112" width="56" height="56" alt="emmsixx" /></a>
 <a href="https://github.com/Murat65536" title="Murat65536"><img src="https://avatars.githubusercontent.com/u/99989538?v=4&s=112" width="56" height="56" alt="Murat65536" /></a>
+<a href="https://github.com/ReillyBrogan" title="ReillyBrogan"><img src="https://avatars.githubusercontent.com/u/4309817?v=4&s=112" width="56" height="56" alt="ReillyBrogan" /></a>
 <a href="https://github.com/gouwazi" title="gouwazi"><img src="https://avatars.githubusercontent.com/u/23072555?v=4&s=112" width="56" height="56" alt="gouwazi" /></a>
 <a href="https://github.com/UN-9BOT" title="UN-9BOT"><img src="https://avatars.githubusercontent.com/u/111110804?v=4&s=112" width="56" height="56" alt="UN-9BOT" /></a>
 <a href="https://github.com/SkippySteve" title="SkippySteve"><img src="https://avatars.githubusercontent.com/u/69158610?v=4&s=112" width="56" height="56" alt="SkippySteve" /></a>

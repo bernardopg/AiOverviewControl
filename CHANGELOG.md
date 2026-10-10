@@ -2,15 +2,26 @@
 
 ## Unreleased
 
-- Correct the MIT license copyright holder from the stale `zak` placeholder to `Bernardo Pinto Gomes`; the placeholder had been present since the initial project commit.
+## 1.20.1 - 2026-10-09
 
-- Quota alerts fall back to `dms notify` when `notify-send` is not installed, so libnotify is now optional. The fallback keeps deduplication and cooldowns but cannot replace a popup in place, set urgency or focus the provider card on click. The Antigravity IDE session reader no longer needs `strings` from binutils. Covered by `tests/test-quota-alert.sh`.
+A compatibility and reliability patch for OpenCode v2, checkout installs,
+provider health and desktop notifications. No settings, credential or history
+migration is required. Thanks to [@ReillyBrogan](https://github.com/ReillyBrogan)
+for the OpenCode report and both fixes ([#46](https://github.com/bernardopg/AiOverviewControl/issues/46), [#47](https://github.com/bernardopg/AiOverviewControl/pull/47), [#48](https://github.com/bernardopg/AiOverviewControl/pull/48)). Long-form notes:
+[docs/releases/1.20.1.md](docs/releases/1.20.1.md).
 
-- Fix the checkout install instructions, which copied only four of the nine root QML files and omitted `scripts/`. `qmldir` resolves `HeaderAction`, `LocalAnalyticsReader`, `CurrencyFormatter`, `AiOverviewSettingsWindow` and `DashboardContent` by name, and `providers/get-local-analytics` reads `scripts/local-analytics.jq`, so a partial copy loaded but failed at runtime — the provider card stuck on "the local database could not be read" even though the database and adapter were fine. The command now copies every root `.qml` and `scripts/`, and `scripts/check-metadata` fails if the list drops one.
-
-- Re-run the provider readiness check when the settings selection changes. `pluginService` (and with it the saved `providerSelection`) is injected after the settings component is built, so the check started in `Component.onCompleted` ran against the default set and never refreshed — the list showed `Checking…` until "Re-check health" was pressed. Covered by `tests/test-widget-runtime.sh`.
+### Fixes
 
 - Support the OpenCode v2 (2026) local database alongside v1. v2 moves the `message`/`session` tables to `session_message`/`session_v2` and nests the model under `model.{id,providerID}`, which made the old query report "OpenCode local database could not be read" at the same database path. The local telemetry reader now detects the schema at runtime and reads either shape; a v1 install is unchanged, legacy-only v1 sessions remain visible after an upgrade, and sessions present in both generations are read from v2 alone rather than double-counted. Covered by `tests/test-local-analytics.sh`.
+- Fix the checkout install instructions, which copied only four of the nine root QML files and omitted `scripts/`. `qmldir` resolves `HeaderAction`, `LocalAnalyticsReader`, `CurrencyFormatter`, `AiOverviewSettingsWindow` and `DashboardContent` by name, and `providers/get-local-analytics` reads `scripts/local-analytics.jq`, so a partial copy loaded but failed at runtime — the provider card stuck on "the local database could not be read" even though the database and adapter were fine. The command now copies every root `.qml` and `scripts/`, and `scripts/check-metadata` fails if the list drops one.
+- Re-run the provider readiness check when the settings selection changes. `pluginService` (and with it the saved `providerSelection`) is injected after the settings component is built, so the check started in `Component.onCompleted` ran against the default set and never refreshed — the list showed `Checking…` until "Re-check health" was pressed. Covered by `tests/test-widget-runtime.sh`.
+- Quota alerts fall back to `dms notify` when `notify-send` is not installed, so libnotify is now optional. The fallback keeps deduplication and cooldowns but cannot replace a popup in place, set urgency or focus the provider card on click. The Antigravity IDE session reader no longer needs `strings` from binutils. Covered by `tests/test-quota-alert.sh`.
+
+### Maintenance and documentation
+
+- Correct the MIT license copyright holder from the stale `zak` placeholder to `Bernardo Pinto Gomes`; the placeholder had been present since the initial project commit.
+- Add [@ReillyBrogan](https://github.com/ReillyBrogan) to the README contributor grids.
+- Add the [1.20.1 release guide](docs/releases/1.20.1.md) and point both READMEs at it.
 
 ## 1.20.0 - 2026-10-05
 
