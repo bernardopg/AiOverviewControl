@@ -37,7 +37,7 @@ Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#
 - [x] **heroGlow infinite animation** — bind `running` to popout visibility
   via injected `parentPopout.shouldBeVisible`. `S · ★★`
 
-- [ ] **Registry PR follow-up** — track AvengeMedia/dms-plugin-registry#961
+- [x] **Registry PR follow-up** — track AvengeMedia/dms-plugin-registry#961
   until the maintainers merge it, then close this section. `S · ★★`
 
 ## 🧭 Roadmap after 1.18.0 (recommended order)
@@ -77,6 +77,13 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 ## Providers — Data & Auth
 
 - [ ] **NVIDIA** — surface quota-window info if NIM adds a balance endpoint (monitor changelog). `M · ★★`
+- [x] **NVIDIA key verification** — real `nvapi-` validation through NGC `v3/keys/get-caller-info` replaced the public `/v1/models` probe, which accepted any key. Re-checked 2026-10-13: still no credits or rate-limit API. `S · ★★`
+- [x] **Neuralwatt** ([#50](https://github.com/bernardopg/AiOverviewControl/issues/50)) — `/v1/quota`: subscription kWh, prepaid balance, per-key allowance. `M · ★★★`
+- [x] **Cline** — account API credit balance (personal/organization) and ClinePass plan via `CLINE_API_KEY` or an unexpired CLI sign-in. `M · ★★`
+- [ ] **Cline ClinePass usage** — surface ClinePass window usage if Cline publishes a read-only usage-limits endpoint; today only the plan and renewal date are readable. `M · ★★`
+- [x] **OpenRouter free models** — `free_model_daily_requests` drives the bar for uncapped keys. `S · ★★`
+- [x] **Groq rate limits** — opt-in `GROQ_QUOTA_MODEL` probe reads requests/day and tokens/minute from one cached 1-token completion. Replace with a read-only endpoint if Groq ever publishes one. `S · ★★`
+- [x] **Cline free-model usage** — today's requests/tokens from `/usages`; the daily free-model limit has no published number. `S · ★★`
 - [ ] **Mistral** — surface `is_default_key` flag and rate-limit headers when a quota endpoint exists. `M · ★★`
 - [ ] **BytePlus/Ark** — surface `remaining_tokens` per model when the API exposes per-model quotas. `M · ★★`
 - [x] **Codex** — record credit-balance history alongside rate-limit snapshots. Reset-credit balances (zero included), serialized writer, CSV/JSONL exports and fixture tests are implemented; individual quota limits are not mistaken for balances. `M · ★★`

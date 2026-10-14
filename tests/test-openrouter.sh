@@ -36,6 +36,17 @@ cat >"$TMP/fixtures/unlimited.json" <<'EOF'
  "usage_daily":0,"usage_weekly":1,"usage_monthly":4}}
 EOF
 
+# Uncapped key with the free-model daily allowance (live /api/v1/key shape).
+cat >"$TMP/fixtures/free-daily.json" <<'EOF'
+{"data":{"label":"sk-or-v1-test","limit":null,"usage":0.4,"limit_remaining":null,"limit_reset":null,
+ "usage_daily":0,"usage_weekly":0,"usage_monthly":0.4,"is_free_tier":false,
+ "free_model_daily_requests":{"used":250,"limit":1000,"remaining":750}}}
+EOF
+
+# A capped key keeps the cap as its bar even with the free allowance present.
+jq '.data.free_model_daily_requests = {used: 900, limit: 1000, remaining: 100}' \
+  "$TMP/fixtures/weekly.json" >"$TMP/fixtures/capped-free.json"
+
 cat >"$TMP/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 out=""
@@ -94,5 +105,16 @@ out="$(run unlimited)"
 [ "$(field usage.primary.usedPercent)" = "0" ] || fail "unlimited percent"
 [ "$(field usage.primary.displayValue)" = '$12.50 used' ] || fail "unlimited display"
 [ "$(field credits.remaining)" = "unlimited" ] || fail "unlimited remaining"
+
+# 5. Uncapped key: the free-model daily allowance is the bar, resetting at UTC midnight.
+out="$(run free-daily)"
+[ "$(field usage.primary.usedPercent)" = "25" ] || fail "free percent"
+[ "$(field usage.primary.displayValue)" = "250 / 1000 requests" ] || fail "free display"
+[ "$(field usage.primary.resetDescription)" = "Free model requests" ] || fail "free label"
+[ "$(field usage.primary.resetsAt)" = "$(date -u -d 'tomorrow 00:00' +%Y-%m-%dT%H:%M:%SZ)" ] || fail "free reset"
+
+# 6. Capped key: the cap stays primary.
+out="$(run capped-free)"
+[ "$(field usage.primary.resetDescription)" = "Key limit" ] || fail "cap wins over free allowance"
 
 echo "ok"

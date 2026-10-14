@@ -101,13 +101,15 @@ The settings health check describes whether the plugin can run an adapter in the
 | Ollama | optional `OLLAMA_HOST`; requires the `ollama` CLI in PATH |
 | Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`); `AIOC_NO_LITELLM=1` disables the daily LiteLLM fetch that prices rows the ledger left unresolved (they then reuse the last snapshot, or stay unknown with none) |
 | Claude Code | optional `CLAUDE_CONFIG_DIR` (defaults to `~/.claude`); `AIOC_NO_LITELLM=1` disables the daily LiteLLM pricing fetch from `raw.githubusercontent.com` (cost fields then reuse the last cached snapshot, or report 0.00 with none) |
-| NVIDIA | `NVIDIA_API_KEY` |
+| NVIDIA | `NVIDIA_API_KEY` (verified against NGC) |
+| Neuralwatt | `NEURALWATT_API_KEY` |
+| Cline | `CLINE_API_KEY`, or an unexpired Cline CLI sign-in in `${CLINE_DATA_DIR:-~/.cline/data}/settings/providers.json` |
 | Cloudflare | `CLOUDFLARE_AI_TOKEN` or `CLOUDFLARE_API_TOKEN`; optional `CLOUDFLARE_ACCOUNT_ID` |
 | Vertex AI | requires `gcloud auth print-access-token` to succeed at collection time; the readiness chip checks only that the `gcloud` CLI is in `PATH`. Optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` enrich the reported identity |
 | BytePlus | `BYTEPLUS_API_KEY` or `ARK_API_KEY` |
 | Qwen | `DASHSCOPE_API_KEY` or `QWEN_API_KEY`; optional `DASHSCOPE_WORKSPACE_ID` |
 | Together | `TOGETHER_API_KEY` |
-| Groq | `GROQ_API_KEY` |
+| Groq | `GROQ_API_KEY`; optional `GROQ_QUOTA_MODEL` turns on the rate-limit probe (one 1-token completion to that model per `GROQ_QUOTA_TTL` seconds, default `1800`) |
 | Cohere | `COHERE_API_KEY` |
 | Replicate | `REPLICATE_API_TOKEN` |
 | Fireworks | `FIREWORKS_API_KEY`; optional `FIREWORKS_ACCOUNT_ID` enables quota data |

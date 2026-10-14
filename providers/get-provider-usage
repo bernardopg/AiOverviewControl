@@ -129,6 +129,10 @@ source "$SCRIPT_DIR/native/mistral.bash"
 source "$SCRIPT_DIR/native/ollama.bash"
 # shellcheck source=providers/native/nvidia.bash
 source "$SCRIPT_DIR/native/nvidia.bash"
+# shellcheck source=providers/native/neuralwatt.bash
+source "$SCRIPT_DIR/native/neuralwatt.bash"
+# shellcheck source=providers/native/cline.bash
+source "$SCRIPT_DIR/native/cline.bash"
 # shellcheck source=providers/native/cloudflare.bash
 source "$SCRIPT_DIR/native/cloudflare.bash"
 # shellcheck source=providers/native/vertexai.bash
@@ -1093,6 +1097,9 @@ fetch_provider() {
     nvidia|nim)
       fetch_nvidia_native
       ;;
+    neuralwatt)
+      fetch_neuralwatt_native
+      ;;
     cloudflare)
       fetch_cloudflare_native
       ;;
@@ -1127,7 +1134,7 @@ fetch_provider() {
       json_note_usage amp amp-local "Amp account" "payg" "No public quota API; usage is available in Amp settings" "ampcode.com"
       ;;
     cline)
-      json_note_usage cline cline-local "Cline account" "subscription" "No public quota API; usage is available in the Cline client" "app.cline.bot"
+      fetch_cline_native
       ;;
     opencode)
       fetch_opencode_native

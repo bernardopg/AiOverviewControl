@@ -184,7 +184,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"]
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"]
 
     ListModel {
         id: claudeModelList
@@ -541,6 +541,9 @@ PluginComponent {
             "completions": ["window.completions", "Completions"],
             "key limit": ["window.key_limit", "Key limit"],
             "spent today": ["window.spent_today", "Spent today"],
+            "free model requests": ["window.free_model_requests", "Free model requests"],
+            "requests per day": ["window.requests_per_day", "Requests per day"],
+            "tokens per minute": ["window.tokens_per_minute", "Tokens per minute"],
             "week and top models": ["window.week_top_models", "Week and top models"],
             "week and month spend": ["window.week_month_spend", "Week and month spend"],
             "tracked total": ["window.tracked_total", "Tracked total"],
@@ -566,6 +569,7 @@ PluginComponent {
             "on-demand": ["window.on_demand", "On-demand"],
             "1 hour": ["window.hourly", "Hourly"],
             "1 day": ["window.daily", "Daily"],
+            "daily": ["window.daily", "Daily"],
             "1 week": ["window.weekly", "Weekly"]
         };
         if (known[key]) return t(known[key][0], known[key][1]);
@@ -680,6 +684,7 @@ PluginComponent {
             grok: "xAI",
             perplexity: "Perplexity",
             cline: "Cline",
+            neuralwatt: "Neuralwatt",
             opencode: "OpenCode Go",
             kilo: "Kilo",
             kiro: "Kiro",
@@ -968,6 +973,8 @@ PluginComponent {
         if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba")
             return Theme.warning;
         if (providerId === "nvidia" || providerId === "nim")
+            return Theme.success;
+        if (providerId === "neuralwatt")
             return Theme.success;
         if (providerId === "cloudflare")
             return Theme.warning;
@@ -1602,7 +1609,8 @@ PluginComponent {
             grok: "https://console.x.ai/billing",
             perplexity: "https://www.perplexity.ai/settings",
             cursor: "https://cursor.com/settings",
-            cline: "https://app.cline.bot",
+            cline: "https://app.cline.bot/dashboard/account?tab=credits",
+            neuralwatt: "https://portal.neuralwatt.com",
             opencode: "https://opencode.ai",
             kilo: "https://app.kilo.ai/credits",
             kiro: "https://app.kiro.dev/settings/account",

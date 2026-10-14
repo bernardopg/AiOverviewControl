@@ -7,12 +7,12 @@
 **Every AI quota you pay for, live in your DankBar.**
 
 A [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) plugin that tracks
-quota, billing, authentication, and local usage for 37 AI providers — locally, honestly,
+quota, billing, authentication, and local usage for 38 AI providers — locally, honestly,
 with no external service.
 
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
-[![Providers](https://img.shields.io/badge/providers-37-8B5CF6)](./docs/providers.md)
+[![Providers](https://img.shields.io/badge/providers-38-8B5CF6)](./docs/providers.md)
 [![Languages](https://img.shields.io/badge/languages-5-00BFA5)](./docs/i18n-crowdin.md)
 [![License](https://img.shields.io/github/license/bernardopg/AiOverviewControl?color=64748B)](./LICENSE)
 
@@ -50,7 +50,7 @@ invented percentages.
 <tr>
 <td width="50%" valign="top">
 
-**📊 One dashboard, 37 providers**<br />
+**📊 One dashboard, 38 providers**<br />
 Quota, balance, analytics, and auth status side by side, with a fleet overview
 of average load, hottest provider, and next reset.
 
@@ -138,14 +138,14 @@ Prefer a release archive or a git checkout? See [Installation](./docs/installati
 
 ## 🧩 Providers
 
-| Coverage | What you get | Examples |
-| --- | --- | --- |
-| **Quota** | Real usage % and reset time | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI |
-| **Balance** | Remaining prepaid credit | Kimi, DeepSeek |
-| **Analytics** | Tokens, cost, and models from local data | Claude, 9Router, pi, Hermes, Cloudflare |
-| **Authentication** | Credential check, no usage numbers | Gemini, Mistral, Qwen, Groq, Cohere |
-| **Local runtime** | Local models and sessions | Ollama, Vertex AI |
-| **Informational** | A link to the official usage page | Cursor, Kiro, Warp, Perplexity |
+| Coverage           | What you get                             | Examples                                                |
+| ------------------ | ---------------------------------------- | ------------------------------------------------------- |
+| **Quota**          | Real usage % and reset time              | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI |
+| **Balance**        | Remaining prepaid credit                 | Kimi, DeepSeek, Neuralwatt, Cline                       |
+| **Analytics**      | Tokens, cost, and models from local data | Claude, 9Router, pi, Hermes, Cloudflare                 |
+| **Authentication** | Credential check, no usage numbers       | Gemini, Mistral, Qwen, Groq, Cohere                     |
+| **Local runtime**  | Local models and sessions                | Ollama, Vertex AI                                       |
+| **Informational**  | A link to the official usage page        | Cursor, Kiro, Warp, Perplexity                          |
 
 The full list, data sources, and credentials are in [Providers](./docs/providers.md).
 
@@ -162,17 +162,17 @@ For the latest release, start with the [1.20.1 changes guide](./docs/releases/1.
 See [cost currency and privacy](./docs/currency.md), [runtime module boundaries](./docs/refactoring.md),
 and [protected PR/release rules](./docs/repository-rules.md).
 
-| | |
-| --- | --- |
-| [Usage](./docs/usage.md) | Pill, popout, cards, keyboard, IPC, history, privacy |
-| [Installation](./docs/installation.md) | Store, archive, and git installs; upgrades |
-| [Configuration](./docs/configuration.md) | Every setting, environment variables, health checks |
-| [Providers](./docs/providers.md) | Coverage matrix and per-provider data sources |
-| [Troubleshooting](./docs/troubleshooting.md) | Missing cards, credentials, notifications |
-| [Architecture](./docs/architecture.md) | Runtime flow and the adapter contract |
-| [Translations](./docs/i18n-crowdin.md) | Locales and Crowdin |
-| [Contributing](./CONTRIBUTING.md) | Local checks and conventions |
-| [Changelog](./CHANGELOG.md) | Release history |
+|                                              |                                                      |
+| -------------------------------------------- | ---------------------------------------------------- |
+| [Usage](./docs/usage.md)                     | Pill, popout, cards, keyboard, IPC, history, privacy |
+| [Installation](./docs/installation.md)       | Store, archive, and git installs; upgrades           |
+| [Configuration](./docs/configuration.md)     | Every setting, environment variables, health checks  |
+| [Providers](./docs/providers.md)             | Coverage matrix and per-provider data sources        |
+| [Troubleshooting](./docs/troubleshooting.md) | Missing cards, credentials, notifications            |
+| [Architecture](./docs/architecture.md)       | Runtime flow and the adapter contract                |
+| [Translations](./docs/i18n-crowdin.md)       | Locales and Crowdin                                  |
+| [Contributing](./CONTRIBUTING.md)            | Local checks and conventions                         |
+| [Changelog](./CHANGELOG.md)                  | Release history                                      |
 
 ## 💜 Support the project
 

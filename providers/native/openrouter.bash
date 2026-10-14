@@ -74,6 +74,16 @@ fetch_openrouter_native() {
        elif $d.limit_reset == "weekly" then (num($d.usage_weekly) + $byok_weekly)
        elif $d.limit_reset == "monthly" then (num($d.usage_monthly) + $byok_monthly)
        else (num($d.usage) + $byok_usage) end) as $window_used
+    # Daily request allowance for :free models (50/day, 1000/day once the
+    # account bought $10 of credits). It resets at 00:00 UTC.
+    | ($d.free_model_daily_requests // null) as $free
+    | (if ($free | type) == "object" and num($free.limit) > 0 then {
+        usedPercent:pct($free.used; $free.limit),
+        windowMinutes:1440,
+        resetsAt:(((now / 86400 | floor) + 1) * 86400 | todateiso8601),
+        resetDescription:"Free model requests",
+        displayValue:((num($free.used) | tostring) + " / " + (num($free.limit) | tostring) + " requests")
+      } else null end) as $free_window
     | (if $d.limit_remaining != null then num($d.limit_remaining)
        elif $limit != null then (num($limit) - $window_used)
        else null end) as $remaining
@@ -88,7 +98,9 @@ fetch_openrouter_native() {
         },
         accountEmail:$label,
         loginMethod:(if ($d.is_free_tier // false) then "free-tier" else "api-key" end),
-        primary:{
+        # A key without a spending cap is bounded only by the free-model
+        # allowance, so that becomes the bar; a capped key keeps its cap.
+        primary:(if $limit == null and $free_window != null then $free_window else {
           usedPercent:pct($window_used; $limit),
           windowMinutes:null,
           resetsAt:($d.limit_reset // null),
@@ -98,7 +110,7 @@ fetch_openrouter_native() {
             else (money($window_used) + " / " + money($limit))
             end
           )
-        },
+        } end),
         secondary:{
           usedPercent:0,
           windowMinutes:1440,

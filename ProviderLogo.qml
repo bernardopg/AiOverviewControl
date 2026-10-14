@@ -42,7 +42,7 @@ Item {
             perplexity: "travel_explore", cursor: "ads_click", ollama: "dns",
             together: "join_inner", groq: "fast_forward", cohere: "waves",
             replicate: "content_copy", fireworks: "local_fire_department", xai: "bolt",
-            ai21: "looks_21", cline: "terminal", commandcode: "terminal", opencode: "code", warp: "rocket_launch",
+            ai21: "looks_21", cline: "terminal", commandcode: "terminal", neuralwatt: "energy_savings_leaf", opencode: "code", warp: "rocket_launch",
             amp: "electric_bolt", kilo: "speed", kiro: "tune"
         };
         return icons[canonicalId] || "monitoring";
