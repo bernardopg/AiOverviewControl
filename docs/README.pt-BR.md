@@ -151,7 +151,7 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-O [guia do release 1.20.1](./releases/1.20.1.md) reúne mudanças, privacidade e limitações (em inglês).
+O [guia do release 1.21.0](./releases/1.21.0.md) reúne mudanças, privacidade e limitações (em inglês).
 Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
 e [regras de PR e publicação](./repository-rules.md).
 
