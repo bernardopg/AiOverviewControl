@@ -73,7 +73,7 @@ fetch_groq_native() {
             provider: "groq",
             source: "groq-ratelimit",
             usage: {
-              identity: {providerID: "groq", accountEmail: "Groq · " + .model, loginMethod: "api-key"},
+              identity: {providerID: "groq", accountEmail: ("Groq · " + .model), loginMethod: "api-key"},
               accountEmail: ("Groq · " + .model),
               loginMethod: "api-key",
               # Groq reports requests per day and tokens per minute in these headers.
