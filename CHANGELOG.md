@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.21.0 - 2026-10-13
+
+A feature release: Neuralwatt joins as a provider, Cline shows live account
+data, NVIDIA keys are really verified, and free tiers show the limits their
+APIs expose (OpenRouter's daily `:free` allowance, an opt-in Groq probe). No
+settings, credential or history migration is required. Thanks to
+[@SlobCoder](https://github.com/SlobCoder) for the Neuralwatt request
+([#50](https://github.com/bernardopg/AiOverviewControl/issues/50)). Long-form notes:
+[docs/releases/1.21.0.md](docs/releases/1.21.0.md).
+
 ### Providers
 - Add **Neuralwatt** ([#50](https://github.com/bernardopg/AiOverviewControl/issues/50)). One read-only `GET /v1/quota` call with `NEURALWATT_API_KEY` shows the subscription kWh allowance for the billing period (100% in overage, resetting at `current_period_end`), the prepaid USD balance as `remaining / total`, and the per-key spending allowance when budget control is on (100% when blocked). Prepaid-only accounts lead with the balance; a non-active subscription status is shown on the account line. Official logomark vectorized from neuralwatt.com. Covered by `tests/test-neuralwatt.sh`.
 - **Cline** moves from an informational card to live account data. With `CLINE_API_KEY`, or the Cline CLI sign-in while its token is unexpired, the card reads the Cline account API: the credit balance of the personal account or the active organization (micro-USD, as the Cline CLI converts it) and the ClinePass plan with its renewal date. A **Today** line counts the day's requests and tokens from the usage log, including free-model requests (which cost no credits) and any billed credits; Cline publishes no number for the daily free-model limit, so it is a count, not a bar. An expired CLI sign-in is reported and never refreshed, because the plugin does not write into Cline's data directory. Covered by `tests/test-cline.sh`.
