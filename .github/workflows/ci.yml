@@ -628,6 +628,9 @@ jobs:
       - name: Integration test — NVIDIA key verification
         run: tests/test-nvidia.sh
 
+      - name: Integration test — Groq rate-limit probe
+        run: tests/test-groq.sh
+
       - name: Integration test — xAI Grok CLI billing and Management API
         run: tests/test-xai.sh
 

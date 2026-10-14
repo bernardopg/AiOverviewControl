@@ -45,7 +45,7 @@ This document records the upstream surface used by each adapter. It was reviewed
 | BytePlus ModelArk | [ModelArk API reference](https://docs.byteplus.com/en/docs/ModelArk/1099455) | Models API validation. |
 | Qwen/DashScope | [OpenAI-compatible API](https://www.alibabacloud.com/help/en/model-studio/compatibility-of-openai-with-dashscope) — `GET https://dashscope.aliyuncs.com/compatible-mode/v1/models` | Models API validation (best-effort; endpoint not officially documented in the OpenAI-compat surface). |
 | Together AI | [Models API](https://docs.together.ai/reference/models) | Read-only API-key validation. Together does not document a stable read-only credits endpoint. |
-| Groq | [Models endpoint](https://console.groq.com/docs/api-reference#models) | API-key validation. |
+| Groq | [Models endpoint](https://console.groq.com/docs/api-reference#models) and [rate-limit headers](https://console.groq.com/docs/rate-limits) | API-key validation; with `GROQ_QUOTA_MODEL`, requests/day and tokens/minute from one cached 1-token completion. |
 | Cohere | [Cohere API reference](https://docs.cohere.com/reference/about) | Models API validation. |
 | Replicate | [Account endpoint](https://replicate.com/docs/reference/http#account.get) | Token validation and account identity. |
 | xAI (Grok) | [xAI API reference](https://docs.x.ai/) — `GET https://api.x.ai/v1/api-key` | Inference-key validation returning `{name, api_key_blocked, api_key_disabled, team_blocked, acls, ...}`. No remaining-credits field on this endpoint. Key: `XAI_API_KEY`. |
@@ -69,6 +69,7 @@ bash tests/test-commandcode.sh          # Command Code windows and fallback
 bash tests/test-neuralwatt.sh           # Neuralwatt kWh allowance, balance and key allowance
 bash tests/test-cline.sh                # Cline credits, organization balance and ClinePass plan
 bash tests/test-nvidia.sh               # NVIDIA NGC key verification
+bash tests/test-groq.sh                 # Groq opt-in rate-limit probe and cache
 bash tests/test-xai.sh                  # xAI grok login billing, Management API, API-key fallback
 bash tests/test-opencode.sh              # OpenCode Go windows, XDG credentials, and fallback
 bash tests/test-kimi-code.sh            # Kimi Code routing and quota fixture

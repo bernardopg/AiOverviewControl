@@ -26,6 +26,8 @@ for ((i = 0; i < ${#args[@]}; i++)); do
 done
 printf 'U %s\n' "$url" >>"$FAKE_LOG"
 case "$url" in
+  *"/usages?"*cursor=*) route=usages-2 ;;
+  *"/usages?"*) route=usages ;;
   */users/me) route=me ;;
   */users/me/plan) route=plan ;;
   */organizations/*/balance) route=org-balance ;;
@@ -43,8 +45,21 @@ STUB
 chmod +x "$TMP/bin/curl"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
+# Usage log pages, newest first: page 1 holds two of today's rows and points to
+# page 2, whose last row is from yesterday, so paging stops there.
+now_iso="$(date -u +%Y-%m-%dT%H:%M:%S.123456Z)"
+yesterday_iso="$(date -u -d "@$(( $(date -d 'today 00:00' +%s) - 3600 ))" +%Y-%m-%dT%H:%M:%S.5Z)"
+jq -n --arg now "$now_iso" '{success:true,data:{nextToken:"usg-page2",total:0,items:[
+  {createdAt:$now,aiModelTypeName:"cline-free",totalTokens:1500,creditsUsed:0},
+  {createdAt:$now,aiModelTypeName:"anthropic",totalTokens:500,creditsUsed:250000}]}}' >"$TMP/usages-1.json"
+jq -n --arg now "$now_iso" --arg old "$yesterday_iso" '{success:true,data:{nextToken:"usg-page3",total:0,items:[
+  {createdAt:$now,aiModelTypeName:"cline-free",totalTokens:1000000,creditsUsed:0},
+  {createdAt:$old,aiModelTypeName:"cline-free",totalTokens:99999,creditsUsed:0}]}}' >"$TMP/usages-2.json"
+
 reset_routes() {
   rm -f "$TMP/routes"/*
+  cp "$TMP/usages-1.json" "$TMP/routes/usages.json"
+  cp "$TMP/usages-2.json" "$TMP/routes/usages-2.json"
   cp "$FIX/cline-me.json" "$TMP/routes/me.json"
   cp "$FIX/cline-balance.json" "$TMP/routes/balance.json"
   cp "$FIX/cline-plan.json" "$TMP/routes/plan.json"
@@ -65,12 +80,17 @@ out="$(run env HOME="$EMPTY_HOME" CLINE_API_KEY=key-test)"
 [ "$(jq -r '.[0].usage.primary.displayValue' <<<"$out")" = '$12.35' ] || fail "micro-USD balance"
 [ "$(jq -r '.[0].usage.primary.resetDescription' <<<"$out")" = "Credits" ] || fail "personal credits label"
 [ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "0" ] || fail "funded balance"
-[ "$(jq -r '.[0].usage.secondary.displayValue' <<<"$out")" = "ClinePass" ] || fail "plan name"
-[ "$(jq -r '.[0].usage.secondary.resetsAt' <<<"$out")" = "2026-11-01T00:00:00Z" ] || fail "plan period end"
+[ "$(jq -r '.[0].usage.tertiary.displayValue' <<<"$out")" = "ClinePass" ] || fail "plan name"
+[ "$(jq -r '.[0].usage.tertiary.resetsAt' <<<"$out")" = "2026-11-01T00:00:00Z" ] || fail "plan period end"
+# Today across both pages; yesterday's row excluded; credits are micro-USD.
+# shellcheck disable=SC2016
+[ "$(jq -r '.[0].usage.secondary.displayValue' <<<"$out")" = '3 requests · 1M tokens · 2 free · $0.25' ] || fail "today usage $(jq -r '.[0].usage.secondary.displayValue' <<<"$out")"
+grep -q 'U https://api.cline.bot/api/v1/users/usr-test123/usages?limit=200&cursor=usg-page2' "$TMP/log" || fail "usages cursor"
+! grep -q 'cursor=usg-page3' "$TMP/log" || fail "paging must stop at yesterday"
 [ "$(jq -r '.[0].usage.accountEmail' <<<"$out")" = "dev@example.com" ] || fail "identity"
 [ "$(jq -r '.[0].usage.loginMethod' <<<"$out")" = "api-key" ] || fail "login method"
 grep -qx 'U https://api.cline.bot/api/v1/users/usr-test123/balance' "$TMP/log" || fail "personal balance URL"
-[ "$(grep -c '^H Authorization: Bearer key-test$' "$TMP/log")" -eq 3 ] || fail "auth header on every call"
+[ "$(grep -c '^H Authorization: Bearer key-test$' "$TMP/log")" -eq 5 ] || fail "auth header on every call"
 
 # 2. Active organization: its balance is billed, not the personal one.
 reset_routes
@@ -78,6 +98,7 @@ jq '.data.organizations[0].active = true' "$FIX/cline-me.json" >"$TMP/routes/me.
 printf '%s\n' '{"success":true,"data":{"balance":0,"organizationId":"org-test456"}}' >"$TMP/routes/org-balance.json"
 out="$(run env HOME="$EMPTY_HOME" CLINE_API_KEY=key-test)"
 grep -qx 'U https://api.cline.bot/api/v1/organizations/org-test456/balance' "$TMP/log" || fail "org balance URL"
+grep -q 'U https://api.cline.bot/api/v1/organizations/org-test456/members/mem-1/usages?limit=200' "$TMP/log" || fail "org member usages URL"
 [ "$(jq -r '.[0].usage.primary.resetDescription' <<<"$out")" = "Credits · Example Org" ] || fail "org label"
 [ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "100" ] || fail "depleted org balance"
 
@@ -94,7 +115,7 @@ jq -n --argjson exp "$future" '{providers:{cline:{settings:{auth:{accessToken:"w
 out="$(run env -u CLINE_API_KEY HOME="$CLI_HOME")"
 grep -qx 'H Authorization: Bearer workos:cli-token' "$TMP/log" || fail "CLI token forwarded"
 [ "$(jq -r '.[0].usage.loginMethod' <<<"$out")" = "oauth" ] || fail "oauth login method"
-[ "$(jq -r '.[0].usage.secondary' <<<"$out")" = "null" ] || fail "no plan window"
+[ "$(jq -r '.[0].usage.tertiary' <<<"$out")" = "null" ] || fail "no plan window"
 health="$(env -u CLINE_API_KEY HOME="$CLI_HOME" "$ROOT/providers/get-provider-health" cline)"
 [ "$(jq -r '.[0].status' <<<"$health")" = "ready" ] || fail "CLI health"
 

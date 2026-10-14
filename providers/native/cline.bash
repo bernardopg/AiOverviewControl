@@ -82,7 +82,38 @@ fetch_cline_native() {
   local login="oauth"
   [ -z "${CLINE_API_KEY:-}" ] || login="api-key"
 
-  jq -cn --slurpfile me "$tmp_me" --slurpfile bal "$tmp_balance" --slurpfile plan "$tmp_plan" --arg org "$org_id" --arg login "$login" '
+  # Today's requests and tokens from the usage log (newest first, 200 per page,
+  # cursor=<nextToken>). Free models are logged with creditsUsed 0, and their
+  # daily per-model limit is only reported by a 429 at inference time, so this
+  # is a usage count, not a quota.
+  # ponytail: stops after 5 pages (1,000 requests); a heavier day is marked partial.
+  local usages_path="users/${user_id}/usages" member_id day_start cursor="" page=0 more=0
+  member_id="$(jq -r '(if (.success | type) == "boolean" then .data else . end)
+    | [.organizations[]? | select(.active == true) | .memberId][0] // empty' "$tmp_me" 2>/dev/null || true)"
+  [ -z "$org_id" ] || [ -z "$member_id" ] || usages_path="organizations/${org_id}/members/${member_id}/usages"
+  day_start="$(date -d 'today 00:00' +%s)"
+  local tmp_usages tmp_page
+  tmp_usages="$(mktemp)"
+  tmp_page="$(mktemp)"
+  while [ "$page" -lt 5 ]; do
+    page=$((page + 1))
+    http_status="$(curl -sS --max-time 8 -o "$tmp_page" -w '%{http_code}' \
+      -H "Authorization: Bearer ${token}" -H "Accept: application/json" \
+      "$base/${usages_path}?limit=200${cursor:+&cursor=${cursor}}" 2>/dev/null || true)"
+    [ "$http_status" = "200" ] && jq -e . "$tmp_page" >/dev/null 2>&1 || break
+    jq -c '(if (.success | type) == "boolean" then .data else . end) | .items[]?' "$tmp_page" >>"$tmp_usages"
+    cursor="$(jq -r '(if (.success | type) == "boolean" then .data else . end) | .nextToken // empty' "$tmp_page")"
+    more=0
+    [ -n "$cursor" ] || break
+    more=1
+    # Pages are newest first: stop once the oldest row predates today.
+    jq -e --argjson start "$day_start" '(if (.success | type) == "boolean" then .data else . end)
+      | (.items[-1].createdAt // "") | sub("\\.[0-9]+"; "") | fromdateiso8601 < $start' "$tmp_page" >/dev/null 2>&1 && { more=0; break; }
+  done
+  rm -f "$tmp_page"
+
+  jq -cn --slurpfile me "$tmp_me" --slurpfile bal "$tmp_balance" --slurpfile plan "$tmp_plan" --slurpfile usages "$tmp_usages" \
+    --arg org "$org_id" --arg login "$login" --argjson day_start "$day_start" --argjson partial "$more" '
     def unwrap: if type == "object" and (.success | type) == "boolean" then .data else . end;
     def fix2: (. * 100 | round) as $c | ($c | fabs) as $a
       | (if $c < 0 then "-" else "" end)
@@ -95,6 +126,13 @@ fetch_cline_native() {
     | ($p.plan.displayName // $p.plan.name // null) as $plan_name
     | ($user.email // $user.displayName // "Cline account") as $identity
     | (if $micro == null then null else $micro / 1000000 end) as $usd
+    | [$usages[] | select(((.createdAt // "") | sub("\\.[0-9]+"; "") | fromdateiso8601? // 0) >= $day_start)] as $today
+    | ($today | map(.totalTokens // 0) | add // 0) as $tokens
+    | ($today | map(.creditsUsed // 0) | add // 0) as $spent
+    | ($today | map(select(.aiModelTypeName == "cline-free")) | length) as $free
+    | (if $tokens >= 1000000 then (($tokens / 100000 | round) / 10 | tostring) + "M"
+       elif $tokens >= 1000 then (($tokens / 100 | round) / 10 | tostring) + "k"
+       else ($tokens | tostring) end) as $tokens_label
     | {
         provider: "cline",
         source: "cline-api",
@@ -110,18 +148,27 @@ fetch_cline_native() {
             resetDescription: (if $org != "" then "Credits · " + ([$user.organizations[]? | select(.active == true) | .name][0] // "Organization") else "Credits" end),
             displayValue: (if $usd == null then "Balance unavailable" else "$" + ($usd | fix2) end)
           },
-          secondary: (if $plan_name != null then {
+          secondary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Today",
+            displayValue: ((if $partial == 1 then "≥" else "" end)
+              + ($today | length | tostring) + " requests · " + $tokens_label + " tokens"
+              + (if $free > 0 then " · " + ($free | tostring) + " free" else "" end)
+              + (if $spent > 0 then " · $" + ($spent / 1000000 | fix2) else "" end))
+          },
+          tertiary: (if $plan_name != null then {
             usedPercent: 0,
             windowMinutes: null,
             resetsAt: ($p.currentPeriodEnd // null),
             resetDescription: "Plan",
             displayValue: $plan_name
           } else null end),
-          tertiary: null,
           updatedAt: (now | todateiso8601)
         },
         credits: {remaining: (if $usd == null then "app.cline.bot" else "$" + ($usd | fix2) end)}
       }
   '
-  rm -f "$tmp_me" "$tmp_balance" "$tmp_plan"
+  rm -f "$tmp_me" "$tmp_balance" "$tmp_plan" "$tmp_usages"
 }

@@ -109,7 +109,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | BytePlus | `BYTEPLUS_API_KEY` or `ARK_API_KEY` |
 | Qwen | `DASHSCOPE_API_KEY` or `QWEN_API_KEY`; optional `DASHSCOPE_WORKSPACE_ID` |
 | Together | `TOGETHER_API_KEY` |
-| Groq | `GROQ_API_KEY` |
+| Groq | `GROQ_API_KEY`; optional `GROQ_QUOTA_MODEL` turns on the rate-limit probe (one 1-token completion to that model per `GROQ_QUOTA_TTL` seconds, default `1800`) |
 | Cohere | `COHERE_API_KEY` |
 | Replicate | `REPLICATE_API_TOKEN` |
 | Fireworks | `FIREWORKS_API_KEY`; optional `FIREWORKS_ACCOUNT_ID` enables quota data |

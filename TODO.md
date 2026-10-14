@@ -82,7 +82,8 @@ hard gate, and the docs rewrites). The report itself was never tracked by git
 - [x] **Cline** — account API credit balance (personal/organization) and ClinePass plan via `CLINE_API_KEY` or an unexpired CLI sign-in. `M · ★★`
 - [ ] **Cline ClinePass usage** — surface ClinePass window usage if Cline publishes a read-only usage-limits endpoint; today only the plan and renewal date are readable. `M · ★★`
 - [x] **OpenRouter free models** — `free_model_daily_requests` drives the bar for uncapped keys. `S · ★★`
-- [ ] **Groq / free-tier rate limits** — `x-ratelimit-*` headers only come back on inference calls, not on `/models`; revisit if Groq adds a read-only limits endpoint. `S · ★`
+- [x] **Groq rate limits** — opt-in `GROQ_QUOTA_MODEL` probe reads requests/day and tokens/minute from one cached 1-token completion. Replace with a read-only endpoint if Groq ever publishes one. `S · ★★`
+- [x] **Cline free-model usage** — today's requests/tokens from `/usages`; the daily free-model limit has no published number. `S · ★★`
 - [ ] **Mistral** — surface `is_default_key` flag and rate-limit headers when a quota endpoint exists. `M · ★★`
 - [ ] **BytePlus/Ark** — surface `remaining_tokens` per model when the API exposes per-model quotas. `M · ★★`
 - [x] **Codex** — record credit-balance history alongside rate-limit snapshots. Reset-credit balances (zero included), serialized writer, CSV/JSONL exports and fixture tests are implemented; individual quota limits are not mistaken for balances. `M · ★★`

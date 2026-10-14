@@ -21,10 +21,10 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `groq` (opt-in `GROQ_QUOTA_MODEL` probe), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `xai` (Management API prepaid), `neuralwatt` (prepaid USD), `cline` (credits) |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota) |
-| **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia` (NGC key verification), `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
+| **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia` (NGC key verification), `qwen`, `byteplus`, `groq` (without `GROQ_QUOTA_MODEL`), `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `kiro`, `warp`, `amp` |
 
@@ -367,9 +367,9 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>groq</code></td>
-<td>Auth</td>
+<td>Auth + opt-in Quota</td>
 <td>✅ <code>GET /v1/models</code></td>
-<td>❌ dashboard-only</td>
+<td>⚠️ requests/day + tokens/minute from <code>x-ratelimit-*</code> headers of a 1-token probe (opt-in)</td>
 <td>—</td>
 <td>✅</td>
 <td><code>GROQ_API_KEY</code></td>
@@ -612,6 +612,19 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Dashboard** | [commandcode.ai/billing](https://commandcode.ai/billing) — billing, plan, and credit top-ups. |
 | **Adapter** | `fetch_commandcode_native` — `/alpha/billing/credits` + `/alpha/whoami` + `/alpha/billing/subscriptions`, with documented-endpoint fallback. |
 
+### Groq
+
+| | |
+| --- | --- |
+| **API base** | `https://api.groq.com/openai/v1` (OpenAI-compatible). |
+| **Env var** | `GROQ_API_KEY`; optional `GROQ_QUOTA_MODEL` (e.g. `openai/gpt-oss-120b`) and `GROQ_QUOTA_TTL` (seconds, default `1800`). |
+| **Key check** | `GET /models`. |
+| **Quota** | No usage, spend or limits API (checked 2026-10-13; the console's usage and limits pages are UI-only). Limits are per organization **and per model**, and Groq reports them only as `x-ratelimit-*` headers on a served completion: `limit/remaining/reset-requests` are **requests per day**, `limit/remaining/reset-tokens` are **tokens per minute**. Rejected requests (400/404) carry no headers. The daily counter refills continuously (1,000/day refills one request every 86.4 s), so `reset-requests` is the time until it is full again, not midnight. |
+| **Probe** | Opt-in. With `GROQ_QUOTA_MODEL` set, the adapter sends one `max_completion_tokens: 1` completion (`"."` as the prompt, about 70 tokens) to that model at most every `GROQ_QUOTA_TTL` seconds and caches the headers in `groq-rate-limits-<model>.json`. At the default 30 minutes that is 48 requests a day, counted against the same limit it reports (about 5% of the 1,000 RPD of `openai/gpt-oss-120b` on the free plan). Usage by other apps on the same key and model, such as a dictation tool, shows up in the remaining count. A 429 with nothing left reads as 100%. |
+| **Not shown** | RPM, TPD and audio-seconds limits (no header carries them). |
+| **Dashboard** | [console.groq.com/dashboard/usage](https://console.groq.com/dashboard/usage), [limits](https://console.groq.com/settings/limits). |
+| **Adapter** | `fetch_groq_native` / `groq_rate_limit_probe`. |
+
 ### Neuralwatt
 
 | | |
@@ -630,9 +643,9 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | | |
 | --- | --- |
 | **API base** | `https://api.cline.bot/api/v1` — the account API the Cline CLI and IDE use ([reference](https://docs.cline.bot/enterprise-solutions/api-reference)). |
-| **Credentials** | `CLINE_API_KEY` (app.cline.bot → Settings → API Keys), or the Cline CLI sign-in in `${CLINE_DATA_DIR:-~/.cline/data}/settings/providers.json` while its access token is unexpired. The plugin never refreshes that token: a refresh can rotate the refresh token, and the plugin does not write into Cline's data directory. Run `cline` once to renew an expired sign-in. |
-| **Quota / balance** | `GET /users/me` → user id and organizations; `GET /users/{id}/balance`, or `GET /organizations/{orgId}/balance` when an organization is active (the account Cline bills). `balance` is micro-USD — the Cline CLI divides it by 1,000,000. `GET /users/me/plan` → ClinePass plan name and `currentPeriodEnd`. Responses may be wrapped in `{success, data}`. |
-| **Card** | Credits balance (no total exists, so the bar fills only when depleted) and, with a subscription, the plan with its renewal date. ClinePass has no public usage-limit endpoint; a limit hit shows as an inference error in Cline. |
+| **Credentials** | `CLINE_API_KEY` (app.cline.bot → Settings → API Keys), or the Cline CLI sign-in in `${CLINE_DATA_DIR:-~/.cline/data}/settings/providers.json` while its access token is unexpired. The plugin never refreshes that token: a refresh can rotate the refresh token, and the plugin does not write into Cline's data directory. The access token lasts about one hour, and the CLI renews it whenever it runs (`cline config` is enough). Run `cline` once to renew an expired sign-in, or use `CLINE_API_KEY` for a credential that does not expire. |
+| **Quota / balance** | `GET /users/me` → user id and organizations; `GET /users/{id}/balance`, or `GET /organizations/{orgId}/balance` when an organization is active (the account Cline bills). `balance` is micro-USD — the Cline CLI divides it by 1,000,000. `GET /users/me/plan` → ClinePass plan name and `currentPeriodEnd` (404 `no plan history found for user` without a subscription). `GET /users/{id}/usages?limit=200&cursor=<nextToken>` (or `/organizations/{orgId}/members/{memberId}/usages`) → the request log, newest first: `createdAt`, `aiModelTypeName` (`cline-free` for free models), `totalTokens`, `creditsUsed` (micro-USD; 0 for free models) and `costUsd` (list price, not billed). Responses may be wrapped in `{success, data}`. |
+| **Card** | Credits balance (no total exists, so the bar fills only when depleted); today's requests, tokens, free-model requests and billed credits, from local midnight (at most 5 pages, shown as `≥N` when cut); and, with a subscription, the plan with its renewal date. Free models have a daily per-model limit, but Cline reports it only as a `429 Free limit reached on model … Try again in …` at inference time, with no number; ClinePass likewise has no usage-limit endpoint. |
 | **Dashboard** | [app.cline.bot](https://app.cline.bot/dashboard/account?tab=credits). |
 | **Adapter** | `fetch_cline_native`. |
 

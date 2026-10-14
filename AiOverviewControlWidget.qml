@@ -542,6 +542,8 @@ PluginComponent {
             "key limit": ["window.key_limit", "Key limit"],
             "spent today": ["window.spent_today", "Spent today"],
             "free model requests": ["window.free_model_requests", "Free model requests"],
+            "requests per day": ["window.requests_per_day", "Requests per day"],
+            "tokens per minute": ["window.tokens_per_minute", "Tokens per minute"],
             "week and top models": ["window.week_top_models", "Week and top models"],
             "week and month spend": ["window.week_month_spend", "Week and month spend"],
             "tracked total": ["window.tracked_total", "Tracked total"],
