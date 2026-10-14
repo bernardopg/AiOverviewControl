@@ -1,0 +1,1 @@
+{"success":true,"data":{"id":"usr-test123","email":"dev@example.com","displayName":"Test Dev","photoUrl":"","createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z","organizations":[{"active":false,"memberId":"mem-1","name":"Example Org","organizationId":"org-test456","roles":["member"]}]}}

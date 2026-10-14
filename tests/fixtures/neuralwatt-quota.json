@@ -1,0 +1,27 @@
+{
+  "snapshot_at": "2026-04-16T18:30:00Z",
+  "balance": {
+    "credits_remaining_usd": 32.6774,
+    "total_credits_usd": 52.34,
+    "credits_used_usd": 19.6626,
+    "accounting_method": "energy"
+  },
+  "usage": {
+    "lifetime": {"cost_usd": 243.9145, "requests": 37801, "tokens": 1235477176, "energy_kwh": 15.6009},
+    "current_month": {"cost_usd": 160.1463, "requests": 23902, "tokens": 1116658995, "energy_kwh": 9.7278}
+  },
+  "limits": {"overage_limit_usd": null, "rate_limit_tier": "standard"},
+  "subscription": {
+    "plan": "standard",
+    "status": "active",
+    "billing_interval": "month",
+    "current_period_start": "2026-04-11T05:05:25Z",
+    "current_period_end": "2026-05-11T05:05:25Z",
+    "auto_renew": true,
+    "kwh_included": 20.0,
+    "kwh_used": 13.9023,
+    "kwh_remaining": 6.0977,
+    "in_overage": false
+  },
+  "key": {"name": "my-production-key", "allowance": null}
+}

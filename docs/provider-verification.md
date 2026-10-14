@@ -7,7 +7,7 @@ This document records the upstream surface used by each adapter. It was reviewed
 | Provider | Upstream source | Plugin use |
 | --- | --- | --- |
 | Codex | [Codex app-server](https://developers.openai.com/codex/app-server/) and generated protocol schema | `account/read` and `account/rateLimits/read`. Windows are **model-agnostic** — the GPT-5.6 tier rename (Sol / Terra / Luna, 2026-07-09) does not change the schema; the adapter labels windows by `windowDurationMins` (300 → Session, 10080 → Weekly), so no per-model handling is required. Since the 2026-04 shift to token-based metering, `rateLimitResetCredits.availableCount` / `individualLimit` feed the credits line. |
-| OpenRouter | [API key information](https://openrouter.ai/docs/api-reference/limits) | Limit, remaining balance, daily and monthly usage. `usage` is lifetime spend while `limit` resets with `limit_reset`, so the key-limit bar uses `limit - limit_remaining` (or the matching `usage_daily/weekly/monthly`) for the current window. |
+| OpenRouter | [API key information](https://openrouter.ai/docs/api-reference/limits) | Limit, remaining balance, daily and monthly usage. `usage` is lifetime spend while `limit` resets with `limit_reset`, so the key-limit bar uses `limit - limit_remaining` (or the matching `usage_daily/weekly/monthly`) for the current window. `free_model_daily_requests` (`used` / `limit`, 50 or 1,000 per day, reset 00:00 UTC) becomes the bar for a key without a spending cap. |
 | DeepSeek | [Get user balance](https://api-docs.deepseek.com/api/get-user-balance/) | Remaining account balance. |
 | Kimi/Moonshot (balance) | [Balance API](https://platform.kimi.ai/docs/intro) — `GET https://api.moonshot.ai/v1/users/me/balance` | Account balance where available for the selected regional host (USD on `.ai`, CNY on `.cn`). Uses an Open Platform key (`sk-xxx`). |
 | Kimi Code (subscription quota) | First-party Kimi Code CLI usage client — `GET https://api.kimi.com/coding/v1/usages` (also global `api.kimi.ai`), `Authorization: Bearer sk-kimi-xxx`, `Accept: application/json` | Exact 5h counts in `limits[]`, plus optional `usages.limit_5h`, `limit_7d`, and `limit_month_total` ratio pools (`used_ratio`, `reset_time`). `limit_month_code` is a breakdown of the combined monthly total, not a separate allowance. The adapter does not invent a weekly window the plan does not return. Separate from Open Platform balance. This is a CLI-owned rather than public Open Platform API contract, so it remains best-effort. |
@@ -37,7 +37,9 @@ This document records the upstream surface used by each adapter. It was reviewed
 | Gemini | [Gemini API models](https://ai.google.dev/api/models) — `GET https://generativelanguage.googleapis.com/v1beta/models` | API-key validation via `x-goog-api-key`; local Gemini CLI credentials (`~/.gemini/oauth_creds.json`) are detected. |
 | Mistral | [Models API](https://docs.mistral.ai/api/#tag/models) — `GET https://api.mistral.ai/v1/models` | API-key validation. (`/v1/billing` and `/v1/usage` return `404`.) |
 | Ollama | [`/api/tags`](https://docs.ollama.com/api/tags) and [`/api/ps`](https://docs.ollama.com/api/ps) | Installed and running models. |
-| NVIDIA NIM | [Models API](https://docs.api.nvidia.com/nim/reference/models-1) — `GET https://integrate.api.nvidia.com/v1/models` | Public catalogue probe only; a `200` cannot validate an API key. No documented balance API; credits at `build.nvidia.com/credits`. |
+| NVIDIA NIM | NGC key caller info (used by the official `ngc` CLI / `ngcsdk`) — `POST https://api.ngc.nvidia.com/v3/keys/get-caller-info` | Real key validation: `401` for an invalid key, key type and owner for a valid one. No documented balance API; credits at `build.nvidia.com/credits`. |
+| Neuralwatt | [Quota API](https://docs.neuralwatt.com/api/quota) — `GET https://api.neuralwatt.com/v1/quota` | Prepaid USD balance, subscription kWh allowance and per-key allowance. |
+| Cline | [Account API](https://docs.cline.bot/enterprise-solutions/api-reference) — `GET https://api.cline.bot/api/v1/users/me`, `/users/{id}/balance`, `/users/me/plan` | Credit balance (micro-USD) and ClinePass plan. |
 | Cloudflare | [Verify API token](https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/) — `GET https://api.cloudflare.com/client/v4/user/tokens/verify` | Token validation. |
 | Vertex AI | [gcloud authentication](https://cloud.google.com/sdk/gcloud/reference/auth/print-access-token) | Local OAuth validation and selected project label. |
 | BytePlus ModelArk | [ModelArk API reference](https://docs.byteplus.com/en/docs/ModelArk/1099455) | Models API validation. |
@@ -52,7 +54,7 @@ This document records the upstream surface used by each adapter. It was reviewed
 
 ## No documented read-only quota endpoint
 
-AI21, Perplexity, Cline, Kiro, Warp, and Amp do not currently provide a public, stable, read-only quota endpoint suitable for this widget. Kiro additionally has **no public API at all** (subscription-only IDE/CLI/Web with SSO login). The plugin therefore reports configured/authenticated status where possible or displays an informational card. It does not scrape dashboards or claim synthetic percentages.
+AI21, Perplexity, Kiro, Warp, and Amp do not currently provide a public, stable, read-only quota endpoint suitable for this widget. Kiro additionally has **no public API at all** (subscription-only IDE/CLI/Web with SSO login). The plugin therefore reports configured/authenticated status where possible or displays an informational card. It does not scrape dashboards or claim synthetic percentages.
 
 Cursor documents team and Enterprise admin APIs, not an individual quota API. The adapter reads the session the Cursor IDE or `cursor-agent` already stored and calls `GET https://cursor.com/api/usage-summary`, the same route the cursor.com dashboard uses. The included-usage bars are `individualUsage.plan.autoPercentUsed` (Cursor Models) and `apiPercentUsed` (Other Models). `plan.used / plan.limit` is not shown: it can reach 100 while those pools are still partly unused. On-demand appears only when `individualUsage.onDemand.enabled` is true. Older request-quota accounts fall back to `GET /api/usage`.
 
@@ -64,6 +66,9 @@ The surfaces above are exercised locally by the fixture-backed suites in
 ```bash
 ./providers/get-provider-health "codex,claude,copilot" | jq .
 bash tests/test-commandcode.sh          # Command Code windows and fallback
+bash tests/test-neuralwatt.sh           # Neuralwatt kWh allowance, balance and key allowance
+bash tests/test-cline.sh                # Cline credits, organization balance and ClinePass plan
+bash tests/test-nvidia.sh               # NVIDIA NGC key verification
 bash tests/test-xai.sh                  # xAI grok login billing, Management API, API-key fallback
 bash tests/test-opencode.sh              # OpenCode Go windows, XDG credentials, and fallback
 bash tests/test-kimi-code.sh            # Kimi Code routing and quota fixture

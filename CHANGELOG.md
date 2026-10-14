@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Providers
+- Add **Neuralwatt** ([#50](https://github.com/bernardopg/AiOverviewControl/issues/50)). One read-only `GET /v1/quota` call with `NEURALWATT_API_KEY` shows the subscription kWh allowance for the billing period (100% in overage, resetting at `current_period_end`), the prepaid USD balance as `remaining / total`, and the per-key spending allowance when budget control is on (100% when blocked). Prepaid-only accounts lead with the balance; a non-active subscription status is shown on the account line. Official logomark vectorized from neuralwatt.com. Covered by `tests/test-neuralwatt.sh`.
+- **Cline** moves from an informational card to live account data. With `CLINE_API_KEY`, or the Cline CLI sign-in while its token is unexpired, the card reads the Cline account API: the credit balance of the personal account or the active organization (micro-USD, as the Cline CLI converts it) and the ClinePass plan with its renewal date. An expired CLI sign-in is reported and never refreshed, because the plugin does not write into Cline's data directory. Covered by `tests/test-cline.sh`.
+- **NVIDIA** keys are now really verified. The public models catalog answered 200 to any key; the adapter now asks NGC's caller-info endpoint (the one the official `ngc` CLI uses), which rejects an invalid or revoked `nvapi-` key with 401 and names the key type and owner for a valid one. The key travels in the request body, never in the command line. When the key service is unreachable the card degrades to an unverified note. Credits and rate limits remain dashboard-only. Covered by `tests/test-nvidia.sh`.
+- **OpenRouter** shows the daily allowance for `:free` models (`free_model_daily_requests`, 50 or 1,000 requests a day, reset at 00:00 UTC) as the bar for keys without a spending cap. Capped keys keep the cap. Covered by `tests/test-openrouter.sh`.
+
 ## 1.20.1 - 2026-10-09
 
 A compatibility and reliability patch for OpenCode v2, checkout installs,

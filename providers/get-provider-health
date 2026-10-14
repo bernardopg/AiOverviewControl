@@ -9,6 +9,14 @@ has_any_env() {
   return 1
 }
 
+has_cline_cli_login() {
+  local providers_file="${CLINE_DATA_DIR:-$HOME/.cline/data}/settings/providers.json"
+  [ -r "$providers_file" ] \
+    && jq -e --argjson now "$(date +%s)" '.providers.cline.settings.auth
+      | (.accessToken | type) == "string" and ((.expiresAt // 0) | tonumber? // 0) > ($now * 1000)' \
+      "$providers_file" >/dev/null 2>&1
+}
+
 has_commandcode_credentials() {
   local auth_file="${HOME}/.commandcode/auth.json"
   has_any_env COMMAND_CODE_API_KEY && return 0
@@ -145,6 +153,8 @@ status_for() {
     mistral) has_any_env MISTRAL_API_KEY || { status="missing"; detail="MISTRAL_API_KEY"; } ;;
     ollama) command -v ollama >/dev/null 2>&1 || { status="missing"; detail="ollama CLI"; } ;;
     nvidia|nim) has_any_env NVIDIA_API_KEY || { status="missing"; detail="NVIDIA_API_KEY"; } ;;
+    neuralwatt) has_any_env NEURALWATT_API_KEY || { status="missing"; detail="NEURALWATT_API_KEY"; } ;;
+    cline) has_any_env CLINE_API_KEY || has_cline_cli_login || { status="missing"; detail="CLINE_API_KEY or an unexpired Cline CLI sign-in"; } ;;
     cloudflare) has_any_env CLOUDFLARE_AI_TOKEN CLOUDFLARE_API_TOKEN || { status="missing"; detail="Cloudflare API token"; } ;;
     vertexai|vertex) command -v gcloud >/dev/null 2>&1 || { status="missing"; detail="gcloud CLI"; } ;;
     byteplus|ark|modelark) has_any_env BYTEPLUS_API_KEY ARK_API_KEY || { status="missing"; detail="BYTEPLUS_API_KEY or ARK_API_KEY"; } ;;
@@ -168,7 +178,7 @@ status_for() {
         detail="Cursor IDE session or cursor-agent auth.json"
       fi
       ;;
-    perplexity|cline|kiro|warp|amp)
+    perplexity|kiro|warp|amp)
       status="info"
       detail="No public read-only quota API"
       ;;

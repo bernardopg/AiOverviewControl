@@ -21,12 +21,12 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
-| **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `xai` (Management API prepaid) |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
+| **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `xai` (Management API prepaid), `neuralwatt` (prepaid USD), `cline` (credits) |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota) |
-| **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
+| **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia` (NGC key verification), `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
-| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cline`, `kiro`, `warp`, `amp` |
+| **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `kiro`, `warp`, `amp` |
 
 ## Provider kinds
 
@@ -158,13 +158,24 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <tr>
 <td><code>nvidia</code></td>
 <td>Auth</td>
-<td>⚠️ <code>GET /v1/models</code> is public and cannot validate a key</td>
+<td>✅ <code>POST api.ngc.nvidia.com/v3/keys/get-caller-info</code></td>
 <td>❌ dashboard-only</td>
 <td>⚠️ rate-limited developer trial</td>
 <td>✅ NVIDIA Cloud Credits</td>
 <td><code>NVIDIA_API_KEY</code></td>
 <td><a href="https://build.nvidia.com/credits">build.nvidia.com/credits</a></td>
 <td><a href="https://docs.api.nvidia.com/nim/reference/models-1">docs.api.nvidia.com</a></td>
+</tr>
+<tr>
+<td><code>neuralwatt</code></td>
+<td>Quota + Balance</td>
+<td>✅ <code>GET /v1/quota</code></td>
+<td>✅ subscription kWh per billing period + per-key USD allowance</td>
+<td>✅ energy subscription with included kWh</td>
+<td>✅ prepaid USD credits</td>
+<td><code>NEURALWATT_API_KEY</code></td>
+<td><a href="https://portal.neuralwatt.com">portal.neuralwatt.com</a></td>
+<td><a href="https://docs.neuralwatt.com/api/quota">docs.neuralwatt.com</a></td>
 </tr>
 <tr>
 <td><code>minimax</code></td>
@@ -292,7 +303,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>openrouter</code></td>
 <td>Quota/balance</td>
 <td>✅ <code>GET /api/v1/key</code></td>
-<td>✅ limit/daily/monthly/balance</td>
+<td>✅ limit/daily/monthly/balance + free-model requests/day</td>
 <td>—</td>
 <td>✅ per token</td>
 <td><code>OPENROUTER_API_KEY</code></td>
@@ -433,14 +444,14 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>cline</code></td>
-<td>Informational</td>
-<td>❌</td>
-<td>❌</td>
-<td>—</td>
-<td>✅</td>
-<td>—</td>
-<td><a href="https://app.cline.bot">app.cline.bot</a></td>
-<td><a href="https://cline.bot">cline.bot</a></td>
+<td>Balance</td>
+<td>✅ <code>GET /api/v1/users/me</code></td>
+<td>❌ no ClinePass usage endpoint</td>
+<td>✅ ClinePass plan + billing period</td>
+<td>✅ credits (micro-USD)</td>
+<td><code>CLINE_API_KEY</code> or Cline CLI sign-in</td>
+<td><a href="https://app.cline.bot/dashboard/account?tab=credits">app.cline.bot</a></td>
+<td><a href="https://docs.cline.bot/enterprise-solutions/api-reference">docs.cline.bot</a></td>
 </tr>
 <tr>
 <td><code>warp</code></td>
@@ -564,13 +575,13 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **API base** | `https://integrate.api.nvidia.com/v1` (OpenAI-compatible). No regional mirror; backed by DGX Cloud. |
 | **Env var** | `NVIDIA_API_KEY` (NGC personal key, `nvapi-` prefix). |
 | **Auth** | `Authorization: Bearer <key>`. |
-| **Key check** | `GET /v1/models` is a public catalog and cannot validate a key; the card truthfully reports only that a key is set. |
-| **Quota / balance** | ❌ None documented. NVCF/Cloud Functions billing doc is auth-gated (`401`). Balance is dashboard-only. Practical exhaustion signal: inference returns `402`/`429`. |
+| **Key check** | `POST https://api.ngc.nvidia.com/v3/keys/get-caller-info` with the key as the `credentials` form field — the endpoint the official `ngc` CLI uses. An invalid or revoked key returns `401`; a valid one returns the key `type` (`PERSONAL_KEY` / `SERVICE_KEY`), `orgName` and, for personal keys, the owner. The key is sent in the request body from stdin, never in argv or the URL. `GET /v1/models` is public and answers `200` to any key, so it is no longer used. |
+| **Quota / balance** | ❌ None documented (re-checked 2026-10-13). Free accounts get 1,000 credits and roughly 40 requests/minute, but NVIDIA publishes no per-account rate-limit or credits API; both are visible only on build.nvidia.com. Practical exhaustion signal: inference returns `402`/`429`. |
 | **Plans** | Rate-limited Developer trial, NVIDIA Cloud Credits (USD blocks), and NVIDIA AI Enterprise for self-hosted NIM. |
 | **Billing** | **Credit-based per request** (1 credit ≈ 1 standard request; heavy models cost more). No posted $/M-token table for the hosted catalog. |
 | **Dashboard** | [build.nvidia.com/credits](https://build.nvidia.com/credits). NGC keys at [org.ngc.nvidia.com](https://org.ngc.nvidia.com). |
 | **Changelog** | **Nemotron-3** family (Ultra-550B, Super-120B-A12B, Nano-30B-A3B, Nano-Omni-30B). Heavy expansion into third-party frontier models (DeepSeek V4 Pro/Flash, Mistral Large 3 675B + Medium 3.5 + Small 4, MiniMax M2.7/M3, Stepfun, Z.ai GLM 5.1/4.7, Qwen3-Coder-480B). New async `202`+polling pattern for heavy endpoints. Healthcare microservices (AlphaFold2, Boltz2, OpenFold3). |
-| **Adapter** | `fetch_nvidia_native` — public `/v1/models` catalogue probe; it does not claim that the key is validated. |
+| **Adapter** | `fetch_nvidia_native` — NGC caller-info key verification. When the key service is unreachable the card degrades to an unverified "key set" note instead of an error. |
 
 ### MiniMax
 
@@ -600,6 +611,30 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Stability** | The `/alpha/` namespace is **experimental** — no documented versioned contract, can change without notice. Adapter degrades to the documented `/provider/v1/models` endpoint on alpha failure and emits a clearly-labeled "quota endpoint unavailable" note; it never fabricates a percentage. |
 | **Dashboard** | [commandcode.ai/billing](https://commandcode.ai/billing) — billing, plan, and credit top-ups. |
 | **Adapter** | `fetch_commandcode_native` — `/alpha/billing/credits` + `/alpha/whoami` + `/alpha/billing/subscriptions`, with documented-endpoint fallback. |
+
+### Neuralwatt
+
+| | |
+| --- | --- |
+| **API base** | `https://api.neuralwatt.com/v1` (OpenAI-compatible inference). |
+| **Env var** | `NEURALWATT_API_KEY` (`sk-` prefix; create at [portal.neuralwatt.com](https://portal.neuralwatt.com) → Dashboard → API Keys). |
+| **Auth** | `Authorization: Bearer <key>`. |
+| **Quota / balance** | `GET /v1/quota` returns everything in one read-only call: `balance` (prepaid USD, `credits_remaining_usd` / `total_credits_usd`, no reset), `subscription` (`kwh_included` / `kwh_used`, `current_period_end`, `in_overage`, `status`; `null` without a subscription) and `key.allowance` (per-key `limit_usd` / `spent_usd` per `daily` / `weekly` / `monthly` period, `blocked`; `null` unless budget control is on). `subscription.kwh_used` is the billed basis (consumed × pricing multiplier), so it is what counts against the allowance. Limit: 1 request/second per customer (`429`). |
+| **Card** | Primary: subscription kWh for the billing period (100% while in overage), resetting at `current_period_end`. Then the prepaid balance as `remaining / total`, then the per-key allowance (100% when `blocked`). A prepaid-only account shows the balance first. A non-active subscription status (`past_due`, `paused`, …) is appended to the account line. |
+| **Not shown** | `GET /v1/usage/energy` (daily energy and carbon) — the card has no daily chart for this provider. |
+| **Dashboard** | [portal.neuralwatt.com](https://portal.neuralwatt.com). |
+| **Adapter** | `fetch_neuralwatt_native` — one `/v1/quota` call per refresh. |
+
+### Cline
+
+| | |
+| --- | --- |
+| **API base** | `https://api.cline.bot/api/v1` — the account API the Cline CLI and IDE use ([reference](https://docs.cline.bot/enterprise-solutions/api-reference)). |
+| **Credentials** | `CLINE_API_KEY` (app.cline.bot → Settings → API Keys), or the Cline CLI sign-in in `${CLINE_DATA_DIR:-~/.cline/data}/settings/providers.json` while its access token is unexpired. The plugin never refreshes that token: a refresh can rotate the refresh token, and the plugin does not write into Cline's data directory. Run `cline` once to renew an expired sign-in. |
+| **Quota / balance** | `GET /users/me` → user id and organizations; `GET /users/{id}/balance`, or `GET /organizations/{orgId}/balance` when an organization is active (the account Cline bills). `balance` is micro-USD — the Cline CLI divides it by 1,000,000. `GET /users/me/plan` → ClinePass plan name and `currentPeriodEnd`. Responses may be wrapped in `{success, data}`. |
+| **Card** | Credits balance (no total exists, so the bar fills only when depleted) and, with a subscription, the plan with its renewal date. ClinePass has no public usage-limit endpoint; a limit hit shows as an inference error in Cline. |
+| **Dashboard** | [app.cline.bot](https://app.cline.bot/dashboard/account?tab=credits). |
+| **Adapter** | `fetch_cline_native`. |
 
 ### OpenCode
 
