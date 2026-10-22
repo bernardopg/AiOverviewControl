@@ -6,6 +6,7 @@ import Quickshell.Io
 import qs.Common
 import qs.Services
 import qs.Widgets
+import qs.DCommon.Widgets
 import qs.Modules.Plugins
 import "ClaudeProfiles.js" as ClaudeProfiles
 
@@ -692,7 +693,7 @@ PluginSettings {
                     }
                 }
 
-                DankActionButton {
+                DActionButton {
                     Layout.alignment: Qt.AlignVCenter
                     iconName: "refresh"
                     iconColor: Theme.primary
@@ -857,7 +858,7 @@ PluginSettings {
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
-                            DankIcon {
+                            DIcon {
                                 visible: pillProviderChip.active
                                 name: "check"
                                 size: 13
@@ -879,8 +880,8 @@ PluginSettings {
         }
     }
 
-    DankToggle {
-        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+    DToggle {
+        // DToggle insets its text by spacingM; bleed out to align with the other rows.
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.pill_tooltip", "DankBar pill tooltip")
@@ -889,7 +890,7 @@ PluginSettings {
         onToggled: function(checked) { saveValue("pillTooltip", checked ? "true" : "false"); }
     }
 
-    DankToggle {
+    DToggle {
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.show_remaining", "Show remaining quota")
@@ -900,7 +901,7 @@ PluginSettings {
 
     // Pill footprint controls (issue #33): logo + percentage only, and a
     // tighter gap around the separator dot for crowded bars.
-    DankToggle {
+    DToggle {
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.pill_show_names", "Provider names in pill")
@@ -909,7 +910,7 @@ PluginSettings {
         onToggled: function(checked) { saveValue("pillShowNames", checked ? "true" : "false"); }
     }
 
-    DankToggle {
+    DToggle {
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.pill_compact", "Compact pill spacing")
@@ -980,8 +981,8 @@ PluginSettings {
         onPicked: function(value) { saveValue("refreshInterval", value); }
     }
 
-    DankToggle {
-        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+    DToggle {
+        // DToggle insets its text by spacingM; bleed out to align with the other rows.
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.show_errors", "Show providers with errors")
@@ -1041,7 +1042,7 @@ PluginSettings {
 
                 Item { width: 1; height: 1; Layout.fillWidth: true }
 
-                DankIcon {
+                DIcon {
                     name: "edit"
                     size: Theme.iconSizeSmall
                     color: Theme.surfaceVariantText
@@ -1066,8 +1067,8 @@ PluginSettings {
         onPicked: function(value) { saveValue("costCurrency", value); }
     }
 
-    DankToggle {
-        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+    DToggle {
+        // DToggle insets its text by spacingM; bleed out to align with the other rows.
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.show_projects", "Show Claude projects")
@@ -1076,8 +1077,8 @@ PluginSettings {
         onToggled: function(checked) { saveValue("showClaudeProjects", checked ? "true" : "false"); }
     }
 
-    DankToggle {
-        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+    DToggle {
+        // DToggle insets its text by spacingM; bleed out to align with the other rows.
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.antigravity_model_details", "Show individual Antigravity models")
@@ -1086,9 +1087,9 @@ PluginSettings {
         onToggled: function(checked) { saveValue("showAntigravityModelDetails", checked ? "true" : "false"); }
     }
 
-    DankToggle {
+    DToggle {
         id: notifyToggle
-        // DankToggle insets its text by spacingM; bleed out to align with the other rows.
+        // DToggle insets its text by spacingM; bleed out to align with the other rows.
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
         text: t("settings.notify.label", "Quota notifications")
@@ -1157,7 +1158,7 @@ PluginSettings {
             font.pixelSize: Theme.fontSizeSmall - 1
         }
 
-        DankTextField {
+        DTextField {
             id: thresholdOverridesField
             width: parent.width
             placeholderText: "claude:90,codex:75"
@@ -1175,7 +1176,7 @@ PluginSettings {
                 width: parent.width
                 spacing: Theme.spacingXS
 
-                DankIcon {
+                DIcon {
                     name: "error_outline"
                     size: 14
                     color: Theme.error
@@ -1239,14 +1240,14 @@ PluginSettings {
             Row {
                 spacing: Theme.spacingS
 
-                DankButton {
+                DButton {
                     text: "CSV"
                     iconName: "table_view"
                     enabled: !exportProcess.running
                     onClicked: root.exportHistory("csv")
                 }
 
-                DankButton {
+                DButton {
                     text: "JSONL"
                     iconName: "data_object"
                     backgroundColor: Theme.surfaceContainerHighest
@@ -1290,25 +1291,25 @@ PluginSettings {
             color: Theme.surfaceVariantText
             font.pixelSize: Theme.fontSizeSmall
         }
-        DankTextField {
+        DTextField {
             id: claudeProfileId
             objectName: "claude-profile-id"
             width: parent.width
             placeholderText: t("settings.claude_profile_id", "Provider ID, e.g. claude-work")
         }
-        DankTextField {
+        DTextField {
             id: claudeProfileName
             objectName: "claude-profile-name"
             width: parent.width
             placeholderText: t("settings.claude_profile_name", "Display name, e.g. Claude Work")
         }
-        DankTextField {
+        DTextField {
             id: claudeProfileDir
             objectName: "claude-profile-dir"
             width: parent.width
             placeholderText: t("settings.claude_profile_dir", "Absolute CLAUDE_CONFIG_DIR path")
         }
-        DankButton {
+        DButton {
             objectName: "claude-profile-add"
             text: t("settings.claude_profile_add", "Add Claude profile")
             onClicked: {
@@ -1339,7 +1340,7 @@ PluginSettings {
                     color: Theme.surfaceText
                     font.pixelSize: Theme.fontSizeSmall
                 }
-                DankButton {
+                DButton {
                     text: t("settings.claude_profile_remove", "Remove")
                     onClicked: root.removeClaudeProfile(parent.modelData)
                 }
@@ -1378,7 +1379,7 @@ PluginSettings {
             spacing: Theme.spacingS
             StyledText { text:t("settings.current_selection", "Current selection"); color:Theme.primary; font.weight:Font.DemiBold; font.pixelSize:Theme.fontSizeSmall }
             StyledText { width:parent.width; text:root.selectedIds.join(", "); wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall }
-            DankTextField {
+            DTextField {
                 width: parent.width
                 text: { root.settingsEpoch; return loadValue("providerSelection", "codex,claude,copilot"); }
                 placeholderText: "codex,claude,copilot,openrouter"
@@ -1452,7 +1453,7 @@ PluginSettings {
                             font.family: "monospace"
                         }
 
-                        DankActionButton {
+                        DActionButton {
                             id: copyButton
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.spacingXS
@@ -1520,7 +1521,7 @@ PluginSettings {
             Row {
                 spacing: Theme.spacingS
 
-                DankButton {
+                DButton {
                     text: resetCard.armed
                         ? t("settings.reset_confirm", "Confirm reset")
                         : t("settings.reset_action", "Reset to defaults")
@@ -1539,7 +1540,7 @@ PluginSettings {
                     }
                 }
 
-                DankButton {
+                DButton {
                     visible: resetCard.armed
                     text: t("settings.reset_cancel", "Cancel")
                     backgroundColor: Theme.surfaceContainerHighest
@@ -1553,11 +1554,11 @@ PluginSettings {
         }
     }
 
-    // DankDropdown shows its raw option strings, so stored values ("compact",
+    // DDropdown shows its raw option strings, so stored values ("compact",
     // "primary", "120000") would leak into the UI untranslated. This keeps the
     // stored value and the translated label apart: `values` are persisted,
     // `labels` are what the user reads.
-    component ValueDropdown: DankDropdown {
+    component ValueDropdown: DDropdown {
         id: valueDropdown
         property var values: []
         property var labels: []
@@ -1596,7 +1597,7 @@ PluginSettings {
             anchors.centerIn: parent
             spacing: Theme.spacingXS
 
-            DankIcon {
+            DIcon {
                 visible: healthChip.chipIcon.length > 0
                 name: healthChip.chipIcon
                 size: 13
@@ -1626,7 +1627,7 @@ PluginSettings {
         Row {
             spacing: Theme.spacingS
 
-            DankIcon {
+            DIcon {
                 visible: sectionHeader.headerIcon.length > 0
                 name: sectionHeader.headerIcon
                 size: 15
@@ -1662,7 +1663,7 @@ PluginSettings {
         Row {
             spacing: Theme.spacingS
 
-            DankIcon {
+            DIcon {
                 visible: providerSection.sectionIcon.length > 0
                 name: providerSection.sectionIcon
                 size: 16
@@ -1780,7 +1781,7 @@ PluginSettings {
                             border.color: Theme.withAlpha(Theme.surfaceText, chipMouse.containsMouse ? 0.4 : 0.2)
                             Behavior on color { ColorAnimation { duration: 160 } }
 
-                            DankIcon {
+                            DIcon {
                                 anchors.centerIn: parent
                                 visible: providerChip.active
                                 name: "check"
@@ -1836,7 +1837,7 @@ PluginSettings {
                         StyledText { Layout.preferredWidth:100; text:modelData.name; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeSmall; font.weight:Font.Medium; elide:Text.ElideRight }
                         StyledText { Layout.fillWidth:true; text:root.t("provider.note." + modelData.id, modelData.note); wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall - 1 }
 
-                        DankActionButton {
+                        DActionButton {
                             Layout.alignment: Qt.AlignVCenter
                             buttonSize: 26
                             iconName: root.isPinned(providerDetailRow.modelData.id) ? "star" : "star_border"
@@ -1898,7 +1899,7 @@ PluginSettings {
                 StyledText { width:parent.width; text:section.sectionTitle; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeMedium; font.weight:Font.DemiBold }
                 StyledText { visible:!section.expanded; width:parent.width; text:section.sectionDesc; wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall }
             }
-            DankIcon { id:chevron; anchors.right:parent.right; anchors.rightMargin:Theme.spacingM; anchors.verticalCenter:parent.verticalCenter; name:"expand_more"; size:18; color:Theme.primary; rotation:section.expanded ? 180 : 0 }
+            DIcon { id:chevron; anchors.right:parent.right; anchors.rightMargin:Theme.spacingM; anchors.verticalCenter:parent.verticalCenter; name:"expand_more"; size:18; color:Theme.primary; rotation:section.expanded ? 180 : 0 }
             MouseArea { anchors.fill:parent; cursorShape:Qt.PointingHandCursor; onClicked:section.expanded = !section.expanded }
         }
 

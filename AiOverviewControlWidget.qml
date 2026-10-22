@@ -1186,7 +1186,7 @@ PluginComponent {
 
     // One line describing exactly what the DankBar is showing: provider,
     // which quota window the number came from, the percentage, and the reset.
-    // DankTooltip renders a single elided line, so the reset is only appended
+    // DTooltip renders a single elided line, so the reset is only appended
     // when the pill tracks one provider.
     function pillTooltipText() {
         const entries = [];
@@ -2284,7 +2284,7 @@ PluginComponent {
     Loader {
         id: pillTooltipLoader
         active: false
-        sourceComponent: DankTooltip {}
+        sourceComponent: DTooltip {}
     }
 
     horizontalBarPill: Component {
@@ -2459,10 +2459,22 @@ PluginComponent {
 
     Component.onDestruction: if (_settingsWindow) _settingsWindow.destroy()
 
+    Timer {
+        interval: 0
+        running: true
+        onTriggered: ipcHandler.enabled = true
+    }
+
     // Returns string, not void: qmllint's parser rejects a `void` return
     // annotation even though the Quickshell runtime accepts it.
     IpcHandler {
+        id: ipcHandler
         target: "aiOverviewControl"
+        // A plugin reload creates this widget before the previous instance's
+        // deferred destroy() unregisters its handler, and Quickshell then keeps
+        // the stale one (quickshell#898). Register on the next event-loop tick,
+        // the same zero-interval deferral DMS 2.0 uses for plugin daemons.
+        enabled: false
 
         // Bindable to a compositor shortcut, e.g.
         // dms ipc call aiOverviewControl toggle
@@ -2520,11 +2532,12 @@ PluginComponent {
                 value: dashboardHost.parentPopout
                 when: dashboardHost.item !== null
             }
-            Binding {
-                target: dashboardHost.item
-                property: "closePopout"
-                value: dashboardHost.closePopout
-                when: dashboardHost.item !== null
+            // closePopout is a function. A Binding cannot carry one ("Unable to
+            // assign a function to a property of any type other than var"), so
+            // forward later changes imperatively; setSource passes the first.
+            onClosePopoutChanged: {
+                if (item)
+                    item.closePopout = closePopout;
             }
         }
     }

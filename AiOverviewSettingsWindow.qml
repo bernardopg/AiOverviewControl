@@ -6,6 +6,7 @@ import Quickshell
 import qs.Common
 import qs.Services
 import qs.Widgets
+import qs.DCommon.Widgets
 
 // Standalone settings window opened from the popout header. It hosts the
 // very same AiOverviewControlSettings the DMS Settings > Plugins page loads,
@@ -19,7 +20,7 @@ FloatingWindow {
     property string hoveredAction: ""
 
     readonly property string repoUrl: "https://github.com/bernardopg/AiOverviewControl"
-    readonly property string registryUrl: "https://github.com/AvengeMedia/dms-plugin-registry/issues/358"
+    readonly property string registryUrl: "https://github.com/duxlabs-dev/dux-plugin-registry/issues/358"
     // Right-hand gutter shared by header and body. The scrollbar lives in it,
     // so content never runs under the bar, and both edges line up with the
     // window's left margin.
@@ -93,7 +94,7 @@ FloatingWindow {
             anchors.rightMargin: Theme.spacingM
             spacing: Theme.spacingS
 
-            DankIcon {
+            DIcon {
                 name: link.iconName
                 size: 18
                 color: link.accent
@@ -108,7 +109,7 @@ FloatingWindow {
                 elide: Text.ElideRight
             }
 
-            DankIcon {
+            DIcon {
                 name: "open_in_new"
                 size: 15
                 color: linkMouse.containsMouse ? link.accent : Theme.surfaceVariantText
@@ -216,7 +217,7 @@ FloatingWindow {
                         position: "first"
                         iconName: "favorite"
                         accent: Theme.error
-                        label: win.t("header.upvote", "Upvote on the DankLinux plugin registry")
+                        label: win.t("header.upvote", "Upvote on the DMS plugin registry")
                         onHoveredChanged: win.hoveredAction = hovered ? label : ""
                         onTriggered: Qt.openUrlExternally(win.registryUrl)
                     }
@@ -263,7 +264,7 @@ FloatingWindow {
             id: settingsFlick
             anchors.top: windowHeader.bottom
             anchors.topMargin: Theme.spacingM
-            // DankToggle rows bleed spacingM left to align their text; widen
+            // DToggle rows bleed spacingM left to align their text; widen
             // the clip by the same amount so their hover shape keeps its
             // rounded left edge. The Loader offset keeps content in place.
             anchors.left: parent.left
@@ -400,7 +401,7 @@ FloatingWindow {
                             layer.enabled: true
                         }
 
-                        DankIcon {
+                        DIcon {
                             anchors.centerIn: parent
                             visible: avatar.status !== Image.Ready
                             name: "person"
@@ -474,7 +475,7 @@ FloatingWindow {
 
             AboutLink {
                 iconName: "thumb_up"
-                label: win.t("header.upvote", "Upvote on the DankLinux plugin registry")
+                label: win.t("header.upvote", "Upvote on the DMS plugin registry")
                 url: win.registryUrl
             }
 

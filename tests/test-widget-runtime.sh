@@ -9,6 +9,23 @@ if [[ -z "${WAYLAND_DISPLAY:-}" || ! -f "$IMPORTS/qs/Modules/Plugins/PluginCompo
     [[ "${AIOC_REQUIRE_NATIVE_UI:-0}" == 1 ]] && exit 1
     exit 0
 fi
+# DMS 2.0 keeps renamed widgets (DankToggle -> DToggle, …) as wrappers that
+# log a deprecation when instantiated. Lazily loaded ones (tooltips, dialogs)
+# may never instantiate here, so also reject any type whose DMS file is a
+# deprecation wrapper.
+deprecated=()
+while IFS= read -r type; do
+    for dir in Widgets Common Modules/Plugins Services DCommon/Widgets; do
+        file="$IMPORTS/qs/$dir/$type.qml"
+        if [[ -f "$file" ]] && grep -q 'Deprecation\.' "$file"; then
+            deprecated+=("$type ($dir)")
+        fi
+    done
+done < <(grep -ohE '\b[A-Z][A-Za-z0-9]+\b' "$ROOT"/*.qml | sort -u)
+if (( ${#deprecated[@]} )); then
+    printf 'FAIL: deprecated DMS types in plugin QML: %s\n' "${deprecated[*]}" >&2
+    exit 1
+fi
 TMP="$(mktemp -d)"
 pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
@@ -382,7 +399,7 @@ for _ in {1..240}; do
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.1
 done
-if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::fail|TypeError|ReferenceError|binding loop|Failed to load configuration|Cannot assign|Unable to assign|Invalid property assignment|is not a type|i18n load failed|File name case mismatch' "$TMP/log"; then
+if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::fail|TypeError|ReferenceError|binding loop|Failed to load configuration|Cannot assign|Unable to assign|Invalid property assignment|is not a type|i18n load failed|File name case mismatch|is deprecated and will be removed' "$TMP/log"; then
     printf '%s\n' "$(<"$TMP/log")" >&2
     exit 1
 fi

@@ -1,6 +1,6 @@
 # Project dependency and workflow audit
 
-Verified against official stable releases on 2026-10-22 UTC. This document
+Verified against official stable releases on 2026-10-22 UTC (DMS pin updated the same day). This document
 covers repository-managed tooling only, not the developer's host packages.
 
 ## Update policy
@@ -58,10 +58,13 @@ pinned SHA-256 before it runs.
   `e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a`.
 
 The native UI smoke checks out
-[DankMaterialShell v1.6.3](https://github.com/AvengeMedia/DankMaterialShell/releases/tag/v1.6.3)
-(`4a87e8227daf0840b3376fd5e7f891f5900165a6`) with submodules. DMS 2.0.0 was
-published on 2026-10-20; moving to it is a separate compatibility change, not a
-version bump.
+[DMS v2.0.0](https://github.com/duxlabs-dev/dux-shell/releases/tag/v2.0.0) from
+its new home, `duxlabs-dev/dux-shell` (`9b413296b16721f7679fb62e624cb1ed2433fa58`,
+the resolved annotated tag), with the `dux-qml-common` submodule. It was adopted
+two days after publication, a deliberate exception to the quarantine: the
+plugin now requires DMS 2.0 (`requires_dms`), so CI must test the API users run.
+The tag and commit were checked against GitHub, and the same commit was built
+and run locally before the pin changed.
 
 `tests/test-workflow-dependencies.sh` enforces immutable external action refs,
 artifact checksums, the Crowdin native launcher, the secret/workflow scans, scoped

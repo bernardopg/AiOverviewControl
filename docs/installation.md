@@ -5,13 +5,13 @@
 The simplest path: install **AiOverviewControl** through DMS's built-in plugin store. Store installs land under the manifest id — note the lowercase leading `a`:
 
 ```text
-~/.config/DankMaterialShell/plugins/aiOverviewControl
+~/.config/dms/plugins/aiOverviewControl
 ```
 
 Manual installs (the two methods below) use the `AiOverviewControl`
 display-name casing instead. Linux paths are case-sensitive, so when following
 [troubleshooting](./troubleshooting.md), adjust its `PLUGIN=` line to whichever
-directory `ls ~/.config/DankMaterialShell/plugins` actually shows.
+directory `ls ~/.config/dms/plugins` actually shows.
 
 ## Install from a checkout
 
@@ -21,7 +21,7 @@ components by name, and `providers/get-local-analytics` reads
 `scripts/local-analytics.jq`. A partial copy loads but fails at runtime.
 
 ```bash
-PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
+PLUGIN="$HOME/.config/dms/plugins/AiOverviewControl"
 mkdir -p "$PLUGIN"
 cp -a ./*.qml ./*.js plugin.json qmldir providers scripts assets \
   README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
@@ -39,7 +39,7 @@ ARCHIVE=AiOverviewControl-vX.Y.Z.tar.gz
 CHECKSUM=AiOverviewControl-vX.Y.Z.sha256
 grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
 
-PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
+PLUGIN="$HOME/.config/dms/plugins/AiOverviewControl"
 mkdir -p "$PLUGIN"
 tar -xzf "$ARCHIVE" -C "$PLUGIN" --strip-components=1
 chmod +x "$PLUGIN"/providers/get-*
@@ -53,7 +53,7 @@ ARCHIVE=AiOverviewControl-vX.Y.Z.zip
 CHECKSUM=AiOverviewControl-vX.Y.Z.sha256
 grep "  ${ARCHIVE}$" "$CHECKSUM" | sha256sum --check --strict
 
-PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
+PLUGIN="$HOME/.config/dms/plugins/AiOverviewControl"
 tmpdir="$(mktemp -d)"
 unzip -q "$ARCHIVE" -d "$tmpdir"
 mkdir -p "$PLUGIN"
@@ -65,7 +65,14 @@ dms restart
 
 ## Core dependencies
 
-No hard minimum DMS/Quickshell version is enforced by the plugin; use a current DMS build with plugin and DankBar support, since newer widget features assume it.
+DMS **2.0 or newer** is required (`requires_dms: ">=2.0.0"` in `plugin.json`); DMS 1.x
+reports the plugin as incompatible instead of loading it. Stay on
+[1.22.0](https://github.com/bernardopg/AiOverviewControl/releases/tag/v1.22.0), the last
+release for DMS 1.6, until your distribution ships DMS 2.0.
+
+DMS 2.0 moved its directories from `DankMaterialShell` to `dms`
+(`~/.config/dms`, `~/.local/state/dms`, `~/.cache/dms`) and leaves a symlink at each old
+path, so an existing checkout under `~/.config/DankMaterialShell/plugins` keeps working.
 
 ```bash
 command -v bash
@@ -88,7 +95,7 @@ These commands are optional unless the matching provider is selected.
 ## First validation
 
 ```bash
-cd ~/.config/DankMaterialShell/plugins/AiOverviewControl
+cd ~/.config/dms/plugins/AiOverviewControl
 ./providers/get-provider-health "codex,claude,copilot" | jq .
 ./providers/get-codex-usage | jq .
 ./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage | jq .
@@ -101,7 +108,7 @@ Then enable the plugin in DMS settings and add the widget to the desired DankBar
 Replace the installed plugin files using either method above, preserve the DMS settings store, restore executable bits, and restart DMS:
 
 ```bash
-chmod +x ~/.config/DankMaterialShell/plugins/AiOverviewControl/providers/get-*
+chmod +x ~/.config/dms/plugins/AiOverviewControl/providers/get-*
 dms restart
 ```
 

@@ -28,7 +28,8 @@ more depth.
 Quickshell/DankMaterialShell plugin (`id: aiOverviewControl`) that surfaces AI
 provider quota, billing, authentication and local usage telemetry in a DankBar
 pill and a popout dashboard. Runtime is QML at the repo root plus bash + jq
-adapters in `providers/`. Targets DMS 1.6.x on Quickshell 0.3.
+adapters in `providers/`. Targets DMS 2.0+ on Quickshell 0.3 (`requires_dms` in
+`plugin.json`); 1.22.0 is the last release for DMS 1.6.
 
 ## Layout
 
@@ -93,6 +94,14 @@ docs/                         User/operator docs; docs/releases/<version>.md per
   in all five bundles with matching placeholders.
 - A Repeater delegate that is a custom component needs
   `required property var modelData`.
+- Shared widgets come from `qs.DCommon.Widgets` with their DMS 2.0 names
+  (`DIcon`, `DToggle`, `DButton`, …); `qs.Widgets` keeps only shell types
+  (`StyledText`, `StyledRect`, `DTooltip`). The `Dank*` names are deprecated
+  wrappers and `tests/test-widget-runtime.sh` rejects them.
+- The README contributor grid is append-only and **@SkippySteve must never be
+  removed** (see CONTRIBUTING.md, "Contributor credits"). Run
+  `scripts/render-contributors`, never hand-edit or prune the grid. Counts in
+  the README come from `scripts/render-badges`.
 - Mark deliberate simplifications with a `ponytail:` comment naming the
   ceiling and the upgrade path.
 

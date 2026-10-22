@@ -42,7 +42,7 @@ AiOverviewControl is installed. For the setting keys themselves see
 
 | Button | Action |
 | --- | --- |
-| ❤ | Upvote the plugin on the DankLinux plugin registry. |
+| ❤ | Upvote the plugin on the DMS plugin registry. |
 | `<>` | Open the GitHub repository. |
 | ⟳ | Refresh every provider now. Spins while a refresh runs. |
 | ⚙ | Open the settings window. |

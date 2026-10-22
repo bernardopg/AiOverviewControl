@@ -1,6 +1,6 @@
 import QtQuick
 import qs.Common
-import qs.Widgets
+import qs.DCommon.Widgets
 
 // Icon-only popout header button. Segments of a capsule get rounded outer
 // corners and tight inner ones; hover morphs the segment into a full pill.
@@ -69,14 +69,14 @@ Rectangle {
         }
     }
 
-    DankRipple {
+    DRipple {
         id: actionRipple
         anchors.fill: parent
         cornerRadius: parent.topLeftRadius
         rippleColor: action.accent
     }
 
-    DankIcon {
+    DIcon {
         anchors.centerIn: parent
         name: action.iconName
         size: 18

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import qs.Common
-import qs.Widgets
+import qs.DCommon.Widgets
 
 Item {
     id: root
@@ -83,7 +83,7 @@ Item {
         }
     }
 
-    DankIcon {
+    DIcon {
         anchors.centerIn: parent
         visible: root.logoSource.toString().length === 0 || logoImage.status === Image.Error
         name: root.fallbackIcon
