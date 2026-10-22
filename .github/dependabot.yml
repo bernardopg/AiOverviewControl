@@ -9,6 +9,10 @@ updates:
       time: "09:00"
       timezone: "America/Sao_Paulo"
     open-pull-requests-limit: 5
+    # Supply-chain quarantine: a release must be a week old before Dependabot
+    # proposes it, the same rule the pinned CI tool binaries follow.
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "github-actions"

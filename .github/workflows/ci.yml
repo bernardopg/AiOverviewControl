@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: AvengeMedia/DankMaterialShell
-          ref: 2db7646fe3ab47fddfdb8723f2da07d61a0d47ac # v1.6.2
+          ref: 4a87e8227daf0840b3376fd5e7f891f5900165a6 # v1.6.3
           path: .dms
           submodules: true
           persist-credentials: false
@@ -793,8 +793,10 @@ jobs:
           "$bin" --version
 
       - name: QML lint (hard gate)
+        env:
+          QMLLINT_BIN: ${{ steps.qmllint.outputs.bin }}
         run: |
-          "${{ steps.qmllint.outputs.bin }}" ./*.qml
+          "$QMLLINT_BIN" ./*.qml
 
       - name: No hardcoded install path in QML
         run: |
@@ -1047,10 +1049,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate Crowdin config (hard gate, no secret required)
+        env:
+          CROWDIN_BINARY: ${{ steps.crowdin_cli.outputs.binary }}
+          CROWDIN_IDENTITY: ${{ steps.crowdin_cli.outputs.offline_identity }}
         run: |
-          "${{ steps.crowdin_cli.outputs.binary }}" \
+          "$CROWDIN_BINARY" \
             config lint --config .github/crowdin.yml \
-            --identity "${{ steps.crowdin_cli.outputs.offline_identity }}"
+            --identity "$CROWDIN_IDENTITY"
 
       - name: Validate Crowdin project remotely (requires secret)
         env:

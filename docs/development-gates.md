@@ -13,8 +13,9 @@ Install the repository hook explicitly (it is not installed automatically):
 git config --local core.hooksPath .githooks
 ```
 
-The hook checks the current working tree, not every commit being pushed. It is a
-fast metadata safeguard, **not** a replacement for the integration, shellcheck,
+The hook checks the current working tree's metadata and, when `gitleaks` is
+installed, scans only the commits being pushed for secrets. It is a
+fast safeguard, **not** a replacement for the integration, shellcheck,
 QML lint, package, and remote CI gates. If you already have `core.hooksPath`
 configured, integrate the call into that hook instead of overwriting it.
 
@@ -29,6 +30,31 @@ scope of repository-managed tooling.
 downloaded-tool checksums and the Crowdin 5 native launcher. This offline test
 does not discover future releases; Dependabot covers actions, while pinned binary
 versions still need explicit upstream review.
+
+## Security scans
+
+`.github/workflows/security.yml` runs on every PR, push to `main` and weekly:
+
+- **Secret scan**: gitleaks over the full Git history with redacted output, then
+  TruffleHog reporting only credentials their issuer still accepts.
+- **Workflow security audit**: zizmor over `.github/workflows`, failing on
+  medium or higher findings.
+
+Both are required checks on `main`. Reproduce them locally before pushing
+workflow or fixture changes:
+
+```bash
+gitleaks git --no-banner --redact .
+trufflehog git file://. --results=verified --fail --no-update
+GH_TOKEN="$(gh auth token)" zizmor --min-severity=medium .github/workflows
+```
+
+Test fixtures must use obviously fake values (`fixture-work`, `offline-lint-placeholder`)
+that match no real credential format. If gitleaks flags a fixture, change the
+fixture rather than adding an allowlist. `scorecard.yml` publishes the OpenSSF
+Scorecard weekly and on branch-protection changes, and the Release workflow
+attests build provenance for the published archives (see
+[SECURITY.md](../.github/SECURITY.md#verifying-a-release)).
 
 ## Pinned order and retention feedback
 

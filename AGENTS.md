@@ -111,6 +111,8 @@ QT_FORCE_STDERR_LOGGING=1 qmllint *.qml   # exit code is the signal; without a T
                                           # messages go to journald, not stderr
 actionlint
 git diff --check
+gitleaks git --no-banner --redact .                       # Secret scan check
+GH_TOKEN="$(gh auth token)" zizmor --min-severity=medium .github/workflows
 ```
 
 Optional hook: `git config core.hooksPath .githooks` runs the metadata gate

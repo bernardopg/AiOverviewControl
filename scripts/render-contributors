@@ -12,9 +12,12 @@ FILES=("README.md" "docs/README.pt-BR.md")
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# Bots contribute commits but are not people to thank.
+# Bots contribute commits but are not people to thank. Some automation (coding
+# assistants committing under a vendor noreply address) maps to a regular
+# "User" account, so those logins are excluded by name as well.
+EXCLUDED_LOGINS='["claude","Copilot","copilot-swe-agent","codex","devin-ai-integration"]'
 grid="$(gh api "repos/${REPO}/contributors?per_page=100" --paginate \
-  --jq '.[] | select(.type == "User") | "<a href=\"\(.html_url)\" title=\"\(.login)\"><img src=\"\(.avatar_url)&s=112\" width=\"'"$AVATAR_SIZE"'\" height=\"'"$AVATAR_SIZE"'\" alt=\"\(.login)\" /></a>"')"
+  --jq '.[] | select(.type == "User" and ((.login | IN('"$EXCLUDED_LOGINS"'[])) | not)) | "<a href=\"\(.html_url)\" title=\"\(.login)\"><img src=\"\(.avatar_url)&s=112\" width=\"'"$AVATAR_SIZE"'\" height=\"'"$AVATAR_SIZE"'\" alt=\"\(.login)\" /></a>"')"
 
 [ -n "$grid" ] || { echo "No contributors returned for ${REPO}" >&2; exit 1; }
 

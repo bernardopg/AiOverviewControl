@@ -59,8 +59,8 @@ carga média, provedor mais usado e próximo reset.
 
 **🎯 Uma pílula que diz a verdade**<br />
 Escolha qual janela de cota cada provedor mostra na barra, ou siga a mais
-apertada. Passe o mouse para ver a janela e o reset. Barra lotada? Esconda
-os nomes e compacte o espaçamento.
+apertada, como cota usada ou restante. Passe o mouse para ver a janela e o
+reset. Barra lotada? Esconda os nomes e compacte o espaçamento.
 
 </td>
 </tr>
@@ -69,7 +69,8 @@ os nomes e compacte o espaçamento.
 
 **🤖 Telemetria local detalhada**<br />
 Claude, 9Router, pi e Hermes mostram tokens, custo, modelos e projetos com
-gráfico de sete dias — lidos de dados que já estão no seu disco.
+gráfico de sete dias — lidos de dados que já estão no seu disco. Acompanhe
+várias contas Claude lado a lado, cada uma com seu próprio `CLAUDE_CONFIG_DIR`.
 
 </td>
 <td valign="top">
@@ -151,7 +152,7 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-O [guia do release 1.21.0](./releases/1.21.0.md) reúne mudanças, privacidade e limitações (em inglês).
+O [guia do release 1.22.0](./releases/1.22.0.md) reúne mudanças, privacidade e limitações (em inglês).
 Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
 e [regras de PR e publicação](./repository-rules.md).
 
