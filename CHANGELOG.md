@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 2.0.0 - 2026-10-22
+
+A major release for DMS 2.0: the plugin uses the DMS 2.0 widget library
+directly, loads without deprecation warnings and declares `requires_dms:
+">=2.0.0"`. DMS 1.6 users should stay on 1.22.0, the last release for DMS 1.6.
+Providers, Claude profiles, settings and history carry over with no migration.
+Long-form notes, including the DMS directory move: [docs/releases/2.0.0.md](docs/releases/2.0.0.md).
+
+### DMS 2.0
+- **Breaking:** requires DMS 2.0 or newer (`requires_dms` in `plugin.json`); DMS 1.6 reports the requirement instead of loading the plugin.
+- Migrate every deprecated widget to its DMS 2.0 name: `DIcon`, `DToggle`, `DTextField`, `DButton`, `DActionButton`, `DRipple`, `DFilterChips` and `DDropdown` from `qs.DCommon.Widgets`, and `DTooltip` from `qs.Widgets`.
+- Register the IPC target one event-loop tick after the widget is created, so a plugin reload never leaves a duplicate handler behind ([quickshell#898](https://github.com/quickshell-mirror/quickshell/issues/898)).
+- Forward the popout close callback directly instead of through a `Binding`, which DMS 2.0 rejected.
+- Upvote button and README links point to the Dux Labs plugin registry and directory; the button reads **Upvote on the DMS plugin registry** in all five languages.
+- Installation and troubleshooting docs use the DMS 2.0 directories (`~/.config/dms`, with the old `DankMaterialShell` path kept as a symlink).
+
+### Project
+- README badges read live data: required DMS version from `plugin.json`, Security, OpenSSF Scorecard and downloads, plus provider and language counts from `docs/badges.json`, which `scripts/render-badges` derives from the code and the metadata gate keeps current (39 selectable providers).
+- The contributor grid is append-only and always credits @SkippySteve, whom GitHub's API stopped listing; `tests/test-render-contributors.sh` enforces it.
+- Releases attach the signed provenance bundle as `.intoto.jsonl` for offline verification (also added to 1.22.0).
+- The native UI smoke builds against DMS v2.0.0 from `duxlabs-dev/dux-shell` and fails on any deprecation warning or deprecated type; `scripts/qmlls-setup` finds the DMS 2.x runtime tree.
 - Bump `github/codeql-action/upload-sarif` to v4.39.0 for the Scorecard upload, once past the seven-day quarantine.
 
 ## 1.22.0 - 2026-10-22
