@@ -13,7 +13,7 @@ TMP="$(mktemp -d)"
 pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/plugin/providers" "$TMP/home" "$TMP/bin"
-cp "$ROOT"/*.qml "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
+cp "$ROOT"/*.qml "$ROOT"/*.js "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
 cp -r "$ROOT/i18n" "$ROOT/assets" "$TMP/plugin/"
 for name in get-provider-usage get-provider-health get-local-analytics get-claude-usage get-9router-analytics get-pi-analytics get-hermes-analytics get-usage-history get-history-stats get-exchange-rates record-usage-history; do
     printf '#!/bin/bash\nprintf '\''{"providers":[],"error":"fixture"}\\n'\''\n' > "$TMP/plugin/providers/$name"
@@ -218,8 +218,44 @@ ShellRoot {
                 if (lateSettings.selectedIds.join(",") !== "codex" || !lateSettings.providerHealth["codex"])
                     console.error("SMOKE FAIL: late pluginService did not load selection and health: "
                         + JSON.stringify({ids: lateSettings.selectedIds, health: lateSettings.providerHealth}));
-                console.warn("FULL_UI_SMOKE_OK");
+                for (const values of [["codex", "Bad", "/tmp/config"], ["claude-relative", "Bad", "relative"]]) {
+                    if (settings.addClaudeProfile(values[0], values[1], values[2])) {
+                        console.error("SMOKE FAIL: accepted invalid Claude profile"); return;
+                    }
+                }
+                input.findChild(settings, "claude-profile-id").text = "claude-work";
+                input.findChild(settings, "claude-profile-name").text = "Claude Work";
+                input.findChild(settings, "claude-profile-dir").text = "/tmp/work account";
+                input.findChild(settings, "claude-profile-add").clicked();
+                widget.pluginData = service.data;
+                if (!settings.isSelected("claude-work") || widget.providerName("claude-work") !== "Claude Work"
+                    || widget.availableProviderOptions.indexOf("claude-work") < 0
+                    || settings.allProviders.find(p => p.id === "claude-work") === undefined
+                    || settings.addClaudeProfile("claude-work", "Duplicate", "/tmp/other")
+                    || widget.notificationWindowKey("claude-work", {windowMinutes: 300}) === widget.notificationWindowKey("claude", {windowMinutes: 300})
+                    || widget.providerConsoleUrl("claude-work", "") !== widget.providerConsoleUrl("claude", "")) {
+                    console.error("SMOKE FAIL: Claude profile creation, identity or catalog"); return;
+                }
+                widget.providers = [{provider: "claude-work", usage: {primary: {usedPercent: 73}}, analytics: {weekTokens: 900, todayCost: 1.25}}];
+                widget.allExpanded = true;
+                widget.openProvider("claude-work");
                 root.step = 8;
+            } else if (root.step === 8) {
+                if (!input.findChild(widget.dashboardView, "provider-header-claude-work") || widget.focusedProviderId !== "claude-work") {
+                    console.error("SMOKE FAIL: Claude profile card or focus"); return;
+                }
+                settings.removeClaudeProfile("claude-work");
+                widget.pluginData = service.data;
+                if (settings.claudeProfiles["claude-work"] || settings.isSelected("claude-work")
+                    || widget.availableProviderOptions.indexOf("claude-work") >= 0 || settings.selectedIds.length === 0) {
+                    console.error("SMOKE FAIL: Claude profile removal"); return;
+                }
+                settings.addClaudeProfile("claude-personal", "Personal", "/tmp/personal");
+                settings.resetToDefaults();
+                if (Object.keys(settings.claudeProfiles).length !== 0) { console.error("SMOKE FAIL: Claude profile reset"); return; }
+                widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
+                console.warn("FULL_UI_SMOKE_OK");
+                root.step = 9;
             }
         }
     }

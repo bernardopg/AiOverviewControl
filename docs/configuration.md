@@ -13,6 +13,7 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `densityMode` | `comfortable`, `compact` | `comfortable` | Compact cards hide the preview bar; expanded details remain available. |
 | `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: measurable providers, an explicit compact subset, or the most-used provider. |
 | `pillProviders` | comma-separated IDs | provider selection | Strict provider subset used by `custom` pill mode. The settings UI exposes this as provider chips and never falls back to every tracked provider. |
+| `claudeProfiles` | JSON object (stored as a string) | `{}` | Up to 16 named Claude accounts, keyed by unique `claude-...` provider IDs; each entry contains `name` and an absolute `configDir`. Manage them under **Claude profiles** in settings. |
 | `barWindowOverrides` | `provider:slot,...` | empty | Per-provider DankBar usage window, for example `claude:secondary`. Slot is `primary` (default), `secondary`, `tertiary`, or `highest` (most-constrained). Dashboard cards and history keep the primary window. Notifications follow this choice by default (`notifyWindowScope` = `displayed`). Providers whose payload lacks the chosen slot fall back to the primary window. |
 | `pillTooltip` | `true` / `false` | `true` | Hovering the DankBar pill shows the provider, the quota window the percentage came from, and the reset. With one provider in the pill it also appends `resets in ...`. |
 | `pillShowNames` | `true` / `false` | `true` | Show each provider's name in the horizontal DankBar pill. `false` keeps only the logo and percentage; the tooltip still names the provider. Vertical bars never show names. |
@@ -59,6 +60,43 @@ It prints the absolute path of the file it wrote on stdout and writes it
 default, including tracked providers, pins, notification thresholds, and
 DankBar overrides. It is a two-step confirmation and never touches the
 recorded usage history.
+
+## Multiple Claude accounts
+
+In settings, open **Claude profiles** and enter a unique provider ID (for example
+`claude-work`), display name and **absolute** `CLAUDE_CONFIG_DIR` directory. Sign in
+first with `CLAUDE_CONFIG_DIR=/absolute/path claude auth login --claudeai`.
+Adding a profile automatically tracks it; its chip can later disable it without
+removing the saved profile. **Remove** deletes the profile and its active selection,
+pin, custom-pill and alert/window overrides, but not credentials, caches or history.
+To change a profile's directory, remove it and add it again. Use a new ID for a
+different account to keep historical data separate. Resetting settings clears all
+profile definitions. Paths are literal, not shell expressions: `~` and `$HOME` are
+not expanded. IDs use lowercase letters, digits, `_` or `-` after `claude-` (1–56
+characters; the first must be a letter or digit). Names are 1–80 characters.
+
+When upgrading from a version without Claude profiles, restart DMS once
+(`dms restart`) so Qt discovers the new JavaScript module; later profile changes
+only require a refresh.
+
+The ordinary `claude` provider still uses the shell's `CLAUDE_CONFIG_DIR`, or
+`~/.claude` by default. Additional profiles have their own cards, quota windows,
+week-token/today-cost summaries, readiness, pins, window choices, notifications and
+IPC focus targets. The full model/project breakdown remains on the default Claude
+card. Account snapshots and transcript caches live under
+`AiOverviewControl/claude-profiles/<canonical-directory-sha256>/`; pricing and CLI
+version caches are shared. Old unscoped account snapshots are not trusted.
+
+The dispatcher and health helper also accept these definitions through
+`AIOC_CLAUDE_PROFILES`, for example:
+
+```bash
+AIOC_CLAUDE_PROFILES='{"claude-work":{"name":"Claude Work","configDir":"/home/user/.claude-work"}}' \
+  providers/get-provider-usage claude,claude-work | jq .
+```
+
+Credentials stay in their own directory and are sent only to Anthropic's OAuth
+usage API. No token is stored in plugin settings.
 
 ## Antigravity display
 

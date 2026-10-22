@@ -95,6 +95,8 @@ fetch_copilot() {
 source "$SCRIPT_DIR/native/codex.bash"
 # shellcheck source=providers/native/claude.bash
 source "$SCRIPT_DIR/native/claude.bash"
+# shellcheck source=providers/claude-profile-common
+source "$SCRIPT_DIR/claude-profile-common"
 # shellcheck source=providers/native/pi.bash
 source "$SCRIPT_DIR/native/pi.bash"
 # shellcheck source=providers/native/hermes.bash
@@ -1031,6 +1033,15 @@ fetch_provider() {
       ;;
     claude)
       fetch_claude_native
+      ;;
+    claude-*)
+      local config_dir
+      if ! config_dir="$(claude_profile_dir "$provider")"; then
+        json_error "$provider" claude-local 2 configuration "Claude profile needs an absolute config directory."
+        return 0
+      fi
+      CLAUDE_CONFIG_DIR="$config_dir" fetch_claude_native | jq --arg id "$provider" '
+        .provider = $id | if .usage then .usage.identity.providerID = $id else . end'
       ;;
     gemini)
       fetch_gemini_native

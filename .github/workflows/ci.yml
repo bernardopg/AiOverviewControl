@@ -652,6 +652,9 @@ jobs:
       - name: Integration test — Claude cache placement, migration, fingerprint
         run: tests/test-claude-cache.sh
 
+      - name: Independent Claude profiles
+        run: tests/test-claude-profiles.sh
+
       - name: Integration test — third-party network opt-outs
         run: tests/test-network-opt-outs.sh
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CLAUDE_DIR="$(realpath -m -- "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")"
 CREDENTIALS="${CLAUDE_DIR}/.credentials.json"
 # stats-cache.json is Claude Code's own file — read-only from here, never written.
 STATS_CACHE="${CLAUDE_DIR}/stats-cache.json"
@@ -10,19 +10,28 @@ PROJECTS_DIR="${CLAUDE_DIR}/projects"
 # never inside another tool's config directory.
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
 PRICING_CACHE="${CACHE_DIR}/claude-pricing-cache.json"
-USAGE_CACHE="${CACHE_DIR}/claude-usage-cache.json"
-TRANSCRIPTS_CACHE="${CACHE_DIR}/claude-transcripts.tsv"
+# Never reuse an unscoped usage snapshot: it may belong to another account.
+CONFIG_HASH="$(printf '%s' "$CLAUDE_DIR" | sha256sum | cut -d ' ' -f 1)"
+ACCOUNT_CACHE="${CACHE_DIR}/claude-profiles/${CONFIG_HASH}"
+USAGE_CACHE="${ACCOUNT_CACHE}/claude-usage-cache.json"
+TRANSCRIPTS_CACHE="${ACCOUNT_CACHE}/claude-transcripts.tsv"
 VERSION_CACHE="${CACHE_DIR}/claude-version-cache.json"
 USAGE_CACHE_TTL=120  # seconds
 VERSION_CACHE_TTL=86400  # seconds: the CLI version changes on upgrade, not per refresh
 LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
-mkdir -p "$CACHE_DIR"
+mkdir -p "$ACCOUNT_CACHE"
+# The widget's legacy detail process and dispatcher may request the same
+# profile concurrently. Serialize account-local cache reads and rewrites.
+exec 8>"${ACCOUNT_CACHE}/lock"
+flock 8
 # One-time migration: these caches used to be written into ~/.claude. Move the
 # data across so the refreshed paths stay warm, then leave no trace behind.
 for legacy in pricing-cache usage-cache; do
     if [ -f "${CLAUDE_DIR}/${legacy}.json" ]; then
-        mv "${CLAUDE_DIR}/${legacy}.json" "${CACHE_DIR}/claude-${legacy}.json" 2>/dev/null \
+        target="$PRICING_CACHE"
+        [ "$legacy" != "usage-cache" ] || target="$USAGE_CACHE"
+        mv "${CLAUDE_DIR}/${legacy}.json" "$target" 2>/dev/null \
             || rm -f "${CLAUDE_DIR}/${legacy}.json"
     fi
 done

@@ -2473,6 +2473,22 @@ PopoutComponent {
                     onTriggered: root.openProviderConsole(card.provider.provider, card.provider.source)
                 }
 
+                Flow {
+                    visible: !!root.claudeProfiles[card.provider.provider] && !!card.provider.analytics
+                    width: parent.width
+                    spacing: Theme.spacingS
+                    MetricTile {
+                        label: t("card.nine_week_tokens", "Week tokens")
+                        value: root.formatTokens(Number((card.provider.analytics || {}).weekTokens || 0))
+                        width: (parent.width - Theme.spacingS) / 2
+                    }
+                    MetricTile {
+                        label: t("card.today_cost", "Today cost")
+                        value: root.formatCost((card.provider.analytics || {}).todayCost)
+                        width: (parent.width - Theme.spacingS) / 2
+                    }
+                }
+
                 StyledRect {
                     visible: card.provider.provider === "claude"
                     width: parent.width

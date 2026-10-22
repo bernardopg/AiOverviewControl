@@ -23,7 +23,7 @@ components by name, and `providers/get-local-analytics` reads
 ```bash
 PLUGIN="$HOME/.config/DankMaterialShell/plugins/AiOverviewControl"
 mkdir -p "$PLUGIN"
-cp -a ./*.qml plugin.json qmldir providers scripts assets \
+cp -a ./*.qml ./*.js plugin.json qmldir providers scripts assets \
   README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
   "$PLUGIN"/
 chmod +x "$PLUGIN"/providers/get-*

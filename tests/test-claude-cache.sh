@@ -15,6 +15,7 @@ export TZ=UTC AIOC_NO_LITELLM=1
 export CURL_LOG="$TMP/curl.log" CLAUDE_VERSION_CALLS="$TMP/claude-calls"
 # Real project dirs are the cwd with "/" mapped to "-", so they start with "-".
 CLAUDE_PROJECTS="$CLAUDE_CONFIG_DIR/projects/-home-user-proj"
+PROFILE_CACHE="$XDG_CACHE_HOME/AiOverviewControl/claude-profiles/$(printf '%s' "$(realpath -m -- "$CLAUDE_CONFIG_DIR")" | sha256sum | cut -d ' ' -f 1)"
 mkdir -p "$CLAUDE_PROJECTS" "$HOME" "$TMP/bin"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -59,7 +60,7 @@ bash "$ROOT/providers/get-claude-usage" > /dev/null
 [ ! -e "$CLAUDE_CONFIG_DIR/pricing-cache.json" ] || fail "legacy pricing cache left in CLAUDE_CONFIG_DIR"
 [ ! -e "$CLAUDE_CONFIG_DIR/usage-cache.json" ] || fail "legacy usage cache left in CLAUDE_CONFIG_DIR"
 [ -f "$XDG_CACHE_HOME/AiOverviewControl/claude-pricing-cache.json" ] || fail "pricing cache not migrated to XDG dir"
-[ -f "$XDG_CACHE_HOME/AiOverviewControl/claude-usage-cache.json" ] || fail "usage cache not migrated to XDG dir"
+[ -f "$PROFILE_CACHE/claude-usage-cache.json" ] || fail "usage cache not migrated to XDG dir"
 
 # --- Caches never pollute ~/.claude; stats-cache.json is still read ---
 ! find "$CLAUDE_CONFIG_DIR" -name "*cache*.json" ! -name "stats-cache.json" | grep -q . \
@@ -103,7 +104,7 @@ bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "
 [ "$(cat "$JQ_LOG")" = "./-home-user-proj/session1.jsonl" ] || fail "failed parse was cached instead of retried"
 
 # --- A UTC-offset change rebuilds the date-bucketed rows ---
-sed -i '1s/.*/#aioc-claude-transcripts v1 +9999/' "$XDG_CACHE_HOME/AiOverviewControl/claude-transcripts.tsv"
+sed -i '1s/.*/#aioc-claude-transcripts v1 +9999/' "$PROFILE_CACHE/claude-transcripts.tsv"
 : > "$JQ_LOG"
 bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "rebuild after offset change wrong"
 [ "$(wc -l < "$JQ_LOG")" -eq 2 ] || fail "offset change did not re-parse every transcript"

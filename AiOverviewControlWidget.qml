@@ -8,6 +8,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
+import "ClaudeProfiles.js" as ClaudeProfiles
 
 PluginComponent {
     id: root
@@ -25,6 +26,7 @@ PluginComponent {
     property bool usageDidTimeout: false
     property int usageRequestId: 0
     property int timedOutRequestId: -1
+    readonly property var claudeProfiles: ClaudeProfiles.parse(pluginData.claudeProfiles || "{}")
     property string providerSelection: (pluginData.providerSelection || "codex,claude,copilot").trim()
     property bool showErrorProviders: String(pluginData.showErrorProviders ?? "true") === "true"
     property string pillMode: (pluginData.pillMode || "auto")
@@ -184,7 +186,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"]
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
 
     ListModel {
         id: claudeModelList
@@ -639,6 +641,7 @@ PluginComponent {
     }
 
     function providerName(providerId) {
+        if (claudeProfiles[providerId]) return claudeProfiles[providerId].name;
         const names = {
             codex: "Codex",
             claude: "Claude",
@@ -717,7 +720,7 @@ PluginComponent {
     }
 
     function notificationIconPath(providerId) {
-        const canonicalId = notificationProviderId(providerId);
+        const canonicalId = claudeProfiles[providerId] ? "claude" : notificationProviderId(providerId);
         if (canonicalId.length === 0 || _pluginDir.length === 0) {
             return "dialog-warning";
         }
@@ -938,7 +941,7 @@ PluginComponent {
     // callers pass only providerId.
 
     function providerAccent(providerId) {
-        if (providerId === "claude")
+        if (providerId === "claude" || claudeProfiles[providerId])
             return Theme.warning;
         if (providerId === "codex")
             return Theme.success;
@@ -1617,7 +1620,7 @@ PluginComponent {
             warp: "https://app.warp.dev",
             amp: "https://ampcode.com"
         };
-        return urls[providerId] || "";
+        return urls[claudeProfiles[providerId] ? "claude" : providerId] || "";
     }
 
     function openProviderConsole(providerId, providerSource) {
@@ -1680,6 +1683,7 @@ PluginComponent {
             return;
         retryingProviderId = normalizeProviderId(providerId);
         retryBuffer = "";
+        procRetry.environment = {"AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
         procRetry.command = ["bash", providerUsageScript, retryingProviderId, copilotUsageScript];
         procRetry.running = true;
     }
@@ -1863,6 +1867,7 @@ PluginComponent {
     // process's command (Qt behaviour on command change while running is
     // undefined and would scramble the fetch).
     property var usageCommand: ["bash", root.providerUsageScript, root.selectedProviders.join(","), root.copilotUsageScript]
+    property var usageEnvironment: ({"AIOC_HISTORY_MAX": root.historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(root.claudeProfiles)})
 
     property string historyRetention: {
         const parsed = parseInt(pluginData.historyRetention || "2000");
@@ -1872,9 +1877,7 @@ PluginComponent {
     Process {
         id: procUsage
         command: root.usageCommand
-        environment: {
-            "AIOC_HISTORY_MAX": root.historyRetention
-        }
+        environment: root.usageEnvironment
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => root.rawJsonBuffer += data
@@ -2061,6 +2064,7 @@ PluginComponent {
         timedOutRequestId = -1;
         // Snapshot argv now so an in-flight selection change cannot mutate the
         // running process command (see usageCommand declaration).
+        usageEnvironment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
         usageCommand = ["bash", providerUsageScript, selectedProviders.join(","), copilotUsageScript];
         procUsage.running = true;
         usageTimeout.restart();

@@ -7,6 +7,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
+import "ClaudeProfiles.js" as ClaudeProfiles
 
 PluginSettings {
     id: root
@@ -16,6 +17,12 @@ PluginSettings {
     property bool showBrand: true
 
     readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
+    readonly property var claudeProfiles: {
+        root.settingsEpoch;
+        return ClaudeProfiles.parse(loadValue("claudeProfiles", "{}"));
+    }
+    property string claudeProfileError: ""
+    onClaudeProfilesChanged: runHealth()
     property var selectedIds: normalizeProviderSelection(loadValue("providerSelection", "codex,claude,copilot"))
     // pluginService (and with it the saved selection) arrives after this
     // component is constructed, so the runHealth() in Component.onCompleted
@@ -204,6 +211,7 @@ PluginSettings {
     // when the key is absent. Keep in sync with the widget's pluginData reads.
     readonly property var settingDefaults: ({
         providerSelection: "codex,claude,copilot",
+        claudeProfiles: "{}",
         pinnedProviders: "",
         pillProviders: "codex,claude,copilot",
         pillMode: "auto",
@@ -280,7 +288,11 @@ PluginSettings {
         return n;
     }
 
-    readonly property var allProviders: [
+    readonly property var allProviders: baseProviders.concat(Object.keys(claudeProfiles).map(function(id) {
+        const profile = root.claudeProfiles[id];
+        return {id: id, name: profile.name, icon: "psychology", mode: "telemetry", requirement: profile.configDir, envVar: "", note: ""};
+    }))
+    readonly property var baseProviders: [
         { id:"codex", name:"Codex", icon:"terminal", mode:"telemetry", requirement:"codex CLI", envVar:"", note:"Official app-server rate limits" },
         { id:"claude", name:"Claude", icon:"psychology", mode:"telemetry", requirement:"claude CLI or ~/.claude", envVar:"", note:"Local analytics and authenticated usage" },
         { id:"copilot", name:"Copilot", icon:"code", mode:"telemetry", requirement:"gh CLI or GitHub token", envVar:"COPILOT_GITHUB_TOKEN", note:"Authenticated Copilot quota from the GitHub session" },
@@ -357,6 +369,43 @@ PluginSettings {
         saveValue("providerSelection", result.join(","));
     }
 
+    function addClaudeProfile(id, name, configDir) {
+        id = String(id).trim().toLowerCase();
+        const candidate = {};
+        candidate[id] = {name: String(name).trim(), configDir: String(configDir).trim()};
+        const profiles = Object.assign({}, claudeProfiles);
+        if (Object.keys(profiles).length >= 16 || profiles[id] || !ClaudeProfiles.parse(candidate)[id]) {
+            claudeProfileError = t("settings.claude_profiles_invalid", "Use a unique claude- ID, a name (1–80 characters) and an absolute directory. Maximum: 16 profiles.");
+            return false;
+        }
+        profiles[id] = candidate[id];
+        saveValue("claudeProfiles", JSON.stringify(profiles));
+        settingsEpoch++;
+        if (!isSelected(id)) toggleProvider(id);
+        claudeProfileError = "";
+        return true;
+    }
+
+    function removeClaudeProfile(id) {
+        const profiles = Object.assign({}, claudeProfiles);
+        delete profiles[id];
+        saveValue("claudeProfiles", JSON.stringify(profiles));
+        selectedIds = selectedIds.filter(function(value) { return value !== id; });
+        if (selectedIds.length === 0) selectedIds = ["claude"];
+        pinnedIds = pinnedIds.filter(function(value) { return value !== id; });
+        pillIds = pillIds.filter(function(value) { return value !== id; });
+        if (pillIds.length === 0) pillIds = [selectedIds[0]];
+        saveValue("providerSelection", selectedIds.join(","));
+        saveValue("pinnedProviders", pinnedIds.join(","));
+        saveValue("pillProviders", pillIds.join(","));
+        for (const key of ["barWindowOverrides", "notifyThresholds"]) {
+            const pairs = String(loadValue(key, "")).split(",").filter(function(pair) { return pair.split(":")[0].trim() !== id; });
+            saveValue(key, pairs.join(","));
+        }
+        settingsEpoch++;
+        claudeProfileError = "";
+    }
+
     function healthFor(id) {
         return providerHealth[id] || { status:"checking", detail:t("settings.health.checking", "Checking…") };
     }
@@ -403,6 +452,7 @@ PluginSettings {
         }
         healthRefreshPending = false;
         healthBuffer = "";
+        healthProcess.environment = {"AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
         healthProcess.command = ["bash", healthScript, selectedIds.join(",")];
         healthProcess.running = true;
     }
@@ -1212,6 +1262,77 @@ PluginSettings {
                 wrapMode: Text.WordWrap
                 color: Theme.error
                 font.pixelSize: Theme.fontSizeSmall - 1
+            }
+        }
+    }
+
+    Column {
+        width: parent.width
+        spacing: Theme.spacingS
+        SectionHeader {
+            headerTitle: t("settings.claude_profiles", "Claude profiles")
+            headerIcon: "manage_accounts"
+        }
+        StyledText {
+            width: parent.width
+            text: t("settings.claude_profiles_desc", "Track separate Claude accounts. Each profile reads only its own CLAUDE_CONFIG_DIR; sign in with Claude before adding it.")
+            wrapMode: Text.WordWrap
+            color: Theme.surfaceVariantText
+            font.pixelSize: Theme.fontSizeSmall
+        }
+        DankTextField {
+            id: claudeProfileId
+            objectName: "claude-profile-id"
+            width: parent.width
+            placeholderText: t("settings.claude_profile_id", "Provider ID, e.g. claude-work")
+        }
+        DankTextField {
+            id: claudeProfileName
+            objectName: "claude-profile-name"
+            width: parent.width
+            placeholderText: t("settings.claude_profile_name", "Display name, e.g. Claude Work")
+        }
+        DankTextField {
+            id: claudeProfileDir
+            objectName: "claude-profile-dir"
+            width: parent.width
+            placeholderText: t("settings.claude_profile_dir", "Absolute CLAUDE_CONFIG_DIR path")
+        }
+        DankButton {
+            objectName: "claude-profile-add"
+            text: t("settings.claude_profile_add", "Add Claude profile")
+            onClicked: {
+                if (root.addClaudeProfile(claudeProfileId.text, claudeProfileName.text, claudeProfileDir.text)) {
+                    claudeProfileId.text = "";
+                    claudeProfileName.text = "";
+                    claudeProfileDir.text = "";
+                }
+            }
+        }
+        StyledText {
+            width: parent.width
+            visible: root.claudeProfileError.length > 0
+            text: root.claudeProfileError
+            wrapMode: Text.WordWrap
+            color: Theme.error
+            font.pixelSize: Theme.fontSizeSmall
+        }
+        Repeater {
+            model: Object.keys(root.claudeProfiles)
+            RowLayout {
+                required property string modelData
+                width: parent.width
+                StyledText {
+                    Layout.fillWidth: true
+                    text: root.claudeProfiles[parent.modelData].name + " · " + parent.modelData + "\n" + root.claudeProfiles[parent.modelData].configDir
+                    wrapMode: Text.WrapAnywhere
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+                DankButton {
+                    text: t("settings.claude_profile_remove", "Remove")
+                    onClicked: root.removeClaudeProfile(parent.modelData)
+                }
             }
         }
     }
