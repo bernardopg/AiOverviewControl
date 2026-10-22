@@ -188,7 +188,7 @@ FloatingWindow {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: win.t("app.title", "AI Usage Control")
+                            text: win.t("app.title", "AiOverviewControl")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Bold
                             color: Theme.surfaceText
@@ -334,7 +334,7 @@ FloatingWindow {
                     spacing: Theme.spacingS
 
                     StyledText {
-                        text: win.t("app.title", "AI Usage Control")
+                        text: win.t("app.title", "AiOverviewControl")
                         font.pixelSize: Theme.fontSizeLarge + 2
                         font.weight: Font.Bold
                         color: Theme.surfaceText

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add named **Claude profiles** in settings, each with its own `CLAUDE_CONFIG_DIR`, provider ID, quota, local usage, readiness and notifications. Isolate account caches by canonical config directory so personal/work accounts never share snapshots ([#54](https://github.com/bernardopg/AiOverviewControl/issues/54)).
+- Add **Show remaining quota** in settings: the pill and dashboard quota indicators can show available quota instead of consumption, without changing warnings, ranking or recorded history. Keep the dashboard/settings title consistent with **AiOverviewControl** ([#53](https://github.com/bernardopg/AiOverviewControl/issues/53)).
 
 ## 1.21.0 - 2026-10-13
 

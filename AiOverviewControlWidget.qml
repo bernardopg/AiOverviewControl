@@ -66,6 +66,7 @@ PluginComponent {
     // tighten the separator gap. Only the DankBar pill changes.
     property bool pillShowNames: String(pluginData.pillShowNames ?? "true") === "true"
     property bool pillCompact: String(pluginData.pillCompact ?? "false") === "true"
+    property bool showRemainingQuota: String(pluginData.showRemainingQuota ?? "false") === "true"
     property bool showClaudeProjects: String(pluginData.showClaudeProjects ?? "true") === "true"
     readonly property var moneyFormatter: currencyLoader.item
     readonly property string costCurrency: {
@@ -620,6 +621,17 @@ PluginComponent {
         return formatMinutes(Math.floor(diff / 60000));
     }
 
+    // Presentation only: ranking, warnings, notifications and history use consumption.
+    function quotaDisplayPercent(usedPercent) {
+        const used = Math.max(0, Math.min(100, Number(usedPercent) || 0));
+        return showRemainingQuota ? 100 - used : used;
+    }
+
+    function quotaPercentText(usedPercent) {
+        const percent = Math.round(quotaDisplayPercent(usedPercent));
+        return showRemainingQuota ? t("quota.remaining", "{percent}% left", {percent: percent}) : `${percent}%`;
+    }
+
     function formatUsageLine(windowData) {
         if (!windowData) {
             return "";
@@ -627,9 +639,9 @@ PluginComponent {
         if (windowData.displayValue && String(windowData.displayValue).length > 0) {
             return String(windowData.displayValue);
         }
-        const percent = Math.round(Number(windowData.usedPercent || 0));
+        const percent = quotaPercentText(windowData.usedPercent);
         const reset = formatTimeUntil(windowData.resetsAt);
-        return reset.length > 0 ? `${percent}% · ${reset}` : `${percent}%`;
+        return reset.length > 0 ? `${percent} · ${reset}` : percent;
     }
 
     function formatUsageError(exitCode) {
@@ -1188,7 +1200,7 @@ PluginComponent {
             const label = windowLabel(windowData);
             if (label && String(label).length > 0)
                 segment.push(label);
-            segment.push(`${Math.round(Number(windowData.usedPercent || 0))}%`);
+            segment.push(quotaPercentText(windowData.usedPercent));
             if (withReset) {
                 const reset = formatTimeUntil(windowData.resetsAt);
                 if (reset.length > 0)
@@ -2336,7 +2348,7 @@ PluginComponent {
                         }
 
                         StyledText {
-                            text: `${Math.round(root.pillPercentFor(pillEntry.modelData))}%`
+                            text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(pillEntry.modelData)))}%`
                             color: pillEntry.usageColor
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.Bold
@@ -2388,7 +2400,7 @@ PluginComponent {
                     }
 
                     StyledText {
-                        text: `${Math.round(root.pillPercentFor(modelData))}%`
+                        text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(modelData)))}%`
                         color: root.getUsageColor(root.pillPercentFor(modelData))
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold

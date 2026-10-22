@@ -123,9 +123,32 @@ ShellRoot {
                 root.step = 2;
             } else if (root.step === 2 && widget.formatCost(2).indexOf("$2") === 0) {
                 if (!widget.dashboardView) { console.error("SMOKE FAIL: view not attached"); return; }
+                const remaining = settings.content.find(item => item.text === settings.t("settings.show_remaining", "Show remaining quota"));
+                if (!remaining || remaining.checked) { console.error("SMOKE FAIL: remaining quota default/control"); return; }
+                remaining.toggled(true);
+                widget.pluginData = service.data;
+                if (service.data.showRemainingQuota !== "true" || widget.quotaDisplayPercent(25) !== 75
+                    || widget.quotaDisplayPercent(0) !== 100 || widget.quotaDisplayPercent(100) !== 0
+                    || widget.quotaDisplayPercent(150) !== 0 || widget.quotaDisplayPercent(-10) !== 100
+                    || widget.pillPercentFor(widget.providers[0]) !== 25 || widget.providerPercent(widget.providers[0]) !== 25) {
+                    console.error("SMOKE FAIL: remaining quota persistence or raw-consumption invariant"); return;
+                }
                 widget.focusProvider("codex");
                 root.step = 3;
             } else if (root.step === 3) {
+                const cardPercent = input.findChild(widget.dashboardView, "provider-percent-codex");
+                const horizontal = input.findChild(hPill.item, "pill-entry-codex");
+                if (!cardPercent || cardPercent.children.find(item => item.text === widget.quotaPercentText(25)) === undefined
+                    || !horizontal || horizontal.children.find(item => item.text === "75%") === undefined
+                    || widget.formatUsageLine({usedPercent: 25}).indexOf(widget.quotaPercentText(25)) !== 0
+                    || widget.pillTooltipText().indexOf(widget.quotaPercentText(25)) < 0) {
+                    console.error("SMOKE FAIL: remaining quota pill, dashboard or tooltip"); return;
+                }
+                settings.resetToDefaults();
+                widget.pluginData = service.data;
+                if (service.data.showRemainingQuota !== "false" || widget.quotaDisplayPercent(25) !== 25) {
+                    console.error("SMOKE FAIL: remaining quota reset"); return;
+                }
                 widget.focusedProviderId = "";
                 widget.allExpanded = false;
                 widget.pinnedProvidersCsv = "codex,opencode";
