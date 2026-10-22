@@ -72,11 +72,11 @@ jobs:
         run: tests/test-currency-qml.sh
       # The full widget needs real DMS imports and a layer-shell Wayland
       # compositor (Qt offscreen cannot build PanelWindow types).
-      - name: Fetch DankMaterialShell imports
+      - name: Fetch DMS imports
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: AvengeMedia/DankMaterialShell
-          ref: 4a87e8227daf0840b3376fd5e7f891f5900165a6 # v1.6.3
+          repository: duxlabs-dev/dux-shell
+          ref: 9b413296b16721f7679fb62e624cb1ed2433fa58 # v2.0.0
           path: .dms
           submodules: true
           persist-credentials: false
@@ -654,6 +654,12 @@ jobs:
 
       - name: Independent Claude profiles
         run: tests/test-claude-profiles.sh
+
+      - name: Append-only contributor grid
+        run: tests/test-render-contributors.sh
+
+      - name: Derived README counts
+        run: scripts/render-badges --check
 
       - name: Integration test — third-party network opt-outs
         run: tests/test-network-opt-outs.sh

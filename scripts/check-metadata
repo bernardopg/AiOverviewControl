@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 python3 scripts/check-changelog
+python3 scripts/render-badges --check
 python3 - <<'PY'
 import json
 import re
