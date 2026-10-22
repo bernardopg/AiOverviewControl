@@ -294,13 +294,20 @@ ShellRoot {
                 widget.pluginData = service.data;
                 widget.providerSelection = "claude-work,claude-personal";
                 widget.allExpanded = true;
+                root.step = 7.5;
+            } else if (root.step === 7.5 && !widget.isLoading) {
+                // refresh() is dropped while an earlier fetch is in flight; on a
+                // slow runner that fetch still carries the old selection.
+                const requestId = widget.usageRequestId;
                 widget.refresh();
+                if (widget.usageRequestId === requestId) return;
                 root.step = 8;
             } else if (root.step === 8 && !widget.isLoading) {
                 if (widget.successfulProviders.length !== 2 || widget.errorProviders.length !== 0
                     || widget.providers[0].analytics.weekTokens !== 900 || widget.providers[1].analytics.weekTokens !== 100
                     || widget.pillPercentFor(widget.providers[0]) !== 73 || widget.quotaDisplayPercent(73) !== 27) {
-                    console.error("SMOKE FAIL: simultaneous profile refresh, analytics or remaining quota"); return;
+                    console.error("SMOKE FAIL: simultaneous profile refresh, analytics or remaining quota: "
+                        + JSON.stringify(widget.providers.map(p => p.provider))); return;
                 }
                 for (const pair of [["claude-work", 73], ["claude-personal", 12]]) {
                     const percent = input.findChild(widget.dashboardView, "provider-percent-" + pair[0]);
