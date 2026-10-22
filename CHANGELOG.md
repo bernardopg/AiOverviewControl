@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Bump `github/codeql-action/upload-sarif` to v4.39.0 for the Scorecard upload, once past the seven-day quarantine.
+
 ## 1.22.0 - 2026-10-22
 
 A feature release: track several Claude subscriptions side by side, show
