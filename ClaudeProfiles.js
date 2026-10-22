@@ -1,5 +1,5 @@
-.pragma library
-
+// Stateless, so it needs no `.pragma library`; keeping it plain JavaScript
+// lets code scanning parse the module.
 // ponytail: the settings editor supports 16 local Claude profiles; move to a
 // paged account manager if installations need larger fleets.
 function parse(value) {
