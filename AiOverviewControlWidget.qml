@@ -1695,7 +1695,7 @@ PluginComponent {
             return;
         retryingProviderId = normalizeProviderId(providerId);
         retryBuffer = "";
-        procRetry.environment = {"AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
+        procRetry.environment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
         procRetry.command = ["bash", providerUsageScript, retryingProviderId, copilotUsageScript];
         procRetry.running = true;
     }
