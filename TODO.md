@@ -9,36 +9,14 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ---
 
-## 🔧 Registry review remediation (AvengeMedia/dms-plugin-registry#358)
+## 🔧 DMS 2.0 follow-ups
 
-Automated Claude review on `6d37548` flagged 6 issues, all verified legitimate.
-Code shipped in 1.17.2/1.17.3; the registry PR (AvengeMedia/dms-plugin-registry#961) awaits merge.
-
-- [x] **Move Claude caches out of `~/.claude`** — `pricing-cache.json` and
-  `usage-cache.json` relocate to `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/`
-  with one-time migration of stale files. `stats-cache.json` stays read-only
-  from `~/.claude` (Claude Code's own file). `S · ★★★`
-- [x] **Incremental transcript analytics** — per-transcript extraction cache
-  (`claude-transcripts.tsv`, keyed by size + mtime) re-parses only changed
-  files, so an active Claude Code session no longer forces a full rescan;
-  `claude --version` gets a daily TTL cache. Shipped in 1.17.2 as a
-  whole-tree fingerprint, made per-file in 1.17.3. `M · ★★★`
-- [x] **Document + opt-out third-party calls** — LiteLLM pricing fetch
-  (`AIOC_NO_LITELLM=1`) and Copilot dns.google DoH fallback
-  (`AIOC_NO_DOH_FALLBACK=1`) documented in README/docs with env opt-outs.
-  `S · ★★`
-- [x] **Antigravity transparency** — docs state plainly: reads Google refresh
-  tokens from IDE `state.vscdb`, exchanges via public embedded OAuth client
-  credentials, calls internal Cloud Code endpoints with the IDE User-Agent;
-  provider is opt-in. `S · ★★`
-- [x] **Registry entry PR** — update `plugins/bernardopg-aioverviewcontrol.json`
-  description (~40 providers) and dependencies (sqlite3, notify-send, flock,
-  secret-tool as optional). `S · ★★`
-- [x] **heroGlow infinite animation** — bind `running` to popout visibility
-  via injected `parentPopout.shouldBeVisible`. `S · ★★`
-
-- [x] **Registry PR follow-up** — track AvengeMedia/dms-plugin-registry#961
-  until the maintainers merge it, then close this section. `S · ★★`
+- [ ] **Registry entry** — add `"requires_dms": ">=2.0.0"` and the 39-provider
+  description to `plugins/bernardopg-aioverviewcontrol.json` in
+  duxlabs-dev/dux-plugin-registry, so DMS 1.6 users keep 1.22.0 instead of being
+  offered an incompatible update. `S · ★★★`
+- [ ] **Dash plugin surface** — DMS 2.0 lets plugins add a Dash tab or overview
+  card; a compact fleet card is a natural fit. `M · ★★`
 
 ## 🧭 Roadmap after 1.18.0 (recommended order)
 

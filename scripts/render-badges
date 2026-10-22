@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+"""Derive the README counts from the code and keep every copy in sync.
+
+docs/badges.json is read live by shields.io (dynamic JSON badges), so the
+badges change as soon as this file lands on main. The provider count is the
+settings catalog (`baseProviders` in AiOverviewControlSettings.qml): every
+provider a user can select. The language count is the bundles in i18n/.
+
+    scripts/render-badges          rewrite docs/badges.json and README counts
+    scripts/render-badges --check  exit 1 if any copy is stale (metadata gate)
+"""
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+# Prose that states the provider count, per README. Each pattern has exactly
+# one group: the number.
+PROSE = {
+    'README.md': [r'usage for (\d+) AI providers', r'One dashboard, (\d+) providers'],
+    'docs/README.pt-BR.md': [r'uso local de (\d+) provedores de IA', r'Um painel, (\d+) provedores'],
+}
+
+
+def counts():
+    settings = (ROOT / 'AiOverviewControlSettings.qml').read_text()
+    try:
+        block = settings.split('readonly property var baseProviders: [', 1)[1].split('\n    ]', 1)[0]
+    except IndexError:
+        sys.exit('render-badges: baseProviders not found in AiOverviewControlSettings.qml')
+    providers = re.findall(r'\{ id:"([^"]+)"', block)
+    if len(providers) != len(set(providers)):
+        sys.exit('render-badges: duplicate provider IDs in baseProviders')
+    languages = sorted(p.stem for p in (ROOT / 'i18n').glob('*.json'))
+    return {'providers': len(providers), 'languages': len(languages)}
+
+
+def main():
+    check = sys.argv[1:] == ['--check']
+    if sys.argv[1:] not in ([], ['--check']):
+        sys.exit(__doc__)
+    data = counts()
+    stale = []
+
+    badges = ROOT / 'docs/badges.json'
+    rendered = json.dumps(data, indent=2) + '\n'
+    if not badges.exists() or badges.read_text() != rendered:
+        stale.append('docs/badges.json')
+        if not check:
+            badges.write_text(rendered)
+
+    for name, patterns in PROSE.items():
+        path = ROOT / name
+        text = path.read_text()
+        updated = text
+        for pattern in patterns:
+            if not re.search(pattern, updated):
+                sys.exit(f'render-badges: {name} no longer matches {pattern!r}')
+            updated = re.sub(pattern, lambda m: m.group(0).replace(m.group(1), str(data['providers'])), updated)
+        if updated != text:
+            stale.append(name)
+            if not check:
+                path.write_text(updated)
+
+    if check and stale:
+        sys.exit('Stale counts (run scripts/render-badges): ' + ', '.join(stale))
+    print(f"Badges OK: {data['providers']} providers, {data['languages']} languages"
+          + ('' if check or not stale else f" (updated {', '.join(stale)})"))
+
+
+if __name__ == '__main__':
+    main()

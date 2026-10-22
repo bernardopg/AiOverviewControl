@@ -6,14 +6,18 @@
 
 **Todas as cotas de IA que você paga, ao vivo na sua DankBar.**
 
-Um plugin para o [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) que acompanha
-cota, cobrança, autenticação e uso local de 38 provedores de IA — localmente, com honestidade
+Um plugin para o [DankMaterialShell](https://github.com/duxlabs-dev/dux-shell) que acompanha
+cota, cobrança, autenticação e uso local de 39 provedores de IA — localmente, com honestidade
 e sem nenhum serviço externo.
 
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
+[![DMS](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fplugin.json&query=%24.requires_dms&label=DMS&color=7C3AED)](./installation.md)
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
-[![Provedores](https://img.shields.io/badge/provedores-38-8B5CF6)](./providers.md)
-[![Idiomas](https://img.shields.io/badge/idiomas-5-00BFA5)](./i18n-crowdin.md)
+[![Security](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bernardopg/AiOverviewControl/badge)](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
+[![provedores](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fdocs%2Fbadges.json&query=%24.providers&label=provedores&color=8B5CF6)](./providers.md)
+[![idiomas](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fdocs%2Fbadges.json&query=%24.languages&label=idiomas&color=00BFA5)](./i18n-crowdin.md)
+[![Downloads](https://img.shields.io/github/downloads/bernardopg/AiOverviewControl/total?color=0EA5E9&label=downloads)](https://github.com/bernardopg/AiOverviewControl/releases)
 [![Licença](https://img.shields.io/github/license/bernardopg/AiOverviewControl?color=64748B)](../LICENSE)
 
 [**Demonstração**](#-demonstração) · [**Instalar**](#-início-rápido) · [**Capturas**](#-de-perto) · [**Provedores**](./providers.md) · [**Documentação**](#-documentação) · [**Apoie**](#-apoie-o-projeto) · [English](../README.md)
@@ -50,7 +54,7 @@ painéis. Nada de porcentagens inventadas.
 <tr>
 <td width="50%" valign="top">
 
-**📊 Um painel, 38 provedores**<br />
+**📊 Um painel, 39 provedores**<br />
 Cota, saldo, analytics e autenticação lado a lado, com visão geral da frota:
 carga média, provedor mais usado e próximo reset.
 
@@ -110,6 +114,11 @@ rótulos que os adaptadores dos provedores enviam.
 
 ## ⚡ Início rápido
 
+> [!IMPORTANT]
+> O AiOverviewControl 2.0 exige o **DMS 2.0 ou mais recente**. No DMS 1.6, continue
+> na [1.22.0](https://github.com/bernardopg/AiOverviewControl/releases/tag/v1.22.0)
+> até a sua distribuição publicar o DMS 2.0.
+
 **1. Instale** pela loja de plugins do DMS:
 
 ```bash
@@ -117,7 +126,7 @@ dms plugins install aiOverviewControl
 ```
 
 Ou procure **AiOverviewControl** em Configurações do DMS → Plugins, ou no
-[diretório Dank Plugins](https://danklinux.com/plugins).
+[diretório de plugins do DMS](https://duxlabs.dev/plugins).
 
 **2. Adicione o widget** a uma seção da DankBar nas configurações do DMS.
 
@@ -152,7 +161,7 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-O [guia do release 1.22.0](./releases/1.22.0.md) reúne mudanças, privacidade e limitações (em inglês).
+O [guia do release 2.0.0](./releases/2.0.0.md) reúne mudanças, privacidade e limitações (em inglês).
 Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
 e [regras de PR e publicação](./repository-rules.md).
 
@@ -172,14 +181,14 @@ A documentação detalhada está em inglês.
 
 ## 💜 Apoie o projeto
 
-O [diretório Dank Plugins](https://danklinux.com/plugins) ordena os plugins pelas
+O [diretório de plugins do DMS](https://duxlabs.dev/plugins) ordena os plugins pelas
 reações 👍 na issue de registro de cada um. Uma reação é a coisa mais útil que
 você pode fazer — ela decide se outros usuários do DankMaterialShell vão
 encontrar o plugin.
 
 <div align="center">
 
-[![Vote no Dank Plugins](https://img.shields.io/badge/Dank%20Plugins-%F0%9F%91%8D%20votar-8B5CF6?style=for-the-badge)](https://github.com/AvengeMedia/dms-plugin-registry/issues/358)
+[![Vote no DMS Plugins](https://img.shields.io/badge/DMS%20Plugins-%F0%9F%91%8D%20votar-8B5CF6?style=for-the-badge)](https://github.com/duxlabs-dev/dux-plugin-registry/issues/358)
 [![Estrela no GitHub](https://img.shields.io/github/stars/bernardopg/AiOverviewControl?style=for-the-badge&color=FFC400&label=estrela)](https://github.com/bernardopg/AiOverviewControl/stargazers)
 
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/bernardopg)
@@ -217,5 +226,5 @@ Contribuições são bem-vindas — comece por [CONTRIBUTING.md](../CONTRIBUTING
 ---
 
 <div align="center">
-<sub>Licença MIT · feito com 💜 para a comunidade <a href="https://github.com/AvengeMedia/DankMaterialShell">DankMaterialShell</a></sub>
+<sub>Licença MIT · feito com 💜 para a comunidade <a href="https://github.com/duxlabs-dev/dux-shell">DankMaterialShell</a></sub>
 </div>

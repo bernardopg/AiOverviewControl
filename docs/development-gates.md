@@ -123,8 +123,8 @@ mandatory.
 ## Running DMS discovery
 
 Use `scripts/reload-plugin` rather than guessing a config path. `dms run` can
-launch Quickshell under `/run/user/<uid>/danklinux-shell/<hash>`, not
-`~/.config/quickshell/dms`. The script discovers running instances via
+launch Quickshell under `/run/user/<uid>/dms-shell/<hash>` (DMS 2.x;
+`danklinux-shell/<hash>` on 1.x), not `~/.config/quickshell/dms`. The script discovers running instances via
 `qs list --all`, queries each plugin IPC target, and reloads only shells where
 the plugin is loaded. It never enables intentionally disabled plugins.
 Before contacting the running shell for `aiOverviewControl`, the helper validates

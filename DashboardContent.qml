@@ -7,6 +7,7 @@ import Quickshell.Io
 import qs.Common
 import qs.Services
 import qs.Widgets
+import qs.DCommon.Widgets
 import qs.Modules.Plugins
 
 PopoutComponent {
@@ -250,9 +251,9 @@ PopoutComponent {
                             position: "first"
                             iconName: "favorite"
                             accent: Theme.error
-                            label: t("header.upvote", "Upvote on the DankLinux plugin registry")
+                            label: t("header.upvote", "Upvote on the DMS plugin registry")
                             onHoveredChanged: popout.hoveredAction = hovered ? label : ""
-                            onTriggered: Qt.openUrlExternally("https://github.com/AvengeMedia/dms-plugin-registry/issues/358")
+                            onTriggered: Qt.openUrlExternally("https://github.com/duxlabs-dev/dux-plugin-registry/issues/358")
                         }
 
                         HeaderAction {
@@ -721,7 +722,7 @@ PopoutComponent {
                                             border.width: 1
                                             border.color: Theme.withAlpha(parent.hintAccent, 0.28)
 
-                                            DankIcon {
+                                            DIcon {
                                                 anchors.centerIn: parent
                                                 name: root.isLoading ? "hourglass_top" : (root.errorProviders.length > 0 ? "warning" : "monitoring")
                                                 size: 17
@@ -874,7 +875,7 @@ PopoutComponent {
                                     }
                                 }
 
-                                DankActionButton {
+                                DActionButton {
                                     Layout.alignment: Qt.AlignVCenter
                                     iconName: root.allExpanded ? "unfold_less" : "unfold_more"
                                     iconColor: root.allExpanded ? Theme.primary : Theme.surfaceVariantText
@@ -889,7 +890,7 @@ PopoutComponent {
                                 }
                             }
 
-                            DankFilterChips {
+                            DFilterChips {
                                 width: parent.width
                                 showCounts: true
                                 model: [
@@ -946,7 +947,7 @@ PopoutComponent {
                                         border.width: 1
                                         border.color: Theme.withAlpha(root.heroAccent, 0.28)
 
-                                        DankIcon {
+                                        DIcon {
                                             anchors.centerIn: parent
                                             name: "monitoring"
                                             size: 18
@@ -1004,7 +1005,7 @@ PopoutComponent {
                             width: parent.width
                         }
 
-                        DankTextField {
+                        DTextField {
                             visible: root.displayProviders.length > 5
                             width: parent.width
                             placeholderText: t("card.filter_providers", "Filter providers by name or source")
@@ -1096,7 +1097,7 @@ PopoutComponent {
                 radius: width / 2
                 color: buttonRoot.prominent ? Theme.withAlpha(Theme.primary, 0.18) : Theme.withAlpha(Theme.surfaceText, 0.08)
 
-                DankIcon {
+                DIcon {
                     anchors.centerIn: parent
                     name: buttonRoot.iconName
                     size: compact ? 14 : 18
@@ -1166,7 +1167,7 @@ PopoutComponent {
             anchors.centerIn: parent
             spacing: Theme.spacingXS
 
-            DankIcon {
+            DIcon {
                 visible: pill.iconName.length > 0
                 name: pill.iconName
                 size: 12
@@ -1208,7 +1209,7 @@ PopoutComponent {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.spacingXS
 
-            DankIcon {
+            DIcon {
                 visible: ipill.iconName.length > 0
                 name: ipill.iconName
                 size: 12
@@ -1573,7 +1574,7 @@ PopoutComponent {
                     accentColor: heroStat.statAccent
                 }
 
-                DankIcon {
+                DIcon {
                     anchors.centerIn: parent
                     name: heroStat.statIcon
                     size: heroStat.ringPercent >= 0 ? 14 : 16
@@ -1923,7 +1924,7 @@ PopoutComponent {
             RowLayout {
                 width: parent.width
                 spacing: Theme.spacingS
-                DankIcon {
+                DIcon {
                     name: "deployed_code"
                     size: 16
                     color: acct.accent
@@ -2291,7 +2292,7 @@ PopoutComponent {
                     Layout.alignment: Qt.AlignVCenter
                     spacing: 3
 
-                    DankIcon {
+                    DIcon {
                         readonly property string trend: root.providerTrend(card.provider ? card.provider.provider : "")
                         visible: !card.provider.error && trend.length > 0 && trend !== "flat"
                         name: trend === "up" ? "trending_up" : "trending_down"
@@ -2373,7 +2374,7 @@ PopoutComponent {
                     width: parent.width
                     spacing: Theme.spacingS
 
-                    DankIcon {
+                    DIcon {
                         name: "warning"
                         size: 17
                         color: Theme.warning
@@ -2560,7 +2561,7 @@ PopoutComponent {
                             visible: !!root.claudeWeekBurnForecast && root.claudeWeekBurnForecast.exceed
                             spacing: Theme.spacingXS
 
-                            DankIcon {
+                            DIcon {
                                 name: "local_fire_department"
                                 size: 14
                                 color: Theme.error
@@ -2591,7 +2592,7 @@ PopoutComponent {
                             visible: !!root.claudeBurnForecast
                             spacing: Theme.spacingXS
 
-                            DankIcon {
+                            DIcon {
                                 name: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? "local_fire_department" : "check_circle"
                                 size: 14
                                 color: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? Theme.error : Theme.success
@@ -3441,7 +3442,7 @@ PopoutComponent {
                 width: parent.width
                 spacing: Theme.spacingXS
 
-                DankIcon {
+                DIcon {
                     name: card.isStale ? "schedule" : "check"
                     size: 12
                     color: card.isStale ? Theme.warning : Theme.withAlpha(Theme.surfaceVariantText, 0.6)
@@ -3510,7 +3511,7 @@ PopoutComponent {
                         border.width: 1
                         border.color: Theme.withAlpha(Theme.primary, 0.2)
 
-                        DankIcon {
+                        DIcon {
                             anchors.centerIn: parent
                             name: "playlist_add_check"
                             size: 16
@@ -3542,12 +3543,12 @@ PopoutComponent {
                     }
                 }
 
-                DankDropdown {
+                DDropdown {
                     id: addProviderDropdown
                     Layout.preferredWidth: 220
                     Layout.minimumWidth: 220
                     Layout.maximumWidth: 220
-                    // DankDropdown's labelled mode binds its width to the
+                    // DDropdown's labelled mode binds its width to the
                     // parent. Inside this GridLayout that makes its trigger
                     // spill into adjacent cells and leaves the visible picker
                     // without a reliable hit target. Compact mode owns its

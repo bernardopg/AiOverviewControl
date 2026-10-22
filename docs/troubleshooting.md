@@ -3,17 +3,17 @@
 The `PLUGIN=` path below matches a manual checkout or release-archive install
 (see [installation](./installation.md)), which uses the `AiOverviewControl`
 display-name casing. A DMS plugin-store install instead uses the manifest id
-and lands at `~/.config/DankMaterialShell/plugins/aiOverviewControl`
+and lands at `~/.config/dms/plugins/aiOverviewControl`
 (lowercase leading `a`) — Linux paths are case-sensitive, so adjust the
 `PLUGIN=` line below to match whichever directory `ls
-~/.config/DankMaterialShell/plugins` actually shows. The commands shown in the
+~/.config/dms/plugins` actually shows. The commands shown in the
 plugin's own Settings panel always use the correct path for your install
 automatically.
 
 ## No cards appear
 
 ```bash
-PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
+PLUGIN=~/.config/dms/plugins/AiOverviewControl
 $PLUGIN/providers/get-provider-health "codex,claude,copilot" | jq .
 $PLUGIN/providers/get-provider-usage "codex,claude,copilot" $PLUGIN/providers/get-copilot-usage | jq .
 ```
@@ -104,7 +104,7 @@ The normal Antigravity view shows separate 5-hour and weekly windows for **Gemin
 If the result looks inconsistent with the Antigravity Models screen, refresh the plugin and check the raw response without exposing credentials:
 
 ```bash
-PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
+PLUGIN=~/.config/dms/plugins/AiOverviewControl
 $PLUGIN/providers/get-provider-usage antigravity | jq .
 ```
 
@@ -138,7 +138,7 @@ The helper stores deduplication state under
 notification without exposing provider credentials:
 
 ```bash
-PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
+PLUGIN=~/.config/dms/plugins/AiOverviewControl
 bash "$PLUGIN/providers/send-quota-alert" \
   manual-test 0 normal dialog-warning '#6750A4' \
   'AiOverviewControl test' 'Notification helper is working.'
@@ -180,7 +180,7 @@ The local store is trimmed to the configured retention, so keep a copy before
 it rotates:
 
 ```bash
-PLUGIN=~/.config/DankMaterialShell/plugins/AiOverviewControl
+PLUGIN=~/.config/dms/plugins/AiOverviewControl
 "$PLUGIN/providers/export-usage-history" csv     # spreadsheet-friendly
 "$PLUGIN/providers/export-usage-history" jsonl   # raw store
 ```

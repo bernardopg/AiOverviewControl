@@ -5,9 +5,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP"/{scripts,i18n,tests,providers,docs,.github/workflows}
-cp "$ROOT/scripts/check-metadata" "$ROOT/scripts/check-changelog" "$TMP/scripts/"
-cp "$ROOT/plugin.json" "$ROOT/CHANGELOG.md" "$ROOT"/*.qml "$TMP/"
-cp "$ROOT/docs/installation.md" "$TMP/docs/"
+cp "$ROOT/scripts/check-metadata" "$ROOT/scripts/check-changelog" "$ROOT/scripts/render-badges" "$TMP/scripts/"
+cp "$ROOT/plugin.json" "$ROOT/CHANGELOG.md" "$ROOT/README.md" "$ROOT"/*.qml "$TMP/"
+cp "$ROOT/docs/installation.md" "$ROOT/docs/README.pt-BR.md" "$ROOT/docs/badges.json" "$TMP/docs/"
 cp "$ROOT"/i18n/*.json "$TMP/i18n/"
 printf '#!/bin/bash\n' > "$TMP/tests/test-example.sh"
 printf '#!/bin/bash\n' > "$TMP/providers/get-example"
@@ -34,6 +34,15 @@ path.write_text(path.read_text().replace('providers scripts assets', 'providers 
 PY
 reject 'checkout install missing scripts directory'
 mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
+# README counts are derived from the catalog; a hand-edited number is stale.
+cp "$TMP/docs/badges.json" "$TMP/docs/badges.backup"
+jq '.providers += 1' "$TMP/docs/badges.backup" > "$TMP/docs/badges.json"
+reject 'stale provider badge count'
+mv "$TMP/docs/badges.backup" "$TMP/docs/badges.json"
+cp "$TMP/README.md" "$TMP/README.backup"
+sed -i 's/usage for [0-9]* AI providers/usage for 7 AI providers/' "$TMP/README.md"
+reject 'stale README provider count'
+mv "$TMP/README.backup" "$TMP/README.md"
 chmod -x "$TMP/tests/test-example.sh"
 reject 'non-executable test'
 chmod +x "$TMP/tests/test-example.sh"

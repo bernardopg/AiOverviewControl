@@ -6,9 +6,13 @@
 # plugin's (gitignored) .qmlls.ini at it. Re-run after a DMS update.
 set -euo pipefail
 
-running=(/run/user/"$(id -u)"/danklinux-shell/*/)
-src=${1:-${running[0]}}
-[[ -d $src ]] || { echo "DMS shell dir not found; pass it as \$1" >&2; exit 1; }
+# DMS 2.x extracts its shell to dms-shell/<hash>, 1.x to danklinux-shell/<hash>,
+# and an upgrade leaves the old tree behind. Take the newest one that is a real
+# shell tree, never a stale extraction.
+src=${1:-$(find /run/user/"$(id -u)"/dms-shell /run/user/"$(id -u)"/danklinux-shell \
+  -mindepth 2 -maxdepth 3 -path '*/Services/PluginService.qml' -printf '%T@ %h\n' 2>/dev/null \
+  | sort -rn | awk 'NR == 1 { sub(/\/Services$/, "", $2); print $2 }')}
+[[ -n $src && -d $src ]] || { echo "DMS shell dir not found; pass it as \$1" >&2; exit 1; }
 
 out=${XDG_CACHE_HOME:-$HOME/.cache}/dms-qmlls
 rm -rf "$out" && mkdir -p "$out/qs"

@@ -89,7 +89,7 @@ gh run list --workflow CI --commit "$MAIN_SHA" --json databaseId,headSha,status,
   unmerged feature commit. Push only that new tag.
 - Await the Release workflow. It rejects a tag outside main ancestry, mismatched
   manifest or empty notes, runs reusable CI and publishes validated notes plus
-  `.zip`, `.tar.gz` and `.sha256` assets. Generated notes are disabled: the
+  `.zip`, `.tar.gz`, `.sha256` and `.intoto.jsonl` (signed provenance) assets. Generated notes are disabled: the
   changelog section is the authoritative body.
 
 ```bash
@@ -111,6 +111,8 @@ gh run list --workflow Release --commit "$MAIN_SHA" --json databaseId,status,con
 DOWNLOAD="$(mktemp -d)"
 gh release download "v$VERSION" --dir "$DOWNLOAD"
 (cd "$DOWNLOAD" && sha256sum -c "AiOverviewControl-v$VERSION.sha256")
+gh attestation verify "$DOWNLOAD/AiOverviewControl-v$VERSION.zip" --repo OWNER/REPO \
+  --bundle "$DOWNLOAD/AiOverviewControl-v$VERSION.intoto.jsonl"
 gh release view "v$VERSION" --json tagName,isDraft,isPrerelease,body,assets,url
 ```
 

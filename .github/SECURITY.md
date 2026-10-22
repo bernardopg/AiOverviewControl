@@ -29,7 +29,9 @@ Valid reports are acknowledged within 7 days and coordinated through a private s
 
 Every release since 1.22.0 publishes a `.zip`, a `.tar.gz`, a `.sha256` checksum
 file and a signed [SLSA build provenance](https://slsa.dev/) attestation for both
-archives, created by the tag's Release workflow on GitHub-hosted runners.
+archives, created by the tag's Release workflow on GitHub-hosted runners. The
+signed Sigstore bundle is also attached as `.intoto.jsonl`, so the archives can be
+verified without querying GitHub's attestation API.
 
 ```bash
 VERSION=1.22.0
@@ -37,6 +39,9 @@ gh release download "v$VERSION" --repo bernardopg/AiOverviewControl --dir aioc &
 sha256sum -c "AiOverviewControl-v$VERSION.sha256"
 gh attestation verify "AiOverviewControl-v$VERSION.zip" --repo bernardopg/AiOverviewControl
 gh attestation verify "AiOverviewControl-v$VERSION.tar.gz" --repo bernardopg/AiOverviewControl
+# Same check against the attached bundle instead of the attestation API:
+gh attestation verify "AiOverviewControl-v$VERSION.zip" --repo bernardopg/AiOverviewControl \
+  --bundle "AiOverviewControl-v$VERSION.intoto.jsonl"
 ```
 
 A passing `gh attestation verify` proves the archive was built by this
