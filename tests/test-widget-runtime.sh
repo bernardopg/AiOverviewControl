@@ -294,15 +294,15 @@ ShellRoot {
                 widget.pluginData = service.data;
                 widget.providerSelection = "claude-work,claude-personal";
                 widget.allExpanded = true;
-                root.step = 7.5;
-            } else if (root.step === 7.5 && !widget.isLoading) {
+                root.step = 8;
+            } else if (root.step === 8 && !widget.isLoading) {
                 // refresh() is dropped while an earlier fetch is in flight; on a
                 // slow runner that fetch still carries the old selection.
                 const requestId = widget.usageRequestId;
                 widget.refresh();
                 if (widget.usageRequestId === requestId) return;
-                root.step = 8;
-            } else if (root.step === 8 && !widget.isLoading) {
+                root.step = 9;
+            } else if (root.step === 9 && !widget.isLoading) {
                 if (widget.successfulProviders.length !== 2 || widget.errorProviders.length !== 0
                     || widget.providers[0].analytics.weekTokens !== 900 || widget.providers[1].analytics.weekTokens !== 100
                     || widget.pillPercentFor(widget.providers[0]) !== 73 || widget.quotaDisplayPercent(73) !== 27) {
@@ -325,8 +325,8 @@ ShellRoot {
                 reopened.destroy();
                 widget.openProvider("claude-work");
                 widget.retryProvider("claude-work");
-                root.step = 9;
-            } else if (root.step === 9 && widget.retryingProviderId === "") {
+                root.step = 10;
+            } else if (root.step === 10 && widget.retryingProviderId === "") {
                 if (!input.findChild(widget.dashboardView, "provider-header-claude-work") || widget.focusedProviderId !== "claude-work"
                     || widget.providers[0].error || widget.providers[0].usage.primary.usedPercent !== 73
                     || widget.providers[1].usage.primary.usedPercent !== 12) {
@@ -334,8 +334,8 @@ ShellRoot {
                 }
                 widget.barWindowOverrides = "claude-work:secondary";
                 widget.pinnedProvidersCsv = "claude-work,claude-personal";
-                root.step = 10;
-            } else if (root.step === 10) {
+                root.step = 11;
+            } else if (root.step === 11) {
                 const pill = input.findChild(hPill.item, "pill-entry-claude-work");
                 if (widget.pillPercentFor(widget.providers[0]) !== 81 || widget.providerPercent(widget.providers[0]) !== 73
                     || !pill.children.find(item => item.text === "19%")) {
@@ -360,7 +360,7 @@ ShellRoot {
                 }
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");
-                root.step = 11;
+                root.step = 12;
             }
         }
     }
