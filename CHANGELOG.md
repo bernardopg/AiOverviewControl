@@ -2,10 +2,34 @@
 
 ## Unreleased
 
-- Refuse local reloads before unloading the live widget when runtime JSON, modules or QML type files are missing/invalid, or source contains unresolved conflicts. Document the one-time DMS restart for newly installed dependencies; cover both Claude profiles and remaining quota together through real refresh/retry and settings reconstruction. Preserve configured history retention on provider retries.
-- Add named **Claude profiles** in settings, each with its own `CLAUDE_CONFIG_DIR`, provider ID, quota, local usage, readiness and notifications. Isolate account caches by canonical config directory so personal/work accounts never share snapshots ([#54](https://github.com/bernardopg/AiOverviewControl/issues/54)).
-- Add **Show remaining quota** in settings: the pill and dashboard quota indicators can show available quota instead of consumption, without changing warnings, ranking or recorded history. Keep the dashboard/settings title consistent with **AiOverviewControl** ([#53](https://github.com/bernardopg/AiOverviewControl/issues/53)).
-- Keep `ClaudeProfiles.js` plain JavaScript (no `.pragma library`) so code scanning can analyze it.
+## 1.22.0 - 2026-10-22
+
+A feature release: track several Claude subscriptions side by side, show
+remaining instead of used quota, and a hardened build and release pipeline with
+secret and workflow scans and signed build provenance. Upgrading needs one
+`dms restart` for the new JavaScript module; existing settings keep working.
+Thanks to [@mmoya](https://github.com/mmoya)
+([#54](https://github.com/bernardopg/AiOverviewControl/issues/54)) and
+[@trnqq-0](https://github.com/trnqq-0)
+([#53](https://github.com/bernardopg/AiOverviewControl/issues/53)) for the
+requests. Long-form notes and the two-account setup guide:
+[docs/releases/1.22.0.md](docs/releases/1.22.0.md).
+
+### Features
+- Add named **Claude profiles** in settings ([#54](https://github.com/bernardopg/AiOverviewControl/issues/54)). Up to 16 accounts, each with its own `claude-<id>` provider ID and absolute `CLAUDE_CONFIG_DIR`, get their own card, quota windows, week-token/today-cost summary, readiness check, pin, DankBar window override, alert threshold, notifications and IPC focus target. The default `claude` provider is unchanged. Usage snapshots and transcript caches are scoped by the SHA-256 of the canonical config directory under `claude-profiles/`, so accounts never share data; the old unscoped snapshot is not trusted. Covered by `tests/test-claude-profiles.sh`.
+- Add **Show remaining quota** (`showRemainingQuota`, off by default) ([#53](https://github.com/bernardopg/AiOverviewControl/issues/53)). The DankBar pill, its tooltip and the dashboard quota bars and rings show `100 − used`, labeled as remaining. Colors, alert thresholds, ranking, fleet load, history and notifications still use consumption.
+- The dashboard and settings title is now **AiOverviewControl** in every language.
+
+### Security and release
+- Release archives carry signed SLSA build provenance (`gh attestation verify`), and the release is published by the runner's `gh release create --verify-tag` instead of a third-party action with write access.
+- New required checks: **Secret scan** (gitleaks over the full history plus verified TruffleHog) and **Workflow security audit** (zizmor, medium and above). The optional pre-push hook runs gitleaks on outgoing commits. A weekly OpenSSF Scorecard publishes to code scanning.
+- The release passes CI only `CROWDIN_API_TOKEN` instead of every secret; step outputs reach shell scripts through environment variables; no checkout persists its token.
+- Dependabot and the checksum-pinned CI tools adopt new upstream releases only after a seven-day quarantine. The README contributor grid skips automation accounts.
+
+### Maintenance
+- `scripts/reload-plugin` validates manifest/locale JSON, qmldir types, JavaScript modules and conflict markers before unloading the live widget, and points to `dms restart` when a new module needs it.
+- Provider retries keep the configured `AIOC_HISTORY_MAX`.
+- The native UI smoke runs against DankMaterialShell v1.6.3 and installs `jq`, which the widget needs before it enables refreshes. `ClaudeProfiles.js` stays plain JavaScript so code scanning can parse it.
 
 ## 1.21.0 - 2026-10-13
 

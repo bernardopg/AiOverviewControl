@@ -31,7 +31,28 @@ if 'crowdin-linux-x64' not in source or 'steps.crowdin_cli.outputs.binary' not i
     errors.append('Crowdin native CLI artifact/output contract missing')
 if 'steps.crowdin_cli.outputs.jar' in source or 'CROWDIN_JAR' in source:
     errors.append('Crowdin 5 must not use the legacy Java launcher')
+
+security = Path('.github/workflows/security.yml').read_text()
+for name in ('GITLEAKS', 'TRUFFLEHOG', 'ZIZMOR'):
+    if not re.search(r'^\s+' + name + r'_SHA256: "[a-f0-9]{64}"$', security, re.M):
+        errors.append(f'{name}: missing artifact checksum')
+for command in ('gitleaks git', 'trufflehog git file://.', '--results=verified', 'zizmor --format=github'):
+    if command not in security:
+        errors.append(f'security.yml no longer runs: {command}')
+for file in Path('.github/workflows').glob('*.yml'):
+    text = file.read_text()
+    if re.search(r'^\s*secrets:\s*inherit\b', text, re.M):
+        errors.append(f'{file}: forwards every secret (secrets: inherit)')
+    # A persisted checkout token is readable by every later step.
+    for match in re.finditer(r'uses: actions/checkout@\S+[^\n]*\n((?:\s{8,}[^\n]*\n){0,6})', text):
+        if 'persist-credentials: false' not in match.group(1):
+            line = text[:match.start()].count('\n') + 1
+            errors.append(f'{file}:{line}: checkout persists credentials')
+release = Path('.github/workflows/release.yml').read_text()
+if 'actions/attest-build-provenance@' not in release or '--verify-tag' not in release:
+    errors.append('release.yml must attest provenance and publish only a pushed tag')
 if errors:
     raise SystemExit('\n'.join(errors))
-print('OK: immutable action references, artifact checksums and Crowdin 5 native launcher')
+print('OK: immutable action references, artifact checksums, Crowdin 5 native launcher, '
+      'secret/workflow scans, scoped secrets and release provenance')
 PY

@@ -2,4 +2,18 @@
 # Install explicitly with: git config core.hooksPath .githooks
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
-exec bash "$ROOT/scripts/check-metadata"
+bash "$ROOT/scripts/check-metadata"
+
+# Scan only the commits this push sends; CI rescans the whole history. Skipped
+# when gitleaks is not installed so the hook never blocks a fresh checkout.
+command -v gitleaks >/dev/null 2>&1 || exit 0
+zero="0000000000000000000000000000000000000000"
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    range="$local_sha --not --remotes"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  gitleaks git --no-banner --redact --exit-code 1 --log-opts="$range" "$ROOT"
+done

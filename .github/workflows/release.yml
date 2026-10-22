@@ -16,7 +16,9 @@ jobs:
   ci:
     name: Full CI gate
     uses: ./.github/workflows/ci.yml
-    secrets: inherit
+    # Pass only what CI reads; never forward every repository secret.
+    secrets:
+      CROWDIN_API_TOKEN: ${{ secrets.CROWDIN_API_TOKEN }}
 
   package_and_release:
     name: Package and release
@@ -25,6 +27,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      # Signed SLSA build provenance for the published archives.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -80,16 +85,24 @@ jobs:
           scripts/check-changelog --notes --repository "$GITHUB_REPOSITORY" \
             --tag "$TAG" > dist/RELEASE_NOTES.md
 
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          name: ${{ env.TAG }}
-          body_path: dist/RELEASE_NOTES.md
-          generate_release_notes: false
-          fail_on_unmatched_files: true
-          files: |
+          subject-path: |
             dist/${{ env.DIST_NAME }}.zip
             dist/${{ env.DIST_NAME }}.tar.gz
-            dist/${{ env.DIST_NAME }}.sha256
+
+      # The runner's gh CLI publishes directly, so no third-party action holds
+      # contents: write. --verify-tag refuses to create a tag that was not pushed.
+      - name: Create GitHub release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$TAG" \
+            --notes-file dist/RELEASE_NOTES.md \
+            "dist/${DIST_NAME}.zip" \
+            "dist/${DIST_NAME}.tar.gz" \
+            "dist/${DIST_NAME}.sha256"

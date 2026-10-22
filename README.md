@@ -59,8 +59,8 @@ of average load, hottest provider, and next reset.
 
 **🎯 A pill that tells the truth**<br />
 Pick which quota window each provider shows in the bar, or follow the
-most-constrained one. Hover for the window and reset time. Crowded bar?
-Drop the names and tighten the spacing.
+most-constrained one, as used or as remaining quota. Hover for the window
+and reset time. Crowded bar? Drop the names and tighten the spacing.
 
 </td>
 </tr>
@@ -69,7 +69,8 @@ Drop the names and tighten the spacing.
 
 **🤖 Deep local telemetry**<br />
 Claude, 9Router, pi, and Hermes add token, cost, model, and project analytics
-with a seven-day chart — read from data already on your disk.
+with a seven-day chart — read from data already on your disk. Track several
+Claude accounts side by side, each from its own `CLAUDE_CONFIG_DIR`.
 
 </td>
 <td valign="top">
@@ -158,7 +159,7 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 
 ## 📚 Documentation
 
-For the latest release, start with the [1.21.0 changes guide](./docs/releases/1.21.0.md).
+For the latest release, start with the [1.22.0 changes guide](./docs/releases/1.22.0.md).
 See [cost currency and privacy](./docs/currency.md), [runtime module boundaries](./docs/refactoring.md),
 and [protected PR/release rules](./docs/repository-rules.md).
 

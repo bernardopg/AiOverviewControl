@@ -1,0 +1,88 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # New detector rules and newly leaked-and-verified credentials appear
+    # without a push, so rescan the whole history weekly as well.
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+# Release binaries are pinned and checksum-verified like the CI tools. New
+# versions are adopted only after a week, so a compromised release has time
+# to be pulled before it reaches this repository.
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  TRUFFLEHOG_VERSION: "3.99.2"
+  TRUFFLEHOG_SHA256: "3c7b0d1dc4278294269bfdd7594bca8bb28c78da0a4a06ad202ded37b48deca4"
+  ZIZMOR_VERSION: "1.30.1"
+  ZIZMOR_SHA256: "e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a"
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks and TruffleHog (verified checksums)
+        run: |
+          curl -fsSL --retry 3 -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          curl -fsSL --retry 3 -o /tmp/trufflehog.tar.gz \
+            "https://github.com/trufflesecurity/trufflehog/releases/download/v${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION}_linux_amd64.tar.gz"
+          echo "${TRUFFLEHOG_SHA256}  /tmp/trufflehog.tar.gz" | sha256sum --check --strict
+          tar -xzf /tmp/trufflehog.tar.gz -C /tmp trufflehog
+          /tmp/gitleaks version
+          /tmp/trufflehog --version
+
+      # Pattern-based: catches credential-shaped strings in every commit,
+      # including revoked or not-yet-verifiable ones. Findings are redacted.
+      - name: Gitleaks (full history)
+        run: /tmp/gitleaks git --no-banner --redact --exit-code 1 .
+
+      # Verification-based: reports only credentials the issuing service still
+      # accepts, so a hit is always a live secret that must be rotated.
+      - name: TruffleHog (full history, verified)
+        run: /tmp/trufflehog git file://. --results=verified --fail --no-update --github-actions
+
+  workflows:
+    name: Workflow security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install zizmor (verified checksum)
+        run: |
+          curl -fsSL --retry 3 -o /tmp/zizmor.tar.gz \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZIZMOR_SHA256}  /tmp/zizmor.tar.gz" | sha256sum --check --strict
+          tar -xzf /tmp/zizmor.tar.gz -C /tmp zizmor
+          /tmp/zizmor --version
+
+      # Injection, credential persistence, over-broad secrets and permissions,
+      # unpinned or impostor action commits. Medium and above fail the build.
+      - name: Audit GitHub Actions workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: /tmp/zizmor --format=github --min-severity=medium .github/workflows
