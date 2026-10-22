@@ -59,7 +59,7 @@ jobs:
         # Retried: a single flaky Arch mirror read otherwise fails the job.
         run: |
           for attempt in 1 2 3; do
-            pacman -Syu --noconfirm git python quickshell sway && exit 0
+            pacman -Syu --noconfirm git jq python quickshell sway && exit 0
             sleep $((attempt * 10))
           done
           exit 1

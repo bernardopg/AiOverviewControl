@@ -298,6 +298,9 @@ ShellRoot {
             } else if (root.step === 8 && !widget.isLoading) {
                 // refresh() is dropped while an earlier fetch is in flight; on a
                 // slow runner that fetch still carries the old selection.
+                if (!widget.binaryReady) {
+                    console.error("SMOKE FAIL: provider runtime unavailable (bash, jq or curl missing)"); return;
+                }
                 const requestId = widget.usageRequestId;
                 widget.refresh();
                 if (widget.usageRequestId === requestId) return;
