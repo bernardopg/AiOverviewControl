@@ -218,6 +218,7 @@ PluginSettings {
         pillTooltip: "true",
         pillShowNames: "true",
         pillCompact: "false",
+        showRemainingQuota: "false",
         quotaNotifications: "true",
         notifyThreshold: "85",
         notifyCooldownMinutes: "0",
@@ -604,7 +605,7 @@ PluginSettings {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: t("app.title", "AI Usage Control")
+                            text: t("app.title", "AiOverviewControl")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Bold
                             color: Theme.surfaceText
@@ -836,6 +837,15 @@ PluginSettings {
         description: t("settings.pill_tooltip_desc", "Hovering the bar pill spells out the provider, which quota window the percentage came from, and when it resets.")
         checked: { root.settingsEpoch; return loadValue("pillTooltip", "true") === "true"; }
         onToggled: function(checked) { saveValue("pillTooltip", checked ? "true" : "false"); }
+    }
+
+    DankToggle {
+        x: -Theme.spacingM
+        width: parent.width + Theme.spacingM * 2
+        text: t("settings.show_remaining", "Show remaining quota")
+        description: t("settings.show_remaining_desc", "Show available quota instead of consumed quota in the pill and dashboard. Alert thresholds still use consumption.")
+        checked: { root.settingsEpoch; return loadValue("showRemainingQuota", "false") === "true"; }
+        onToggled: function(checked) { saveValue("showRemainingQuota", checked ? "true" : "false"); }
     }
 
     // Pill footprint controls (issue #33): logo + percentage only, and a

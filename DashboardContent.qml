@@ -117,7 +117,7 @@ PopoutComponent {
                             StyledText {
                                 Layout.fillWidth: implicitWidth > width
                                 Layout.maximumWidth: implicitWidth
-                                text: t("app.title", "AI Usage Control")
+                                text: t("app.title", "AiOverviewControl")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Bold
                                 color: Theme.surfaceText
@@ -506,7 +506,7 @@ PopoutComponent {
 
                                         ProgressRing {
                                             anchors.fill: parent
-                                            percent: root.hasProviderData ? root.primaryPercent : 0
+                                            percent: root.hasProviderData ? root.quotaDisplayPercent(root.primaryPercent) : 0
                                             thickness: 4
                                             accentColor: root.heroAccent
                                         }
@@ -610,7 +610,7 @@ PopoutComponent {
 
                                         StyledText {
                                             width: parent.width
-                                            text: root.providerData ? root.providerName(root.providerData.provider) : t("app.title", "AI Usage Control")
+                                            text: root.providerData ? root.providerName(root.providerData.provider) : t("app.title", "AiOverviewControl")
                                             color: Theme.surfaceText
                                             font.pixelSize: contentColumn.width < 560 ? Theme.fontSizeLarge + 2 : Theme.fontSizeLarge + 6
                                             font.weight: Font.Bold
@@ -1636,6 +1636,8 @@ PopoutComponent {
         required property string label
         required property real percent
         property string aside: ""
+        property bool quota: true
+        readonly property real displayPercent: quota ? root.quotaDisplayPercent(percent) : percent
         property color accentColor: root.getUsageColor(percent)
 
         width: parent ? parent.width : implicitWidth
@@ -1656,7 +1658,7 @@ PopoutComponent {
 
             StyledText {
                 id: valueText
-                text: usageBar.aside.length > 0 ? usageBar.aside : `${Math.round(usageBar.percent)}%`
+                text: usageBar.aside.length > 0 ? usageBar.aside : (usageBar.quota ? root.quotaPercentText(usageBar.percent) : `${Math.round(usageBar.percent)}%`)
                 wrapMode: Text.NoWrap
                 color: usageBar.accentColor
                 Behavior on color {
@@ -1681,7 +1683,7 @@ PopoutComponent {
             Rectangle {
                 id: usageFill
                 property bool grown: false
-                width: grown ? Math.max(3, Math.min(1, usageBar.percent / 100) * parent.width) : 0
+                width: grown ? Math.max(3, Math.min(1, usageBar.displayPercent / 100) * parent.width) : 0
                 height: parent.height
                 radius: parent.radius
                 gradient: Gradient {
@@ -1948,7 +1950,7 @@ PopoutComponent {
                     }
                 }
                 StyledText {
-                    text: `${Math.round(acct.worst)}%`
+                    text: root.quotaPercentText(acct.worst)
                     color: acct.accent
                     font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Bold
@@ -1972,7 +1974,7 @@ PopoutComponent {
                     width: parent.width
                     label: modelData.name || modelData.resetDescription || ""
                     percent: Number(modelData.usedPercent || 0)
-                    aside: (modelData.description && String(modelData.description).length > 0) ? String(modelData.description) : `${Math.round(Number(modelData.usedPercent || 0))}% used`
+                    aside: (!root.showRemainingQuota && modelData.description && String(modelData.description).length > 0) ? String(modelData.description) : root.quotaPercentText(modelData.usedPercent)
                     accentColor: root.getUsageColor(Number(modelData.usedPercent || 0))
                 }
             }
@@ -2187,7 +2189,7 @@ PopoutComponent {
                     ProgressRing {
                         anchors.fill: parent
                         visible: card.hasUsage
-                        percent: root.providerPercent(card.provider)
+                        percent: root.quotaDisplayPercent(root.providerPercent(card.provider))
                         thickness: 2.5
                         accentColor: root.getUsageColor(root.providerPercent(card.provider))
                         trackColor: Theme.withAlpha(card.accentColor, 0.14)
@@ -2299,7 +2301,7 @@ PopoutComponent {
                     }
 
                     StyledText {
-                        text: card.provider.error ? t("status.error", "Error") : `${Math.round(root.providerPercent(card.provider))}%`
+                        text: card.provider.error ? t("status.error", "Error") : root.quotaPercentText(root.providerPercent(card.provider))
                         color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
                         font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                         font.weight: Font.Bold
@@ -2357,7 +2359,7 @@ PopoutComponent {
                 width: parent.width
                 label: card.windows.length > 0 ? card.windows[0].label : t("status.usage", "Usage")
                 percent: root.providerPercent(card.provider)
-                aside: card.windows.length > 0 ? root.formatUsageLine(card.windows[0].data) : `${Math.round(root.providerPercent(card.provider))}%`
+                aside: card.windows.length > 0 ? root.formatUsageLine(card.windows[0].data) : root.quotaPercentText(root.providerPercent(card.provider))
                 accentColor: root.getUsageColor(root.providerPercent(card.provider))
             }
 
@@ -2521,7 +2523,7 @@ PopoutComponent {
                             percent: root.claudeSevenDayUtil
                             aside: {
                                 const reset = root.formatTimeUntil(root.claudeSevenDayReset);
-                                return reset.length > 0 ? `${Math.round(root.claudeSevenDayUtil)}% · ${reset}` : `${Math.round(root.claudeSevenDayUtil)}%`;
+                                return reset.length > 0 ? `${root.quotaPercentText(root.claudeSevenDayUtil)} · ${reset}` : root.quotaPercentText(root.claudeSevenDayUtil);
                             }
                             accentColor: root.getUsageColor(root.claudeSevenDayUtil)
                         }
@@ -2533,7 +2535,7 @@ PopoutComponent {
                             percent: root.claudeScopedLimitUtil
                             aside: {
                                 const reset = root.formatTimeUntil(root.claudeScopedLimitReset);
-                                return reset.length > 0 ? `${Math.round(root.claudeScopedLimitUtil)}% · ${reset}` : `${Math.round(root.claudeScopedLimitUtil)}%`;
+                                return reset.length > 0 ? `${root.quotaPercentText(root.claudeScopedLimitUtil)} · ${reset}` : root.quotaPercentText(root.claudeScopedLimitUtil);
                             }
                             accentColor: root.getUsageColor(root.claudeScopedLimitUtil)
                         }
@@ -2564,7 +2566,7 @@ PopoutComponent {
                             percent: root.claudeFiveHourUtil
                             aside: {
                                 const reset = root.formatTimeUntil(root.claudeFiveHourReset);
-                                return reset.length > 0 ? `${Math.round(root.claudeFiveHourUtil)}% · ${reset}` : `${Math.round(root.claudeFiveHourUtil)}%`;
+                                return reset.length > 0 ? `${root.quotaPercentText(root.claudeFiveHourUtil)} · ${reset}` : root.quotaPercentText(root.claudeFiveHourUtil);
                             }
                             accentColor: root.getUsageColor(root.claudeFiveHourUtil)
                         }
@@ -2653,6 +2655,7 @@ PopoutComponent {
                                     required property real modelCost
                                     width: parent.width
                                     label: modelName
+                                    quota: false
                                     percent: root.claudeWeekTokens > 0 ? (modelTokens / root.claudeWeekTokens) * 100 : 0
                                     aside: modelCost > 0 ? `${root.formatTokens(modelTokens)} · ${root.formatCost(modelCost)}` : root.formatTokens(modelTokens)
                                     accentColor: Theme.warning
@@ -2858,6 +2861,7 @@ PopoutComponent {
                                 UsageBar {
                                     required property var modelData
                                     width: parent.width
+                                    quota: false
                                     label: modelData.provider ? `${modelData.model} · ${modelData.provider}` : String(modelData.model || "")
                                     percent: Number(nineCol.nineWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(nineCol.nineWeek.cost)) * 100 : 0
                                     aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} ${root.t("unit.req", "req")}`
@@ -2885,6 +2889,7 @@ PopoutComponent {
                                 UsageBar {
                                     required property var modelData
                                     width: parent.width
+                                    quota: false
                                     label: root.providerName(String(modelData.provider || ""))
                                     percent: Number(nineCol.nineWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(nineCol.nineWeek.cost)) * 100 : 0
                                     aside: `${root.formatCost(Number(modelData.cost || 0))} · ${Number(modelData.requests || 0)} ${root.t("unit.req", "req")}`
@@ -3047,6 +3052,7 @@ PopoutComponent {
                                     required property var modelData
                                     width: parent.width
                                     label: String(modelData.model || "")
+                                    quota: false
                                     percent: Number(piCol.piWeek.cost || 0) > 0 ? (Number(modelData.cost || 0) / Number(piCol.piWeek.cost)) * 100 : 0
                                     aside: `${root.formatCost(modelData.cost)} · ${root.formatTokens(Number(modelData.tokens || 0))}`
                                     accentColor: Theme.success
@@ -3300,6 +3306,7 @@ PopoutComponent {
                                     required property var modelData
                                     width: parent.width
                                     label: String(modelData.model || "")
+                                    quota: false
                                     percent: Number(hermesCol.hWeek.tokens || 0) > 0 ? (Number(modelData.tokens || 0) / Number(hermesCol.hWeek.tokens)) * 100 : 0
                                     aside: `${root.formatTokens(Number(modelData.tokens || 0))} ${root.t("unit.tok", "tok")} · ${root.formatCost(modelData.cost)}`
                                     accentColor: Theme.primary
