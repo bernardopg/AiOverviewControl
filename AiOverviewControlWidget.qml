@@ -8,6 +8,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
+import "ClaudeProfiles.js" as ClaudeProfiles
 
 PluginComponent {
     id: root
@@ -25,6 +26,7 @@ PluginComponent {
     property bool usageDidTimeout: false
     property int usageRequestId: 0
     property int timedOutRequestId: -1
+    readonly property var claudeProfiles: ClaudeProfiles.parse(pluginData.claudeProfiles || "{}")
     property string providerSelection: (pluginData.providerSelection || "codex,claude,copilot").trim()
     property bool showErrorProviders: String(pluginData.showErrorProviders ?? "true") === "true"
     property string pillMode: (pluginData.pillMode || "auto")
@@ -64,6 +66,7 @@ PluginComponent {
     // tighten the separator gap. Only the DankBar pill changes.
     property bool pillShowNames: String(pluginData.pillShowNames ?? "true") === "true"
     property bool pillCompact: String(pluginData.pillCompact ?? "false") === "true"
+    property bool showRemainingQuota: String(pluginData.showRemainingQuota ?? "false") === "true"
     property bool showClaudeProjects: String(pluginData.showClaudeProjects ?? "true") === "true"
     readonly property var moneyFormatter: currencyLoader.item
     readonly property string costCurrency: {
@@ -184,7 +187,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"]
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
 
     ListModel {
         id: claudeModelList
@@ -618,6 +621,17 @@ PluginComponent {
         return formatMinutes(Math.floor(diff / 60000));
     }
 
+    // Presentation only: ranking, warnings, notifications and history use consumption.
+    function quotaDisplayPercent(usedPercent) {
+        const used = Math.max(0, Math.min(100, Number(usedPercent) || 0));
+        return showRemainingQuota ? 100 - used : used;
+    }
+
+    function quotaPercentText(usedPercent) {
+        const percent = Math.round(quotaDisplayPercent(usedPercent));
+        return showRemainingQuota ? t("quota.remaining", "{percent}% left", {percent: percent}) : `${percent}%`;
+    }
+
     function formatUsageLine(windowData) {
         if (!windowData) {
             return "";
@@ -625,9 +639,9 @@ PluginComponent {
         if (windowData.displayValue && String(windowData.displayValue).length > 0) {
             return String(windowData.displayValue);
         }
-        const percent = Math.round(Number(windowData.usedPercent || 0));
+        const percent = quotaPercentText(windowData.usedPercent);
         const reset = formatTimeUntil(windowData.resetsAt);
-        return reset.length > 0 ? `${percent}% · ${reset}` : `${percent}%`;
+        return reset.length > 0 ? `${percent} · ${reset}` : percent;
     }
 
     function formatUsageError(exitCode) {
@@ -639,6 +653,7 @@ PluginComponent {
     }
 
     function providerName(providerId) {
+        if (claudeProfiles[providerId]) return claudeProfiles[providerId].name;
         const names = {
             codex: "Codex",
             claude: "Claude",
@@ -717,7 +732,7 @@ PluginComponent {
     }
 
     function notificationIconPath(providerId) {
-        const canonicalId = notificationProviderId(providerId);
+        const canonicalId = claudeProfiles[providerId] ? "claude" : notificationProviderId(providerId);
         if (canonicalId.length === 0 || _pluginDir.length === 0) {
             return "dialog-warning";
         }
@@ -938,7 +953,7 @@ PluginComponent {
     // callers pass only providerId.
 
     function providerAccent(providerId) {
-        if (providerId === "claude")
+        if (providerId === "claude" || claudeProfiles[providerId])
             return Theme.warning;
         if (providerId === "codex")
             return Theme.success;
@@ -1185,7 +1200,7 @@ PluginComponent {
             const label = windowLabel(windowData);
             if (label && String(label).length > 0)
                 segment.push(label);
-            segment.push(`${Math.round(Number(windowData.usedPercent || 0))}%`);
+            segment.push(quotaPercentText(windowData.usedPercent));
             if (withReset) {
                 const reset = formatTimeUntil(windowData.resetsAt);
                 if (reset.length > 0)
@@ -1617,7 +1632,7 @@ PluginComponent {
             warp: "https://app.warp.dev",
             amp: "https://ampcode.com"
         };
-        return urls[providerId] || "";
+        return urls[claudeProfiles[providerId] ? "claude" : providerId] || "";
     }
 
     function openProviderConsole(providerId, providerSource) {
@@ -1680,6 +1695,7 @@ PluginComponent {
             return;
         retryingProviderId = normalizeProviderId(providerId);
         retryBuffer = "";
+        procRetry.environment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
         procRetry.command = ["bash", providerUsageScript, retryingProviderId, copilotUsageScript];
         procRetry.running = true;
     }
@@ -1863,6 +1879,7 @@ PluginComponent {
     // process's command (Qt behaviour on command change while running is
     // undefined and would scramble the fetch).
     property var usageCommand: ["bash", root.providerUsageScript, root.selectedProviders.join(","), root.copilotUsageScript]
+    property var usageEnvironment: ({"AIOC_HISTORY_MAX": root.historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(root.claudeProfiles)})
 
     property string historyRetention: {
         const parsed = parseInt(pluginData.historyRetention || "2000");
@@ -1872,9 +1889,7 @@ PluginComponent {
     Process {
         id: procUsage
         command: root.usageCommand
-        environment: {
-            "AIOC_HISTORY_MAX": root.historyRetention
-        }
+        environment: root.usageEnvironment
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => root.rawJsonBuffer += data
@@ -2061,6 +2076,7 @@ PluginComponent {
         timedOutRequestId = -1;
         // Snapshot argv now so an in-flight selection change cannot mutate the
         // running process command (see usageCommand declaration).
+        usageEnvironment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
         usageCommand = ["bash", providerUsageScript, selectedProviders.join(","), copilotUsageScript];
         procUsage.running = true;
         usageTimeout.restart();
@@ -2332,7 +2348,7 @@ PluginComponent {
                         }
 
                         StyledText {
-                            text: `${Math.round(root.pillPercentFor(pillEntry.modelData))}%`
+                            text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(pillEntry.modelData)))}%`
                             color: pillEntry.usageColor
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.Bold
@@ -2384,7 +2400,7 @@ PluginComponent {
                     }
 
                     StyledText {
-                        text: `${Math.round(root.pillPercentFor(modelData))}%`
+                        text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(modelData)))}%`
                         color: root.getUsageColor(root.pillPercentFor(modelData))
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold

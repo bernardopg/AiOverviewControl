@@ -3,13 +3,51 @@
 set -euo pipefail
 plugin="${1:-aiOverviewControl}"
 [[ "$plugin" =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'Invalid plugin ID' >&2; exit 1; }
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ "$plugin" == aiOverviewControl ]]; then
+  # DMS unloads the live widget before compiling its replacement. Reject an
+  # incomplete checkout first, while the healthy instance is still untouched.
+  for file in "$ROOT/plugin.json" "$ROOT/i18n/en.json" "$ROOT"/i18n/*.json; do
+    if ! jq -e 'type == "object"' "$file" >/dev/null 2>&1; then
+      printf 'Refusing reload: invalid or missing JSON: %s\n' "$file" >&2
+      exit 1
+    fi
+  done
+  for file in qmldir "$(jq -r '.component // ""' "$ROOT/plugin.json")" "$(jq -r '.settings // ""' "$ROOT/plugin.json")"; do
+    if [[ -z "$file" || ! -f "$ROOT/$file" || ! -r "$ROOT/$file" ]]; then
+      printf 'Refusing reload: missing component or qmldir: %s\n' "$file" >&2
+      exit 1
+    fi
+  done
+  while IFS= read -r file; do
+    if [[ ! -r "$ROOT/$file" ]]; then
+      printf 'Refusing reload: missing QML type: %s\n' "$file" >&2
+      exit 1
+    fi
+  done < <(awk '$NF ~ /\.qml$/ { print $NF }' "$ROOT/qmldir")
+  shopt -s nullglob
+  sources=("$ROOT"/*.qml "$ROOT"/*.js)
+  if grep -lE '^(<<<<<<< |>>>>>>> |\|\|\|\|\|\|\| |=======$)' "${sources[@]}" >&2; then
+    echo 'Refusing reload: unresolved conflicts in runtime source' >&2
+    exit 1
+  fi
+  while IFS= read -r module; do
+    if [[ ! -r "$ROOT/$module" ]]; then
+      printf 'Refusing reload: missing JavaScript module: %s\n' "$module" >&2
+      exit 1
+    fi
+  done < <(awk '$1 == "import" && $2 ~ /^".*\.js"$/ { gsub(/"/, "", $2); print $2 }' "${sources[@]}")
+fi
 found=0
 while IFS= read -r instance; do
   list="$(qs ipc -i "$instance" call plugins list 2>/dev/null || true)"
   if grep -qE "^${plugin} \[loaded\]$" <<< "$list"; then
     result="$(qs ipc -i "$instance" call plugins reload "$plugin")"
     printf '%s: %s\n' "$instance" "$result"
-    [[ "$result" == "PLUGIN_RELOAD_SUCCESS: $plugin" ]] || exit 1
+    if [[ "$result" != "PLUGIN_RELOAD_SUCCESS: $plugin" ]]; then
+      echo 'Reload failed. New QML/JavaScript files may require dms restart; check the shell log before retrying.' >&2
+      exit 1
+    fi
     found=1
   fi
 done < <(qs list --all 2>/dev/null | awk '/^Instance / { gsub(/:/, "", $2); print $2 }')

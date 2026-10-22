@@ -30,6 +30,7 @@ Item {
             grok: "xai"
         };
         const normalized = String(providerId || "").trim().toLowerCase();
+        if (/^claude-[a-z0-9][a-z0-9_-]{0,55}$/.test(normalized)) return "claude";
         return aliases[normalized] || normalized;
     }
     readonly property string defaultIcon: {

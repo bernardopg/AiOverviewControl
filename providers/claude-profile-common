@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Shared profile lookup for usage and readiness; never evaluates shell input.
+claude_profile_dir() {
+  local id="$1"
+  [[ "$id" =~ ^claude-[a-z0-9][a-z0-9_-]{0,55}$ ]] || return 1
+  printf '%s' "${AIOC_CLAUDE_PROFILES:-\{\}}" | jq -er --arg id "$id" '
+    select(type == "object") | .[$id]
+    | select(type == "object") | .configDir
+    | select(type == "string" and startswith("/") and (test("[\\x00-\\x1f\\x7f]") | not))
+  ' 2>/dev/null
+}

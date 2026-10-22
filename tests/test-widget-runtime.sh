@@ -13,7 +13,7 @@ TMP="$(mktemp -d)"
 pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/plugin/providers" "$TMP/home" "$TMP/bin"
-cp "$ROOT"/*.qml "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
+cp "$ROOT"/*.qml "$ROOT"/*.js "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
 cp -r "$ROOT/i18n" "$ROOT/assets" "$TMP/plugin/"
 for name in get-provider-usage get-provider-health get-local-analytics get-claude-usage get-9router-analytics get-pi-analytics get-hermes-analytics get-usage-history get-history-stats get-exchange-rates record-usage-history; do
     printf '#!/bin/bash\nprintf '\''{"providers":[],"error":"fixture"}\\n'\''\n' > "$TMP/plugin/providers/$name"
@@ -25,6 +25,23 @@ printf '{"base":"USD","currency":"%s","rate":5,"date":"2026-09-29","stale":false
 SH
 cat > "$TMP/plugin/providers/get-provider-usage" <<'SH'
 #!/usr/bin/env bash
+if [[ "${1:-}" == claude-work* ]]; then
+    # The widget must transmit literal profile definitions and retention through
+    # both refresh and retry processes, not only through direct adapter tests.
+    jq -n --arg selection "$1" --arg retention "${AIOC_HISTORY_MAX:-}" \
+        --argjson profiles "${AIOC_CLAUDE_PROFILES:-null}" '
+      if $retention != "321" or $profiles["claude-work"].configDir != "/tmp/work account"
+          or $profiles["claude-personal"].configDir != "/tmp/personal" then
+        [{provider:"claude-work",error:{message:"Missing fixture environment"}}]
+      else $selection | split(",") | map(. as $id | {
+        provider:$id, source:"claude-local",
+        usage:{identity:{providerID:$id},
+          primary:{usedPercent:(if $id == "claude-work" then 73 else 12 end),windowMinutes:300},
+          secondary:{usedPercent:(if $id == "claude-work" then 81 else 22 end),windowMinutes:10080}},
+        analytics:{weekTokens:(if $id == "claude-work" then 900 else 100 end),todayCost:1.25}
+      }) end'
+    exit
+fi
 printf '[{"provider":"codex","name":"Codex","usage":{"provider":"codex","identity":{"providerID":"codex"},"primary":{"usedPercent":25,"windowMinutes":300},"secondary":{"usedPercent":15,"windowMinutes":10080}}}]\n'
 SH
 chmod +x "$TMP/plugin/providers/get-provider-usage"
@@ -91,6 +108,18 @@ ShellRoot {
     // DMS injects pluginService after the component is built; this instance
     // starts without it to mirror that first-load path.
     Plugin.AiOverviewControlSettings { id: lateSettings; visible: false }
+    Component.onCompleted: {
+        // DMS uses cache-busted file URLs, not the directory import above.
+        // Compile the real entry point through that same public Qt interface.
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const url = "file://" + Quickshell.env("AIOC_TEST_PLUGIN_DIR") + "/AiOverviewControlWidget.qml?t=" + attempt;
+            const component = Qt.createComponent(url, Component.PreferSynchronous);
+            if (component.status !== Component.Ready) {
+                console.error("SMOKE FAIL: cache-busted widget: " + component.errorString());
+                return;
+            }
+        }
+    }
     Timer {
         interval: 1000; running: true; repeat: true
         onTriggered: {
@@ -123,9 +152,32 @@ ShellRoot {
                 root.step = 2;
             } else if (root.step === 2 && widget.formatCost(2).indexOf("$2") === 0) {
                 if (!widget.dashboardView) { console.error("SMOKE FAIL: view not attached"); return; }
+                const remaining = settings.content.find(item => item.text === settings.t("settings.show_remaining", "Show remaining quota"));
+                if (!remaining || remaining.checked) { console.error("SMOKE FAIL: remaining quota default/control"); return; }
+                remaining.toggled(true);
+                widget.pluginData = service.data;
+                if (service.data.showRemainingQuota !== "true" || widget.quotaDisplayPercent(25) !== 75
+                    || widget.quotaDisplayPercent(0) !== 100 || widget.quotaDisplayPercent(100) !== 0
+                    || widget.quotaDisplayPercent(150) !== 0 || widget.quotaDisplayPercent(-10) !== 100
+                    || widget.pillPercentFor(widget.providers[0]) !== 25 || widget.providerPercent(widget.providers[0]) !== 25) {
+                    console.error("SMOKE FAIL: remaining quota persistence or raw-consumption invariant"); return;
+                }
                 widget.focusProvider("codex");
                 root.step = 3;
             } else if (root.step === 3) {
+                const cardPercent = input.findChild(widget.dashboardView, "provider-percent-codex");
+                const horizontal = input.findChild(hPill.item, "pill-entry-codex");
+                if (!cardPercent || cardPercent.children.find(item => item.text === widget.quotaPercentText(25)) === undefined
+                    || !horizontal || horizontal.children.find(item => item.text === "75%") === undefined
+                    || widget.formatUsageLine({usedPercent: 25}).indexOf(widget.quotaPercentText(25)) !== 0
+                    || widget.pillTooltipText().indexOf(widget.quotaPercentText(25)) < 0) {
+                    console.error("SMOKE FAIL: remaining quota pill, dashboard or tooltip"); return;
+                }
+                settings.resetToDefaults();
+                widget.pluginData = service.data;
+                if (service.data.showRemainingQuota !== "false" || widget.quotaDisplayPercent(25) !== 25) {
+                    console.error("SMOKE FAIL: remaining quota reset"); return;
+                }
                 widget.focusedProviderId = "";
                 widget.allExpanded = false;
                 widget.pinnedProvidersCsv = "codex,opencode";
@@ -218,8 +270,100 @@ ShellRoot {
                 if (lateSettings.selectedIds.join(",") !== "codex" || !lateSettings.providerHealth["codex"])
                     console.error("SMOKE FAIL: late pluginService did not load selection and health: "
                         + JSON.stringify({ids: lateSettings.selectedIds, health: lateSettings.providerHealth}));
-                console.warn("FULL_UI_SMOKE_OK");
+                for (const values of [["codex", "Bad", "/tmp/config"], ["claude-relative", "Bad", "relative"]]) {
+                    if (settings.addClaudeProfile(values[0], values[1], values[2])) {
+                        console.error("SMOKE FAIL: accepted invalid Claude profile"); return;
+                    }
+                }
+                input.findChild(settings, "claude-profile-id").text = "claude-work";
+                input.findChild(settings, "claude-profile-name").text = "Claude Work";
+                input.findChild(settings, "claude-profile-dir").text = "/tmp/work account";
+                input.findChild(settings, "claude-profile-add").clicked();
+                widget.pluginData = service.data;
+                if (!settings.isSelected("claude-work") || widget.providerName("claude-work") !== "Claude Work"
+                    || widget.availableProviderOptions.indexOf("claude-work") < 0
+                    || settings.allProviders.find(p => p.id === "claude-work") === undefined
+                    || settings.addClaudeProfile("claude-work", "Duplicate", "/tmp/other")
+                    || widget.notificationWindowKey("claude-work", {windowMinutes: 300}) === widget.notificationWindowKey("claude", {windowMinutes: 300})
+                    || widget.providerConsoleUrl("claude-work", "") !== widget.providerConsoleUrl("claude", "")) {
+                    console.error("SMOKE FAIL: Claude profile creation, identity or catalog"); return;
+                }
+                settings.addClaudeProfile("claude-personal", "Personal", "/tmp/personal");
+                settings.content.find(item => item.text === settings.t("settings.show_remaining", "Show remaining quota")).toggled(true);
+                settings.saveValue("historyRetention", "321");
+                widget.pluginData = service.data;
+                widget.providerSelection = "claude-work,claude-personal";
+                widget.allExpanded = true;
                 root.step = 8;
+            } else if (root.step === 8 && !widget.isLoading) {
+                // refresh() is dropped while an earlier fetch is in flight; on a
+                // slow runner that fetch still carries the old selection.
+                if (!widget.binaryReady) {
+                    console.error("SMOKE FAIL: provider runtime unavailable (bash, jq or curl missing)"); return;
+                }
+                const requestId = widget.usageRequestId;
+                widget.refresh();
+                if (widget.usageRequestId === requestId) return;
+                root.step = 9;
+            } else if (root.step === 9 && !widget.isLoading) {
+                if (widget.successfulProviders.length !== 2 || widget.errorProviders.length !== 0
+                    || widget.providers[0].analytics.weekTokens !== 900 || widget.providers[1].analytics.weekTokens !== 100
+                    || widget.pillPercentFor(widget.providers[0]) !== 73 || widget.quotaDisplayPercent(73) !== 27) {
+                    console.error("SMOKE FAIL: simultaneous profile refresh, analytics or remaining quota: "
+                        + JSON.stringify(widget.providers.map(p => p.provider))); return;
+                }
+                for (const pair of [["claude-work", 73], ["claude-personal", 12]]) {
+                    const percent = input.findChild(widget.dashboardView, "provider-percent-" + pair[0]);
+                    const pill = input.findChild(hPill.item, "pill-entry-" + pair[0]);
+                    if (!percent || !percent.children.find(item => item.text === widget.quotaPercentText(pair[1]))
+                        || !pill || !pill.children.find(item => item.text === (100 - pair[1]) + "%")) {
+                        console.error("SMOKE FAIL: independent profile card/pill remaining display: " + pair[0]); return;
+                    }
+                }
+                const component = Qt.createComponent("file://" + Quickshell.env("AIOC_TEST_PLUGIN_DIR") + "/AiOverviewControlSettings.qml?t=reopen", Component.PreferSynchronous);
+                const reopened = component.createObject(scene.contentItem, {visible: false, pluginService: service});
+                if (!reopened || Object.keys(reopened.claudeProfiles).length !== 2 || !reopened.isSelected("claude-work")) {
+                    console.error("SMOKE FAIL: persisted profiles do not survive settings reconstruction"); return;
+                }
+                reopened.destroy();
+                widget.openProvider("claude-work");
+                widget.retryProvider("claude-work");
+                root.step = 10;
+            } else if (root.step === 10 && widget.retryingProviderId === "") {
+                if (!input.findChild(widget.dashboardView, "provider-header-claude-work") || widget.focusedProviderId !== "claude-work"
+                    || widget.providers[0].error || widget.providers[0].usage.primary.usedPercent !== 73
+                    || widget.providers[1].usage.primary.usedPercent !== 12) {
+                    console.error("SMOKE FAIL: Claude profile retry isolation or focus"); return;
+                }
+                widget.barWindowOverrides = "claude-work:secondary";
+                widget.pinnedProvidersCsv = "claude-work,claude-personal";
+                root.step = 11;
+            } else if (root.step === 11) {
+                const pill = input.findChild(hPill.item, "pill-entry-claude-work");
+                if (widget.pillPercentFor(widget.providers[0]) !== 81 || widget.providerPercent(widget.providers[0]) !== 73
+                    || !pill.children.find(item => item.text === "19%")) {
+                    console.error("SMOKE FAIL: remaining profile secondary window changed primary data"); return;
+                }
+                settings.selectedIds = ["claude-work"];
+                settings.pinnedIds = ["claude-work"];
+                settings.pillIds = ["claude-work"];
+                settings.saveValue("barWindowOverrides", "claude-work:secondary");
+                settings.saveValue("notifyThresholds", "claude-work:80");
+                settings.removeClaudeProfile("claude-work");
+                widget.pluginData = service.data;
+                if (settings.claudeProfiles["claude-work"] || settings.isSelected("claude-work")
+                    || settings.pinnedIds.length !== 0 || settings.pillIds.indexOf("claude-work") >= 0
+                    || settings.loadValue("barWindowOverrides", "bad") !== "" || settings.loadValue("notifyThresholds", "bad") !== ""
+                    || widget.availableProviderOptions.indexOf("claude-work") >= 0 || settings.selectedIds.length === 0) {
+                    console.error("SMOKE FAIL: Claude profile removal/override cleanup"); return;
+                }
+                settings.resetToDefaults();
+                if (Object.keys(settings.claudeProfiles).length !== 0 || settings.loadValue("showRemainingQuota", "true") !== "false") {
+                    console.error("SMOKE FAIL: simultaneous profile/remaining reset"); return;
+                }
+                widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
+                console.warn("FULL_UI_SMOKE_OK");
+                root.step = 12;
             }
         }
     }
@@ -231,14 +375,14 @@ env -i HOME="$TMP/home" PATH="$TMP/bin:$PATH" LANG=en_US.UTF-8 AIOC_TEST_PLUGIN_
     XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
     WAYLAND_DISPLAY="$WAYLAND_DISPLAY" QT_QPA_PLATFORM=wayland \
     QML_XHR_ALLOW_FILE_READ=1 QML_IMPORT_PATH="$IMPORTS" \
-    timeout 15 qs --no-color -p "$TMP/shell.qml" > "$TMP/log" 2>&1 &
+    timeout 30 qs --no-color -p "$TMP/shell.qml" > "$TMP/log" 2>&1 &
 pid=$!
-for _ in {1..120}; do
+for _ in {1..240}; do
     grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" && break
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.1
 done
-if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::fail|TypeError|ReferenceError|binding loop|Failed to load configuration|Cannot assign|Unable to assign|Invalid property assignment|is not a type' "$TMP/log"; then
+if ! grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" || grep -Ei 'SMOKE FAIL|QtQuickTest::fail|TypeError|ReferenceError|binding loop|Failed to load configuration|Cannot assign|Unable to assign|Invalid property assignment|is not a type|i18n load failed|File name case mismatch' "$TMP/log"; then
     printf '%s\n' "$(<"$TMP/log")" >&2
     exit 1
 fi

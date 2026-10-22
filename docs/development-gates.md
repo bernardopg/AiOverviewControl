@@ -73,6 +73,11 @@ precision, unavailable-rate fallback and currency changes during an active reque
 extracted dashboard, settings body and settings window with real DMS imports and
 fixture-only provider scripts. Its isolated HOME/no-credential environment never
 opens visible windows. It checks empty-provider bindings and live BRL→USD changes.
+The entry point is also compiled through DMS-style cache-busted `file://...?...`
+URLs. It exercises the remaining-quota toggle, both pills, independent Claude
+profiles through actual refresh/retry processes, per-profile analytics and window
+selection, settings reconstruction/persistence, removal/override cleanup and reset
+with both features enabled together. Translation-load errors fail the suite.
 Use `scripts/qmlls-setup` first, or supply the import-tree parent with
 `AIOC_DMS_IMPORTS`. It needs a native Wayland connection because Qt offscreen
 cannot construct DMS PanelWindow types; without these prerequisites it reports
@@ -96,7 +101,18 @@ launch Quickshell under `/run/user/<uid>/danklinux-shell/<hash>`, not
 `~/.config/quickshell/dms`. The script discovers running instances via
 `qs list --all`, queries each plugin IPC target, and reloads only shells where
 the plugin is loaded. It never enables intentionally disabled plugins.
-`tests/test-dms-reload.sh` checks discovery and failure handling using a fake qs.
+Before contacting the running shell for `aiOverviewControl`, the helper validates
+manifest/translation JSON, component/qmldir/JavaScript file availability and the
+absence of merge conflicts in runtime source. A rejected checkout leaves the live
+widget untouched. `tests/test-dms-reload.sh` checks this fail-closed behavior,
+discovery and failure handling using a fake qs.
+
+A Quickshell process started before a new QML/JavaScript dependency was installed
+may reject a cache-busted reload with **File name case mismatch**, even when the
+same code compiles in a fresh process. Restart DMS once (`dms restart`) after such
+an upgrade. A second normal load can reuse the old compiled component, so a
+successful fallback is not proof that the new features are running. After the
+restart, verify plugin status and repeat the reload; reopen any old popout.
 
 ## Translation coverage
 
