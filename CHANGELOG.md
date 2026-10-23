@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Every Claude profile gets its own **Claude Code details** panel, filled from its own `CLAUDE_CONFIG_DIR`, instead of only the default account; the default account no longer runs its helper twice per refresh, and local analytics stay visible when the OAuth usage request fails.
+
 ## 2.0.0 - 2026-10-22
 
 A major release for DMS 2.0: the plugin uses the DMS 2.0 widget library

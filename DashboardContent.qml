@@ -1711,15 +1711,17 @@ PopoutComponent {
     }
 
     component ClaudeDailyBars: DailyBarChart {
+        property var tokens: []
+        property var costs: []
         width: parent ? parent.width : implicitWidth
         accent: Theme.primary
         bars: {
             const out = [];
             for (let i = 0; i < 7; i++) {
                 out.push({
-                    value: Number(root.claudeDailyTokens[i] || 0),
-                    primary: root.formatTokens(root.claudeDailyTokens[i] || 0),
-                    secondary: root.formatCost(root.claudeDailyCosts[i] || 0),
+                    value: Number(tokens[i] || 0),
+                    primary: root.formatTokens(tokens[i] || 0),
+                    secondary: root.formatCost(costs[i] || 0),
                     label: root.dayLabels[i],
                     today: i === root.currentWeekdayIndex
                 });
@@ -2476,24 +2478,22 @@ PopoutComponent {
                     onTriggered: root.openProviderConsole(card.provider.provider, card.provider.source)
                 }
 
-                Flow {
-                    visible: !!root.claudeProfiles[card.provider.provider] && !!card.provider.analytics
-                    width: parent.width
-                    spacing: Theme.spacingS
-                    MetricTile {
-                        label: t("card.nine_week_tokens", "Week tokens")
-                        value: root.formatTokens(Number((card.provider.analytics || {}).weekTokens || 0))
-                        width: (parent.width - Theme.spacingS) / 2
-                    }
-                    MetricTile {
-                        label: t("card.today_cost", "Today cost")
-                        value: root.formatCost((card.provider.analytics || {}).todayCost)
-                        width: (parent.width - Theme.spacingS) / 2
-                    }
-                }
-
                 StyledRect {
-                    visible: card.provider.provider === "claude"
+                    id: claudePanel
+                    objectName: "claude-details-" + card.provider.provider
+                    readonly property var details: root.claudeDetails(card.provider)
+                    // Bindings below still evaluate while hidden; read through
+                    // an empty shape instead of guarding every access.
+                    readonly property var view: details || ({session: null, weekly: null, scoped: null, extraUsage: null, dailyTokens: [], dailyCosts: [], models: [], projects: []})
+                    readonly property var sessionForecast: {
+                        root.staleTickMs;
+                        return view.session ? root.windowBurnForecast(view.session.percent, view.session.resetsAt, 300) : null;
+                    }
+                    readonly property var weekForecast: {
+                        root.staleTickMs;
+                        return view.weekly ? root.windowBurnForecast(view.weekly.percent, view.weekly.resetsAt, 10080) : null;
+                    }
+                    visible: details !== null
                     width: parent.width
                     radius: Theme.cornerRadius + 2
                     color: Theme.withAlpha(Theme.warning, 0.08)
@@ -2520,14 +2520,14 @@ PopoutComponent {
                             }
 
                             BadgePill {
-                                visible: root.claudeExtraUsageEnabled
+                                visible: !!claudePanel.view.extraUsage && claudePanel.view.extraUsage.enabled === true
                                 label: t("card.extra_usage_on", "Extra usage on")
                                 iconName: "add_circle"
                                 accentColor: Theme.warning
                             }
 
                             StyledText {
-                                text: root.formatTier(root.claudeRateLimitTier)
+                                text: root.formatTier(claudePanel.view.tier)
                                 color: Theme.warning
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.DemiBold
@@ -2535,30 +2535,37 @@ PopoutComponent {
                         }
 
                         UsageBar {
+                            readonly property var window: claudePanel.view.weekly
                             width: parent.width
+                            visible: !!window
                             label: t("window.weekly", "Weekly")
-                            percent: root.claudeSevenDayUtil
+                            percent: window ? window.percent : 0
                             aside: {
-                                const reset = root.formatTimeUntil(root.claudeSevenDayReset);
-                                return reset.length > 0 ? `${root.quotaPercentText(root.claudeSevenDayUtil)} · ${reset}` : root.quotaPercentText(root.claudeSevenDayUtil);
+                                if (!window)
+                                    return "";
+                                const reset = root.formatTimeUntil(window.resetsAt || "");
+                                return reset.length > 0 ? `${root.quotaPercentText(window.percent)} · ${reset}` : root.quotaPercentText(window.percent);
                             }
-                            accentColor: root.getUsageColor(root.claudeSevenDayUtil)
+                            accentColor: root.getUsageColor(window ? window.percent : 0)
                         }
 
                         UsageBar {
+                            readonly property var window: claudePanel.view.scoped
                             width: parent.width
-                            visible: root.claudeScopedLimitModel !== "" && root.claudeScopedLimitUtil > 0
-                            label: `${t("window.weekly", "Weekly")} · ${root.claudeScopedLimitModel}`
-                            percent: root.claudeScopedLimitUtil
+                            visible: !!window
+                            label: window ? `${t("window.weekly", "Weekly")} · ${window.model}` : ""
+                            percent: window ? window.percent : 0
                             aside: {
-                                const reset = root.formatTimeUntil(root.claudeScopedLimitReset);
-                                return reset.length > 0 ? `${root.quotaPercentText(root.claudeScopedLimitUtil)} · ${reset}` : root.quotaPercentText(root.claudeScopedLimitUtil);
+                                if (!window)
+                                    return "";
+                                const reset = root.formatTimeUntil(window.resetsAt || "");
+                                return reset.length > 0 ? `${root.quotaPercentText(window.percent)} · ${reset}` : root.quotaPercentText(window.percent);
                             }
-                            accentColor: root.getUsageColor(root.claudeScopedLimitUtil)
+                            accentColor: root.getUsageColor(window ? window.percent : 0)
                         }
 
                         Row {
-                            visible: !!root.claudeWeekBurnForecast && root.claudeWeekBurnForecast.exceed
+                            visible: !!claudePanel.weekForecast && claudePanel.weekForecast.exceed
                             spacing: Theme.spacingXS
 
                             DIcon {
@@ -2569,7 +2576,7 @@ PopoutComponent {
                             }
 
                             StyledText {
-                                text: root.claudeWeekBurnForecast ? root.claudeWeekBurnForecast.text : ""
+                                text: claudePanel.weekForecast ? claudePanel.weekForecast.text : ""
                                 color: Theme.error
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.DemiBold
@@ -2578,32 +2585,36 @@ PopoutComponent {
                         }
 
                         UsageBar {
+                            readonly property var window: claudePanel.view.session
                             width: parent.width
+                            visible: !!window
                             label: root.t("window.session", "Session")
-                            percent: root.claudeFiveHourUtil
+                            percent: window ? window.percent : 0
                             aside: {
-                                const reset = root.formatTimeUntil(root.claudeFiveHourReset);
-                                return reset.length > 0 ? `${root.quotaPercentText(root.claudeFiveHourUtil)} · ${reset}` : root.quotaPercentText(root.claudeFiveHourUtil);
+                                if (!window)
+                                    return "";
+                                const reset = root.formatTimeUntil(window.resetsAt || "");
+                                return reset.length > 0 ? `${root.quotaPercentText(window.percent)} · ${reset}` : root.quotaPercentText(window.percent);
                             }
-                            accentColor: root.getUsageColor(root.claudeFiveHourUtil)
+                            accentColor: root.getUsageColor(window ? window.percent : 0)
                         }
 
                         Row {
-                            visible: !!root.claudeBurnForecast
+                            visible: !!claudePanel.sessionForecast
                             spacing: Theme.spacingXS
 
                             DIcon {
-                                name: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? "local_fire_department" : "check_circle"
+                                name: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? "local_fire_department" : "check_circle"
                                 size: 14
-                                color: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? Theme.error : Theme.success
+                                color: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? Theme.error : Theme.success
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
                             StyledText {
-                                text: root.claudeBurnForecast ? root.claudeBurnForecast.text : ""
-                                color: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? Theme.error : Theme.surfaceVariantText
+                                text: claudePanel.sessionForecast ? claudePanel.sessionForecast.text : ""
+                                color: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? Theme.error : Theme.surfaceVariantText
                                 font.pixelSize: Theme.fontSizeSmall
-                                font.weight: root.claudeBurnForecast && root.claudeBurnForecast.exceed ? Font.DemiBold : Font.Normal
+                                font.weight: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? Font.DemiBold : Font.Normal
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -2617,38 +2628,40 @@ PopoutComponent {
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.today_tokens", "Today tokens")
-                                value: root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex] || 0)
+                                value: root.formatTokens(claudePanel.view.dailyTokens[root.currentWeekdayIndex] || 0)
                                 accentColor: Theme.warning
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.today_cost", "Today cost")
-                                value: root.formatCost(root.claudeTodayCost)
+                                value: root.formatCost(claudePanel.view.todayCost || 0)
                                 accentColor: Theme.warning
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.week", "Week")
-                                value: `${root.formatTokens(root.claudeWeekTokens)} · ${root.formatCost(root.claudeWeekCost)}`
+                                value: `${root.formatTokens(claudePanel.view.weekTokens || 0)} · ${root.formatCost(claudePanel.view.weekCost || 0)}`
                                 accentColor: Theme.warning
                             }
                             MetricTile {
                                 Layout.fillWidth: true
                                 label: t("card.month", "Month")
-                                value: `${root.formatTokens(root.claudeMonthTokens)} · ${root.formatCost(root.claudeMonthCost)}`
+                                value: `${root.formatTokens(claudePanel.view.monthTokens || 0)} · ${root.formatCost(claudePanel.view.monthCost || 0)}`
                                 accentColor: Theme.warning
                             }
                             MetricTile {
                                 Layout.fillWidth: true
-                                visible: root.claudeMonthProjection > 0
+                                visible: (claudePanel.view.monthProjection || 0) > 0
                                 label: t("card.projected_month", "Projected month")
-                                value: `≈ ${root.formatCost(root.claudeMonthProjection)}`
-                                accentColor: root.claudeMonthProjection > root.claudeMonthCost * 1.5 ? Theme.error : Theme.warning
+                                value: `≈ ${root.formatCost(claudePanel.view.monthProjection || 0)}`
+                                accentColor: claudePanel.view.monthProjection > claudePanel.view.monthCost * 1.5 ? Theme.error : Theme.warning
                             }
                         }
 
                         ClaudeDailyBars {
                             width: parent.width
+                            tokens: claudePanel.view.dailyTokens
+                            costs: claudePanel.view.dailyCosts
                         }
 
                         Column {
@@ -2664,24 +2677,22 @@ PopoutComponent {
                             }
 
                             Repeater {
-                                model: claudeModelList
+                                model: claudePanel.view.models
 
                                 UsageBar {
-                                    required property string modelName
-                                    required property real modelTokens
-                                    required property real modelCost
+                                    required property var modelData
                                     width: parent.width
-                                    label: modelName
+                                    label: modelData.name
                                     quota: false
-                                    percent: root.claudeWeekTokens > 0 ? (modelTokens / root.claudeWeekTokens) * 100 : 0
-                                    aside: modelCost > 0 ? `${root.formatTokens(modelTokens)} · ${root.formatCost(modelCost)}` : root.formatTokens(modelTokens)
+                                    percent: claudePanel.view.weekTokens > 0 ? (modelData.tokens / claudePanel.view.weekTokens) * 100 : 0
+                                    aside: modelData.cost > 0 ? `${root.formatTokens(modelData.tokens)} · ${root.formatCost(modelData.cost)}` : root.formatTokens(modelData.tokens)
                                     accentColor: Theme.warning
                                 }
                             }
                         }
 
                         Column {
-                            visible: root.showClaudeProjects && claudeProjectList.count > 0
+                            visible: root.showClaudeProjects && claudePanel.view.projects.length > 0
                             width: parent.width
                             spacing: Theme.spacingS
 
@@ -2694,11 +2705,10 @@ PopoutComponent {
                             }
 
                             Repeater {
-                                model: claudeProjectList
+                                model: claudePanel.view.projects
 
                                 Column {
-                                    required property string projectPath
-                                    required property real projectTokens
+                                    required property var modelData
                                     required property int index
                                     width: parent.width
                                     spacing: 3
@@ -2708,7 +2718,7 @@ PopoutComponent {
                                         spacing: Theme.spacingS
 
                                         StyledText {
-                                            text: root.projectDisplayName(projectPath)
+                                            text: root.projectDisplayName(modelData.path)
                                             color: Theme.surfaceText
                                             font.pixelSize: Theme.fontSizeSmall
                                             font.weight: Font.DemiBold
@@ -2716,14 +2726,14 @@ PopoutComponent {
 
                                         StyledText {
                                             Layout.fillWidth: true
-                                            text: root.compactPath(projectPath)
+                                            text: root.compactPath(modelData.path)
                                             color: Theme.withAlpha(Theme.surfaceVariantText, 0.7)
                                             font.pixelSize: Theme.fontSizeSmall - 2
                                             elide: Text.ElideLeft
                                         }
 
                                         StyledText {
-                                            text: root.formatTokens(projectTokens)
+                                            text: root.formatTokens(modelData.tokens)
                                             color: Theme.warning
                                             font.pixelSize: Theme.fontSizeSmall
                                             font.weight: Font.DemiBold
@@ -2737,8 +2747,8 @@ PopoutComponent {
                                         color: Theme.withAlpha(Theme.surfaceText, 0.06)
 
                                         Rectangle {
-                                            readonly property real topTokens: claudeProjectList.count > 0 ? Math.max(1, claudeProjectList.get(0).projectTokens) : 1
-                                            width: Math.max(3, (projectTokens / topTokens) * parent.width)
+                                            readonly property real topTokens: claudePanel.view.projects.length > 0 ? Math.max(1, claudePanel.view.projects[0].tokens) : 1
+                                            width: Math.max(3, (modelData.tokens / topTokens) * parent.width)
                                             height: parent.height
                                             radius: parent.radius
                                             color: Theme.withAlpha(Theme.warning, index === 0 ? 0.85 : 0.45)
@@ -2758,9 +2768,9 @@ PopoutComponent {
                         StyledText {
                             width: parent.width
                             text: t("card.claude_since", "Since {date} · {sessions} sessions · {messages} messages", {
-                                date: root.claudeFirstSession || "—",
-                                sessions: root.claudeAlltimeSessions,
-                                messages: root.claudeAlltimeMessages
+                                date: claudePanel.view.firstSession || "—",
+                                sessions: claudePanel.view.alltimeSessions || 0,
+                                messages: claudePanel.view.alltimeMessages || 0
                             })
                             color: Theme.surfaceVariantText
                             font.pixelSize: Theme.fontSizeMedium

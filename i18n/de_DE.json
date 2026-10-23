@@ -77,8 +77,6 @@
   "card.week": "Woche",
   "claude.burn_pace_exceed": "Bei diesem Tempo: 100 % in {time}",
   "claude.burn_pace_ok": "Nutzung im Rahmen des Fensters",
-  "error.claude_timeout": "Zeitüberschreitung beim Abruf der Claude-Code-Nutzung.",
-  "error.claude_unavailable": "Claude-Code-Nutzungsdetails nicht verfügbar. Prüfe claude, jq und curl.",
   "error.fetch_failed": "Nutzung konnte nicht von den Anbietern abgerufen werden.",
   "error.helper_exit": "Anbieter-Helper endete mit Code {code}",
   "error.helper_missing": "Lokaler Anbieter-Helper fehlt oder ist nicht ausführbar: {path}",

@@ -77,8 +77,6 @@
   "card.week": "Week",
   "claude.burn_pace_exceed": "At this pace: 100% in {time}",
   "claude.burn_pace_ok": "Usage on pace for this window",
-  "error.claude_timeout": "Claude Code usage fetch timed out.",
-  "error.claude_unavailable": "Claude Code usage details are unavailable. Check claude, jq, and curl.",
   "error.fetch_failed": "Failed to fetch usage from providers.",
   "error.helper_exit": "provider helper exited with code {code}",
   "error.helper_missing": "Local provider helper is missing or not executable: {path}",
