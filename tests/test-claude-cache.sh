@@ -4,6 +4,8 @@
 #  - legacy ~/.claude cache files are migrated once, then gone
 #  - transcripts are parsed once per (size, mtime); a refresh re-parses only
 #    changed files, and a UTC-offset change rebuilds the date-bucketed rows
+#  - a killed run leaves no partial transcript cache; leftovers and the
+#    unscoped pre-1.22 caches are removed under the account lock
 #  - claude --version is probed at most once per 24h
 #  - shared pricing/version caches are replaced atomically (mktemp + mv)
 #  - stats-cache.json in ~/.claude stays read-only input
@@ -40,7 +42,9 @@ REAL_JQ="$(command -v jq)"
 export JQ_LOG="$TMP/jq.log"
 cat > "$TMP/bin/jq" <<EOF
 #!/usr/bin/env bash
-for a in "\$@"; do case "\$a" in *.jsonl) printf '%s\n' "\$a" >> "\$JQ_LOG"; [ -z "\${JQ_FAIL:-}" ] || exit 5 ;; esac; done
+for a in "\$@"; do case "\$a" in *.jsonl) printf '%s\n' "\$a" >> "\$JQ_LOG"; [ -z "\${JQ_FAIL:-}" ] || exit 5
+  # JQ_HANG: signal that a parse started, then block until released.
+  if [ -n "\${JQ_HANG:-}" ]; then : > "\$JQ_HANG"; while [ ! -e "\$JQ_HANG.go" ]; do sleep 0.05; done; exit 5; fi ;; esac; done
 exec "$REAL_JQ" "\$@"
 EOF
 chmod +x "$TMP/bin/curl" "$TMP/bin/claude" "$TMP/bin/jq"
@@ -110,6 +114,29 @@ sed -i '1s/.*/#aioc-claude-transcripts v1 +9999/' "$PROFILE_CACHE/claude-transcr
 bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "rebuild after offset change wrong"
 [ "$(wc -l < "$JQ_LOG")" -eq 2 ] || fail "offset change did not re-parse every transcript"
 
+# --- A run killed mid-parse removes its partial transcript rewrite ---
+printf '%s\n' '{"type":"user"}' >> "$CLAUDE_PROJECTS/session1.jsonl"
+JQ_HANG="$TMP/jq-hang" bash "$ROOT/providers/get-claude-usage" > /dev/null 2>&1 &
+helper=$!
+for _ in $(seq 100); do [ -e "$TMP/jq-hang" ] && break; sleep 0.05; done
+[ -e "$TMP/jq-hang" ] || fail "transcript parse never started"
+kill -TERM "$helper"
+touch "$TMP/jq-hang.go"
+wait "$helper" 2>/dev/null || true
+[ -z "$(find "$PROFILE_CACHE" -name 'claude-transcripts.tsv.*')" ] \
+  || fail "killed run left a partial transcript cache"
+
+# --- Leftovers from a SIGKILLed run and unscoped pre-1.22 caches are swept ---
+touch "$PROFILE_CACHE/claude-transcripts.tsv.Ab12Cd" \
+  "$XDG_CACHE_HOME/AiOverviewControl/claude-transcripts.tsv" \
+  "$XDG_CACHE_HOME/AiOverviewControl/claude-transcripts.tsv.Ef34Gh" \
+  "$XDG_CACHE_HOME/AiOverviewControl/claude-usage-cache.json"
+bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "sweep broke aggregation"
+[ -z "$(find "$XDG_CACHE_HOME/AiOverviewControl" -maxdepth 1 -name 'claude-transcripts.tsv*' -o -maxdepth 1 -name 'claude-usage-cache.json')" ] \
+  || fail "unscoped legacy Claude caches survived"
+[ -z "$(find "$PROFILE_CACHE" -name 'claude-transcripts.tsv.*')" ] || fail "orphaned transcript rewrite survived"
+[ -s "$PROFILE_CACHE/claude-transcripts.tsv" ] || fail "sweep removed the live transcript cache"
+
 # --- claude --version probed once across runs (24h TTL cache) ---
 [ -f "$CLAUDE_VERSION_CALLS" ] || fail "claude --version never probed"
 [ "$(wc -l < "$CLAUDE_VERSION_CALLS")" -eq 1 ] || fail "claude --version probed more than once"
@@ -126,4 +153,4 @@ jq -e '.version == "2.1.0"' "$XDG_CACHE_HOME/AiOverviewControl/claude-version-ca
 leftover="$(find "$XDG_CACHE_HOME/AiOverviewControl" -name '*.json.*' -o -name '*.tsv.*')"
 [ -z "$leftover" ] || fail "temporary cache files left behind: $leftover"
 
-echo "ok: claude cache placement, migration, per-file transcript cache, version TTL, LiteLLM opt-out"
+echo "ok: claude cache placement, migration, per-file transcript cache, temp cleanup, version TTL, LiteLLM opt-out"

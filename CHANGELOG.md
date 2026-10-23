@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Every Claude profile gets its own **Claude Code details** panel, filled from its own `CLAUDE_CONFIG_DIR`, instead of only the default account; the default account no longer runs its helper twice per refresh, and local analytics stay visible when the OAuth usage request fails.
+- Interrupted helpers no longer leave files in the plugin cache: a Claude refresh killed mid-parse removes its partial transcript cache (several MB each), a quota alert ended by logout or shell restart removes its click waiter file, and leftovers from earlier versions, including the unscoped Claude caches replaced in 1.22.0, are cleaned up.
 
 ## 2.0.0 - 2026-10-22
 

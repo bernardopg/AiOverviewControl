@@ -30,6 +30,18 @@ state_dir_for_clear="${XDG_CACHE_HOME:-${HOME}/.cache}/AiOverviewControl"
 if [ "${1:-}" = "--migrate" ]; then
   state_file="${state_dir_for_clear}/notify-state.json"
   lock_file="${state_dir_for_clear}/notify-state.lock"
+  # A helper SIGKILLed while waiting (logout, reboot) cannot remove its
+  # waiter file. A live waiter keeps it open as notify-send's stdout, so
+  # drop only files no process holds that are older than a minute (a fresh
+  # helper may sit between mktemp and notify-send, or between exit and rm).
+  if [ -d "$state_dir_for_clear" ]; then
+    held="$(find /proc/[0-9]*/fd -maxdepth 1 -lname "${state_dir_for_clear}/.notify-waiter.*" \
+      -printf '%l\n' 2>/dev/null || true)"
+    find "$state_dir_for_clear" -maxdepth 1 -type f -name '.notify-waiter.*' -mmin +1 -print 2>/dev/null \
+      | while IFS= read -r stale; do
+          grep -qxF -- "$stale" <<<"$held" || rm -f -- "$stale"
+        done
+  fi
   [ -s "$state_file" ] || exit 0
   mkdir -p "$state_dir_for_clear"
   exec 9>"$lock_file"
@@ -183,6 +195,9 @@ elif [ -n "$action_label" ]; then
     kill -KILL "$prev_waiter" 2>/dev/null || true
   fi
   waiter_out="$(mktemp "${state_dir}/.notify-waiter.XXXXXX")"
+  # Bash runs EXIT traps on SIGTERM/SIGHUP too, so a session ending while
+  # the helper waits for a click still removes the file.
+  trap 'rm -f "$waiter_out"' EXIT
   # 9>&- keeps the waiter from holding the state lock for its lifetime.
   notify-send "${notify_args[@]}" -A "default=${action_label}" \
     "$title" "$body" >"$waiter_out" 2>/dev/null 9>&- &
