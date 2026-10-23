@@ -2,8 +2,19 @@
 
 ## Unreleased
 
-- Every Claude profile gets its own **Claude Code details** panel, filled from its own `CLAUDE_CONFIG_DIR`, instead of only the default account; the default account no longer runs its helper twice per refresh, and local analytics stay visible when the OAuth usage request fails.
-- Interrupted helpers no longer leave files in the plugin cache: a Claude refresh killed mid-parse removes its partial transcript cache (several MB each), a quota alert ended by logout or shell restart removes its click waiter file, and leftovers from earlier versions, including the unscoped Claude caches replaced in 1.22.0, are cleaned up.
+## 2.0.1 - 2026-10-22
+
+A patch release for DMS 2.0. Every Claude profile now gets the full **Claude Code details** panel, and interrupted helpers stop leaving files in the plugin cache. Settings, profiles and history carry over unchanged; run `dms restart` once after upgrading so the updated `ClaudeProfiles.js` module loads.
+Long-form notes: [docs/releases/2.0.1.md](docs/releases/2.0.1.md).
+
+### Claude
+- Every Claude profile gets its own **Claude Code details** panel, filled from its own `CLAUDE_CONFIG_DIR`, instead of only the default account; the default account no longer runs its helper twice per refresh, and local analytics stay visible when the OAuth usage request fails ([#60](https://github.com/bernardopg/AiOverviewControl/pull/60), thanks @ianptkcs).
+
+### Fixes
+- Interrupted helpers no longer leave files in the plugin cache: a Claude refresh killed mid-parse removes its partial transcript cache (several MB each), a quota alert ended by logout or shell restart removes its click waiter file, and leftovers from earlier versions, including the unscoped Claude caches replaced in 1.22.0, are cleaned up ([#61](https://github.com/bernardopg/AiOverviewControl/pull/61)).
+
+### Project
+- @ianptkcs joins the contributor grid.
 
 ## 2.0.0 - 2026-10-22
 
