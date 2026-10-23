@@ -25,6 +25,13 @@ mkdir -p "$ACCOUNT_CACHE"
 # account-local cache reads and rewrites.
 exec 8>"${ACCOUNT_CACHE}/lock"
 flock 8
+# A run killed mid-rewrite (refresh timeout, shell restart) leaves its partial
+# transcript cache behind. Holding the account lock means no live run owns
+# one now. 1.22.0 scoped the account caches, so the unscoped copies are dead.
+TX_NEW=""
+trap '[ -z "$TX_NEW" ] || rm -f "$TX_NEW"' EXIT
+rm -f "$TRANSCRIPTS_CACHE".?????? "${CACHE_DIR}/claude-transcripts.tsv" \
+    "${CACHE_DIR}"/claude-transcripts.tsv.?????? "${CACHE_DIR}/claude-usage-cache.json"
 # One-time migration: these caches used to be written into ~/.claude. Move the
 # data across so the refreshed paths stay warm, then leave no trace behind.
 for legacy in pricing-cache usage-cache; do
@@ -308,6 +315,7 @@ if [ -d "$PROJECTS_DIR" ]; then
                 ($1 in stamp) { path = $1; $1 = ""; print path, stamp[path] $0 }' <(printf '%s\n' "$TX_STALE") - >> "$TX_NEW"
     fi
     mv "$TX_NEW" "$TRANSCRIPTS_CACHE" 2>/dev/null || rm -f "$TX_NEW"
+    TX_NEW=""
 
     # Calendar week dates: Monday (index 1) to Sunday (index 7)
     DAY_DATES=""

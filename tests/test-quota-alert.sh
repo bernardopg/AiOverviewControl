@@ -144,4 +144,33 @@ fallback_alert
 grep -qF 'notify --app AiOverviewControl --icon dialog-warning Quota test Fixture body' "$DMS_LOG"
 [ "$(jq -r '.["fallback:primary:300:window"].id' "$state")" = 0 ]
 
+# A helper terminated while it waits for a click (logout, shell restart)
+# still removes its waiter file.
+rm -f "$CLICK_FILE"
+"$ROOT/providers/send-quota-alert" --clear click:primary:300:window
+before="$(waiter_of)"
+click_alert normal 0 codex
+term_helper=$!
+wait_for_waiter "$before"
+kill -TERM "$term_helper"
+reap "$term_helper" 2>/dev/null || true
+touch "$CLICK_FILE"
+[ -z "$(find "$XDG_CACHE_HOME/AiOverviewControl" -name '.notify-waiter.*')" ] \
+  || { echo 'terminated helper left its waiter file' >&2; exit 1; }
+
+# --migrate sweeps waiter files a SIGKILLed helper left behind, but keeps one
+# a live waiter still holds open.
+cache_dir="$XDG_CACHE_HOME/AiOverviewControl"
+: > "$cache_dir/.notify-waiter.orphan"
+sleep 30 > "$cache_dir/.notify-waiter.held" &
+holder=$!
+touch -d '-5 minutes' "$cache_dir/.notify-waiter.orphan" "$cache_dir/.notify-waiter.held"
+: > "$cache_dir/.notify-waiter.fresh"
+"$ROOT/providers/send-quota-alert" --migrate
+[ ! -e "$cache_dir/.notify-waiter.orphan" ] || { echo 'orphaned waiter file survived --migrate' >&2; exit 1; }
+[ -e "$cache_dir/.notify-waiter.held" ] || { echo '--migrate removed a live waiter file' >&2; exit 1; }
+[ -e "$cache_dir/.notify-waiter.fresh" ] || { echo '--migrate removed a fresh waiter file' >&2; exit 1; }
+kill "$holder"; wait "$holder" 2>/dev/null || true
+rm -f "$cache_dir/.notify-waiter.held" "$cache_dir/.notify-waiter.fresh"
+
 echo 'Quota alert deduplication and click action: OK'

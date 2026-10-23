@@ -1679,7 +1679,8 @@ PluginComponent {
             _pluginDir = lastSlash !== -1 ? withoutScheme.substring(0, lastSlash) : withoutScheme;
         }
         // One-time, idempotent cleanup of the legacy state whose full reset
-        // timestamp made jitter look like a new quota window every refresh.
+        // timestamp made jitter look like a new quota window every refresh,
+        // plus click-waiter files left by helpers that were killed outright.
         Quickshell.execDetached(["bash", notifyAlertScript, "--migrate"]);
         detectBinary();
     }

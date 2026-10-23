@@ -159,7 +159,10 @@ While an alert is on screen the helper keeps one `notify-send` process per
 alert waiting for the click (its pid is stored as `waiter` in
 `notify-state.json`). It exits when the notification is closed, expires or is
 replaced. A click on an entry in the DMS notification history after that
-process exited is not routed back.
+process exited is not routed back. Each waiter writes to a
+`.notify-waiter.*` file in the plugin cache; the helper removes it when it
+exits or is terminated, and widget start-up sweeps files left by a helper
+that was killed outright.
 
 ## A quota window never alerts
 
