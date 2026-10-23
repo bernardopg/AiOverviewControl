@@ -136,8 +136,9 @@ fabricated zeroes. See [the persistence contract](development-gates.md#codex-cre
 - Temporary files are isolated per run and removed when collection finishes.
 - A provider error is returned as structured data, so one timeout or bad
   credential never hides the healthy providers.
-- Claude analytics run separately, so local history or OAuth failures cannot
-  block the main collection.
+- Each Claude provider's local analytics travel with its own result, so an
+  OAuth failure still leaves its local history and costs visible, and a
+  Claude failure never blocks the other providers.
 - Informational cards use explicit text and official links, never synthetic
   percentages.
 

@@ -129,27 +129,6 @@ PluginComponent {
         return result;
     }
     property string pendingProviderId: availableProviderOptions[0] || "codex"
-    property string claudeRateLimitTier: ""
-    property real claudeFiveHourUtil: 0
-    property string claudeFiveHourReset: ""
-    property real claudeSevenDayUtil: 0
-    property string claudeSevenDayReset: ""
-    property real claudeScopedLimitUtil: 0
-    property string claudeScopedLimitReset: ""
-    property string claudeScopedLimitModel: ""
-    property bool claudeExtraUsageEnabled: false
-    property int claudeWeekMessages: 0
-    property int claudeWeekSessions: 0
-    property real claudeWeekTokens: 0
-    property real claudeMonthTokens: 0
-    property int claudeAlltimeSessions: 0
-    property int claudeAlltimeMessages: 0
-    property string claudeFirstSession: ""
-    property real claudeTodayCost: 0
-    property real claudeWeekCost: 0
-    property real claudeMonthCost: 0
-    property var claudeDailyTokens: [0, 0, 0, 0, 0, 0, 0]
-    property var claudeDailyCosts: [0, 0, 0, 0, 0, 0, 0]
     property var dayLabels: [Qt.locale(root.i18nLocale).dayName(1, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(2, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(3, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(4, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(5, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(6, Locale.ShortFormat), Qt.locale(root.i18nLocale).dayName(0, Locale.ShortFormat)]
     readonly property int currentWeekdayIndex: (new Date().getDay() + 6) % 7
     readonly property string i18nLocale: AiOverviewControlI18n.normalizedLocale
@@ -172,7 +151,6 @@ PluginComponent {
     // only ever bump the manifest.
     property string pluginVersion: ""
     property string providerUsageScript: _pluginDir + "/providers/get-provider-usage"
-    property string claudeUsageScript: _pluginDir + "/providers/get-claude-usage"
     property string copilotUsageScript: _pluginDir + "/providers/get-copilot-usage"
     property string usageHistoryScript: _pluginDir + "/providers/get-usage-history"
     property string notifyAlertScript: _pluginDir + "/providers/send-quota-alert"
@@ -188,14 +166,6 @@ PluginComponent {
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
     readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
-
-    ListModel {
-        id: claudeModelList
-    }
-
-    ListModel {
-        id: claudeProjectList
-    }
 
     readonly property var selectedProviders: {
         const parts = providerSelection.split(",");
@@ -1414,112 +1384,6 @@ PluginComponent {
         return tier;
     }
 
-    function parseNumberList(value) {
-        const parts = value.split(",");
-        const result = [];
-        for (let i = 0; i < 7; i++) {
-            result.push(i < parts.length ? Number(parts[i] || 0) : 0);
-        }
-        return result;
-    }
-
-    function parseClaudeLine(line) {
-        const idx = line.indexOf("=");
-        if (idx < 0)
-            return;
-        const key = line.substring(0, idx);
-        const val = line.substring(idx + 1);
-        if (key === "RATE_LIMIT_TIER")
-            claudeRateLimitTier = val;
-        else if (key === "FIVE_HOUR_UTIL")
-            claudeFiveHourUtil = Number(val || 0);
-        else if (key === "FIVE_HOUR_RESET")
-            claudeFiveHourReset = val;
-        else if (key === "SEVEN_DAY_UTIL")
-            claudeSevenDayUtil = Number(val || 0);
-        else if (key === "SEVEN_DAY_RESET")
-            claudeSevenDayReset = val;
-        else if (key === "SCOPED_LIMIT_UTIL")
-            claudeScopedLimitUtil = Number(val || 0);
-        else if (key === "SCOPED_LIMIT_RESET")
-            claudeScopedLimitReset = val;
-        else if (key === "SCOPED_LIMIT_MODEL")
-            claudeScopedLimitModel = val;
-        else if (key === "EXTRA_USAGE_ENABLED")
-            claudeExtraUsageEnabled = (val === "true");
-        else if (key === "WEEK_MESSAGES")
-            claudeWeekMessages = parseInt(val) || 0;
-        else if (key === "WEEK_SESSIONS")
-            claudeWeekSessions = parseInt(val) || 0;
-        else if (key === "WEEK_TOKENS")
-            claudeWeekTokens = Number(val || 0);
-        else if (key === "MONTH_TOKENS")
-            claudeMonthTokens = Number(val || 0);
-        else if (key === "ALLTIME_SESSIONS")
-            claudeAlltimeSessions = parseInt(val) || 0;
-        else if (key === "ALLTIME_MESSAGES")
-            claudeAlltimeMessages = parseInt(val) || 0;
-        else if (key === "FIRST_SESSION")
-            claudeFirstSession = val;
-        else if (key === "TODAY_COST")
-            claudeTodayCost = Number(val || 0);
-        else if (key === "WEEK_COST")
-            claudeWeekCost = Number(val || 0);
-        else if (key === "MONTH_COST")
-            claudeMonthCost = Number(val || 0);
-        else if (key === "DAILY")
-            claudeDailyTokens = parseNumberList(val);
-        else if (key === "DAILY_COSTS")
-            claudeDailyCosts = parseNumberList(val);
-        else if (key === "WEEK_MODELS") {
-            claudeModelList.clear();
-            if (val.length > 0) {
-                const pairs = val.split(",");
-                for (let i = 0; i < pairs.length; i++) {
-                    const kv = pairs[i].split(":");
-                    if (kv.length === 2) {
-                        claudeModelList.append({
-                            modelName: capitalizeFirst(kv[0]),
-                            modelTokens: Number(kv[1] || 0),
-                            modelCost: 0
-                        });
-                    }
-                }
-            }
-        } else if (key === "WEEK_MODEL_COSTS") {
-            // Arrives after WEEK_MODELS: enrich the already-built model rows.
-            if (val.length > 0) {
-                const pairs = val.split(",");
-                for (let i = 0; i < pairs.length; i++) {
-                    const kv = pairs[i].split(":");
-                    if (kv.length !== 2)
-                        continue;
-                    const name = capitalizeFirst(kv[0]);
-                    for (let j = 0; j < claudeModelList.count; j++) {
-                        if (claudeModelList.get(j).modelName === name) {
-                            claudeModelList.setProperty(j, "modelCost", Number(kv[1] || 0));
-                            break;
-                        }
-                    }
-                }
-            }
-        } else if (key === "WEEK_PROJECTS") {
-            claudeProjectList.clear();
-            if (val.length > 0) {
-                const pairs = val.split(",");
-                for (let i = 0; i < pairs.length; i++) {
-                    const cut = pairs[i].lastIndexOf(":");
-                    if (cut <= 0)
-                        continue;
-                    claudeProjectList.append({
-                        projectPath: pairs[i].substring(0, cut),
-                        projectTokens: Number(pairs[i].substring(cut + 1) || 0)
-                    });
-                }
-            }
-        }
-    }
-
     function formatMinutes(mins) {
         const value = Math.max(0, Math.round(Number(mins) || 0));
         if (value < 60)
@@ -1560,23 +1424,10 @@ PluginComponent {
         };
     }
 
-    readonly property var claudeBurnForecast: {
-        staleTickMs;
-        return windowBurnForecast(claudeFiveHourUtil, claudeFiveHourReset, 300);
-    }
-
-    readonly property var claudeWeekBurnForecast: {
-        staleTickMs;
-        return windowBurnForecast(claudeSevenDayUtil, claudeSevenDayReset, 10080);
-    }
-
-    readonly property real claudeMonthProjection: {
-        const today = new Date();
-        const dayOfMonth = today.getDate();
-        if (dayOfMonth <= 0 || claudeMonthCost <= 0)
-            return 0;
-        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-        return (claudeMonthCost / dayOfMonth) * daysInMonth;
+    // Each Claude provider's details panel is built from its own dispatcher
+    // item, so profiles and the default account share one code path.
+    function claudeDetails(provider) {
+        return ClaudeProfiles.details(provider, claudeProfiles, new Date());
     }
 
     function providerConsoleUrl(providerId, providerSource) {
@@ -2031,39 +1882,6 @@ PluginComponent {
         }
     }
 
-    Process {
-        id: claudeStatsProcess
-        command: ["bash", root.claudeUsageScript]
-        stdout: SplitParser {
-            onRead: data => {
-                const lines = data.trim().split("\n");
-                for (let i = 0; i < lines.length; i++) {
-                    root.parseClaudeLine(lines[i]);
-                }
-            }
-        }
-        onExited: code => {
-            claudeTimeout.stop();
-            if (code !== 0 && root.focusedProviderId === "claude") {
-                root.errorMessage = t("error.claude_unavailable", "Claude Code usage details are unavailable. Check claude, jq, and curl.");
-            }
-        }
-    }
-
-    Timer {
-        id: claudeTimeout
-        interval: root.fetchTimeoutMs
-        repeat: false
-        onTriggered: {
-            if (claudeStatsProcess.running) {
-                claudeStatsProcess.running = false;
-                if (root.focusedProviderId === "claude") {
-                    root.errorMessage = t("error.claude_timeout", "Claude Code usage fetch timed out.");
-                }
-            }
-        }
-    }
-
     function refresh() {
         if (!binaryReady || procUsage.running || usageDidTimeout) {
             return;
@@ -2080,10 +1898,6 @@ PluginComponent {
         usageCommand = ["bash", providerUsageScript, selectedProviders.join(","), copilotUsageScript];
         procUsage.running = true;
         usageTimeout.restart();
-        if (root.selectedProviders.indexOf("claude") >= 0 && !claudeStatsProcess.running) {
-            claudeStatsProcess.running = true;
-            claudeTimeout.restart();
-        }
         if (root.selectedProviders.indexOf("9router") >= 0)
             nineReader.refresh();
         if (root.selectedProviders.indexOf("pi") >= 0)

@@ -6,7 +6,7 @@ command -v qs >/dev/null || { echo 'QML smoke requires Quickshell (qs)' >&2; exi
 TMP="$(mktemp -d)"
 pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
-cp "$ROOT/LocalAnalyticsReader.qml" "$TMP/"
+cp "$ROOT/LocalAnalyticsReader.qml" "$ROOT/ClaudeProfiles.js" "$TMP/"
 python3 - "$ROOT/AiOverviewControlWidget.qml" "$TMP/ProviderOrder.js" <<'PY'
 import re, sys
 from pathlib import Path
@@ -30,6 +30,7 @@ cat > "$TMP/shell.qml" <<'QML'
 import QtQuick
 import Quickshell
 import "ProviderOrder.js" as ProviderOrder
+import "ClaudeProfiles.js" as ClaudeProfiles
 ShellRoot {
     id: root
     FloatingWindow { visible: true; implicitWidth: 1; implicitHeight: 1 }
@@ -85,7 +86,44 @@ ShellRoot {
         }
     }
     Timer { id: nextRetained; interval: 20; onTriggered: { retained.refresh(); retained.refresh(); } }
+    function claudeDetailsOk() {
+        const profiles = {"claude-work": {name: "Work", configDir: "/w"}};
+        const now = new Date(2026, 9, 10, 12, 0, 0);
+        const analytics = {
+            weekTokens: 1000, weekCost: 2, monthTokens: 5000, monthCost: 10, todayCost: 0.5,
+            dailyTokens: [1, 2, "3"], dailyCosts: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+            weekModels: "opus:900,sonnet:100", weekModelCosts: "opus:1.50",
+            weekProjects: "/a:b/c:42,/home/me:7", rateLimitTier: "default_claude_max_20x",
+            scopedModel: "Fable", alltimeSessions: 3, alltimeMessages: 9, firstSession: "2025-01-01",
+            extraUsage: {enabled: false}
+        };
+        const usage = {
+            primary: {usedPercent: 30, resetsAt: "2026-10-10T15:00:00Z"},
+            secondary: {usedPercent: 60, resetsAt: "2026-10-12T00:00:00Z"},
+            tertiary: {usedPercent: 40, resetsAt: "2026-10-12T00:00:00Z"}
+        };
+        const d = ClaudeProfiles.details({provider: "claude-work", usage: usage, analytics: analytics}, profiles, now);
+        const failed = ClaudeProfiles.details({provider: "claude", error: {kind: "authentication"}, analytics: analytics}, profiles, now);
+        const checks = [
+            ClaudeProfiles.details({provider: "codex", analytics: analytics}, profiles, now) === null,
+            ClaudeProfiles.details({provider: "claude-x", analytics: analytics}, profiles, now) === null,
+            ClaudeProfiles.details({provider: "claude", usage: usage}, profiles, now) === null,
+            d !== null && d.tier === "default_claude_max_20x",
+            d && JSON.stringify(d.models) === JSON.stringify([{name: "Opus", tokens: 900, cost: 1.5}, {name: "Sonnet", tokens: 100, cost: 0}]),
+            d && d.projects.length === 2 && d.projects[0].path === "/a:b/c" && d.projects[0].tokens === 42,
+            d && d.dailyTokens.length === 7 && d.dailyTokens[2] === 3 && d.dailyTokens[6] === 0,
+            d && d.dailyCosts.length === 7 && d.dailyCosts[6] === 0.7,
+            d && d.session.percent === 30 && d.weekly.percent === 60,
+            d && d.scoped && d.scoped.model === "Fable" && d.scoped.percent === 40,
+            d && Math.abs(d.monthProjection - 31) < 1e-9,
+            failed !== null && failed.session === null && failed.weekly === null && failed.weekTokens === 1000
+        ];
+        const bad = checks.indexOf(false);
+        if (bad >= 0) console.error("SMOKE FAIL: claude details check " + bad);
+        return bad < 0;
+    }
     Component.onCompleted: {
+        if (!claudeDetailsOk()) return;
         const pins = ["codex", "claude", "kimi-code"];
         if (ProviderOrder.reorderedPins(pins, "kimi-code", "codex").join(",") !== "kimi-code,codex,claude"
             || ProviderOrder.reorderedPins(pins, "codex", "kimi-code").join(",") !== "claude,codex,kimi-code"
@@ -109,4 +147,4 @@ for _ in {1..100}; do
 done
 grep -q 'QML_SMOKE_OK' "$TMP/log" || { printf '%s\n' "$(<"$TMP/log")" >&2; exit 1; }
 if grep -Ei 'SMOKE FAIL|ReferenceError|TypeError|binding loop|Failed to load configuration' "$TMP/log"; then exit 1; fi
-echo 'OK: QML JSON parsing, failure retention, timeout, retry, empty arguments and refresh deduplication'
+echo 'OK: Claude details view model, QML JSON parsing, failure retention, timeout, retry, empty arguments and refresh deduplication'

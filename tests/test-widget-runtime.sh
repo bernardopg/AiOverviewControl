@@ -55,7 +55,11 @@ if [[ "${1:-}" == claude-work* ]]; then
         usage:{identity:{providerID:$id},
           primary:{usedPercent:(if $id == "claude-work" then 73 else 12 end),windowMinutes:300},
           secondary:{usedPercent:(if $id == "claude-work" then 81 else 22 end),windowMinutes:10080}},
-        analytics:{weekTokens:(if $id == "claude-work" then 900 else 100 end),todayCost:1.25}
+        analytics:(if $id == "claude-work" then
+            {weekTokens:900,weekModels:"opus:900",weekProjects:"/work/app:900",rateLimitTier:"default_claude_max_20x"}
+          else
+            {weekTokens:100,weekModels:"sonnet:100",weekProjects:"/home/me:100",rateLimitTier:"default_claude_pro"}
+          end) + {todayCost:1.25,dailyTokens:[0,0,0,0,0,0,0]}
       }) end'
     exit
 fi
@@ -335,6 +339,14 @@ ShellRoot {
                     if (!percent || !percent.children.find(item => item.text === widget.quotaPercentText(pair[1]))
                         || !pill || !pill.children.find(item => item.text === (100 - pair[1]) + "%")) {
                         console.error("SMOKE FAIL: independent profile card/pill remaining display: " + pair[0]); return;
+                    }
+                }
+                // Each profile renders its own details panel from its own item.
+                for (const expected of [["claude-work", 900, "Opus"], ["claude-personal", 100, "Sonnet"]]) {
+                    const panel = input.findChild(widget.dashboardView, "claude-details-" + expected[0]);
+                    if (!panel || !panel.visible || !panel.details || panel.details.weekTokens !== expected[1]
+                        || panel.details.models.length === 0 || panel.details.models[0].name !== expected[2]) {
+                        console.error("SMOKE FAIL: per-profile Claude details panel: " + expected[0]); return;
                     }
                 }
                 const component = Qt.createComponent("file://" + Quickshell.env("AIOC_TEST_PLUGIN_DIR") + "/AiOverviewControlSettings.qml?t=reopen", Component.PreferSynchronous);

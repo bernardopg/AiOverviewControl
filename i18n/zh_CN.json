@@ -77,8 +77,6 @@
   "card.week": "本周",
   "claude.burn_pace_exceed": "按此速度：{time} 后达到 100%",
   "claude.burn_pace_ok": "本窗口用量正常",
-  "error.claude_timeout": "Claude Code 用量获取超时。",
-  "error.claude_unavailable": "Claude Code 用量详情不可用。请检查 claude、jq 和 curl。",
   "error.fetch_failed": "获取提供商用量失败。",
   "error.helper_exit": "提供商助手以代码 {code} 退出",
   "error.helper_missing": "本地提供商助手缺失或不可执行：{path}",

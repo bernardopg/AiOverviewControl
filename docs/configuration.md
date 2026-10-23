@@ -82,9 +82,11 @@ only require a refresh.
 
 The ordinary `claude` provider still uses the shell's `CLAUDE_CONFIG_DIR`, or
 `~/.claude` by default. Additional profiles have their own cards, quota windows,
-week-token/today-cost summaries, readiness, pins, window choices, notifications and
-IPC focus targets. The full model/project breakdown remains on the default Claude
-card. Account snapshots and transcript caches live under
+readiness, pins, window choices, notifications and IPC focus targets. Every Claude
+provider, the default one and each profile, also gets its own full **Claude Code
+details** panel (tier, session/weekly/scoped windows, daily bars, costs, model and
+project breakdown, all-time totals), built from that provider's own config
+directory. Account snapshots and transcript caches live under
 `AiOverviewControl/claude-profiles/<canonical-directory-sha256>/`; pricing and CLI
 version caches are shared. Old unscoped account snapshots are not trusted.
 

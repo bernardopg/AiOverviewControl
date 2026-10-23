@@ -77,8 +77,6 @@
   "card.week": "Semana",
   "claude.burn_pace_exceed": "A este ritmo: 100% en {time}",
   "claude.burn_pace_ok": "Uso dentro del ritmo de la ventana",
-  "error.claude_timeout": "La consulta de uso de Claude Code agotó el tiempo de espera.",
-  "error.claude_unavailable": "Los detalles de uso de Claude Code no están disponibles. Revisa claude, jq y curl.",
   "error.fetch_failed": "No se pudo obtener el uso de los proveedores.",
   "error.helper_exit": "el helper del proveedor terminó con código {code}",
   "error.helper_missing": "El helper local del proveedor falta o no es ejecutable: {path}",

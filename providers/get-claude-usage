@@ -21,8 +21,8 @@ VERSION_CACHE_TTL=86400  # seconds: the CLI version changes on upgrade, not per 
 LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
 mkdir -p "$ACCOUNT_CACHE"
-# The widget's legacy detail process and dispatcher may request the same
-# profile concurrently. Serialize account-local cache reads and rewrites.
+# Overlapping refreshes may request the same profile concurrently. Serialize
+# account-local cache reads and rewrites.
 exec 8>"${ACCOUNT_CACHE}/lock"
 flock 8
 # One-time migration: these caches used to be written into ~/.claude. Move the
@@ -35,6 +35,18 @@ for legacy in pricing-cache usage-cache; do
             || rm -f "${CLAUDE_DIR}/${legacy}.json"
     fi
 done
+# Pricing and version caches are shared by every profile, which the dispatcher
+# runs in parallel under different per-account locks. Replace them with a
+# rename so a concurrent reader never sees a half-written file.
+atomic_write() {
+    local tmp
+    tmp="$(mktemp "$1.XXXXXX")" || return 1
+    if cat > "$tmp" && mv -f "$tmp" "$1"; then
+        return 0
+    fi
+    rm -f "$tmp"
+    return 1
+}
 # 1.17.2 kept a whole-aggregate cache here; per-transcript rows replace it.
 rm -f "${CACHE_DIR}/claude-local-stats.json"
 
@@ -50,7 +62,9 @@ if [ -f "$VERSION_CACHE" ]; then
 fi
 if [ -z "$CLAUDE_VERSION" ]; then
     CLAUDE_VERSION=$(claude --version 2>/dev/null | head -1 | grep -oP '[\d.]+' || echo "2.0.0")
-    jq -n --arg v "$CLAUDE_VERSION" '{cached_at: (now | floor), version: $v}' > "$VERSION_CACHE" 2>/dev/null || true
+    if ver_json=$(jq -cn --arg v "$CLAUDE_VERSION" '{cached_at: (now | floor), version: $v}' 2>/dev/null); then
+        printf '%s\n' "$ver_json" | atomic_write "$VERSION_CACHE" 2>/dev/null || true
+    fi
 fi
 TODAY=$(date +%Y-%m-%d)
 # Calendar week: Monday to Sunday
@@ -138,7 +152,7 @@ refresh_pricing() {
     # Validate that we got at least one model with pricing
     local check
     check=$(echo "$result" | jq -r '.models | to_entries | length' 2>/dev/null) || return 1
-    [ "$check" -gt 0 ] 2>/dev/null && echo "$result" > "$PRICING_CACHE" && return 0
+    [ "$check" -gt 0 ] 2>/dev/null && printf '%s\n' "$result" | atomic_write "$PRICING_CACHE" && return 0
     return 1
 }
 

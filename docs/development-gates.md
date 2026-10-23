@@ -101,8 +101,8 @@ fixture-only provider scripts. Its isolated HOME/no-credential environment never
 opens visible windows. It checks empty-provider bindings and live BRL→USD changes.
 The entry point is also compiled through DMS-style cache-busted `file://...?...`
 URLs. It exercises the remaining-quota toggle, both pills, independent Claude
-profiles through actual refresh/retry processes, per-profile analytics and window
-selection, settings reconstruction/persistence, removal/override cleanup and reset
+profiles through actual refresh/retry processes, per-profile analytics, a separate
+Claude Code details panel per profile and window selection, settings reconstruction/persistence, removal/override cleanup and reset
 with both features enabled together. Translation-load errors fail the suite.
 Use `scripts/qmlls-setup` first, or supply the import-tree parent with
 `AIOC_DMS_IMPORTS`. It needs a native Wayland connection because Qt offscreen

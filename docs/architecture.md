@@ -51,7 +51,7 @@ stable contract surface.
 3. It executes `get-provider-usage <provider-csv> <copilot-helper>`.
 4. The dispatcher calls one adapter per provider and validates every result with `jq`.
 5. QML normalizes the JSON array, isolates errors, updates stale timestamps, and renders cards.
-6. Claude details run in a separate process so analytics failure cannot block other providers.
+6. Claude details come from the dispatcher item of each Claude provider (`claude` and every `claude-*` profile): the adapter puts the local analytics in `.analytics`, and the dashboard builds one details panel per provider from it through `ClaudeProfiles.details()`. No extra process runs; an OAuth error keeps the local analytics next to the error.
 7. `pi` follows the same isolation principle via a lighter mechanism: its dispatcher-side envelope (`fetch_pi_native`, inline in `get-provider-usage`) only ever reads a cached snapshot and never scans session files itself; the expanded card's own process (`get-pi-analytics`) does the actual scan on the normal refresh cycle.
 8. `hermes` splits the same way, but its collapsed-card envelope (`fetch_hermes_native`) queries `~/.hermes/state.db` directly instead of a cache: the aggregates are indexed SQLite sums that complete in milliseconds, so first paint carries real numbers without waiting for the analytics process.
 
@@ -59,7 +59,7 @@ stable contract surface.
 
 `get-claude-usage` combines the OAuth usage API with local session transcript analytics. All of its caches live under `${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/` — never inside Claude Code's config dir; the only `~/.claude` file it touches is `stats-cache.json`, which is Claude Code's own file and is only read. On first run after 1.17.2 the legacy `pricing-cache.json` / `usage-cache.json` files are migrated out of `~/.claude` and removed from it.
 
-Claude usage snapshots and transcript caches are scoped by the SHA-256 of the canonical `CLAUDE_CONFIG_DIR` under `claude-profiles/` in the plugin cache; a per-directory `flock` serializes concurrent detail/dispatcher refreshes. `ClaudeProfiles.js` validates the settings/UI catalog; `claude-profile-common` resolves explicit profile IDs for the dispatcher and readiness helper without shell evaluation. IDs remain distinct through history, notifications and IPC, while logos and console links use Claude's brand. Pricing and version caches remain shared.
+Claude usage snapshots and transcript caches are scoped by the SHA-256 of the canonical `CLAUDE_CONFIG_DIR` under `claude-profiles/` in the plugin cache; a per-directory `flock` serializes overlapping refresh/retry runs of the same directory, and the shared pricing and version caches are replaced atomically (`mktemp` + `mv`) because profiles refresh in parallel. `ClaudeProfiles.js` validates the settings/UI catalog; `claude-profile-common` resolves explicit profile IDs for the dispatcher and readiness helper without shell evaluation. IDs remain distinct through history, notifications and IPC, while logos and console links use Claude's brand. Pricing and version caches remain shared. When the OAuth usage request is rejected or fails, the item carries `.error` with `.usage` null but keeps `.analytics`, so the details panel still shows local history.
 
 Transcript analytics over `~/.claude/projects/**/*.jsonl` (31-day window) use a per-transcript extraction cache, `claude-transcripts.tsv`: jq parses each session file once per (size, mtime) and keeps only its assistant-message rows (local date, model, token counts, session, cwd). A refresh re-parses only files that changed — normally just the active session — and awk aggregates the cached rows, so daily buckets, costs and pricing updates never need a re-parse. Rows carry the local date, so a UTC-offset change (timezone or DST) rebuilds the cache; a batch whose jq call fails is not cached and is retried on the next refresh. The `claude --version` probe used for the API User-Agent is cached for 24h in `claude-version-cache.json` instead of spawning the CLI per refresh.
 
@@ -183,7 +183,7 @@ Legacy settings unknown to the current code are ignored.
 - Provider manager: add and remove providers without editing settings files.
 - Filter: shown when more than five cards are visible. Status chips (All / Live / Issues, with counts) appear whenever any provider is configured.
 - Cards: collapsed preview, expanded windows, identity, credits, source, and timestamps.
-- Claude details: token/cost history and model distribution.
+- Claude details: one panel per Claude provider (the default account and every profile) with token/cost history, model and project distribution.
 - pi details: token/cost history, 7-day chart, top models, top projects (same expanded-card slot pattern as 9Router).
 - Hermes details: identity pills (default model, billing provider, session/message/API-call counters, version), token/cost tiles, 7-day cost (or token) chart, top models, top projects, and session-source badges.
 
