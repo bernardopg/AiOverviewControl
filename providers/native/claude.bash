@@ -20,26 +20,61 @@ fetch_claude_native() {
     return 0
   fi
 
-  local usage_error_kind usage_error_message
-  usage_error_kind="$(sed -n 's/^USAGE_ERROR_KIND=//p' "$tmp_out" | head -1)"
-  usage_error_message="$(sed -n 's/^USAGE_ERROR_MESSAGE=//p' "$tmp_out" | head -1)"
-  if [ -n "$usage_error_message" ]; then
-    rm -f "$tmp_out" "$tmp_err"
-    json_error claude claude-oauth 1 "${usage_error_kind:-provider}" "$usage_error_message"
-    return 0
-  fi
-
-  jq -Rn '
-    def num($k): ((.[$k] // 0) | tonumber? // 0);
-    def text($k): (.[$k] // "");
-    def nullable($v): if ($v == null or $v == "") then null else $v end;
-    def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+  local fields
+  fields="$(jq -Rnc '
     reduce inputs as $line ({};
       ($line | capture("^(?<key>[^=]+)=(?<value>.*)$")?) as $kv
       | if $kv then .[$kv.key] = $kv.value else . end
     )
-    | . as $d
-    | {
+  ' < "$tmp_out")"
+  rm -f "$tmp_out" "$tmp_err"
+
+  # Local analytics come from transcripts, not OAuth, so they are built first
+  # and survive a rejected or failed usage request.
+  local analytics
+  analytics="$(jq -nc --argjson d "$fields" '
+    def num($k): (($d[$k] // 0) | tonumber? // 0);
+    def text($k): ($d[$k] // "");
+    def nullable($v): if ($v == null or $v == "") then null else $v end;
+    {
+      weekMessages:num("WEEK_MESSAGES"),
+      weekSessions:num("WEEK_SESSIONS"),
+      weekTokens:num("WEEK_TOKENS"),
+      monthTokens:num("MONTH_TOKENS"),
+      alltimeSessions:num("ALLTIME_SESSIONS"),
+      alltimeMessages:num("ALLTIME_MESSAGES"),
+      firstSession:nullable($d.FIRST_SESSION),
+      todayCost:num("TODAY_COST"),
+      weekCost:num("WEEK_COST"),
+      monthCost:num("MONTH_COST"),
+      dailyTokens:(text("DAILY") | split(",") | map(tonumber? // 0)),
+      dailyCosts:(text("DAILY_COSTS") | split(",") | map(tonumber? // 0)),
+      weekModels:text("WEEK_MODELS"),
+      weekModelCosts:text("WEEK_MODEL_COSTS"),
+      weekProjects:text("WEEK_PROJECTS"),
+      rateLimitTier:(text("RATE_LIMIT_TIER") | if . == "" then "unknown" else . end),
+      scopedModel:text("SCOPED_LIMIT_MODEL"),
+      extraUsage:{
+        enabled:(text("EXTRA_USAGE_ENABLED") == "true"),
+        used:num("EXTRA_USAGE_USED"), limit:num("EXTRA_USAGE_LIMIT"),
+        utilization:num("EXTRA_USAGE_UTIL"), currency:text("EXTRA_USAGE_CURRENCY")
+      }
+    }
+  ')"
+
+  local usage_error_kind usage_error_message
+  usage_error_kind="$(jq -rn --argjson d "$fields" '$d.USAGE_ERROR_KIND // ""')"
+  usage_error_message="$(jq -rn --argjson d "$fields" '$d.USAGE_ERROR_MESSAGE // ""')"
+  if [ -n "$usage_error_message" ]; then
+    json_error claude claude-oauth 1 "${usage_error_kind:-provider}" "$usage_error_message" \
+      | jq -c --argjson a "$analytics" '. + {analytics:$a}'
+    return 0
+  fi
+
+  jq -n --argjson d "$fields" --argjson analytics "$analytics" '
+    def nullable($v): if ($v == null or $v == "") then null else $v end;
+    def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
+    {
       provider:"claude",
       source:"claude-local",
       usage:{
@@ -72,30 +107,8 @@ fetch_claude_native() {
         ),
         updatedAt:(now|todateiso8601)
       },
-      credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")}
-      ,analytics:{
-        weekMessages:num("WEEK_MESSAGES"),
-        weekSessions:num("WEEK_SESSIONS"),
-        weekTokens:num("WEEK_TOKENS"),
-        monthTokens:num("MONTH_TOKENS"),
-        alltimeSessions:num("ALLTIME_SESSIONS"),
-        alltimeMessages:num("ALLTIME_MESSAGES"),
-        firstSession:nullable($d.FIRST_SESSION),
-        todayCost:num("TODAY_COST"),
-        weekCost:num("WEEK_COST"),
-        monthCost:num("MONTH_COST"),
-        dailyTokens:(text("DAILY") | split(",") | map(tonumber? // 0)),
-        dailyCosts:(text("DAILY_COSTS") | split(",") | map(tonumber? // 0)),
-        weekModels:text("WEEK_MODELS"),
-        weekModelCosts:text("WEEK_MODEL_COSTS"),
-        weekProjects:text("WEEK_PROJECTS"),
-        extraUsage:{
-          enabled:(text("EXTRA_USAGE_ENABLED") == "true"),
-          used:num("EXTRA_USAGE_USED"), limit:num("EXTRA_USAGE_LIMIT"),
-          utilization:num("EXTRA_USAGE_UTIL"), currency:text("EXTRA_USAGE_CURRENCY")
-        }
-      }
+      credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")},
+      analytics:$analytics
     }
-  ' < "$tmp_out"
-  rm -f "$tmp_out" "$tmp_err"
+  '
 }

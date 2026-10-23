@@ -5,6 +5,7 @@
 #  - transcripts are parsed once per (size, mtime); a refresh re-parses only
 #    changed files, and a UTC-offset change rebuilds the date-bucketed rows
 #  - claude --version is probed at most once per 24h
+#  - shared pricing/version caches are replaced atomically (mktemp + mv)
 #  - stats-cache.json in ~/.claude stays read-only input
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -118,5 +119,11 @@ bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "
 bash "$ROOT/providers/get-claude-usage" > /dev/null
 grep -q "raw.githubusercontent.com" "$CURL_LOG" \
   && fail "LiteLLM fetch attempted despite AIOC_NO_LITELLM=1"
+
+# --- Shared caches are replaced atomically: no temp file survives a run ---
+jq -e '.version == "2.1.0"' "$XDG_CACHE_HOME/AiOverviewControl/claude-version-cache.json" > /dev/null \
+  || fail "version cache is not valid JSON"
+leftover="$(find "$XDG_CACHE_HOME/AiOverviewControl" -name '*.json.*' -o -name '*.tsv.*')"
+[ -z "$leftover" ] || fail "temporary cache files left behind: $leftover"
 
 echo "ok: claude cache placement, migration, per-file transcript cache, version TTL, LiteLLM opt-out"
