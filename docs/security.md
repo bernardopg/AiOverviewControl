@@ -38,7 +38,9 @@ expectations. To report a vulnerability, follow
    transcript files are treated as untrusted and parsed with `jq` or bounded
    readers; malformed data yields an error card, not a crash or a command.
    Only plain provider ids (`[A-Za-z0-9_.-]+`) reach the IPC `focus` command.
-7. **Verifiable releases.** Each release ships SHA-256 checksums and signed
+7. **Verifiable releases.** Release tags are signed by the maintainer and the
+   Release workflow publishes only a tag that verifies against the keys on
+   `main`. Each release ships SHA-256 checksums and signed
    SLSA build provenance created by the tag's Release workflow (see
    [Verifying a Release](../.github/SECURITY.md#verifying-a-release)).
 
@@ -69,7 +71,7 @@ expectations. To report a vulnerability, follow
 | Provider credentials | Leak to a third party, a log or a public issue | Credentials read on demand and sent only to their provider; secret scanning (GitHub push protection, gitleaks, TruffleHog) on every PR; offline tests with fake fixtures |
 | User's machine | Command injection from a provider response, a setting or a notification click | Responses parsed as data with `jq`; QML runs helpers with argument arrays; provider ids allow-listed before IPC; shellcheck at warning level |
 | Local caches and history | Tampering or disclosure through unsafe temporary files | `mktemp` for every temporary file, atomic rename on write, `umask 077` and `chmod 700` for notification state, caches under the user's XDG directory |
-| Release archives | Tampered download or build | Release built only by the tag's workflow on GitHub-hosted runners; SHA-256 checksums; Sigstore-signed SLSA provenance; immutable `v*` tags |
+| Release archives | Tampered download or build, or a release pushed with a stolen token | Release built only by the tag's workflow on GitHub-hosted runners from a maintainer-signed tag; SHA-256 checksums; Sigstore-signed SLSA provenance; immutable `v*` tags |
 | CI pipeline | Malicious action, template injection, credential theft | Actions pinned to commit SHAs; downloaded tools verified by checksum; workflows default to `contents: read` and never persist checkout credentials; zizmor audit on every PR |
 
 ### Trust boundaries
@@ -123,12 +125,16 @@ expectations. To report a vulnerability, follow
 - Weekly [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
   and the [OpenSSF Best Practices](https://www.bestpractices.dev/projects/15913)
   self-assessment.
-- Signed release provenance verifiable with `gh attestation verify`.
+- Dynamic analysis: atheris fuzzes every API-key adapter with arbitrary HTTP
+  statuses and bodies on each PR, push to `main` and weekly
+  ([fuzz_provider_responses.py](../tests/fuzz/fuzz_provider_responses.py)).
+- Signed release tags and signed release provenance, verifiable with
+  `git verify-tag` and `gh attestation verify`.
 
 ### Known gaps
 
-- Statement coverage of the shell adapters is not yet measured in CI.
-- No dynamic analysis tool (such as a fuzzer) runs yet.
+- Fuzzing covers the API-key adapters; adapters that read local CLIs,
+  databases or OAuth files are covered by fixture tests only.
 - Some adapters pass credentials on the `curl` command line (see above).
 - Only the notification state and exchange-rate cache are created owner-only;
   the other cache directories follow the user's `umask`.

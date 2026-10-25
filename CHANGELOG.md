@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Project
+- Releases now require a signed tag: the Release workflow verifies `vX.Y.Z` against the maintainer key in [`.github/release-signing-keys.asc`](.github/release-signing-keys.asc) on `main` before publishing, and [SECURITY.md](.github/SECURITY.md#verifying-a-release) shows how to check it with `git verify-tag`.
+- New **Fuzz provider responses** check: [atheris](https://github.com/google/atheris) feeds arbitrary HTTP statuses and bodies to every API-key adapter (2 minutes per PR, 15 minutes weekly) and fails if the JSON contract breaks or a credential appears in the output.
+- `.github/CODEOWNERS` names the maintainer for every path.
 - Contributions now require a [Developer Certificate of Origin](CONTRIBUTING.md#developer-certificate-of-origin) sign-off (`git commit -s`) on every commit; the new required **DCO sign-off** check rejects pull request commits without one.
 - New project documents: [Code of Conduct](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1), [governance, roles and continuity](GOVERNANCE.md), a twelve-month [roadmap](docs/roadmap.md), and the [security requirements and assurance case](docs/security.md). [SECURITY.md](.github/SECURITY.md) now spells out the vulnerability response process and reporter credit, and [CONTRIBUTING.md](CONTRIBUTING.md) the coding standards.
 - The project holds the [OpenSSF Best Practices](https://www.bestpractices.dev/projects/15913) passing badge, now shown in both READMEs.

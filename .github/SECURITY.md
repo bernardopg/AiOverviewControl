@@ -66,6 +66,15 @@ gh attestation verify "AiOverviewControl-v$VERSION.zip" --repo bernardopg/AiOver
 A passing `gh attestation verify` proves the archive was built by this
 repository's Release workflow from the tagged commit, not uploaded by hand.
 
+Release tags from 2.0.2 on are also signed with the maintainer's OpenPGP key,
+published in [`.github/release-signing-keys.asc`](release-signing-keys.asc), and
+the Release workflow refuses to publish a tag that does not verify against it:
+
+```bash
+gpg --import .github/release-signing-keys.asc
+git verify-tag "v$VERSION"
+```
+
 ## Repository Safeguards
 
 - **Secret scanning**: GitHub secret scanning with push protection, plus the
@@ -80,6 +89,11 @@ repository's Release workflow from the tagged commit, not uploaded by hand.
   impostor or mismatched action pins). Workflows default to `contents: read`,
   pin every action to a commit SHA, never persist checkout credentials and pass
   reusable workflows only the secrets they read.
+- **Dynamic analysis**: the **Fuzz provider responses** check feeds arbitrary
+  HTTP statuses and bodies to every API-key adapter with
+  [atheris](https://github.com/google/atheris) (2 minutes per PR and push, 15
+  minutes weekly) and fails when the adapter contract breaks or a credential
+  appears in the output.
 - **Static analysis**: CodeQL code scanning, and the weekly
   [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
   for supply-chain practices.

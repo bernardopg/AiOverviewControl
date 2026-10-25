@@ -51,8 +51,15 @@ for file in Path('.github/workflows').glob('*.yml'):
 release = Path('.github/workflows/release.yml').read_text()
 if 'actions/attest-build-provenance@' not in release or '--verify-tag' not in release:
     errors.append('release.yml must attest provenance and publish only a pushed tag')
+if 'git verify-tag' not in release or 'origin/main:.github/release-signing-keys.asc' not in release:
+    errors.append('release.yml must verify the tag signature against the keys on main')
+if 'fuzz_provider_responses.py' not in security or '--require-hashes' not in security:
+    errors.append('security.yml must fuzz provider responses with hash-pinned dependencies')
+for line in Path('tests/fuzz/requirements.txt').read_text().splitlines():
+    if re.match(r'^[A-Za-z0-9_.-]+', line) and not re.match(r'^[A-Za-z0-9_.-]+==[^ ]+ \\$', line):
+        errors.append(f'tests/fuzz/requirements.txt: {line!r} is not pinned to an exact, hashed version')
 if errors:
     raise SystemExit('\n'.join(errors))
 print('OK: immutable action references, artifact checksums, Crowdin 5 native launcher, '
-      'secret/workflow scans, scoped secrets and release provenance')
+      'secret/workflow scans, scoped secrets, signed tags, hashed fuzz dependencies and release provenance')
 PY

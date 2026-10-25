@@ -63,6 +63,32 @@ jobs:
       - name: TruffleHog (full history, verified)
         run: /tmp/trufflehog git file://. --results=verified --fail --no-update --github-actions
 
+  # Dynamic analysis: arbitrary HTTP statuses and bodies against every API-key
+  # adapter, checking the JSON contract and that credentials never leak.
+  fuzz:
+    name: Fuzz provider responses
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install atheris (hash-pinned)
+        run: |
+          python3 -m venv /tmp/fuzz-venv
+          /tmp/fuzz-venv/bin/pip install --quiet --no-deps --require-hashes -r tests/fuzz/requirements.txt
+
+      - name: Fuzz provider adapters
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          # Short on every change, longer on the weekly run.
+          seconds=120
+          if [ "$EVENT_NAME" = "schedule" ]; then seconds=900; fi
+          /tmp/fuzz-venv/bin/python tests/fuzz/fuzz_provider_responses.py \
+            -max_total_time="$seconds" -timeout=60
+
   workflows:
     name: Workflow security audit
     runs-on: ubuntu-latest

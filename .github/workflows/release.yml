@@ -53,6 +53,15 @@ jobs:
             echo "::error::Release tag ${TAG} is not on the main branch" >&2
             exit 1
           fi
+          # Only a tag signed by a maintainer key listed on main is released;
+          # the key list comes from main, not from the tagged commit.
+          git show origin/main:.github/release-signing-keys.asc | gpg --batch --quiet --import
+          # checkout can leave a lightweight ref; refetch the annotated tag object.
+          git fetch --quiet --force origin "+refs/tags/${TAG}:refs/tags/${TAG}"
+          if ! git verify-tag "$TAG"; then
+            echo "::error::Release tag ${TAG} is not signed by a key in .github/release-signing-keys.asc (create it with git tag -s)" >&2
+            exit 1
+          fi
           {
             echo "TAG=${TAG}"
             echo "VERSION=${VERSION}"
