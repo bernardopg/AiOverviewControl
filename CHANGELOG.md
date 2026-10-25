@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Project
+- The project holds the [OpenSSF Best Practices](https://www.bestpractices.dev/projects/15913) passing badge, now shown in both READMEs.
+
 ## 2.0.1 - 2026-10-22
 
 A patch release for DMS 2.0. Every Claude profile now gets the full **Claude Code details** panel, and interrupted helpers stop leaving files in the plugin cache. Settings, profiles and history carry over unchanged; run `dms restart` once after upgrading so the updated `ClaudeProfiles.js` module loads.

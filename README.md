@@ -15,6 +15,7 @@ with no external service.
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Security](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bernardopg/AiOverviewControl/badge)](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15913/badge)](https://www.bestpractices.dev/projects/15913)
 [![providers](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fdocs%2Fbadges.json&query=%24.providers&label=providers&color=8B5CF6)](./docs/providers.md)
 [![languages](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fdocs%2Fbadges.json&query=%24.languages&label=languages&color=00BFA5)](./docs/i18n-crowdin.md)
 [![Downloads](https://img.shields.io/github/downloads/bernardopg/AiOverviewControl/total?color=0EA5E9&label=downloads)](https://github.com/bernardopg/AiOverviewControl/releases)
