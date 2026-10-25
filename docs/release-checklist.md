@@ -85,15 +85,20 @@ gh run list --workflow CI --commit "$MAIN_SHA" --json databaseId,headSha,status,
 ## 4. Tag and publish
 
 - The manifest version, release notes and tag must agree exactly.
-- Create the annotated `vX.Y.Z` tag on the verified main merge SHA, never on an
-  unmerged feature commit. Push only that new tag.
-- Await the Release workflow. It rejects a tag outside main ancestry, mismatched
+- Create the **signed** `vX.Y.Z` tag (`git tag -s`) on the verified main merge
+  SHA, never on an unmerged feature commit. Push only that new tag. The Release
+  workflow refuses a tag whose signature does not match a key in
+  `.github/release-signing-keys.asc` on `main`; set `git config tag.gpgSign true`
+  once so `git tag -a` signs as well. To add or rotate a maintainer key, update
+  that file through a reviewed PR before tagging.
+- Await the Release workflow. It rejects an unsigned tag, a tag outside main ancestry, mismatched
   manifest or empty notes, runs reusable CI and publishes validated notes plus
   `.zip`, `.tar.gz`, `.sha256` and `.intoto.jsonl` (signed provenance) assets. Generated notes are disabled: the
   changelog section is the authoritative body.
 
 ```bash
-git tag -a "v$VERSION" "$MAIN_SHA" -m "v$VERSION"
+git tag -s "v$VERSION" "$MAIN_SHA" -m "v$VERSION"
+git verify-tag "v$VERSION"
 git push origin "v$VERSION"
 gh run list --workflow Release --commit "$MAIN_SHA" --json databaseId,status,conclusion
 # gh run watch RELEASE_RUN_ID --exit-status

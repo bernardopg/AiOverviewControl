@@ -37,8 +37,8 @@ of its own in between.
 
 - Measure statement coverage of the shell adapters with `kcov` in CI and raise
   it toward 80%, starting with the dispatcher and the most used providers.
-- Add a dynamic analysis pass (for example fuzzing the JSON normalization with
-  malformed provider responses).
+- Extend fuzzing beyond the API-key adapters to the local readers (transcripts,
+  SQLite databases, OAuth files).
 - Pass every `Authorization` header to `curl` through `--config` on a pipe
   instead of the command line, and create every cache directory owner-only.
 - Keep the supply-chain controls current: SHA-pinned actions, checksum-verified
