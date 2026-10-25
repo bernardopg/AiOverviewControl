@@ -183,6 +183,11 @@ and [protected PR/release rules](./docs/repository-rules.md).
 | [Architecture](./docs/architecture.md)       | Runtime flow and the adapter contract                |
 | [Translations](./docs/i18n-crowdin.md)       | Locales and Crowdin                                  |
 | [Contributing](./CONTRIBUTING.md)            | Local checks and conventions                         |
+| [Governance](./GOVERNANCE.md)                | Decisions, roles, code review, continuity            |
+| [Roadmap](./docs/roadmap.md)                 | What is planned for the next year, and what is not   |
+| [Security model](./docs/security.md)         | Security requirements and assurance case             |
+| [Security policy](./.github/SECURITY.md)     | Reporting vulnerabilities, verifying releases        |
+| [Code of conduct](./CODE_OF_CONDUCT.md)      | Contributor Covenant 2.1                             |
 | [Changelog](./CHANGELOG.md)                  | Release history                                      |
 
 ## 💜 Support the project

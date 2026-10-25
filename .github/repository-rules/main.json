@@ -18,6 +18,7 @@
       "strict_required_status_checks_policy": true,
       "required_status_checks": [
         {"context": "Changelog integrity", "integration_id": 15368},
+        {"context": "DCO sign-off", "integration_id": 15368},
         {"context": "Metadata", "integration_id": 15368},
         {"context": "Workflow lint", "integration_id": 15368},
         {"context": "Release packaging", "integration_id": 15368},

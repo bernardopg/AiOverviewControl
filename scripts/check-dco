@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Require a Developer Certificate of Origin sign-off on every non-merge commit
+# in BASE..HEAD: a Signed-off-by trailer carrying the commit author's email.
+# GitHub App bot commits (…[bot]@users.noreply.github.com) are exempt.
+set -euo pipefail
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+    echo "usage: scripts/check-dco BASE [HEAD]" >&2
+    exit 2
+fi
+base="$1"
+head="${2:-HEAD}"
+
+missing=0
+count=0
+while IFS= read -r sha; do
+    count=$((count + 1))
+    email="$(git log -1 --format=%ae "$sha")"
+    case "$email" in
+        *'[bot]@users.noreply.github.com') continue ;;
+    esac
+    if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
+        | grep -qiF "<${email}>"; then
+        echo "::error::$(git log -1 --format='%h %s' "$sha"): missing 'Signed-off-by: Name <${email}>' (commit with git commit -s)" >&2
+        missing=1
+    fi
+done < <(git rev-list --no-merges "${base}..${head}")
+
+if [[ "$missing" -ne 0 ]]; then
+    echo "DCO check failed: sign off each commit with 'git commit -s'; see CONTRIBUTING.md#developer-certificate-of-origin" >&2
+    exit 1
+fi
+echo "DCO OK: ${count} commit(s) in ${base}..${head}"
