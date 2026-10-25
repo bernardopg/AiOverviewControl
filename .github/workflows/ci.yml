@@ -50,6 +50,25 @@ jobs:
       - name: Exercise changelog rejection and release-body contracts
         run: tests/test-changelog.sh
 
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # Only PR commits are new contributions; main's history predates the DCO.
+      - name: Require Signed-off-by on every PR commit
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: scripts/check-dco "$BASE_SHA" "$HEAD_SHA"
+      - name: Exercise DCO rejection cases
+        run: tests/test-dco.sh
+
   qml-runtime:
     name: Quickshell component smoke
     runs-on: ubuntu-latest
@@ -260,7 +279,7 @@ jobs:
         run: |
           find providers -type f -print0 | xargs -0 -n 1 bash -n
           find tests -maxdepth 1 -name '*.sh' -type f -print0 | xargs -0 -n 1 bash -n
-          printf '%s\0' scripts/package-release scripts/check-metadata scripts/reload-plugin .githooks/pre-push | xargs -0 -n 1 bash -n
+          printf '%s\0' scripts/package-release scripts/check-metadata scripts/check-dco scripts/reload-plugin .githooks/pre-push | xargs -0 -n 1 bash -n
           bash -n scripts/render-contributors
 
       - name: Confirm all scripts are executable
@@ -278,7 +297,7 @@ jobs:
               FAIL=1
             fi
           done < <(find tests -maxdepth 1 -name '*.sh' -type f -print0)
-          for f in scripts/package-release scripts/render-contributors; do
+          for f in scripts/package-release scripts/render-contributors scripts/check-dco; do
             if [ ! -x "$f" ]; then
               echo "::error::Not executable: ${f}"
               FAIL=1
@@ -299,7 +318,7 @@ jobs:
       - name: shellcheck — all provider, test, and packaging scripts (warning level)
         run: |
           find providers -type f -print0 | xargs -0 /tmp/shellcheck -S warning
-          /tmp/shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/reload-plugin .githooks/pre-push
+          /tmp/shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/check-dco scripts/reload-plugin .githooks/pre-push
 
       - name: Provider dispatch coverage
         run: |

@@ -3,6 +3,12 @@
 Thanks for helping improve the plugin. This guide covers the local dev loop, the
 CI gates you must satisfy, and the QML/shell gotchas that have bitten us before.
 
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). How
+decisions are made and who holds which role is described in
+[GOVERNANCE.md](GOVERNANCE.md); where the project is heading is in the
+[roadmap](docs/roadmap.md). Report vulnerabilities privately as described in
+[SECURITY.md](.github/SECURITY.md), never in a public issue.
+
 ## Project layout
 
 | Path | Purpose |
@@ -106,6 +112,82 @@ present in all five bundles.
 Use Conventional Commits with a scope (`feat(pill): …`). Commit messages, PR
 descriptions and release notes describe the change itself; do not add AI
 co-author trailers or "generated with" footers.
+Sign off every commit (`git commit -s`, see
+[Developer Certificate of Origin](#developer-certificate-of-origin)). What a
+reviewer checks before merging is listed in
+[GOVERNANCE.md](GOVERNANCE.md#code-review).
+
+## Coding standards
+
+- **Shell**: `bash` with `set -euo pipefail` in entrypoints, quoted expansions,
+  `mktemp` for temporary files, and no provider data in a command string. Every
+  script passes `shellcheck -S warning`.
+- **JSON**: parse and build provider data with `jq` (`--arg`/`--argjson`), never
+  with string concatenation. Unknown cost is `null`, never `0`.
+- **QML**: passes `qmllint`; run helpers with argument arrays; user-visible
+  strings use `t("key", "English fallback")`.
+- **Credentials and network**: follow the requirements in
+  [docs/security.md](docs/security.md). Tests stay offline and use fake
+  credentials.
+
+CI enforces these through the gates above; a pull request that fails one is not
+merged.
+
+## Developer Certificate of Origin
+
+Every commit in a pull request must be signed off under the
+[Developer Certificate of Origin 1.1](https://developercertificate.org/). By
+signing off you certify that you wrote the change, or otherwise have the right
+to submit it under the project's MIT license:
+
+```text
+Developer Certificate of Origin
+Version 1.1
+
+Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
+
+
+Developer's Certificate of Origin 1.1
+
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications, whether created in whole or in part
+    by me, under the same open source license (unless I am
+    permitted to submit under a different license), as indicated
+    in the file; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified
+    it.
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution (including all
+    personal information I submit with it, including my sign-off) is
+    maintained indefinitely and may be redistributed consistent with
+    this project or the open source license(s) involved.
+```
+
+Sign off with `git commit -s`, which adds a trailer with your name and the
+commit author email:
+
+```text
+Signed-off-by: Your Name <you@example.com>
+```
+
+The **DCO sign-off** check (`scripts/check-dco`) fails a pull request when a
+non-merge commit lacks a `Signed-off-by` trailer for its author's email. To fix
+existing commits, run `git rebase --signoff origin/main` and force-push your
+branch. Commits from GitHub App bots such as Dependabot are exempt.
 
 ## Contributor credits
 

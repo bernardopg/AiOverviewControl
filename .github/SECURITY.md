@@ -25,6 +25,25 @@ Useful details for a private report:
 
 Valid reports are acknowledged within 7 days and coordinated through a private security advisory when appropriate.
 
+## Response Process
+
+1. **Acknowledge** the report within 7 days and confirm whether it is in scope.
+2. **Assess** severity (CVSS) and affected versions in a private GitHub
+   security advisory, inviting the reporter as a collaborator.
+3. **Fix** in a private fork of the advisory. A fix for a medium or higher
+   severity issue ships in a release within 60 days of the report; critical
+   issues ship as soon as a fix is verified.
+4. **Release** a new patch version, with the advisory linked from
+   `CHANGELOG.md` and the release notes, and request a CVE through GitHub when
+   the issue warrants one.
+5. **Disclose** by publishing the advisory once the fixed release is available,
+   or after 90 days if no fix is possible, with mitigations.
+
+## Credit
+
+Reporters are credited by name or handle in the published advisory, the
+`CHANGELOG.md` entry and the release notes, unless they ask to stay anonymous.
+
 ## Verifying a Release
 
 Every release since 1.22.0 publishes a `.zip`, a `.tar.gz`, a `.sha256` checksum

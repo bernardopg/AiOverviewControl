@@ -178,6 +178,11 @@ A documentação detalhada está em inglês.
 | [Arquitetura](./architecture.md) | Fluxo de execução e contrato dos adaptadores |
 | [Traduções](./i18n-crowdin.md) | Idiomas e Crowdin |
 | [Contribuindo](../CONTRIBUTING.md) | Checagens locais e convenções |
+| [Governança](../GOVERNANCE.md) | Decisões, papéis, revisão de código, continuidade |
+| [Roadmap](./roadmap.md) | O que está planejado para o próximo ano, e o que não está |
+| [Modelo de segurança](./security.md) | Requisitos de segurança e assurance case |
+| [Política de segurança](../.github/SECURITY.md) | Relato de vulnerabilidades, verificação de releases |
+| [Código de conduta](../CODE_OF_CONDUCT.md) | Contributor Covenant 2.1 |
 | [Changelog](../CHANGELOG.md) | Histórico de versões |
 
 ## 💜 Apoie o projeto

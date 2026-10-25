@@ -22,6 +22,8 @@ more depth.
   fixtures, test output, issues or PRs.
 - Every user-visible behavior change ships with its docs, translations,
   `CHANGELOG.md` `## Unreleased` bullet and a test in the same PR.
+- Sign off every commit (`git commit -s`): the **DCO sign-off** check rejects a
+  PR commit without a `Signed-off-by` trailer for its author's email.
 
 ## Project
 
@@ -47,7 +49,7 @@ providers/get-provider-usage  Dispatcher; sources providers/native/*.bash explic
 providers/get-*               Per-provider and analytics entrypoints (must be executable)
 providers/local-cost-common   Shared Hermes cost SQL + LiteLLM per-model pricing (sourced)
 providers/send-quota-alert    Deduplicated notifications + click waiter
-scripts/                      check-metadata, check-changelog, package-release,
+scripts/                      check-metadata, check-changelog, check-dco, package-release,
                               qmlls-setup, reload-plugin, render-contributors
 tests/test-*.sh               Fixture-backed suites; every one must be run by ci.yml
 i18n/*.json                   en (source) + pt_BR, zh_CN, es_ES, de_DE (exact parity)
@@ -111,9 +113,10 @@ docs/                         User/operator docs; docs/releases/<version>.md per
 scripts/check-metadata          # semver, CHANGELOG heading, i18n parity, executables,
                                 # every tests/test-*.sh registered as a bare run line in ci.yml
 scripts/check-changelog --base origin/main
+scripts/check-dco origin/main     # Signed-off-by on every non-merge commit
 find providers -type f -print0 | xargs -0 -n 1 bash -n
 find providers -type f -print0 | xargs -0 shellcheck -S warning
-shellcheck -S warning tests/*.sh scripts/check-metadata scripts/package-release \
+shellcheck -S warning tests/*.sh scripts/check-metadata scripts/check-dco scripts/package-release \
   scripts/qmlls-setup scripts/reload-plugin scripts/render-contributors .githooks/pre-push
 for test in tests/test-*.sh; do bash "$test"; done
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml   # exit code is the signal; without a TTY

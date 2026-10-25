@@ -21,6 +21,7 @@
 - [ ] `plugin.json` `.version` and `CHANGELOG.md` are consistent (only if this is a release-bearing change; both version pills read the manifest at runtime)
 - [ ] New/changed provider scripts are executable and emit valid JSON
 - [ ] `i18n/en.json` keys have translations in every locale (or the strings are user-neutral)
+- [ ] Every commit is signed off (`git commit -s`) under the [DCO](../CONTRIBUTING.md#developer-certificate-of-origin)
 - [ ] CI is green
 
 Run the local gates before pushing — see [CONTRIBUTING.md](../CONTRIBUTING.md) (qmllint, `shellcheck -S warning`, i18n parity, fixture test suites).
