@@ -12,7 +12,7 @@ fetch_zai_native() {
   # per-window percentages, reset timestamps and the plan level — zero token
   # cost, no inference call.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://api.z.ai/api/monitor/usage/quota/limit" 2>/dev/null || true)"
 
@@ -98,7 +98,7 @@ fetch_zai_native() {
   rm -f "$tmp_body"
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://api.z.ai/api/paas/v4/models" 2>/dev/null || true)"
   rm -f "$tmp_body"

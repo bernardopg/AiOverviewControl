@@ -11,7 +11,7 @@ fetch_kilo_native() {
   # without auth, so a 200 is inconclusive — but a 401 reliably rejects a bad
   # key, which is the only zero-cost signal available without spending credits.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://api.kilo.ai/api/gateway/models" 2>/dev/null || true)"
   if [ "$http_status" = "200" ]; then

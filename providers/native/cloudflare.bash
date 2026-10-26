@@ -9,7 +9,7 @@ fetch_cloudflare_native() {
   local tmp_body http_status
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${token}" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") \
     "https://api.cloudflare.com/client/v4/user/tokens/verify" 2>/dev/null || true)"
   if [ "$http_status" != "200" ]; then
     local message
@@ -34,7 +34,7 @@ fetch_cloudflare_native() {
         query: "query($tag: String!, $start: Date!, $end: Date!) { viewer { accounts(filter: {accountTag: $tag}) { aiInferenceAdaptiveGroups(limit: 1000, orderBy: [date_ASC], filter: {date_geq: $start, date_leq: $end}) { sum { requests neurons } dimensions { date } } } } }",
         variables: {tag: $tag, start: $start, end: $end}
       }' | curl -sS --max-time 8 -o "$tmp_graph" -w '%{http_code}' \
-        -H "Authorization: Bearer ${token}" \
+        --config <(curl_header_config "Authorization: Bearer ${token}") \
         -H "Content-Type: application/json" \
         --data @- \
         "https://api.cloudflare.com/client/v4/graphql" 2>/dev/null || true)"

@@ -54,7 +54,7 @@ PACKAGE="$TMP/$DIST_NAME"
 # Validate the archived notes, not just uncommitted working-copy documentation.
 python3 "$PACKAGE/scripts/check-changelog"
 for required in \
-  plugin.json qmldir ClaudeProfiles.js providers/claude-profile-common \
+  plugin.json qmldir ClaudeProfiles.js providers/claude-profile-common providers/http-common \
   AiOverviewControlWidget.qml AiOverviewControlSettings.qml \
   AiOverviewControlI18n.qml ProviderLogo.qml \
   HeaderAction.qml AiOverviewSettingsWindow.qml LocalAnalyticsReader.qml CurrencyFormatter.qml DashboardContent.qml assets/logo.png \

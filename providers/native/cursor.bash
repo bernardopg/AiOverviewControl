@@ -251,7 +251,7 @@ cursor_dashboard_get() {
   local url="$1" cookie="$2" body="$3"
   curl -sS --max-time 10 --proto '=https' --max-redirs 0 \
     -o "$body" -w '%{http_code}' \
-    -H "Cookie: ${cookie}" \
+    --config <(curl_header_config "Cookie: ${cookie}") \
     -H "Accept: application/json" \
     -H "Origin: https://cursor.com" \
     -H "Referer: https://cursor.com/dashboard" \

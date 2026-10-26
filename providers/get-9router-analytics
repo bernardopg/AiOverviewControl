@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Caches, history and state hold account data: keep them owner-only.
+umask 077
 
 # Emit 9Router local telemetry as one JSON object for the dashboard card:
 #   {

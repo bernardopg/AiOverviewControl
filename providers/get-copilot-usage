@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Caches, history and state hold account data: keep them owner-only.
+umask 077
+# shellcheck source=providers/http-common
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/http-common"
 
 fail_json() {
   local code="$1"
@@ -42,7 +46,7 @@ request_copilot() {
   curl -4 -sS --connect-timeout 5 --max-time 12 \
     "${resolve_args[@]}" \
     -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: token ${token}" \
+    --config <(curl_header_config "Authorization: token ${token}") \
     -H "Accept: application/json" \
     -H "Editor-Version: vscode/1.105.0" \
     -H "User-Agent: GitHubCopilotChat/0.32.0" \

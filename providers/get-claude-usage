@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Caches, history and state hold account data: keep them owner-only.
+umask 077
 
 CLAUDE_DIR="$(realpath -m -- "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")"
 CREDENTIALS="${CLAUDE_DIR}/.credentials.json"
@@ -25,6 +27,8 @@ USAGE_VALID='(.limits | type == "array" and length > 0) or (.five_hour | type ==
 VERSION_CACHE_TTL=86400  # seconds: the CLI version changes on upgrade, not per refresh
 # shellcheck source=providers/claude-profile-common
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/claude-profile-common"
+# shellcheck source=providers/http-common
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/http-common"
 LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
 mkdir -p "$ACCOUNT_CACHE"
@@ -244,7 +248,7 @@ if [ -f "$CREDENTIALS" ]; then
         }
         fetch_claude_usage() {
             usage_status=$(curl -sS --max-time 8 -o "$usage_body" -w '%{http_code}' \
-                -H "Authorization: Bearer ${TOKEN}" \
+                --config <(curl_header_config "Authorization: Bearer ${TOKEN}") \
                 -H "Accept: application/json" \
                 -H "Content-Type: application/json" \
                 -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)" \
@@ -350,7 +354,7 @@ if [ -f "$CREDENTIALS" ]; then
         TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
         prepaid_body=$(mktemp)
         prepaid_status=$(curl -sS --max-time 8 -o "$prepaid_body" -w '%{http_code}' \
-            -H "Authorization: Bearer ${TOKEN}" \
+            --config <(curl_header_config "Authorization: Bearer ${TOKEN}") \
             -H "Accept: application/json" \
             -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)" \
             -H "anthropic-beta: oauth-2025-04-20" \

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Shared HTTP helpers for the adapters. Sourced, never executed.
+
+# One request header as a curl config line, for
+#   curl --config <(curl_header_config "Authorization: Bearer $key") ...
+# printf is a shell builtin, so the secret never appears in a process argv,
+# which every local user can read through ps or /proc/<pid>/cmdline; curl
+# reads it from the pipe instead. Backslashes and quotes are escaped for the
+# config syntax.
+curl_header_config() {
+  local value="${1//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf 'header = "%s"\n' "$value"
+}

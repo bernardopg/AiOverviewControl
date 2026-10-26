@@ -21,7 +21,7 @@ fetch_minimax_token_plan_native() {
 
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "$(minimax_api_base)/v1/token_plan/remains" 2>/dev/null || true)"
 
@@ -201,7 +201,7 @@ fetch_minimax_payg_native() {
   local tmp_body http_status
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "$(minimax_api_base)/v1/models" 2>/dev/null || true)"
   rm -f "$tmp_body"

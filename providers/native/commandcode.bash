@@ -19,7 +19,7 @@ fetch_commandcode_native() {
   # Primary: /alpha/billing/credits — 5h USD used/cap, weekly USD used/cap, and
   # the monthly USD credit balance. Zero token cost, no inference call.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://api.commandcode.ai/alpha/billing/credits" 2>/dev/null || true)"
 
@@ -35,11 +35,11 @@ fetch_commandcode_native() {
   if [ "$http_status" = "200" ] && jq -e '.windowLimits and .credits' "$tmp_body" >/dev/null 2>&1; then
     # Best-effort identity enrichment (4s timeouts — never fail the whole call).
     curl -sS --max-time 4 -o "$tmp_who" \
-      -H "Authorization: Bearer ${key}" \
+      --config <(curl_header_config "Authorization: Bearer ${key}") \
       -H "Accept: application/json" \
       "https://api.commandcode.ai/alpha/whoami" 2>/dev/null || printf '' >"$tmp_who"
     curl -sS --max-time 4 -o "$tmp_sub" \
-      -H "Authorization: Bearer ${key}" \
+      --config <(curl_header_config "Authorization: Bearer ${key}") \
       -H "Accept: application/json" \
       "https://api.commandcode.ai/alpha/billing/subscriptions" 2>/dev/null || printf '' >"$tmp_sub"
 
@@ -104,7 +104,7 @@ fetch_commandcode_native() {
   rm -f "$tmp_body"
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://api.commandcode.ai/provider/v1/models" || true)"
   rm -f "$tmp_body" "$tmp_sub" "$tmp_who"

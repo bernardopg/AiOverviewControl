@@ -7,9 +7,13 @@
 # Resets are consumable, so nothing ever runs this on a poll: the widget runs
 # it once per confirmed click, and a failed attempt is never retried here.
 set -euo pipefail
+# Caches, history and state hold account data: keep them owner-only.
+umask 077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=providers/claude-profile-common
 source "$SCRIPT_DIR/claude-profile-common"
+# shellcheck source=providers/http-common
+source "$SCRIPT_DIR/http-common"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
 provider="${1:-}"
 
@@ -42,12 +46,13 @@ reset_claude() {
   fi
   version="$(timeout 5 claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+(\.[0-9]+)+' | head -1 || true)"
   [ -n "$version" ] || version="2.1.0"
-  local headers=(-H "Authorization: Bearer ${token}" -H "Accept: application/json"
+  local headers=(-H "Accept: application/json"
     -H "User-Agent: claude-cli/${version} (external, cli)" -H "anthropic-beta: oauth-2025-04-20")
 
   # Read the grants fresh: the dashboard snapshot may be minutes old.
   body="$(mktemp)"
   status="$(curl -sS --max-time 15 -o "$body" -w '%{http_code}' "${headers[@]}" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") \
     "https://api.anthropic.com/api/oauth/usage?cedar_ember=1&skip_spend=1" 2>/dev/null || true)"
   case "$status" in
     200) ;;
@@ -73,6 +78,7 @@ reset_claude() {
   body="$(mktemp)"
   status="$(jq -cn --arg g "$grant" --arg r "$request_id" '{program:"cedar_ember", grant_id:$g, request_id:$r}' \
     | curl -sS --max-time 25 -o "$body" -w '%{http_code}' -X POST "${headers[@]}" \
+        --config <(curl_header_config "Authorization: Bearer ${token}") \
         -H "Content-Type: application/json" --data-binary @- \
         "https://api.anthropic.com/api/organizations/${org}/reset_rate_limits" 2>/dev/null || true)"
   result="$(jq -r '.result // empty' "$body" 2>/dev/null || true)"

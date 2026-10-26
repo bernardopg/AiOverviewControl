@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Caches, history and state hold account data: keep them owner-only.
+umask 077
 export LC_ALL=C
 
 # Cross-instance deduplicated quota notification.

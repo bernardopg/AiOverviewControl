@@ -13,6 +13,8 @@ printf '2.5.1 (fixture)\n'
 SH
 cat > "$TMP/bin/curl" <<'SH'
 #!/usr/bin/env bash
+# Adapters pass secret headers through --config files; expand them back to -H.
+_cfg=(); while [ $# -gt 0 ]; do if [ "$1" = --config ] || [ "$1" = -K ]; then while IFS= read -r _l; do case "$_l" in 'header = "'*) _v="${_l#header = \"}"; _cfg+=(-H "${_v%\"}") ;; esac; done < "$2"; shift 2; else _cfg+=("$1"); shift; fi; done; set -- "${_cfg[@]}"
 out=""; prev=""
 for arg in "$@"; do [ "$prev" != -o ] || out="$arg"; prev="$arg"; done
 case "${CLAUDE_HTTP:-200}" in

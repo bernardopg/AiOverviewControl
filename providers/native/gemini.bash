@@ -7,7 +7,7 @@ fetch_gemini_native() {
     # Key goes in a header, not the query string — URLs leak through process
     # listings and proxy logs.
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-      -H "x-goog-api-key: ${key}" \
+      --config <(curl_header_config "x-goog-api-key: ${key}") \
       "https://generativelanguage.googleapis.com/v1beta/models" 2>/dev/null || true)"
     if [ "$http_status" = "200" ]; then
       rm -f "$tmp_body"

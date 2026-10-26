@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
+# Caches, history and state hold account data: keep them owner-only.
+umask 077
 
 PROVIDERS_CSV="${1:-codex,claude,copilot}"
 COPILOT_SCRIPT="${2:-}"
@@ -8,6 +10,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -n "$COPILOT_SCRIPT" ] || COPILOT_SCRIPT="$SCRIPT_DIR/get-copilot-usage"
 CLAUDE_SCRIPT="$SCRIPT_DIR/get-claude-usage"
 CODEX_SCRIPT="$SCRIPT_DIR/get-codex-usage"
+# shellcheck source=providers/http-common
+source "$SCRIPT_DIR/http-common"
+# Caches created before 2.1.0 used the default umask; tighten them once.
+AIOC_CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+if [ -d "$AIOC_CACHE_ROOT" ] && [ "$(stat -c %a "$AIOC_CACHE_ROOT" 2>/dev/null)" != 700 ]; then
+  chmod -R go-rwx "$AIOC_CACHE_ROOT" 2>/dev/null || true
+fi
 
 # Per-run scratch dir so every mktemp below is cleaned up on exit, even when
 # a fetch dies mid-flight (timeout, signal, jq error) before its manual rm.
@@ -463,7 +472,7 @@ antigravity_quota_request_body() {
   : > "$tmp_body"
 
   if ! http_status="$(curl -sS --max-time 10 \
-      --config <(printf 'header = "Authorization: Bearer %s"\n' "$access_token") \
+      --config <(curl_header_config "Authorization: Bearer ${access_token}") \
       -o "$tmp_body" -w '%{http_code}' \
       -X POST \
       -H "Content-Type: application/json" \
@@ -546,7 +555,7 @@ antigravity_fetch_account() {
     : > "$body_file"
     curl_status=0
     status="$(curl -sS --max-time 12 \
-        --config <(printf 'header = "Authorization: Bearer %s"\n' "$access_token") \
+        --config <(curl_header_config "Authorization: Bearer ${access_token}") \
         -o "$body_file" -w '%{http_code}' -X POST \
         -H "Content-Type: application/json" \
         -H "User-Agent: ${user_agent}" \
@@ -803,7 +812,7 @@ fetch_xai_cli_billing() {
   tmp_settings="$(mktemp)"
   proxy="$(xai_cli_proxy_base)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${token}" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") \
     -H "x-xai-token-auth: xai-grok-cli" \
     -H "Accept: application/json" \
     "${proxy}/billing?format=credits" 2>/dev/null || true)"
@@ -829,7 +838,7 @@ fetch_xai_cli_billing() {
   fi
 
   curl -sS --max-time 4 -o "$tmp_settings" \
-    -H "Authorization: Bearer ${token}" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") \
     -H "x-xai-token-auth: xai-grok-cli" \
     -H "Accept: application/json" \
     "${proxy}/settings" 2>/dev/null || printf '' >"$tmp_settings"
@@ -923,7 +932,7 @@ fetch_xai_management_balance() {
   local tmp_body http_status
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://management-api.x.ai/v1/billing/teams/${team}/prepaid/balance" 2>/dev/null || true)"
 
@@ -992,7 +1001,7 @@ fetch_xai_api_key_status() {
   # unlike a chat/responses call. Falls back to /v1/models if the management
   # surface is unavailable for this key.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://api.x.ai/v1/api-key" 2>/dev/null || true)"
   if [ "$http_status" = "200" ]; then
