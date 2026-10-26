@@ -58,7 +58,12 @@ printf '%s\n' "${NOTIFY_ID:-42}"
 # Like the real tool, only an action makes it wait; then block until the
 # test "clicks" (creates CLICK_FILE).
 [[ " $* " == *" -A "* ]] || exit 0
-while [ ! -e "$CLICK_FILE" ]; do sleep 0.05; done
+# Also give up once the test's temp dir is gone: an orphaned waiter that
+# missed the final click would otherwise poll forever and hold kcov open.
+while [ ! -e "$CLICK_FILE" ]; do
+  [ -d "${CLICK_FILE%/*}" ] || exit 0
+  sleep 0.05
+done
 printf 'default\n'
 SH
 cat > "$TMP/bin/dms" <<'SH'
