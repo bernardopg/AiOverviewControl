@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Documentation
+- `TODO.md` lists only open work again, with the date of the last upstream check for each blocked provider and the measured coverage gaps. The roadmap now plans the ClinePass usage windows, which the Cline dashboard reads from a read-only endpoint.
+
 ## 2.1.1 - 2026-10-26
 
 A patch release for DMS 2.0. The DankDash card name and its options are now translated into every plugin language. Settings, profiles, pins and history carry over unchanged; if the card is missing from **Add widget** after upgrading from 2.0.x, run `dms restart` once.
