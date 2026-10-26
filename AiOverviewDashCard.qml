@@ -25,11 +25,12 @@ DashCardComponent {
     // A square card shows one large number; larger cards list as many
     // providers as fit under the heading.
     readonly property bool compact: !wide && !tall
-    readonly property real rowHeight: Theme.fontSizeSmall * 1.4 + 3 + 4 + Theme.spacingS
+    readonly property real rowHeight: Theme.fontSizeSmall * 1.4 + Theme.spacingXS + Theme.spacingS + Theme.spacingS
     readonly property int rows: {
         if (compact)
             return 1;
-        const fit = Math.max(1, Math.floor((height - heading.height) / rowHeight));
+        // The card pads its content, so fit rows into the content area.
+        const fit = Math.max(1, Math.floor((heading.parent.height - heading.height) / rowHeight));
         const wanted = Number(options.count ?? 0);
         return wanted > 0 ? Math.min(wanted, fit) : fit;
     }
@@ -150,7 +151,7 @@ DashCardComponent {
             Column {
                 required property var modelData
                 width: parent.width
-                spacing: 3
+                spacing: Theme.spacingXS
 
                 Item {
                     width: parent.width
@@ -187,14 +188,14 @@ DashCardComponent {
 
                 Rectangle {
                     width: parent.width
-                    height: 4
-                    radius: 2
+                    height: Theme.spacingS
+                    radius: height / 2
                     color: root.chipColor
 
                     Rectangle {
                         width: modelData.error ? 0 : Math.max(height, parent.width * (Number(modelData.percent) || 0) / 100)
                         height: parent.height
-                        radius: 2
+                        radius: height / 2
                         color: root.usageColor(modelData.percent)
                     }
                 }
