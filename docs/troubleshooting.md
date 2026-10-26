@@ -148,6 +148,37 @@ bash "$PLUGIN/providers/send-quota-alert" \
 
 Adjust `PLUGIN` for a plugin-store install as described at the top of this page.
 
+## The DankDash card is missing or empty
+
+The **AI quotas** card needs DMS 2.0 or later. If it is not listed under
+**Add widget** after upgrading from 2.0.x, run `dms restart` once: the plugin
+became a composite plugin in 2.1.0 and DMS reads that manifest only at start.
+
+The card never queries providers itself; it shows the snapshot the bar widget
+writes after each refresh. "Open the AiOverviewControl widget once to load
+providers." means that snapshot does not exist yet: keep the bar widget on a
+bar and let it refresh once. Check the file directly:
+
+```bash
+jq '.items | length' "${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/dash-snapshot.json"
+```
+
+## A limit reset was refused
+
+A reset is redeemed only after the confirmation in the expanded Claude or
+Codex card, with one request and no retry. Every message that ends in
+"Nothing was used." (no limit to reset, or the provider asked to wait) leaves
+the reset in place; try again once a limit is actually reached. "No reset
+left" and "already used" mean the account holds no usable reset. To see what
+the helper returns without opening the dashboard, run the same command the
+card runs; it redeems a reset when one applies, so only run it when you mean
+to use one:
+
+```bash
+PLUGIN=~/.config/dms/plugins/AiOverviewControl
+$PLUGIN/providers/reset-provider-limits codex | jq .
+```
+
 ## Clicking a notification does nothing
 
 The click runs `dms ipc call aiOverviewControl focus <provider>`, so `dms` must

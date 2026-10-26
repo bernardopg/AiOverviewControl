@@ -15,11 +15,15 @@ AiOverviewControlI18n.qml         Locale loading and interpolation
 ProviderLogo.qml                  Local provider-logo resolution and fallback icons
 HeaderAction.qml                  Icon-only capsule button shared by the popout, cards, and windows
 AiOverviewSettingsWindow.qml      Standalone settings window and About window (hosts the settings page)
+AiOverviewDashCard.qml            DankDash "AI quotas" card; reads dash-snapshot.json, never queries providers
+ClaudeProfiles.js                 Claude profile parsing and the per-profile details view model
 providers/get-provider-usage      Multi-provider dispatcher and normalization
 providers/native/*.bash          Native provider fetch implementations
 providers/get-exchange-rates     Validated/cache-backed daily USD rate quotes
 providers/get-provider-health     Prerequisite checks for settings
 providers/get-usage-history       Local usage history reader
+providers/record-usage-history    Serialized usage-history append and retention trim
+providers/get-history-stats       Snapshot count and last trim, shown next to the retention setting
 providers/export-usage-history    Usage history export (CSV/JSONL)
 providers/send-quota-alert        Deduplicated quota notification sender; click opens the provider via IPC `focus`
 providers/get-codex-usage         Codex app-server protocol bridge
@@ -29,6 +33,11 @@ providers/get-antigravity-usage   Local Antigravity session quota bridge
 providers/get-9router-analytics   9Router local telemetry blob (expanded card)
 providers/get-pi-analytics        pi coding-agent local session telemetry blob (expanded card)
 providers/get-hermes-analytics    Hermes agent local state telemetry blob (expanded card)
+providers/get-local-analytics     Codex and OpenCode local session telemetry (expanded card)
+providers/reset-provider-limits   Redeems one held Claude/Codex limit reset per confirmed click
+providers/http-common             Sourced helper: secret headers to curl through --config, never argv
+providers/local-cost-common       Sourced helper: Hermes ledger cost SQL and LiteLLM list-price lookup
+providers/claude-profile-common   Sourced helper: Claude profile id to CLAUDE_CONFIG_DIR lookup
 providers/get-provider-wrapper    Single-provider wrapper
 providers/get-*-usage             Canonical provider entrypoints
 scripts/package-release           Release archive build and validation
@@ -54,6 +63,8 @@ stable contract surface.
 6. Claude details come from the dispatcher item of each Claude provider (`claude` and every `claude-*` profile): the adapter puts the local analytics in `.analytics`, and the dashboard builds one details panel per provider from it through `ClaudeProfiles.details()`. No extra process runs; an OAuth error keeps the local analytics next to the error.
 7. `pi` follows the same isolation principle via a lighter mechanism: its dispatcher-side envelope (`fetch_pi_native`, inline in `get-provider-usage`) only ever reads a cached snapshot and never scans session files itself; the expanded card's own process (`get-pi-analytics`) does the actual scan on the normal refresh cycle.
 8. `hermes` splits the same way, but its collapsed-card envelope (`fetch_hermes_native`) queries `~/.hermes/state.db` directly instead of a cache: the aggregates are indexed SQLite sums that complete in milliseconds, so first paint carries real numbers without waiting for the analytics process.
+9. After each refresh the widget writes `dash-snapshot.json` (owner-only, in the plugin cache directory) with the providers ordered for the overview. The DankDash card (`AiOverviewDashCard.qml`) only reads and watches that file, so adding the card starts no extra provider requests; until the bar widget has refreshed once, the card has nothing to show.
+10. Limit resets run only from an explicit confirmation in the expanded Claude or Codex card: the widget calls `providers/reset-provider-limits <provider>` once per click, which sends a single request and never retries or polls.
 
 ## Claude adapter
 
