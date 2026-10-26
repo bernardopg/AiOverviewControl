@@ -17,10 +17,15 @@ cd "$ROOT"
 run_one() {
     local test="$1" name
     name="$(basename "$test" .sh)"
-    if ! kcov --include-path="$ROOT/providers,$ROOT/scripts" --exclude-path="$ROOT/scripts/coverage,$ROOT/scripts/coverage-report" \
+    # A suite that hangs under kcov fails on its own instead of stalling CI.
+    if timeout "${AIOC_COVERAGE_TIMEOUT:-300}" kcov --include-path="$ROOT/providers,$ROOT/scripts" \
+        --exclude-path="$ROOT/scripts/coverage,$ROOT/scripts/coverage-report" \
         --bash-parse-files-in-dir="$ROOT/providers,$ROOT/scripts" \
-        "$OUT/runs/$name" "$test" >"$OUT/runs/$name.log" 2>&1; then
-        echo "FAIL under kcov: $test (see $OUT/runs/$name.log)" >&2
+        "$OUT/runs/$name" "$test" </dev/null >"$OUT/runs/$name.log" 2>&1; then
+        echo "ok   $name"
+    else
+        echo "FAIL under kcov (exit $?): $test" >&2
+        tail -n 20 "$OUT/runs/$name.log" >&2
         touch "$OUT/failed"
     fi
 }
