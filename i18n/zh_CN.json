@@ -384,5 +384,11 @@
   "resets.result_cooldown": "服务商要求稍后再进行下一次重置。未消耗任何重置。",
   "resets.result_auth": "服务商拒绝了登录。请先打开一次其 CLI，然后重试。",
   "resets.result_unavailable": "现在无法使用任何重置。",
-  "resets.result_error": "重置未被确认。请先检查你的限额再重试。"
+  "resets.result_error": "重置未被确认。请先检查你的限额再重试。",
+  "dash.reset_minutes": "{count} 分钟后重置",
+  "dash.reset_hours": "{count} 小时后重置",
+  "dash.reset_days": "{count} 天后重置",
+  "dash.title": "AI 配额已用",
+  "dash.title_remaining": "AI 配额剩余",
+  "dash.empty": "请先打开一次 AiOverviewControl 小组件以加载服务商。"
 }

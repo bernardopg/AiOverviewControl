@@ -15,8 +15,8 @@ stay one release cycle, then move to `CHANGELOG.md`.
   description to `plugins/bernardopg-aioverviewcontrol.json` in
   duxlabs-dev/dux-plugin-registry, so DMS 1.6 users keep 1.22.0 instead of being
   offered an incompatible update. `S · ★★★`
-- [ ] **Dash plugin surface** — DMS 2.0 lets plugins add a Dash tab or overview
-  card; a compact fleet card is a natural fit. `M · ★★`
+- [x] **Dash plugin surface** — `AiOverviewDashCard.qml`, a DankDash overview
+  card fed by the widget's `dash-snapshot.json`; shipped in 2.1.0. `M · ★★`
 
 ## 🧭 Roadmap after 1.18.0 (recommended order)
 

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- **DankDash card.** The plugin is now a composite DMS plugin with an **AI quotas** overview card (1x1 up to 4x2): the provider closest to its limit as one number, or a list of providers with usage bars and reset times, pinned first. It follows **Show remaining quota**, has count and tone options, opens the dashboard on click, and reads the snapshot the bar widget writes after each refresh (`dash-snapshot.json`, owner-only) instead of querying providers again. Covered by the widget runtime test.
 - **Credits & limit resets** for Claude (every profile) and Codex. The expanded card shows whether extra usage is on, the monthly spend limit and what was spent, usage credits (promotional credits with their expiry; they are used before purchased ones), Codex credits and spend control, and each limit reset the account holds with its expiry date, or "No resets right now" when there is none. A ⟳ button next to ★ counts the resets left and redeems one after a confirmation that shows the current usage and warns that resets are consumable and cannot be undone; the outcome is shown, and a refused reset uses nothing. Claude resets are redeemed the way the Claude Code CLI does (`reset_rate_limits`), Codex resets through `account/rateLimitResetCredit/consume`; both send one request per confirmation with an idempotency id and are never retried or polled (`providers/reset-provider-limits`). Covered by `tests/test-limit-resets.sh` and the widget runtime test.
 
 ### Security

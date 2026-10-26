@@ -57,7 +57,7 @@ for required in \
   plugin.json qmldir ClaudeProfiles.js providers/claude-profile-common providers/http-common \
   AiOverviewControlWidget.qml AiOverviewControlSettings.qml \
   AiOverviewControlI18n.qml ProviderLogo.qml \
-  HeaderAction.qml AiOverviewSettingsWindow.qml LocalAnalyticsReader.qml CurrencyFormatter.qml DashboardContent.qml assets/logo.png \
+  HeaderAction.qml AiOverviewSettingsWindow.qml AiOverviewDashCard.qml LocalAnalyticsReader.qml CurrencyFormatter.qml DashboardContent.qml assets/logo.png \
   assets/provider-logos/SOURCES.md \
   providers/get-provider-usage providers/get-provider-health providers/record-usage-history providers/get-history-stats providers/get-kimi-code-usage \
   providers/get-local-analytics providers/local-cost-common providers/get-exchange-rates \

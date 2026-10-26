@@ -384,5 +384,11 @@
   "resets.result_cooldown": "The provider asked to wait before another reset. Nothing was used.",
   "resets.result_auth": "The provider rejected the sign-in. Open its CLI once, then try again.",
   "resets.result_unavailable": "No reset could be used right now.",
-  "resets.result_error": "The reset was not confirmed. Check your limits before trying again."
+  "resets.result_error": "The reset was not confirmed. Check your limits before trying again.",
+  "dash.reset_minutes": "resets in {count} min",
+  "dash.reset_hours": "resets in {count} h",
+  "dash.reset_days": "resets in {count} d",
+  "dash.title": "AI quota used",
+  "dash.title_remaining": "AI quota left",
+  "dash.empty": "Open the AiOverviewControl widget once to load providers."
 }
