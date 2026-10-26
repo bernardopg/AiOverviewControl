@@ -60,6 +60,9 @@ FAKE_CURL = r"""#!/usr/bin/env bash
 # file, -D writes headers, -w prints the status code.
 out="" headers="" write=0
 args=("$@")
+# A credential on the command line is readable by every local user (ps,
+# /proc/<pid>/cmdline); adapters must pass it through --config instead.
+case " $* " in *"$FUZZ_SECRET"*) : > "$FUZZ_DIR/argv-leak" ;; esac
 for ((i = 0; i < ${#args[@]}; i++)); do
   case "${args[$i]}" in
     -o|--output) out="${args[$((i + 1))]}" ;;
@@ -97,6 +100,7 @@ BASE_ENV = {
     "XDG_CACHE_HOME": str(WORK / "cache"),
     "XDG_CONFIG_HOME": str(WORK / "config"),
     "FUZZ_DIR": str(WORK),
+    "FUZZ_SECRET": SECRET,
     "LANG": "C.UTF-8",
     # Keep the optional third-party calls out of the fuzzed path.
     "AIOC_NO_LITELLM": "1",
@@ -112,6 +116,7 @@ class ContractViolation(Exception):
 def run(provider, status, body):
     (WORK / "status").write_text(str(status))
     (WORK / "body").write_bytes(body)
+    (WORK / "argv-leak").unlink(missing_ok=True)
     shutil.rmtree(WORK / "cache", ignore_errors=True)
     env = dict(BASE_ENV)
     for name in PROVIDERS[provider]:
@@ -133,6 +138,8 @@ def check(provider, proc):
         raise ContractViolation(f"{provider}: exit {proc.returncode}: {proc.stderr[-300:]!r}")
     if SECRET.encode() in proc.stdout:
         raise ContractViolation(f"{provider}: credential leaked into output")
+    if (WORK / "argv-leak").exists():
+        raise ContractViolation(f"{provider}: credential passed to curl on the command line")
     try:
         result = json.loads(proc.stdout)
     except ValueError as error:

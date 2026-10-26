@@ -715,6 +715,9 @@ jobs:
       - name: Claude/Codex credits and limit resets
         run: tests/test-limit-resets.sh
 
+      - name: Credentials off the command line, owner-only caches
+        run: tests/test-secret-argv.sh
+
       - name: Append-only contributor grid
         run: tests/test-render-contributors.sh
 

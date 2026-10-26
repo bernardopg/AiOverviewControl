@@ -52,7 +52,7 @@ fetch_opencode_native() {
   local tmp_body http_status
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://opencode.ai/zen/go/v1/usage" 2>/dev/null || true)"
 
@@ -111,7 +111,7 @@ fetch_opencode_native() {
   rm -f "$tmp_body"
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://opencode.ai/zen/go/v1/models" || true)"
   rm -f "$tmp_body"

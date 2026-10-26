@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Caches, history and state hold account data: keep them owner-only.
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 exec "$SCRIPT_DIR/get-provider-wrapper" warp

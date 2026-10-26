@@ -35,7 +35,7 @@ fetch_kimi_native() {
   for host in "${hosts[@]}"; do
     base="$host"
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-      -H "Authorization: Bearer ${key}" \
+      --config <(curl_header_config "Authorization: Bearer ${key}") \
       "${host}/v1/users/me/balance" 2>/dev/null || true)"
     [ "$http_status" = "200" ] && break
     # Stop probing further hosts on an auth error — the key is simply invalid.

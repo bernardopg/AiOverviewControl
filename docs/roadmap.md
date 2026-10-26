@@ -39,8 +39,6 @@ of its own in between.
   (provider health checks, Hermes analytics, the dispatcher) toward 90%.
 - Extend fuzzing beyond the API-key adapters to the local readers (transcripts,
   SQLite databases, OAuth files).
-- Pass every `Authorization` header to `curl` through `--config` on a pipe
-  instead of the command line, and create every cache directory owner-only.
 - Keep the supply-chain controls current: SHA-pinned actions, checksum-verified
   CI tools, signed release provenance, secret scanning and the OpenSSF
   Scorecard.

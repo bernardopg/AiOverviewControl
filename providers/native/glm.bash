@@ -20,7 +20,7 @@ fetch_glm_native() {
   # /api/monitor/usage/quota/limit — zero token cost, returns per-window
   # percentages and reset timestamps identical to the Z.ai endpoint.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "${quota_host}/api/monitor/usage/quota/limit" 2>/dev/null || true)"
 
@@ -94,7 +94,7 @@ fetch_glm_native() {
   rm -f "$tmp_body"
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "${base}/models" 2>/dev/null || true)"
   rm -f "$tmp_body"

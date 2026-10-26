@@ -12,7 +12,7 @@ fetch_openrouter_native() {
   # usage_weekly, usage_monthly); /api/v1/auth/key is a minimal subset and was
   # missing every field this bridge reads.
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://openrouter.ai/api/v1/key" 2>/dev/null || true)"
 
@@ -30,7 +30,7 @@ fetch_openrouter_native() {
   local tmp_activity
   tmp_activity="$(mktemp)"
   curl -sS --max-time 8 \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://openrouter.ai/api/v1/activity" 2>/dev/null \
     | jq -c '{data: (.data // [])}' >"$tmp_activity" 2>/dev/null \

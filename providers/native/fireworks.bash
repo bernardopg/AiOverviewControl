@@ -10,7 +10,7 @@ fetch_fireworks_native() {
   if [ -n "$account_id" ]; then
     tmp_body="$(mktemp)"
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-      -H "Authorization: Bearer ${key}" \
+      --config <(curl_header_config "Authorization: Bearer ${key}") \
       -H "Accept: application/json" \
       "https://api.fireworks.ai/v1/accounts/${account_id}/quotas?pageSize=200" 2>/dev/null || true)"
     if [ "$http_status" = "200" ] && jq -e '(.quotas // []) | type == "array"' "$tmp_body" >/dev/null 2>&1; then
@@ -41,7 +41,7 @@ fetch_fireworks_native() {
   fi
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Content-Type: application/json" \
     "https://api.fireworks.ai/inference/v1/models" 2>/dev/null || true)"
   if [ "$http_status" != "200" ]; then

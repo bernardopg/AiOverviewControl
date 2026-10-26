@@ -45,7 +45,7 @@ fetch_cline_native() {
   tmp_balance="$(mktemp)"
   tmp_plan="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_me" -w '%{http_code}' \
-    -H "Authorization: Bearer ${token}" -H "Accept: application/json" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") -H "Accept: application/json" \
     "$base/users/me" 2>/dev/null || true)"
 
   local user_id org_id
@@ -69,12 +69,12 @@ fetch_cline_native() {
   local balance_path="users/${user_id}/balance"
   [ -z "$org_id" ] || balance_path="organizations/${org_id}/balance"
   http_status="$(curl -sS --max-time 8 -o "$tmp_balance" -w '%{http_code}' \
-    -H "Authorization: Bearer ${token}" -H "Accept: application/json" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") -H "Accept: application/json" \
     "$base/$balance_path" 2>/dev/null || true)"
   [ "$http_status" = "200" ] || printf '' >"$tmp_balance"
   # The plan is best-effort enrichment (ClinePass billing period).
   curl -sS --max-time 4 -o "$tmp_plan" \
-    -H "Authorization: Bearer ${token}" -H "Accept: application/json" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") -H "Accept: application/json" \
     "$base/users/me/plan" 2>/dev/null || printf '' >"$tmp_plan"
   # Keep --slurpfile below safe from HTML error pages.
   jq -e . "$tmp_balance" >/dev/null 2>&1 || printf '' >"$tmp_balance"
@@ -98,7 +98,7 @@ fetch_cline_native() {
   while [ "$page" -lt 5 ]; do
     page=$((page + 1))
     http_status="$(curl -sS --max-time 8 -o "$tmp_page" -w '%{http_code}' \
-      -H "Authorization: Bearer ${token}" -H "Accept: application/json" \
+      --config <(curl_header_config "Authorization: Bearer ${token}") -H "Accept: application/json" \
       "$base/${usages_path}?limit=200${cursor:+&cursor=${cursor}}" 2>/dev/null || true)"
     [ "$http_status" = "200" ] && jq -e . "$tmp_page" >/dev/null 2>&1 || break
     jq -c '(if (.success | type) == "boolean" then .data else . end) | .items[]?' "$tmp_page" >>"$tmp_usages"

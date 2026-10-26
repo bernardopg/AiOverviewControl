@@ -13,14 +13,14 @@ fetch_kimi_code_native() {
   tmp_body="$(mktemp)"
   url="${base%/}/usages"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     -H "User-Agent: KimiCLI/1.6" \
     "$url" 2>/dev/null || true)"
   if [ "$http_status" = "404" ]; then
     url="${base%/}/usage"
     http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-      -H "Authorization: Bearer ${key}" \
+      --config <(curl_header_config "Authorization: Bearer ${key}") \
       -H "Accept: application/json" \
       -H "User-Agent: KimiCLI/1.6" \
       "$url" 2>/dev/null || true)"

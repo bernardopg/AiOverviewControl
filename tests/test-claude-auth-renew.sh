@@ -34,6 +34,8 @@ SH
 # Fake curl: accepts only the token named in VALID_TOKEN.
 cat > "$TMP/bin/curl" <<'SH'
 #!/usr/bin/env bash
+# Adapters pass secret headers through --config files; expand them back to -H.
+_cfg=(); while [ $# -gt 0 ]; do if [ "$1" = --config ] || [ "$1" = -K ]; then while IFS= read -r _l; do case "$_l" in 'header = "'*) _v="${_l#header = \"}"; _cfg+=(-H "${_v%\"}") ;; esac; done < "$2"; shift 2; else _cfg+=("$1"); shift; fi; done; set -- "${_cfg[@]}"
 out=""; prev=""; auth=""
 for arg in "$@"; do
   [ "$prev" != -o ] || out="$arg"

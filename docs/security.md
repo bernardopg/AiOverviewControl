@@ -74,7 +74,7 @@ expectations. To report a vulnerability, follow
 | --- | --- | --- |
 | Provider credentials | Leak to a third party, a log or a public issue | Credentials read on demand and sent only to their provider; secret scanning (GitHub push protection, gitleaks, TruffleHog) on every PR; offline tests with fake fixtures |
 | User's machine | Command injection from a provider response, a setting or a notification click | Responses parsed as data with `jq`; QML runs helpers with argument arrays; provider ids allow-listed before IPC; shellcheck at warning level |
-| Local caches and history | Tampering or disclosure through unsafe temporary files | `mktemp` for every temporary file, atomic rename on write, `umask 077` and `chmod 700` for notification state, caches under the user's XDG directory |
+| Local caches and history | Tampering or disclosure through unsafe temporary files | `mktemp` for every temporary file, atomic rename on write, `umask 077` in every adapter, so caches, history and state are owner-only (an older world-readable cache directory is tightened), caches under the user's XDG directory |
 | Release archives | Tampered download or build, or a release pushed with a stolen token | Release built only by the tag's workflow on GitHub-hosted runners from a maintainer-signed tag; SHA-256 checksums; Sigstore-signed SLSA provenance; immutable `v*` tags |
 | CI pipeline | Malicious action, template injection, credential theft | Actions pinned to commit SHAs; downloaded tools verified by checksum; workflows default to `contents: read` and never persist checkout credentials; zizmor audit on every PR |
 
@@ -115,6 +115,7 @@ expectations. To report a vulnerability, follow
 | CWE-200 / CWE-532 Information exposure through logs | Credentials never logged or cached; redacted secret scans; tests use fake credentials |
 | CWE-377 Insecure temporary file | `mktemp`, atomic rename, cleanup traps, owner-only state directory |
 | CWE-295 Improper certificate validation | `curl` certificate verification is never disabled |
+| CWE-214 Invocation using visible sensitive information | Secret headers reach `curl` through `--config` on a pipe (`curl_header_config`, a shell builtin), never the command line that `ps` shows; `tests/test-secret-argv.sh` and the response fuzzer fail on a credential in curl's argv |
 | CWE-829 Untrusted functionality (supply chain) | SHA-pinned actions, checksum-verified CI tools, Dependabot, seven-day update quarantine ([update-audit.md](update-audit.md)) |
 | CWE-94 Code injection in CI | zizmor fails PRs on template injection and over-broad permissions |
 
@@ -142,9 +143,6 @@ expectations. To report a vulnerability, follow
 
 - Fuzzing covers the API-key adapters; adapters that read local CLIs,
   databases or OAuth files are covered by fixture tests only.
-- Some adapters pass credentials on the `curl` command line (see above).
-- Only the notification state and exchange-rate cache are created owner-only;
-  the other cache directories follow the user's `umask`.
 - The project has a single maintainer; see
   [GOVERNANCE.md](../GOVERNANCE.md#continuity-and-bus-factor).
 

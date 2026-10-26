@@ -8,7 +8,7 @@ fetch_replicate_native() {
   local tmp_body http_status
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${token}" \
+    --config <(curl_header_config "Authorization: Bearer ${token}") \
     "https://api.replicate.com/v1/account" 2>/dev/null || true)"
   if [ "$http_status" != "200" ]; then
     local message

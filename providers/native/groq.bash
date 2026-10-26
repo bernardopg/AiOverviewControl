@@ -24,7 +24,7 @@ groq_rate_limit_probe() {
   http_status="$(jq -cn --arg model "$model" \
       '{model:$model, messages:[{role:"user", content:"."}], max_completion_tokens:1}' \
     | curl -sS --max-time 10 -D "$tmp_headers" -o "$tmp_body" -w '%{http_code}' \
-      -H "Authorization: Bearer ${key}" -H "Content-Type: application/json" \
+      --config <(curl_header_config "Authorization: Bearer ${key}") -H "Content-Type: application/json" \
       --data-binary @- "https://api.groq.com/openai/v1/chat/completions" 2>/dev/null || true)"
   # Only a 200 or 429 reports the limits; anything else keeps the old cache.
   if [ "$http_status" = "200" ] || [ "$http_status" = "429" ]; then
@@ -49,7 +49,7 @@ fetch_groq_native() {
   local tmp_body http_status
   tmp_body="$(mktemp)"
   http_status="$(curl -sS --max-time 8 -o "$tmp_body" -w '%{http_code}' \
-    -H "Authorization: Bearer ${key}" \
+    --config <(curl_header_config "Authorization: Bearer ${key}") \
     -H "Accept: application/json" \
     "https://api.groq.com/openai/v1/models" 2>/dev/null || true)"
   if [ "$http_status" = "200" ]; then
