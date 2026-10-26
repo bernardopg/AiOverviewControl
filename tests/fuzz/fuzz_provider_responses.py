@@ -11,6 +11,7 @@ harness checks the adapter contract the widget relies on:
 - the fake credential never appears in the output.
 
 Run: python3 tests/fuzz/fuzz_provider_responses.py -max_total_time=60
+ClusterFuzzLite runs the same harness packaged by .clusterfuzzlite/build.sh.
 """
 import json
 import os
@@ -23,7 +24,9 @@ from pathlib import Path
 import atheris
 
 ROOT = Path(__file__).resolve().parents[2]
-DISPATCHER = ROOT / "providers" / "get-provider-usage"
+# A PyInstaller bundle (ClusterFuzzLite) carries the adapters and a static jq
+# under aioc/ instead of a repository checkout.
+BUNDLE = Path(getattr(sys, "_MEIPASS", "")) / "aioc" if getattr(sys, "frozen", False) else None
 SECRET = "sk-fuzz-0000-credential"
 # provider id -> credential variables its native adapter reads.
 PROVIDERS = {
@@ -77,6 +80,17 @@ WORK = Path(tempfile.mkdtemp(prefix="aioc-fuzz-"))
 (WORK / "bin").mkdir()
 (WORK / "bin" / "curl").write_text(FAKE_CURL)
 (WORK / "bin" / "curl").chmod(0o755)
+if BUNDLE:
+    # Bundled data files lose their mode bits; restore them in the work dir.
+    shutil.copytree(BUNDLE / "providers", WORK / "providers")
+    for script in (WORK / "providers").rglob("*"):
+        if script.is_file():
+            script.chmod(0o755)
+    shutil.copy(BUNDLE / "bin" / "jq-static", WORK / "bin" / "jq")
+    (WORK / "bin" / "jq").chmod(0o755)
+    DISPATCHER = WORK / "providers" / "get-provider-usage"
+else:
+    DISPATCHER = ROOT / "providers" / "get-provider-usage"
 BASE_ENV = {
     "PATH": f"{WORK / 'bin'}:/usr/local/bin:/usr/bin:/bin",
     "HOME": str(WORK / "home"),
@@ -165,6 +179,11 @@ def seed_corpus(directory):
 
 
 def main():
+    seeds = next((arg.split("=", 1)[1] for arg in sys.argv if arg.startswith("--write-seeds=")), None)
+    if seeds:
+        seed_corpus(Path(seeds))
+        shutil.rmtree(WORK, ignore_errors=True)
+        return
     args = [arg for arg in sys.argv if not arg.startswith("--corpus=")]
     corpus = next((arg.split("=", 1)[1] for arg in sys.argv if arg.startswith("--corpus=")), None)
     corpus_dir = Path(corpus) if corpus else WORK / "corpus"

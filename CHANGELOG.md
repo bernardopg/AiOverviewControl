@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Project
+- The provider-response fuzzer also runs under [ClusterFuzzLite](https://google.github.io/clusterfuzzlite/) (`.clusterfuzzlite/`, **ClusterFuzzLite** workflow): 3 minutes on each pull request and a 20-minute weekly batch, packaged with the adapters and a checksum-verified static jq.
 - Releases now require a signed tag: the Release workflow verifies `vX.Y.Z` against the maintainer key in [`.github/release-signing-keys.asc`](.github/release-signing-keys.asc) on `main` before publishing, and [SECURITY.md](.github/SECURITY.md#verifying-a-release) shows how to check it with `git verify-tag`.
 - New **Fuzz provider responses** check: [atheris](https://github.com/google/atheris) feeds arbitrary HTTP statuses and bodies to every API-key adapter (2 minutes per PR, 15 minutes weekly) and fails if the JSON contract breaks or a credential appears in the output.
 - `.github/CODEOWNERS` names the maintainer for every path.

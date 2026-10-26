@@ -93,7 +93,9 @@ git verify-tag "v$VERSION"
   HTTP statuses and bodies to every API-key adapter with
   [atheris](https://github.com/google/atheris) (2 minutes per PR and push, 15
   minutes weekly) and fails when the adapter contract breaks or a credential
-  appears in the output.
+  appears in the output. The same harness runs under
+  [ClusterFuzzLite](https://google.github.io/clusterfuzzlite/) on each pull
+  request and in a weekly batch.
 - **Static analysis**: CodeQL code scanning, and the weekly
   [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
   for supply-chain practices.

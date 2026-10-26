@@ -1,0 +1,39 @@
+name: ClusterFuzzLite
+
+# Continuous fuzzing of the provider adapters with ClusterFuzzLite: the atheris
+# harness in tests/fuzz/ packaged by .clusterfuzzlite/build.sh. Pull requests
+# fuzz briefly; the weekly batch run fuzzes longer. Crashes fail the job.
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cflite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: ClusterFuzzLite fuzzing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Build fuzzers
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: python
+          sanitizer: address
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run fuzzers
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: python
+          sanitizer: address
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          mode: ${{ github.event_name == 'pull_request' && 'code-change' || 'batch' }}
+          fuzz-seconds: ${{ github.event_name == 'pull_request' && 180 || 1200 }}
