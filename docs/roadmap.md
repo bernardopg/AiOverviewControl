@@ -63,7 +63,8 @@ The project will **not**:
 - bypass a provider's authentication, terms of service or rate limits, or
   scrape web dashboards with a stolen or replayed browser session;
 - change provider settings, buy credits or perform any write action on a
-  provider account; the plugin is read-only;
+  provider account, except redeeming a limit reset the account already holds,
+  one per explicit user confirmation;
 - support desktop shells other than DankMaterialShell, or DMS 1.x beyond the
   1.22.0 release;
 - estimate costs that a provider does not report: unknown cost stays unknown.
