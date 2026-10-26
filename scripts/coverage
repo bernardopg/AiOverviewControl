@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Measure statement coverage of the shell adapters and scripts with kcov.
+# Usage: scripts/coverage [OUTPUT_DIR]; AIOC_COVERAGE_MIN=80 fails below 80%.
+# Requires kcov and python3.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OUT="${1:-$ROOT/coverage}"
+MIN="${AIOC_COVERAGE_MIN:-0}"
+command -v kcov >/dev/null || { echo "kcov is required" >&2; exit 2; }
+rm -rf "$OUT"
+mkdir -p "$OUT/runs"
+cd "$ROOT"
+
+failed=0
+for test in tests/test-*.sh; do
+    case "$test" in
+        # QML suites exercise Quickshell components, not the shell adapters.
+        tests/test-widget-runtime.sh|tests/test-qml-smoke.sh|tests/test-currency-qml.sh) continue ;;
+    esac
+    name="$(basename "$test" .sh)"
+    if ! kcov --include-path="$ROOT/providers,$ROOT/scripts" --exclude-path="$ROOT/scripts/coverage,$ROOT/scripts/coverage-report" \
+        --bash-parse-files-in-dir="$ROOT/providers,$ROOT/scripts" \
+        "$OUT/runs/$name" "$test" >"$OUT/runs/$name.log" 2>&1; then
+        echo "FAIL under kcov: $test (see $OUT/runs/$name.log)" >&2
+        failed=1
+    fi
+done
+kcov --merge "$OUT/merged" "$OUT"/runs/test-*/ >/dev/null
+[[ "$failed" -eq 0 ]] || exit 1
+# kcov's raw percentage counts the bodies of embedded jq/awk programs and
+# heredocs as unexecuted statements; coverage-report counts statements only.
+"$ROOT/scripts/coverage-report" "$OUT/merged/kcov-merged/codecov.json" "$ROOT" \
+    --min "$MIN" --files "$OUT/files.tsv"
+echo "Per file: $OUT/files.tsv"

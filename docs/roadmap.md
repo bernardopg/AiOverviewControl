@@ -35,8 +35,8 @@ of its own in between.
 
 ### Quality and security
 
-- Measure statement coverage of the shell adapters with `kcov` in CI and raise
-  it toward 80%, starting with the dispatcher and the most used providers.
+- Keep shell statement coverage at 80% or more, and raise the weakest files
+  (provider health checks, Hermes analytics, the dispatcher) toward 90%.
 - Extend fuzzing beyond the API-key adapters to the local readers (transcripts,
   SQLite databases, OAuth files).
 - Pass every `Authorization` header to `curl` through `--config` on a pipe

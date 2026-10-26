@@ -199,3 +199,26 @@ docker build -t aioc-cflite -f .clusterfuzzlite/Dockerfile .
 docker run --rm -e SANITIZER=address -e FUZZING_LANGUAGE=python -e FUZZING_ENGINE=libfuzzer \
   -e ARCHITECTURE=x86_64 -v "$PWD/out:/out" aioc-cflite compile
 ```
+||||||| parent of 2bcc33c (test: raise shell statement coverage to 80% and enforce it in CI)
+
+## Statement coverage
+
+`scripts/coverage [OUTPUT_DIR]` runs every non-QML `tests/test-*.sh` suite
+under [kcov](https://github.com/SimonKagstrom/kcov), merges the runs and prints
+statement coverage of `providers/` and `scripts/`, with a per-file table in
+`OUTPUT_DIR/files.tsv` (default `./coverage/`, ignored by git). Set
+`AIOC_COVERAGE_MIN=80` to fail below 80%, as the **Statement coverage** CI job
+does.
+
+kcov's own percentage counts every physical line, including the body of a
+multi-line jq or awk program, a heredoc body and a backslash-continued line.
+Those lines belong to the statement that starts above them and are never
+reported as executed, so `scripts/coverage-report` drops them and counts a
+statement as covered when its first line ran
+(`tests/test-coverage-report.sh` pins this). The jq programs themselves are
+exercised by the fixture assertions, not measured line by line.
+
+Coverage suites must not clear the environment (`env -i`) or unset
+`BASH_ENV`: kcov traces child `bash` processes through it. Capture a
+command's output before `grep -q` instead of piping into it; under kcov the
+early pipe close turns into an `EPIPE` failure with `pipefail`.

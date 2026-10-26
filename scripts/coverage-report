@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Statement coverage from a kcov codecov.json, counting only shell statements.
+
+kcov's bash parser marks every physical line as instrumentable, including the
+body of a multi-line quoted string (an embedded jq, awk or Python program), a
+heredoc body and a backslash-continued argument line. Those lines belong to
+the statement that starts above them and are never reported as executed, so
+they are dropped here; a statement counts as covered when its first line ran.
+
+Usage: scripts/coverage-report CODECOV_JSON ROOT [--min PERCENT] [--files TSV]
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+HEREDOC = re.compile(r"<<(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+
+
+def continuation_lines(text):
+    """Return 1-based line numbers that continue a statement started earlier."""
+    skip = set()
+    quote = None          # "'" or '"' while inside a string spanning lines
+    heredocs = []         # pending (terminator, strip_tabs) for the next lines
+    in_heredoc = None
+    continued = False
+    for number, line in enumerate(text.split("\n"), start=1):
+        if in_heredoc:
+            skip.add(number)
+            terminator, strip = in_heredoc
+            if (line.lstrip("\t") if strip else line) == terminator:
+                in_heredoc = heredocs.pop(0) if heredocs else None
+            continue
+        if quote or continued:
+            skip.add(number)
+        continued = False
+        i = 0
+        while i < len(line):
+            char = line[i]
+            if quote == "'":
+                if char == "'":
+                    quote = None
+            elif quote == '"':
+                if char == "\\":
+                    i += 1
+                elif char == '"':
+                    quote = None
+            elif char == "\\":
+                if i == len(line) - 1:
+                    continued = True
+                i += 1
+            elif char in "'\"":
+                quote = char
+            elif char == "#" and (i == 0 or line[i - 1] in " \t;|&("):
+                break
+            elif char == "<" and line.startswith("<<", i) and not line.startswith("<<<", i):
+                match = HEREDOC.match(line, i)
+                if match:
+                    heredocs.append((match.group(3), match.group(1) == "-"))
+                    i = match.end() - 1
+            i += 1
+        if heredocs and not quote:
+            in_heredoc = heredocs.pop(0)
+    return skip
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("codecov")
+    parser.add_argument("root")
+    parser.add_argument("--min", type=float, default=0.0)
+    parser.add_argument("--files", help="write per-file coverage as TSV")
+    args = parser.parse_args()
+    root = Path(args.root).resolve()
+    coverage = json.loads(Path(args.codecov).read_text())["coverage"]
+
+    rows = []
+    for path, lines in coverage.items():
+        source = Path(path)
+        if not source.is_file():
+            continue
+        skip = continuation_lines(source.read_text(errors="replace"))
+        counted = {int(n): hits for n, hits in lines.items() if int(n) not in skip}
+        if not counted:
+            continue
+        covered = sum(1 for hits in counted.values() if int(str(hits).split("/")[0]) > 0)
+        rows.append((covered, len(counted), str(source.resolve().relative_to(root))))
+
+    covered = sum(row[0] for row in rows)
+    total = sum(row[1] for row in rows)
+    percent = 100.0 * covered / total if total else 0.0
+    if args.files:
+        rows.sort(key=lambda row: (row[0] / row[1], row[2]))
+        with open(args.files, "w") as out:
+            for hit, count, name in rows:
+                out.write(f"{100.0 * hit / count:.2f}%\t{hit}/{count}\t{name}\n")
+    print(f"Statement coverage: {percent:.2f}% ({covered}/{total} statements in {len(rows)} files)")
+    if percent < args.min:
+        print(f"Coverage {percent:.2f}% is below the {args.min:g}% minimum", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

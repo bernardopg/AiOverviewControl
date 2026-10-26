@@ -120,7 +120,8 @@ expectations. To report a vulnerability, follow
 - Secret scanning: GitHub push protection, gitleaks and TruffleHog over the full
   history ([security.yml](../.github/workflows/security.yml)).
 - Fixture-backed tests for every provider adapter, the dispatcher, caches,
-  notifications and the full widget under headless sway
+  notifications and the full widget under headless sway, with 80%+ statement
+  coverage of the shell code enforced in CI
   ([ci.yml](../.github/workflows/ci.yml)).
 - Weekly [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
   and the [OpenSSF Best Practices](https://www.bestpractices.dev/projects/15913)

@@ -49,7 +49,7 @@ providers/get-provider-usage  Dispatcher; sources providers/native/*.bash explic
 providers/get-*               Per-provider and analytics entrypoints (must be executable)
 providers/local-cost-common   Shared Hermes cost SQL + LiteLLM per-model pricing (sourced)
 providers/send-quota-alert    Deduplicated notifications + click waiter
-scripts/                      check-metadata, check-changelog, check-dco, package-release,
+scripts/                      check-metadata, check-changelog, check-dco, coverage, package-release,
                               qmlls-setup, reload-plugin, render-contributors
 tests/test-*.sh               Fixture-backed suites; every one must be run by ci.yml
 i18n/*.json                   en (source) + pt_BR, zh_CN, es_ES, de_DE (exact parity)
@@ -119,6 +119,7 @@ find providers -type f -print0 | xargs -0 shellcheck -S warning
 shellcheck -S warning tests/*.sh scripts/check-metadata scripts/check-dco scripts/package-release \
   scripts/qmlls-setup scripts/reload-plugin scripts/render-contributors .githooks/pre-push
 for test in tests/test-*.sh; do bash "$test"; done
+AIOC_COVERAGE_MIN=80 scripts/coverage   # kcov statement coverage (CI: Statement coverage)
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml   # exit code is the signal; without a TTY
                                           # messages go to journald, not stderr
 actionlint

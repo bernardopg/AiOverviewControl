@@ -25,3 +25,4 @@ GEMINI.md
 .mcp.json
 opencode.jsonc
 .qmlls.ini
+coverage/
