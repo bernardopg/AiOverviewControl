@@ -15,9 +15,13 @@ expectations. To report a vulnerability, follow
    A credential is sent only to the API of the provider it belongs to. The
    plugin never copies credentials into its settings, caches, logs,
    notifications, history exports or test fixtures.
-2. **Read-only access.** The plugin only reads quota, billing and usage data.
-   It never changes provider settings, buys credits or writes into a tool's own
-   configuration directory.
+2. **Read-only access, with one confirmed exception.** The plugin reads quota,
+   billing and usage data. It never changes provider settings, buys credits or
+   writes into a tool's own configuration directory. The one write is redeeming
+   a Claude or Codex **limit reset** the account already holds: it runs only
+   after the user confirms it in the dashboard, sends one request per
+   confirmation with an idempotency id, and is never retried or triggered by a
+   poll (`providers/reset-provider-limits`).
 3. **Encrypted network traffic.** Every remote request uses HTTPS with
    certificate verification left on (curl's default; no adapter disables it).
    The only plain HTTP endpoint is a local Ollama server on `localhost`.
@@ -88,7 +92,8 @@ expectations. To report a vulnerability, follow
 
 ### Secure design principles applied
 
-- **Least privilege**: read-only provider access; workflows with minimal token
+- **Least privilege**: read-only provider access, except a user-confirmed
+  limit-reset redemption; workflows with minimal token
   permissions; no daemon, no elevated privileges.
 - **Fail-safe defaults**: an unknown cost is `null`, never `0`; a provider
   error shows an error card; optional third-party calls can be disabled.

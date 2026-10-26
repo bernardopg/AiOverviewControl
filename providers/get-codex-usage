@@ -211,6 +211,41 @@ result="$(jq -cn --argjson account "$account" --argjson response "$limits" '
         tertiary:null,
         updatedAt:(now | todateiso8601)
       },
+      billing:{
+        credits:(
+          $limits.credits
+          | if type == "object" then {
+              hasCredits:(.hasCredits == true),
+              unlimited:(.unlimited == true),
+              balance:((.balance // null) | if . == null then null else (tonumber? // null) end)
+            } else null end
+        ),
+        spendControl:(
+          $limits.individualLimit
+          | if type == "object" then {
+              limit:(.limit | tonumber? // null),
+              used:(.used | tonumber? // null),
+              remainingPercent:(.remainingPercent // null),
+              resetsAt:iso(.resetsAt)
+            } else null end
+        ),
+        spendControlReached:($limits.spendControlReached | if type == "boolean" then . else null end)
+      },
+      # Earned rate-limit reset credits; account/rateLimitResetCredit/consume
+      # redeems one (providers/reset-provider-limits).
+      limitResets:(
+        if ($response.rateLimitResetCredits | type) == "object" then {
+          supported:true,
+          available:($reset_credits.availableCount // 0),
+          eligible:(($reset_credits.availableCount // 0) > 0),
+          usableNow:(($reset_credits.availableCount // 0) > 0),
+          reason:null,
+          items:[($reset_credits.credits // [])[]
+            | select(type == "object" and .status == "available")
+            | {id, title:(.title // ""), description:(.description // null), kind:"full",
+               resetsLeft:1, expiresAt:iso(.expiresAt), usableNow:true}]
+        } else null end
+      ),
       credits:{
         balance: (($reset_credits.availableCount | tonumber?) // null),
         remaining:(

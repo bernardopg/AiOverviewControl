@@ -66,6 +66,12 @@ fi
 printf '[{"provider":"codex","name":"Codex","usage":{"provider":"codex","identity":{"providerID":"codex"},"primary":{"usedPercent":25,"windowMinutes":300},"secondary":{"usedPercent":15,"windowMinutes":10080}}}]\n'
 SH
 chmod +x "$TMP/plugin/providers/get-provider-usage"
+# Stand-in for the consumable redemption: the real script is never run here.
+cat > "$TMP/plugin/providers/reset-provider-limits" <<'SH'
+#!/usr/bin/env bash
+printf '{"provider":"%s","result":"reset","resetsLeft":1,"message":"fixture"}\n' "$1"
+SH
+chmod +x "$TMP/plugin/providers/reset-provider-limits"
 # Ready for whichever provider is checked first, so the settings health status
 # can be asserted after a selection change.
 cat > "$TMP/plugin/providers/get-provider-health" <<'SH'
@@ -390,9 +396,48 @@ ShellRoot {
                 if (Object.keys(settings.claudeProfiles).length !== 0 || settings.loadValue("showRemainingQuota", "true") !== "false") {
                     console.error("SMOKE FAIL: simultaneous profile/remaining reset"); return;
                 }
+                // Credits, extra usage and a consumable reset on two cards.
+                widget.providers = [
+                    {provider: "codex", usage: {primary: {usedPercent: 25}, secondary: {usedPercent: 10}},
+                     billing: {credits: {hasCredits: true, unlimited: false, balance: 40}, spendControl: null},
+                     limitResets: {supported: true, available: 2, usableNow: true, eligible: true,
+                        items: [{id: "r1", title: "Full reset", resetsLeft: 1, usableNow: true, expiresAt: "2099-01-02T00:00:00Z"}]}},
+                    {provider: "claude", usage: {primary: {usedPercent: 50}},
+                     billing: {extraUsage: {enabled: true, used: 0.5, limit: 1, currency: "BRL", limitReached: false},
+                        credits: {balance: 55, currency: "BRL", promo: 55, expiresAt: "2099-10-22T00:00:00Z"}},
+                     limitResets: {supported: true, available: 0, usableNow: false, eligible: false, reason: "no_grant", items: []}}];
+                widget.allExpanded = true;
+                root.step = 12;
+            } else if (root.step === 12) {
+                const codexReset = input.findChild(widget.dashboardView, "provider-reset-codex");
+                const claudeReset = input.findChild(widget.dashboardView, "provider-reset-claude");
+                const extras = input.findChild(widget.dashboardView, "account-extras-claude");
+                if (!codexReset || !codexReset.actionEnabled || !claudeReset || claudeReset.actionEnabled
+                    || !extras || !extras.visible || !extras.showSpend || !extras.showCredits
+                    || widget.formatMoney(55, "BRL").indexOf("R$") !== 0
+                    || widget.resetBlockedText(widget.providerResets(widget.providers[1])).length === 0) {
+                    console.error("SMOKE FAIL: credits panel or reset button state"); return;
+                }
+                codexReset.triggered();
+                root.step = 13;
+            } else if (root.step === 13) {
+                const dialog = input.findChild(widget.dashboardView, "reset-confirm-dialog");
+                const confirm = input.findChild(widget.dashboardView, "reset-confirm-button");
+                if (widget.confirmResetProviderId !== "codex" || !dialog || !dialog.visible || !confirm || !confirm.actionEnabled) {
+                    console.error("SMOKE FAIL: reset confirmation did not open"); return;
+                }
+                confirm.triggered();
+                root.step = 14;
+            } else if (root.step === 14 && widget.resettingProviderId === "") {
+                if (!widget.lastResetResult || widget.lastResetResult.result !== "reset"
+                    || widget.resetResultText(widget.lastResetResult).length === 0) {
+                    console.error("SMOKE FAIL: reset result " + JSON.stringify(widget.lastResetResult)); return;
+                }
+                widget.confirmResetProviderId = "";
+                widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");
-                root.step = 12;
+                root.step = 15;
             }
         }
     }
@@ -404,9 +449,9 @@ env -i HOME="$TMP/home" PATH="$TMP/bin:$PATH" LANG=en_US.UTF-8 AIOC_TEST_PLUGIN_
     XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
     WAYLAND_DISPLAY="$WAYLAND_DISPLAY" QT_QPA_PLATFORM=wayland \
     QML_XHR_ALLOW_FILE_READ=1 QML_IMPORT_PATH="$IMPORTS" \
-    timeout 30 qs --no-color -p "$TMP/shell.qml" > "$TMP/log" 2>&1 &
+    timeout 36 qs --no-color -p "$TMP/shell.qml" > "$TMP/log" 2>&1 &
 pid=$!
-for _ in {1..240}; do
+for _ in {1..290}; do
     grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" && break
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.1

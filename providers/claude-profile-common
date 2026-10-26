@@ -9,3 +9,12 @@ claude_profile_dir() {
     | select(type == "string" and startswith("/") and (test("[\\x00-\\x1f\\x7f]") | not))
   ' 2>/dev/null
 }
+
+# Organization of the signed-in account, from Claude Code's global config:
+# $CLAUDE_CONFIG_DIR/.claude.json, or ~/.claude.json for the default directory.
+claude_org_uuid() {
+  local config="$HOME/.claude.json"
+  [ -z "${CLAUDE_CONFIG_DIR:-}" ] || config="$1/.claude.json"
+  jq -er '.oauthAccount.organizationUuid
+    | select(type == "string" and test("^[0-9a-fA-F-]{36}$"))' "$config" 2>/dev/null
+}

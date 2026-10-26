@@ -74,6 +74,18 @@ Hover a button and the line under the title names its action.
   provider-specific retry.
 - Expanded cards show the available windows, credits, source, identity, and
   update time. Fields a provider does not report are left out, never invented.
+- Claude (and each Claude profile) and Codex cards add a **Credits & limit
+  resets** panel when expanded: extra usage on or off, the monthly spend limit
+  and what was spent, usage credits (promotional credits with their expiry;
+  they are used before purchased ones), Codex credits and spend control, and
+  each limit reset the account holds with its expiry date. With none, the
+  panel says "No resets right now".
+- The ⟳ button next to ★ redeems a limit reset; its badge counts the resets
+  left. It is disabled when no reset can be used now (a Claude reset may only
+  be usable once you reach a limit). Every use opens a confirmation that shows
+  the current usage, warns that resets are consumable and cannot be undone,
+  and then reports the outcome. When no limit needs a reset, the provider
+  refuses it and nothing is used. The plugin never redeems a reset on its own.
 - Local-telemetry providers (Claude, 9Router, pi, Hermes) add a seven-day bar
   chart. Hover a bar to see that day's tokens and cost.
 

@@ -310,6 +310,11 @@ PopoutComponent {
                 width: parent.width
                 implicitHeight: root.popoutHeight - brandHeader.height - Theme.spacingM - Theme.spacingXL
 
+                ResetConfirmOverlay {
+                    anchors.fill: parent
+                    z: 100
+                }
+
                 Flickable {
                     id: contentFlick
                     objectName: "provider-dashboard-scroll"
@@ -1233,6 +1238,566 @@ PopoutComponent {
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
                 anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    // Credits, extra usage, spend controls and limit resets for providers that
+    // report them (Claude and Codex). Hidden for everything else.
+    component AccountExtrasPanel: StyledRect {
+        id: extras
+
+        required property var provider
+        property color accentColor: Theme.primary
+        readonly property string providerId: provider ? String(provider.provider || "") : ""
+        readonly property var billing: root.providerBilling(provider)
+        readonly property var resets: root.providerResets(provider)
+        readonly property var extra: billing && billing.extraUsage && typeof billing.extraUsage === "object" ? billing.extraUsage : null
+        readonly property var credits: billing && billing.credits && typeof billing.credits === "object" ? billing.credits : null
+        readonly property var spendControl: billing && billing.spendControl && typeof billing.spendControl === "object" ? billing.spendControl : null
+        // Claude credits carry money; Codex credits are a plain count.
+        readonly property bool moneyCredits: !!credits && credits.currency !== undefined
+        readonly property bool showCredits: !!credits && (moneyCredits
+            ? (Number(credits.balance) > 0 || Number(credits.promo) > 0)
+            : (credits.unlimited === true || credits.hasCredits === true || Number(credits.balance) > 0))
+        readonly property bool showSpend: !!extra && extra.limit !== null && extra.limit !== undefined && Number(extra.limit) > 0
+        readonly property var lastResult: root.lastResetResult && root.lastResetResult.provider === providerId ? root.lastResetResult : null
+
+        objectName: "account-extras-" + providerId
+        visible: billing !== null || resets !== null
+        radius: Theme.cornerRadius + 2
+        color: Theme.withAlpha(accentColor, 0.05)
+        border.width: 1
+        border.color: Theme.withAlpha(accentColor, 0.18)
+        implicitHeight: extrasCol.implicitHeight + Theme.spacingL * 2
+
+        Column {
+            id: extrasCol
+            anchors.fill: parent
+            anchors.margins: Theme.spacingL
+            spacing: Theme.spacingM
+
+            RowLayout {
+                width: parent.width
+                spacing: Theme.spacingS
+
+                DIcon {
+                    name: "account_balance_wallet"
+                    size: 18
+                    color: extras.accentColor
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: t("extras.title", "Credits & limit resets")
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeLarge
+                    font.weight: Font.Bold
+                    elide: Text.ElideRight
+                }
+
+                BadgePill {
+                    visible: !!extras.extra
+                    label: extras.extra && extras.extra.enabled
+                        ? (extras.extra.limitReached ? t("extras.extra_limit_reached", "Extra usage · limit reached") : t("card.extra_usage_on", "Extra usage on"))
+                        : t("extras.extra_off", "Extra usage off")
+                    iconName: extras.extra && extras.extra.enabled ? "add_circle" : "do_not_disturb_on"
+                    accentColor: extras.extra && extras.extra.enabled ? (extras.extra.limitReached ? Theme.error : Theme.warning) : Theme.surfaceVariantText
+                }
+            }
+
+            GridLayout {
+                width: parent.width
+                columns: width < 420 ? 1 : (width < 640 ? 2 : 3)
+                columnSpacing: Theme.spacingM
+                rowSpacing: Theme.spacingM
+
+                MetricTile {
+                    Layout.fillWidth: true
+                    visible: extras.showSpend
+                    label: t("extras.monthly_limit", "Monthly spend limit")
+                    value: extras.extra ? root.formatMoney(extras.extra.limit, extras.extra.currency) : ""
+                    accentColor: extras.accentColor
+                }
+                MetricTile {
+                    Layout.fillWidth: true
+                    visible: extras.showSpend
+                    label: t("extras.spent", "Spent this month")
+                    value: extras.extra ? root.formatMoney(extras.extra.used || 0, extras.extra.currency) : ""
+                    accentColor: extras.extra && extras.extra.limitReached ? Theme.error : extras.accentColor
+                }
+                MetricTile {
+                    Layout.fillWidth: true
+                    visible: extras.showCredits
+                    label: extras.moneyCredits ? t("extras.usage_credits", "Usage credits") : t("card.credits", "Credits")
+                    value: {
+                        const c = extras.credits;
+                        if (!c)
+                            return "";
+                        if (extras.moneyCredits)
+                            return root.formatMoney(c.balance, c.currency);
+                        return c.unlimited ? t("extras.unlimited", "Unlimited") : String(c.balance ?? "—");
+                    }
+                    accentColor: Theme.success
+                }
+                MetricTile {
+                    Layout.fillWidth: true
+                    visible: !!extras.spendControl
+                    label: t("extras.spend_control", "Spend control")
+                    value: extras.spendControl ? `${extras.spendControl.used ?? "—"} / ${extras.spendControl.limit ?? "—"}` : ""
+                    accentColor: extras.billing && extras.billing.spendControlReached ? Theme.error : extras.accentColor
+                }
+            }
+
+            UsageBar {
+                width: parent.width
+                visible: extras.showSpend && !!extras.extra && extras.extra.enabled
+                label: t("extras.monthly_spend", "Monthly spend")
+                quota: false
+                percent: extras.showSpend ? Math.min(100, (Number(extras.extra.used) || 0) / Number(extras.extra.limit) * 100) : 0
+                aside: extras.showSpend ? `${root.formatMoney(extras.extra.used || 0, extras.extra.currency)} / ${root.formatMoney(extras.extra.limit, extras.extra.currency)}` : ""
+                accentColor: root.getUsageColor(percent)
+            }
+
+            Row {
+                width: parent.width
+                visible: extras.moneyCredits && Number(extras.credits.promo) > 0
+                spacing: Theme.spacingXS
+
+                DIcon {
+                    name: "redeem"
+                    size: 14
+                    color: Theme.success
+                }
+
+                StyledText {
+                    width: parent.width - 14 - Theme.spacingXS
+                    wrapMode: Text.WordWrap
+                    text: {
+                        const c = extras.credits;
+                        if (!c)
+                            return "";
+                        const note = t("extras.promo_note", "{amount} promotional · available for any task. Promotional credits are used before purchased credits.", {amount: root.formatMoney(c.promo, c.currency)});
+                        const date = root.formatShortDate(c.expiresAt);
+                        return date.length > 0 ? `${note} ${t("extras.expires_on", "Expires {date}.", {date: date})}` : note;
+                    }
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+            }
+
+            Column {
+                visible: extras.resets !== null
+                width: parent.width
+                spacing: Theme.spacingS
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingS
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: t("extras.limit_resets", "Limit resets")
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeMedium
+                        font.weight: Font.DemiBold
+                    }
+
+                    BadgePill {
+                        visible: !!extras.resets && extras.resets.available > 0
+                        label: extras.resets ? t("resets.available", "{count} available", {count: extras.resets.available}) : ""
+                        iconName: "restart_alt"
+                        accentColor: extras.resets && extras.resets.usableNow ? Theme.warning : Theme.surfaceVariantText
+                    }
+                }
+
+                StyledText {
+                    width: parent.width
+                    visible: !!extras.resets && extras.resets.items.length === 0
+                    wrapMode: Text.WordWrap
+                    text: root.resetBlockedText(extras.resets)
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+
+                Repeater {
+                    model: extras.resets ? extras.resets.items : []
+
+                    StyledRect {
+                        required property var modelData
+                        readonly property bool ready: modelData.usableNow === true && modelData.paused !== true
+                        width: extrasCol.width
+                        radius: Theme.cornerRadius
+                        color: Theme.withAlpha(ready ? Theme.warning : Theme.surfaceText, 0.05)
+                        border.width: 1
+                        border.color: Theme.withAlpha(ready ? Theme.warning : Theme.surfaceText, 0.16)
+                        implicitHeight: grantRow.implicitHeight + Theme.spacingS * 2
+
+                        RowLayout {
+                            id: grantRow
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.margins: Theme.spacingS
+                            spacing: Theme.spacingS
+
+                            DIcon {
+                                name: "restart_alt"
+                                size: 18
+                                color: parent.parent.ready ? Theme.warning : Theme.surfaceVariantText
+                            }
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                StyledText {
+                                    width: parent.width
+                                    text: modelData.title && String(modelData.title).length > 0 ? String(modelData.title) : t("resets.item", "Limit reset")
+                                    color: Theme.surfaceText
+                                    font.pixelSize: Theme.fontSizeSmall + 1
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    text: {
+                                        const parts = [];
+                                        const left = Number(modelData.resetsLeft);
+                                        if (left > 1)
+                                            parts.push(t("resets.left", "{count} left", {count: left}));
+                                        const date = root.formatShortDate(modelData.expiresAt);
+                                        if (date.length > 0) {
+                                            const until = root.formatTimeUntil(modelData.expiresAt);
+                                            parts.push(until.length > 0 ? t("resets.expires_in", "expires {date} · in {time}", {date: date, time: until}) : t("resets.expires", "expires {date}", {date: date}));
+                                        }
+                                        if (modelData.description)
+                                            parts.push(String(modelData.description));
+                                        return parts.join(" · ");
+                                    }
+                                    visible: text.length > 0
+                                    color: Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
+                                }
+                            }
+
+                            BadgePill {
+                                label: parent.parent.ready ? t("resets.ready", "Ready") : (modelData.paused ? t("resets.paused_short", "Paused") : t("resets.at_limit_short", "At a limit"))
+                                iconName: parent.parent.ready ? "bolt" : "schedule"
+                                accentColor: parent.parent.ready ? Theme.warning : Theme.surfaceVariantText
+                            }
+                        }
+                    }
+                }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingS
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        visible: !!extras.resets && extras.resets.items.length > 0 && !extras.resets.usableNow
+                        wrapMode: Text.WordWrap
+                        text: root.resetBlockedText(extras.resets)
+                        color: Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        visible: !(!!extras.resets && extras.resets.items.length > 0 && !extras.resets.usableNow)
+                    }
+
+                    SurfaceButton {
+                        objectName: "use-reset-" + extras.providerId
+                        visible: !!extras.resets && extras.resets.available > 0
+                        compact: true
+                        iconName: "restart_alt"
+                        label: t("resets.use", "Use a reset")
+                        actionEnabled: !!extras.resets && extras.resets.usableNow && root.resettingProviderId === ""
+                        onTriggered: root.confirmResetProviderId = extras.providerId
+                    }
+                }
+
+                StyledRect {
+                    visible: extras.lastResult !== null && root.confirmResetProviderId !== extras.providerId
+                    readonly property bool ok: !!extras.lastResult && extras.lastResult.result === "reset"
+                    width: parent.width
+                    radius: Theme.cornerRadius
+                    color: Theme.withAlpha(ok ? Theme.success : Theme.error, 0.08)
+                    border.width: 1
+                    border.color: Theme.withAlpha(ok ? Theme.success : Theme.error, 0.24)
+                    implicitHeight: resultRow.implicitHeight + Theme.spacingS * 2
+
+                    Row {
+                        id: resultRow
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.margins: Theme.spacingS
+                        spacing: Theme.spacingXS
+
+                        DIcon {
+                            name: parent.parent.ok ? "check_circle" : "info"
+                            size: 16
+                            color: parent.parent.ok ? Theme.success : Theme.error
+                        }
+
+                        StyledText {
+                            width: parent.width - 16 - Theme.spacingXS
+                            wrapMode: Text.WordWrap
+                            text: root.resetResultText(extras.lastResult)
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Confirmation for a consumable limit reset, drawn over the dashboard.
+    // It stays open through the request and shows the outcome, so a reset is
+    // never used without the user seeing what happened.
+    component ResetConfirmOverlay: Item {
+        id: overlay
+
+        readonly property string providerId: root.confirmResetProviderId
+        readonly property var provider: {
+            const list = root.providers || [];
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] && list[i].provider === providerId)
+                    return list[i];
+            }
+            return null;
+        }
+        readonly property var resets: root.providerResets(provider)
+        readonly property string name: providerId.length > 0 ? root.providerName(providerId) : ""
+        readonly property bool running: providerId.length > 0 && root.resettingProviderId === providerId
+        property bool submitted: false
+        readonly property var result: submitted && !running && root.lastResetResult && root.lastResetResult.provider === providerId ? root.lastResetResult : null
+        readonly property var usage: provider && provider.usage ? provider.usage : null
+        readonly property real sessionPercent: usage && usage.primary ? Number(usage.primary.usedPercent) || 0 : 0
+        readonly property real weeklyPercent: usage && usage.secondary ? Number(usage.secondary.usedPercent) || 0 : 0
+        readonly property var nextItem: {
+            const items = resets ? resets.items : [];
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].usableNow && !items[i].paused)
+                    return items[i];
+            }
+            return items.length > 0 ? items[0] : null;
+        }
+
+        function close() {
+            if (running)
+                return;
+            submitted = false;
+            root.confirmResetProviderId = "";
+        }
+
+        visible: providerId.length > 0
+        onVisibleChanged: {
+            if (visible) {
+                submitted = false;
+                forceActiveFocus();
+            }
+        }
+        Keys.onEscapePressed: close()
+
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.cornerRadius + 4
+            color: Theme.withAlpha(Theme.surface, 0.72)
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: overlay.close()
+                onWheel: wheel => wheel.accepted = true
+            }
+        }
+
+        StyledRect {
+            id: dialog
+            objectName: "reset-confirm-dialog"
+            anchors.centerIn: parent
+            width: Math.min(parent.width - Theme.spacingL * 2, 460)
+            radius: Theme.cornerRadius + 4
+            color: Theme.surfaceContainerHigh
+            border.width: 1
+            border.color: Theme.withAlpha(Theme.warning, 0.4)
+            implicitHeight: dialogCol.implicitHeight + Theme.spacingL * 2
+
+            // Swallow clicks so they do not reach the scrim.
+            MouseArea {
+                anchors.fill: parent
+            }
+
+            Column {
+                id: dialogCol
+                anchors.fill: parent
+                anchors.margins: Theme.spacingL
+                spacing: Theme.spacingM
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingS
+
+                    DIcon {
+                        name: overlay.result ? (overlay.result.result === "reset" ? "check_circle" : "info") : "restart_alt"
+                        size: 24
+                        color: overlay.result ? (overlay.result.result === "reset" ? Theme.success : Theme.error) : Theme.warning
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: overlay.result
+                            ? (overlay.result.result === "reset" ? t("resets.done_title", "Limits reset") : t("resets.failed_title", "No reset used"))
+                            : t("resets.confirm_title", "Use a limit reset for {provider}?", {provider: overlay.name})
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeLarge
+                        font.weight: Font.Bold
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                StyledText {
+                    width: parent.width
+                    visible: !overlay.result
+                    wrapMode: Text.WordWrap
+                    text: {
+                        const count = overlay.resets ? overlay.resets.available : 0;
+                        return t("resets.confirm_body", "{provider} refills your usage limits now. This uses 1 reset: {count} available, {after} left afterwards.", {provider: overlay.name, count: count, after: Math.max(0, count - 1)});
+                    }
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                }
+
+                StyledRect {
+                    visible: !overlay.result && overlay.usage !== null
+                    width: parent.width
+                    radius: Theme.cornerRadius
+                    color: Theme.withAlpha(Theme.surfaceText, 0.04)
+                    implicitHeight: usageCol.implicitHeight + Theme.spacingS * 2
+
+                    Column {
+                        id: usageCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.margins: Theme.spacingS
+                        spacing: Theme.spacingXS
+
+                        StyledText {
+                            width: parent.width
+                            text: t("resets.current_usage", "Used now: session {session}% · weekly {weekly}%", {session: Math.round(overlay.sessionPercent), weekly: Math.round(overlay.weeklyPercent)})
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.DemiBold
+                        }
+
+                        StyledText {
+                            width: parent.width
+                            visible: Math.max(overlay.sessionPercent, overlay.weeklyPercent) < 50
+                            wrapMode: Text.WordWrap
+                            text: t("resets.low_usage", "Your limits are mostly unused, so a reset now gives back little. Consider keeping it for when you hit a limit.")
+                            color: Theme.warning
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
+                    }
+                }
+
+                Column {
+                    visible: !overlay.result
+                    width: parent.width
+                    spacing: Theme.spacingXS
+
+                    Repeater {
+                        model: {
+                            const lines = [
+                                t("resets.disclaimer_consumable", "Resets are consumable: once used, a reset cannot be undone or given back."),
+                                t("resets.disclaimer_provider", "{provider} decides what a reset refills and when it can be used. AiOverviewControl only sends the request with your local sign-in.", {provider: overlay.name}),
+                                t("resets.disclaimer_refusal", "If no limit needs a reset, {provider} should refuse the request without using one.", {provider: overlay.name})
+                            ];
+                            const date = overlay.nextItem ? root.formatShortDate(overlay.nextItem.expiresAt) : "";
+                            if (date.length > 0)
+                                lines.push(t("resets.disclaimer_expiry", "This reset expires {date}; unused resets are lost after that.", {date: date}));
+                            return lines;
+                        }
+
+                        Row {
+                            required property string modelData
+                            width: parent.width
+                            spacing: Theme.spacingXS
+
+                            DIcon {
+                                name: "info"
+                                size: 13
+                                color: Theme.surfaceVariantText
+                            }
+
+                            StyledText {
+                                width: parent.width - 13 - Theme.spacingXS
+                                wrapMode: Text.WordWrap
+                                text: modelData
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                            }
+                        }
+                    }
+                }
+
+                StyledText {
+                    width: parent.width
+                    visible: !!overlay.result
+                    wrapMode: Text.WordWrap
+                    text: root.resetResultText(overlay.result)
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingS
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    SurfaceButton {
+                        visible: !overlay.result
+                        compact: true
+                        iconName: "close"
+                        label: t("resets.cancel", "Keep it")
+                        actionEnabled: !overlay.running
+                        onTriggered: overlay.close()
+                    }
+
+                    SurfaceButton {
+                        objectName: "reset-confirm-button"
+                        visible: !overlay.result
+                        compact: true
+                        prominent: true
+                        iconName: overlay.running ? "progress_activity" : "restart_alt"
+                        label: overlay.running ? t("resets.running", "Resetting…") : t("resets.confirm", "Use 1 reset")
+                        actionEnabled: !overlay.running && !!overlay.resets && overlay.resets.usableNow && root.resettingProviderId === ""
+                        onTriggered: {
+                            overlay.submitted = true;
+                            root.resetProviderLimits(overlay.providerId);
+                        }
+                    }
+
+                    SurfaceButton {
+                        visible: !!overlay.result
+                        compact: true
+                        prominent: true
+                        iconName: "check"
+                        label: t("resets.close", "Close")
+                        onTriggered: overlay.close()
+                    }
+                }
             }
         }
     }
@@ -2329,6 +2894,62 @@ PopoutComponent {
                         onTriggered: root.togglePin(card.provider.provider)
                     }
 
+                    // Consumable limit resets; the count of resets left sits
+                    // on the button, and every use goes through a confirmation.
+                    Item {
+                        readonly property var resets: root.providerResets(card.provider)
+                        visible: resets !== null
+                        width: resetAction.width
+                        height: resetAction.height
+
+                        HeaderAction {
+                            id: resetAction
+                            objectName: "provider-reset-" + card.provider.provider
+                            width: card.compact ? 30 : 34
+                            height: width
+                            iconName: "restart_alt"
+                            accent: Theme.warning
+                            hoverRotation: -90
+                            spinning: root.resettingProviderId === card.provider.provider
+                            actionEnabled: !!parent.resets && parent.resets.available > 0 && root.resettingProviderId === ""
+                            active: !!parent.resets && parent.resets.usableNow
+                            label: parent.resets && parent.resets.available > 0
+                                ? root.t("resets.button", "Reset limits ({count} left)", {count: parent.resets.available})
+                                : root.t("resets.button_none", "No limit resets")
+                            onTriggered: root.confirmResetProviderId = card.provider.provider
+
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 400
+                            ToolTip.text: {
+                                const blocked = root.resetBlockedText(parent.resets);
+                                return blocked.length > 0 ? `${label}\n${blocked}` : label;
+                            }
+                        }
+
+                        Rectangle {
+                            visible: !!parent.resets && parent.resets.available > 0
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.rightMargin: -3
+                            anchors.topMargin: -3
+                            width: Math.max(16, resetCount.implicitWidth + 8)
+                            height: 16
+                            radius: 8
+                            color: parent.resets && parent.resets.usableNow ? Theme.warning : Theme.surfaceVariantText
+                            border.width: 1
+                            border.color: Theme.surfaceContainerHigh
+
+                            StyledText {
+                                id: resetCount
+                                anchors.centerIn: parent
+                                text: parent.parent.resets ? String(parent.parent.resets.available) : ""
+                                color: Theme.surfaceContainerHigh
+                                font.pixelSize: Theme.fontSizeSmall - 2
+                                font.weight: Font.Bold
+                            }
+                        }
+                    }
+
                     HeaderAction {
                         visible: root.selectedProviders.length > 1
                         width: card.compact ? 30 : 34
@@ -2470,6 +3091,12 @@ PopoutComponent {
                     }
                 }
 
+                AccountExtrasPanel {
+                    width: parent.width
+                    provider: card.provider
+                    accentColor: card.accentColor
+                }
+
                 SurfaceButton {
                     visible: root.providerConsoleUrl(card.provider.provider, card.provider.source).length > 0
                     iconName: "open_in_new"
@@ -2517,13 +3144,6 @@ PopoutComponent {
                                 color: Theme.surfaceText
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Bold
-                            }
-
-                            BadgePill {
-                                visible: !!claudePanel.view.extraUsage && claudePanel.view.extraUsage.enabled === true
-                                label: t("card.extra_usage_on", "Extra usage on")
-                                iconName: "add_circle"
-                                accentColor: Theme.warning
                             }
 
                             StyledText {

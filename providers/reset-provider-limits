@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# Redeem one limit reset for a Claude or Codex account.
+# Usage: reset-provider-limits <claude|claude-<profile>|codex>
+# Prints one JSON object: {provider, result, resetsLeft, message}, where
+# result is reset | nothing_to_reset | no_credit | not_limited | cooldown |
+# unavailable | auth_error | error. Only "reset" means a reset was used.
+# Resets are consumable, so nothing ever runs this on a poll: the widget runs
+# it once per confirmed click, and a failed attempt is never retried here.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=providers/claude-profile-common
+source "$SCRIPT_DIR/claude-profile-common"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
+provider="${1:-}"
+
+emit() {  # emit RESULT MESSAGE [RESETS_LEFT]
+  jq -cn --arg p "$provider" --arg r "$1" --arg m "$2" --argjson left "${3:-null}" \
+    '{provider:$p, result:$r, resetsLeft:$left, message:$m}'
+}
+
+# One id per click. The backends deduplicate on it, so a request that reached
+# them twice is still one reset.
+new_request_id() {
+  local id
+  id="$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null || true)"
+  [ -n "$id" ] || id="aioc-$(date +%s)-$$-$RANDOM"
+  printf '%s' "$id"
+}
+
+reset_claude() {
+  local dir credentials token org version body status grant request_id result left reason
+  dir="$(realpath -m -- "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")"
+  credentials="$dir/.credentials.json"
+  token="$(jq -r '.claudeAiOauth.accessToken // ""' "$credentials" 2>/dev/null || true)"
+  if [ -z "$token" ]; then
+    emit auth_error "Claude is not signed in. Run: claude auth login --claudeai"
+    return
+  fi
+  if ! org="$(claude_org_uuid "$dir")"; then
+    emit unavailable "Claude organization not found. Run Claude Code once."
+    return
+  fi
+  version="$(timeout 5 claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+(\.[0-9]+)+' | head -1 || true)"
+  [ -n "$version" ] || version="2.1.0"
+  local headers=(-H "Authorization: Bearer ${token}" -H "Accept: application/json"
+    -H "User-Agent: claude-cli/${version} (external, cli)" -H "anthropic-beta: oauth-2025-04-20")
+
+  # Read the grants fresh: the dashboard snapshot may be minutes old.
+  body="$(mktemp)"
+  status="$(curl -sS --max-time 15 -o "$body" -w '%{http_code}' "${headers[@]}" \
+    "https://api.anthropic.com/api/oauth/usage?cedar_ember=1&skip_spend=1" 2>/dev/null || true)"
+  case "$status" in
+    200) ;;
+    401 | 403) rm -f "$body"; emit auth_error "Claude rejected the sign-in. Run Claude Code once, then try again."; return ;;
+    *) rm -f "$body"; emit error "Could not read Claude limit resets (HTTP ${status:-0})."; return ;;
+  esac
+  grant="$(jq -r '
+    .cedar_ember | select(type == "object") | .next_grant_id as $next
+    | [(.grants // [])[] | select(type == "object" and .usable_now == true
+        and .paused != true and (.resets_left // 0) > 0)]
+    | ((map(select(.id == $next)) + .) | .[0].id) // empty' "$body" 2>/dev/null || true)"
+  rm -f "$body"
+  if [ -z "$grant" ]; then
+    emit unavailable "No Claude limit reset can be used right now."
+    return
+  fi
+  if ! [[ "$grant" =~ ^[a-z0-9_-]{1,40}$ ]]; then
+    emit error "Claude returned a malformed reset grant."
+    return
+  fi
+
+  request_id="$(new_request_id)"
+  body="$(mktemp)"
+  status="$(jq -cn --arg g "$grant" --arg r "$request_id" '{program:"cedar_ember", grant_id:$g, request_id:$r}' \
+    | curl -sS --max-time 25 -o "$body" -w '%{http_code}' -X POST "${headers[@]}" \
+        -H "Content-Type: application/json" --data-binary @- \
+        "https://api.anthropic.com/api/organizations/${org}/reset_rate_limits" 2>/dev/null || true)"
+  result="$(jq -r '.result // empty' "$body" 2>/dev/null || true)"
+  left="$(jq -c '.resets_left | if type == "number" then . else null end' "$body" 2>/dev/null || printf 'null')"
+  reason="$(jq -r '.reason // empty' "$body" 2>/dev/null || true)"
+  rm -f "$body"
+  case "$status" in
+    200 | 201) ;;
+    401 | 403) emit auth_error "Claude rejected the sign-in. Run Claude Code once, then try again."; return ;;
+    429) emit cooldown "Claude asked to wait before another reset. Nothing was used."; return ;;
+    *) emit error "Claude did not confirm the reset (HTTP ${status:-0}). Check your limits before trying again."; return ;;
+  esac
+  case "$result" in
+    reset)
+      # Drop the cached usage so the next refresh shows the refilled limits.
+      rm -f "$CACHE_DIR/claude-profiles/$(printf '%s' "$dir" | sha256sum | cut -d ' ' -f 1)/claude-usage-cache.json"
+      emit reset "Claude limits reset." "$left" ;;
+    not_limited) emit not_limited "No Claude limit needs a reset right now. Nothing was used." "$left" ;;
+    already_used) emit unavailable "This Claude reset was already used." "$left" ;;
+    cooldown) emit cooldown "Claude asked to wait before another reset. Nothing was used." "$left" ;;
+    *) emit unavailable "Claude did not reset the limits${reason:+ ($reason)}." "$left" ;;
+  esac
+}
+
+reset_codex() {
+  if ! command -v codex >/dev/null 2>&1; then
+    emit unavailable "Codex CLI is not installed or is not available in PATH."
+    return
+  fi
+  local out key version line outcome message
+  out="$(mktemp)"
+  key="$(new_request_id)"
+  version="$(jq -r '.version // "unknown"' "$SCRIPT_DIR/../plugin.json" 2>/dev/null || printf 'unknown')"
+  # Keep stdin open until the consume answer arrives; closing it then lets the
+  # app-server exit on its own.
+  {
+    printf '%s\n' \
+      "$(jq -cn --arg v "$version" '{method:"initialize", id:0, params:{clientInfo:{name:"ai_overview_control", title:"AiOverviewControl", version:$v}}}')" \
+      '{"method":"initialized","params":{}}' \
+      "$(jq -cn --arg k "$key" '{method:"account/rateLimitResetCredit/consume", id:3, params:{idempotencyKey:$k}}')"
+    for _ in $(seq 1 150); do
+      jq -c 'select(.id == 3)' "$out" 2>/dev/null | grep -q . && break
+      sleep 0.2
+    done
+  } | timeout 40 codex app-server >"$out" 2>/dev/null || true
+  line="$(jq -c 'select(.id == 3)' "$out" 2>/dev/null | head -1 || true)"
+  rm -f "$out"
+  outcome="$(printf '%s' "$line" | jq -r '.result.outcome // empty' 2>/dev/null || true)"
+  message="$(printf '%s' "$line" | jq -r '.error.message // empty' 2>/dev/null || true)"
+  case "$outcome" in
+    reset | alreadyRedeemed)
+      rm -f "$CACHE_DIR/codex-usage.json"
+      emit reset "Codex limits reset." ;;
+    nothingToReset) emit nothing_to_reset "No Codex limit needs a reset right now. Nothing was used." ;;
+    noCredit) emit no_credit "This Codex account has no reset left." ;;
+    *)
+      if [ -n "$message" ]; then
+        emit error "Codex did not reset the limits: $message"
+      else
+        emit error "Codex did not confirm the reset. Check your limits before trying again."
+      fi ;;
+  esac
+}
+
+case "$provider" in
+  claude) reset_claude ;;
+  claude-*)
+    if ! config_dir="$(claude_profile_dir "$provider")"; then
+      emit error "Claude profile needs an absolute config directory."
+    else
+      CLAUDE_CONFIG_DIR="$config_dir" reset_claude
+    fi ;;
+  codex) reset_codex ;;
+  *) emit error "Limit resets are not supported for this provider." ;;
+esac

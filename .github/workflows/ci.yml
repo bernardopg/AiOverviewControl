@@ -712,6 +712,9 @@ jobs:
       - name: Claude OAuth renewal through the CLI
         run: tests/test-claude-auth-renew.sh
 
+      - name: Claude/Codex credits and limit resets
+        run: tests/test-limit-resets.sh
+
       - name: Append-only contributor grid
         run: tests/test-render-contributors.sh
 
