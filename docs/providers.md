@@ -21,10 +21,10 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `groq` (opt-in `GROQ_QUOTA_MODEL` probe), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
-| **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `xai` (Management API prepaid), `neuralwatt` (prepaid USD), `cline` (credits) |
-| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota) |
-| **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini`, `mistral`, `nvidia` (NGC key verification), `qwen`, `byteplus`, `groq` (without `GROQ_QUOTA_MODEL`), `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `gemini` (Gemini CLI with a Code Assist Standard/Enterprise project), `ollama-cloud` (legacy session/weekly plans), `groq` (opt-in `GROQ_QUOTA_MODEL` probe), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
+| **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `xai` (Management API prepaid), `neuralwatt` (prepaid USD), `cline` (credits), `ollama-cloud` (included monthly + purchased credits), `vercel` (AI Gateway credits) |
+| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota), `anthropic` and `openai` (Admin API month-to-date spend; a percentage only against an optional monthly budget) |
+| **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini` (API key only), `mistral`, `nvidia` (NGC key verification), `qwen`, `byteplus`, `groq` (without `GROQ_QUOTA_MODEL`), `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `kiro`, `warp`, `amp` |
 
@@ -113,9 +113,9 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>gemini</code></td>
-<td>Auth</td>
+<td>Quota (CLI) / Auth (key)</td>
 <td>✅ <code>GET /v1beta/models</code></td>
-<td>❌ dashboard-only</td>
+<td>⚠️ Gemini CLI: <code>retrieveUserQuota</code> per model with a Code Assist Standard/Enterprise project; API keys: dashboard-only</td>
 <td>⚠️ tiered PAYG (no flat sub)</td>
 <td>✅ prepaid credits → tiers</td>
 <td><code>GEMINI_API_KEY</code></td>
@@ -176,6 +176,39 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>NEURALWATT_API_KEY</code></td>
 <td><a href="https://portal.neuralwatt.com">portal.neuralwatt.com</a></td>
 <td><a href="https://docs.neuralwatt.com/api/quota">docs.neuralwatt.com</a></td>
+</tr>
+<tr>
+<td><code>anthropic</code></td>
+<td>Analytics</td>
+<td>—</td>
+<td>⚠️ <code>GET /v1/organizations/cost_report</code> (month-to-date spend; no balance or limit for Console organizations)</td>
+<td>—</td>
+<td>✅ prepaid credits / invoiced</td>
+<td><code>ANTHROPIC_ADMIN_KEY</code></td>
+<td><a href="https://platform.claude.com/cost">platform.claude.com/cost</a></td>
+<td><a href="https://platform.claude.com/docs/en/manage-claude/usage-cost-api">platform.claude.com/docs</a></td>
+</tr>
+<tr>
+<td><code>openai</code></td>
+<td>Analytics</td>
+<td>—</td>
+<td>⚠️ <code>GET /v1/organization/costs</code> (month-to-date spend; no balance or budget API)</td>
+<td>—</td>
+<td>✅ prepaid credits / invoiced</td>
+<td><code>OPENAI_ADMIN_KEY</code></td>
+<td><a href="https://platform.openai.com/usage">platform.openai.com/usage</a></td>
+<td><a href="https://developers.openai.com/api/docs/guides/admin-apis">developers.openai.com</a></td>
+</tr>
+<tr>
+<td><code>vercel</code></td>
+<td>Balance</td>
+<td>—</td>
+<td>✅ <code>GET /v1/credits</code> (balance + total used)</td>
+<td>—</td>
+<td>✅ AI Gateway Credits</td>
+<td><code>AI_GATEWAY_API_KEY</code></td>
+<td><a href="https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway">vercel.com</a></td>
+<td><a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api#check-credit-balance">vercel.com/docs</a></td>
 </tr>
 <tr>
 <td><code>minimax</code></td>
@@ -331,6 +364,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>OLLAMA_HOST</code></td>
 <td><a href="http://localhost:11434">localhost:11434</a></td>
 <td><a href="https://docs.ollama.com/api/tags">docs.ollama.com</a></td>
+</tr>
+<tr>
+<td><code>ollama-cloud</code></td>
+<td>Balance / Quota</td>
+<td>—</td>
+<td>✅ <code>GET https://ollama.com/api/balance</code> (included monthly credits or legacy session/weekly limits, purchased credits)</td>
+<td>✅ Free / Pro / Max with included credits</td>
+<td>✅ purchased credits</td>
+<td><code>OLLAMA_API_KEY</code></td>
+<td><a href="https://ollama.com/settings">ollama.com/settings</a></td>
+<td><a href="https://docs.ollama.com/api/balance">docs.ollama.com</a></td>
 </tr>
 <tr>
 <td><code>vertexai</code></td>
@@ -502,6 +546,9 @@ upstream OpenRouter API quota. With the variable set, the real
 | `byteplus` | `ark`, `modelark` |
 | `qwen` | `dashscope`, `alibaba` |
 | `xai` | `grok` |
+| `anthropic` | `anthropic-api` |
+| `openai` | `openai-api` |
+| `vercel` | `ai-gateway` |
 
 ## Provider reference
 
@@ -515,13 +562,13 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Env var** | `GEMINI_API_KEY` (fallbacks `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`); also detected via local Gemini CLI (`~/.gemini/oauth_creds.json`). |
 | **Auth** | Header `x-goog-api-key: <key>` (preferred) or query `?key=<key>`. |
 | **Key check** | `GET /v1beta/models` → `200` lists models; `403` missing key; `400` malformed. Zero tokens. |
-| **Quota / balance** | ❌ None. Usage, spend, and rate limits are dashboard-only. |
+| **Quota / balance** | Gemini CLI sign-in: `POST https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist` for the Code Assist project, then `POST …/v1internal:retrieveUserQuota` with `{project}` returns one bucket per model (`remainingFraction`, `resetTime`, `modelId`, `tokenType`), the same calls the CLI makes (`packages/core/src/code_assist/server.ts` in google-gemini/gemini-cli). `GOOGLE_CLOUD_PROJECT` (or `GOOGLE_CLOUD_PROJECT_ID`) overrides the project. Google no longer offers Code Assist for individuals to the Gemini CLI (`ineligibleTiers[].reasonCode` `UNSUPPORTED_CLIENT`, re-checked 2026-10-26); such an account has no project, and the card shows Google's reason. API keys: ❌ none, usage and rate limits are dashboard-only. |
 | **Plans** | Free + tiered PAYG (Tier 1 $250 cap → Tier 3 $20k+ cap, auto-upgrade by spend/age). No flat monthly API subscription. Enterprise = Gemini Enterprise Agent Platform. |
 | **Billing** | Prepaid credits → pay-as-you-go per token. Batch API 50% off; cached/prompt discounts. |
 | **Flagship pricing (/M tok)** | `gemini-3.5-flash` $1.50/$9.00 &middot; `gemini-3.1-pro-preview` $2.00/$12.00 (≤200k) &middot; `gemini-3.1-flash-lite` $0.25/$1.50 &middot; `gemini-2.5-pro` $1.25/$10.00. |
 | **Dashboard** | [aistudio.google.com](https://aistudio.google.com) (rate limits), [console.cloud.google.com/billing](https://console.cloud.google.com/billing). |
 | **Changelog** | **Gemini 3.5** Flash GA; **Gemini 3.1 Pro** preview (vibe-coding/customtools). Gemini 2.0 Flash/Flash-Lite **shut down 2026-06-01**. Imagen 4 deprecated (→ Gemini 2.5 Flash Image). Veo 3/2 → Veo 3.1. Gemini Embedding 2 (multimodal). |
-| **Adapter** | `fetch_gemini_native` — API-key probe; falls back to local Gemini CLI OAuth detection. |
+| **Adapter** | `fetch_gemini_native` — with `~/.gemini/oauth_creds.json`, renews an expired access token in memory with the CLI's public installed-app client (the file is never written; `GEMINI_CLI_OAUTH_CLIENT_ID`/`GEMINI_CLI_OAUTH_CLIENT_SECRET` override it) and shows the three most used model buckets as daily windows. Without a project it reports the ineligibility reason, unless an API key is set; then, and when the sign-in cannot be renewed, it falls back to the API-key probe or the sign-in note. |
 
 ### Cloudflare (Workers AI)
 
@@ -637,6 +684,54 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Not shown** | `GET /v1/usage/energy` (daily energy and carbon) — the card has no daily chart for this provider. |
 | **Dashboard** | [portal.neuralwatt.com](https://portal.neuralwatt.com). |
 | **Adapter** | `fetch_neuralwatt_native` — one `/v1/quota` call per refresh. |
+
+### Ollama Cloud
+
+| | |
+| --- | --- |
+| **API base** | `https://ollama.com` (`OLLAMA_CLOUD_API_BASE` overrides it for tests). |
+| **Env var** | `OLLAMA_API_KEY` (create at [ollama.com/settings/keys](https://ollama.com/settings/keys)). |
+| **Auth** | `Authorization: Bearer <key>`. |
+| **Quota / balance** | `GET /api/balance` — `included` is either the monthly credits (`balance_usd`, `allowance_usd`, `period.until`) or, on legacy plans, `session` and `weekly` limits (`remaining_percent`, `resets_at`); `purchased.balance_usd` is the bought credit. 10 requests per minute per user, shared across keys and devices; `429` carries `Retry-After`. |
+| **Card** | Monthly plans: included credits used against the allowance, resetting at `period.until`. Legacy plans: session (5 h) and weekly windows. Then the purchased credits. |
+| **Dashboard** | [ollama.com/settings](https://ollama.com/settings). |
+| **Adapter** | `fetch_ollama_cloud_native` — one `/api/balance` call per refresh. Separate from the local `ollama` card, which reads the local server. |
+
+### Anthropic API (Claude Console)
+
+| | |
+| --- | --- |
+| **API base** | `https://api.anthropic.com` (`ANTHROPIC_ADMIN_API_BASE` overrides it for tests). |
+| **Env var** | `ANTHROPIC_ADMIN_KEY` (fallback `ANTHROPIC_ADMIN_API_KEY`): an Admin API key (`sk-ant-admin…`) from an organization; regular API keys cannot read cost data. Optional `ANTHROPIC_MONTHLY_BUDGET_USD`. |
+| **Auth** | `x-api-key: <key>` and `anthropic-version: 2023-06-01`. |
+| **Quota / balance** | ⚠️ `GET /v1/organizations/cost_report?starting_at=<month start>&bucket_width=1d&limit=31` — daily buckets with `results[].amount` in cents as decimal strings, `has_more`/`next_page` pagination. There is no balance or spend-limit endpoint for Console organizations (the Spend Limits API is Claude Enterprise only). Priority Tier costs are not in the cost report. |
+| **Card** | Month-to-date spend (UTC month) and today's spend. With `ANTHROPIC_MONTHLY_BUDGET_USD` the month row becomes a percentage of that budget. Claude subscription limits stay on the `claude` card. |
+| **Dashboard** | [platform.claude.com/cost](https://platform.claude.com/cost). |
+| **Adapter** | `fetch_anthropic_native` — one request per refresh, following `next_page` at most twice. |
+
+### OpenAI API (Platform)
+
+| | |
+| --- | --- |
+| **API base** | `https://api.openai.com` (`OPENAI_ADMIN_API_BASE` overrides it for tests). |
+| **Env var** | `OPENAI_ADMIN_KEY`: an Admin API key from [platform.openai.com/settings/organization/admin-keys](https://platform.openai.com/settings/organization/admin-keys). Optional `OPENAI_MONTHLY_BUDGET_USD`. |
+| **Auth** | `Authorization: Bearer <key>`. |
+| **Quota / balance** | ⚠️ `GET /v1/organization/costs?start_time=<month start, unix>&bucket_width=1d&limit=31` — daily buckets with `results[].amount.value` in USD, `has_more`/`next_page` pagination. No balance or budget endpoint. |
+| **Card** | Month-to-date spend (UTC month) and today's spend; with `OPENAI_MONTHLY_BUDGET_USD` the month row becomes a percentage. ChatGPT plan limits stay on the `codex` card. |
+| **Dashboard** | [platform.openai.com/usage](https://platform.openai.com/usage). |
+| **Adapter** | `fetch_openai_native` — one request per refresh, following `next_page` at most twice. |
+
+### Vercel AI Gateway
+
+| | |
+| --- | --- |
+| **API base** | `https://ai-gateway.vercel.sh/v1` (`AI_GATEWAY_API_BASE` overrides the host for tests). |
+| **Env var** | `AI_GATEWAY_API_KEY` — an AI Gateway API key; a plain Vercel access token is rejected. |
+| **Auth** | `Authorization: Bearer <key>`. |
+| **Quota / balance** | `GET /v1/credits` → `{"balance": "95.50", "total_used": "4.50"}` (USD strings): the team's AI Gateway Credits balance and lifetime spend. Budgets (`/ai-gateway/budgets/list`) need a Vercel access token and are not read. |
+| **Card** | Balance (the bar fills only when it is used up) and total used. |
+| **Dashboard** | [vercel.com → AI Gateway](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway). |
+| **Adapter** | `fetch_vercel_native` — one `/v1/credits` call per refresh. |
 
 ### Cline
 

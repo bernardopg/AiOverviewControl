@@ -34,11 +34,15 @@ This document records the upstream surface used by each adapter. It was reviewed
 
 | Provider | Upstream source | Plugin use |
 | --- | --- | --- |
-| Gemini | [Gemini API models](https://ai.google.dev/api/models) — `GET https://generativelanguage.googleapis.com/v1beta/models` | API-key validation via `x-goog-api-key`; local Gemini CLI credentials (`~/.gemini/oauth_creds.json`) are detected. |
+| Gemini | [Gemini API models](https://ai.google.dev/api/models) — `GET https://generativelanguage.googleapis.com/v1beta/models`; Gemini CLI: `loadCodeAssist` and `retrieveUserQuota` on `https://cloudcode-pa.googleapis.com/v1internal` as called by [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/code_assist/server.ts) | API-key validation via `x-goog-api-key`. With a Gemini CLI sign-in and a Code Assist Standard/Enterprise project, per-model daily quota (`remainingFraction`, `resetTime`). Live-checked 2026-10-26: an individual account now gets `UNSUPPORTED_CLIENT` from `loadCodeAssist`, which the card reports. |
 | Mistral | [Models API](https://docs.mistral.ai/api/#tag/models) — `GET https://api.mistral.ai/v1/models` | API-key validation. (`/v1/billing` and `/v1/usage` return `404`.) |
 | Ollama | [`/api/tags`](https://docs.ollama.com/api/tags) and [`/api/ps`](https://docs.ollama.com/api/ps) | Installed and running models. |
 | NVIDIA NIM | NGC key caller info (used by the official `ngc` CLI / `ngcsdk`) — `POST https://api.ngc.nvidia.com/v3/keys/get-caller-info` | Real key validation: `401` for an invalid key, key type and owner for a valid one. No documented balance API; credits at `build.nvidia.com/credits`. |
 | Neuralwatt | [Quota API](https://docs.neuralwatt.com/api/quota) — `GET https://api.neuralwatt.com/v1/quota` | Prepaid USD balance, subscription kWh allowance and per-key allowance. |
+| Ollama Cloud | [Balance API](https://docs.ollama.com/api/balance) — `GET https://ollama.com/api/balance` | Included monthly credits or legacy session/weekly limits, and purchased credits. |
+| Anthropic API | [Usage and Cost Admin API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api) — `GET https://api.anthropic.com/v1/organizations/cost_report` | Month-to-date and today's spend (amounts in cents). No balance or spend-limit endpoint for Console organizations. |
+| OpenAI API | [Admin APIs](https://developers.openai.com/api/docs/guides/admin-apis) — `GET https://api.openai.com/v1/organization/costs` | Month-to-date and today's spend. No balance or budget endpoint. |
+| Vercel AI Gateway | [AI Gateway REST API](https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api#check-credit-balance) — `GET https://ai-gateway.vercel.sh/v1/credits` | Credits balance and total used. |
 | Cline | [Account API](https://docs.cline.bot/enterprise-solutions/api-reference) — `GET https://api.cline.bot/api/v1/users/me`, `/users/{id}/balance`, `/users/me/plan` | Credit balance (micro-USD) and ClinePass plan. |
 | Cloudflare | [Verify API token](https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/) — `GET https://api.cloudflare.com/client/v4/user/tokens/verify` | Token validation. |
 | Vertex AI | [gcloud authentication](https://cloud.google.com/sdk/gcloud/reference/auth/print-access-token) | Local OAuth validation and selected project label. |

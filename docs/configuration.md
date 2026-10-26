@@ -131,7 +131,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | --- | --- |
 | Copilot | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`; `AIOC_NO_DOH_FALLBACK=1` disables the `dns.google` DNS-over-HTTPS fallback used to resolve an alternate `api.github.com` edge after a regional route fails (TLS hostname verification stays enabled either way) |
 | Antigravity | No environment variable is normally required. Credentials are discovered from `~/.gemini/antigravity-cli/antigravity-oauth-token`, the desktop keyring, or the IDE state database. Optional `ANTIGRAVITY_API_BASE_URL` retargets Cloud Code Assist; `ANTIGRAVITY_QUOTA_METHOD` can pin the compatibility method for diagnostics. |
-| Gemini | `GEMINI_API_KEY`, `GOOGLE_API_KEY`, or `GOOGLE_GENERATIVE_AI_API_KEY` |
+| Gemini | Gemini CLI sign-in (`~/.gemini/oauth_creds.json`) for per-model quota with a Code Assist Standard or Enterprise project; optional `GOOGLE_CLOUD_PROJECT` (or `GOOGLE_CLOUD_PROJECT_ID`) selects the project. Otherwise `GEMINI_API_KEY`, `GOOGLE_API_KEY`, or `GOOGLE_GENERATIVE_AI_API_KEY` for a key check. The CLI token is renewed in memory only; `GEMINI_CLI_OAUTH_CLIENT_ID`, `GEMINI_CLI_OAUTH_CLIENT_SECRET`, `GEMINI_CLI_TOKEN_URL` and `GEMINI_CODE_ASSIST_ENDPOINT` override the CLI's defaults for diagnostics |
 | OpenRouter | `OPENROUTER_API_KEY` |
 | DeepSeek | `DEEPSEEK_API_KEY` |
 | Kimi | Balance: `MOONSHOT_API_KEY` or `KIMI_API_KEY` (optional `MOONSHOT_API_BASE`). Kimi Code subscription quota: `KIMI_CODING_API_KEY` (or a `sk-kimi-` prefixed `KIMI_API_KEY`; optional `KIMI_CODE_BASE_URL`; legacy `KIMI_BASE_URL` also accepted) |
@@ -140,10 +140,14 @@ The settings health check describes whether the plugin can run an adapter in the
 | GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST`; requires the `ollama` CLI in PATH |
+| Ollama Cloud | `OLLAMA_API_KEY` |
 | Hermes | optional `HERMES_HOME` (defaults to `~/.hermes`); `AIOC_NO_LITELLM=1` disables the daily LiteLLM fetch that prices rows the ledger left unresolved (they then reuse the last snapshot, or stay unknown with none) |
 | Claude Code | optional `CLAUDE_CONFIG_DIR` (defaults to `~/.claude`); `AIOC_NO_LITELLM=1` disables the daily LiteLLM pricing fetch from `raw.githubusercontent.com` (cost fields then reuse the last cached snapshot, or report 0.00 with none) |
 | NVIDIA | `NVIDIA_API_KEY` (verified against NGC) |
 | Neuralwatt | `NEURALWATT_API_KEY` |
+| Anthropic API | `ANTHROPIC_ADMIN_KEY` (or `ANTHROPIC_ADMIN_API_KEY`), an Admin API key from a Claude Console organization; optional `ANTHROPIC_MONTHLY_BUDGET_USD` shows the month's spend as a percentage of that amount |
+| OpenAI API | `OPENAI_ADMIN_KEY`, an organization Admin API key; optional `OPENAI_MONTHLY_BUDGET_USD` shows the month's spend as a percentage of that amount |
+| Vercel AI Gateway | `AI_GATEWAY_API_KEY` (an AI Gateway API key, not a Vercel access token) |
 | Cline | `CLINE_API_KEY`, or an unexpired Cline CLI sign-in in `${CLINE_DATA_DIR:-~/.cline/data}/settings/providers.json` |
 | Cloudflare | `CLOUDFLARE_AI_TOKEN` or `CLOUDFLARE_API_TOKEN`; optional `CLOUDFLARE_ACCOUNT_ID` |
 | Vertex AI | requires `gcloud auth print-access-token` to succeed at collection time; the readiness chip checks only that the `gcloud` CLI is in `PATH`. Optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` enrich the reported identity |
