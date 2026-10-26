@@ -709,6 +709,9 @@ jobs:
       - name: Independent Claude profiles
         run: tests/test-claude-profiles.sh
 
+      - name: Claude OAuth renewal through the CLI
+        run: tests/test-claude-auth-renew.sh
+
       - name: Append-only contributor grid
         run: tests/test-render-contributors.sh
 

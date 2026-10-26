@@ -207,8 +207,32 @@ if [ -f "$CREDENTIALS" ]; then
         API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
     else
         TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
-        if [ -n "$TOKEN" ]; then
-            usage_body=$(mktemp)
+        # The access token lasts about eight hours and Claude Code renews it,
+        # rotating the refresh token, whenever it starts. After a reboot
+        # nothing has started it yet. The plugin never rotates the token
+        # itself: `claude auth status` renews an expired token in place under
+        # the CLI's own rules, for the same config dir. A stamp keeps a token
+        # the CLI cannot renew from spawning one process per poll.
+        renew_claude_auth() {
+            local cli last now
+            cli="$(command -v claude 2>/dev/null || true)"
+            [ -n "$cli" ] || [ ! -x "$HOME/.local/bin/claude" ] || cli="$HOME/.local/bin/claude"
+            [ -n "$cli" ] || return 1
+            last="$(cat "${ACCOUNT_CACHE}/auth-renew" 2>/dev/null || true)"
+            now="$(date +%s)"
+            case "$last" in
+                '' | *[!0-9]*) ;;
+                *) [ $(( now - last )) -lt 0 ] \
+                    || [ $(( now - last )) -ge "${CLAUDE_AUTH_RENEW_COOLDOWN:-300}" ] || return 1 ;;
+            esac
+            printf '%s\n' "$now" > "${ACCOUNT_CACHE}/auth-renew" 2>/dev/null || true
+            timeout 20 "$cli" auth status >/dev/null 2>&1 </dev/null || true
+            local renewed
+            renewed=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS" 2>/dev/null || true)
+            [ -n "$renewed" ] && [ "$renewed" != "$TOKEN" ] || return 1
+            TOKEN="$renewed"
+        }
+        fetch_claude_usage() {
             usage_status=$(curl -sS --max-time 8 -o "$usage_body" -w '%{http_code}' \
                 -H "Authorization: Bearer ${TOKEN}" \
                 -H "Accept: application/json" \
@@ -216,6 +240,19 @@ if [ -f "$CREDENTIALS" ]; then
                 -H "User-Agent: claude-code/${CLAUDE_VERSION}" \
                 -H "anthropic-beta: oauth-2025-04-20" \
                 "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
+        }
+        # expiresAt is in milliseconds; renew a minute early.
+        if [ -n "$TOKEN" ] && jq -e '(.claudeAiOauth.expiresAt | type) == "number"
+                and .claudeAiOauth.expiresAt <= (now * 1000 + 60000)' "$CREDENTIALS" >/dev/null 2>&1; then
+            renew_claude_auth || true
+        fi
+        if [ -n "$TOKEN" ]; then
+            usage_body=$(mktemp)
+            fetch_claude_usage
+            # A token revoked before its expiry gets one renewal and retry.
+            if { [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; } && renew_claude_auth; then
+                fetch_claude_usage
+            fi
 
             if [ "$usage_status" = "200" ] \
                 && jq -e "${USAGE_VALID}" "$usage_body" >/dev/null 2>&1; then
