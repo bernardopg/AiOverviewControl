@@ -215,9 +215,15 @@ jobs:
 
           manifest = json.loads(Path('plugin.json').read_text())
           errors = []
-          for field in ('component', 'settings'):
-              target = Path(manifest.get(field, '').removeprefix('./'))
-              if not target.is_file():
+          # A composite plugin names one file per surface under `components`.
+          fields = {'settings': manifest.get('settings', '')}
+          if isinstance(manifest.get('components'), dict):
+              fields.update({f'components.{k}': v for k, v in manifest['components'].items()})
+          else:
+              fields['component'] = manifest.get('component', '')
+          for field, value in fields.items():
+              target = Path(str(value).removeprefix('./'))
+              if not str(value) or not target.is_file():
                   errors.append(f"plugin.json {field} does not resolve to a file: {target}")
 
           for line in Path('qmldir').read_text().splitlines():
