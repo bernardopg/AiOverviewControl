@@ -46,6 +46,8 @@ overview, hover the page icon, click the pencil, then **Add widget**.
   usage bar each; wide or tall cards add the reset time.
 - The card follows **Show remaining quota** and the same usage colours as the
   pill. In edit mode its options set how many providers to list and the tone.
+- DMS draws the card name and its options, so they follow the DMS language
+  (**Settings → Locale**), not the plugin's **Language** setting.
 - It reads the snapshot the bar widget writes after each refresh
   (`~/.cache/AiOverviewControl/dash-snapshot.json`, owner-only) and never
   queries a provider itself, so it needs the bar widget to be loaded.

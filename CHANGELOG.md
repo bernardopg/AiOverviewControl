@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixes
+- The DankDash card name and its options (**AI quotas**, **Providers**, **Fit to size**, **Tone** and the tone choices) are now translated into Portuguese, Spanish, German and Chinese. DMS renders these `plugin.json` strings itself and reads their translations from the new `translations/` directory, which follows the DMS language. `tests/test-i18n.sh` fails when a manifest string lacks a translation in any locale.
+
 ## 2.1.0 - 2026-10-26
 
 A feature release for DMS 2.0. Claude and Codex cards show credits, extra usage and limit resets, and can redeem a held reset after a confirmation; Codex local telemetry is priced like Claude's; a new DankDash card shows the providers closest to their limits; credentials no longer reach any process command line. Run `dms restart` once after upgrading: the manifest becomes a composite plugin.

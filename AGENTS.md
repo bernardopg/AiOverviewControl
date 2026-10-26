@@ -53,6 +53,7 @@ scripts/                      check-metadata, check-changelog, check-dco, covera
                               qmlls-setup, reload-plugin, render-contributors
 tests/test-*.sh               Fixture-backed suites; every one must be run by ci.yml
 i18n/*.json                   en (source) + pt_BR, zh_CN, es_ES, de_DE (exact parity)
+translations/*.json           DMS-format pt, zh, es, de for plugin.json dash strings (I18n.trFor)
 docs/                         User/operator docs; docs/releases/<version>.md per release
 ```
 
@@ -94,6 +95,8 @@ docs/                         User/operator docs; docs/releases/<version>.md per
   entry; extend `i18n/en.json` first, then mirror every locale.
 - UI strings use `t("key", "English fallback")`, and the key must still exist
   in all five bundles with matching placeholders.
+- DMS renders the `plugin.json` dash title and option strings itself; translate
+  each one in every `translations/*.json` (the English term is its own bucket).
 - A Repeater delegate that is a custom component needs
   `required property var modelData`.
 - Shared widgets come from `qs.DCommon.Widgets` with their DMS 2.0 names

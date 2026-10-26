@@ -24,7 +24,7 @@ components by name, and `providers/get-local-analytics` reads
 PLUGIN="$HOME/.config/dms/plugins/AiOverviewControl"
 mkdir -p "$PLUGIN"
 cp -a ./*.qml ./*.js plugin.json qmldir providers scripts assets \
-  README.md CHANGELOG.md LICENSE docs i18n screenshot.png \
+  README.md CHANGELOG.md LICENSE docs i18n translations screenshot.png \
   "$PLUGIN"/
 chmod +x "$PLUGIN"/providers/get-*
 dms restart

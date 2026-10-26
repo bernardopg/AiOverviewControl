@@ -62,7 +62,8 @@ for required in \
   providers/get-provider-usage providers/get-provider-health providers/record-usage-history providers/get-history-stats providers/get-kimi-code-usage \
   providers/get-local-analytics providers/local-cost-common providers/get-exchange-rates \
   scripts/local-analytics.jq \
-  providers/send-quota-alert providers/reset-provider-limits i18n/en.json; do
+  providers/send-quota-alert providers/reset-provider-limits i18n/en.json \
+  translations/pt.json translations/es.json translations/de.json translations/zh.json; do
   if [ ! -f "$PACKAGE/$required" ]; then
     printf 'Release archive is missing %s\n' "$required" >&2
     exit 1
