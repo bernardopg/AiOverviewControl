@@ -23,15 +23,18 @@ cat <<-'TABBED'
 	inside
 	TABBED
 e=4
+q="$(printf '%s' "
+  WHERE a = 'b'
+")"
+echo "$q"
 SAMPLE
 # kcov marks every physical line; only lines 1, 2, 5, 8, 10, 11 and 14 are
 # statement starts. Lines 2 and 11 were not executed.
-hits='{"1":1,"2":0,"3":0,"4":0,"5":1,"6":0,"7":0,"8":1,"9":0,"10":1,"11":0,"12":0,"13":0,"14":1}'
-jq -n --arg f "$TMP/sample.bash" --argjson h "$hits" '{coverage: {($f): $h}}' > "$TMP/codecov.json"
+jq -n --arg f "$TMP/sample.bash" --argjson h '{"1":1,"2":0,"3":0,"4":0,"5":1,"6":0,"7":0,"8":1,"9":0,"10":1,"11":0,"12":0,"13":0,"14":1,"15":0,"16":0,"17":1,"18":1}' '{coverage: {($f): $h}}' > "$TMP/codecov.json"
 
 out="$("$ROOT/scripts/coverage-report" "$TMP/codecov.json" "$TMP" --files "$TMP/files.tsv")"
-[ "$out" = "Statement coverage: 71.43% (5/7 statements in 1 files)" ] || fail "wrong summary: $out"
-[ "$(cat "$TMP/files.tsv")" = $'71.43%\t5/7\tsample.bash' ] || fail "wrong per-file row"
+[ "$out" = "Statement coverage: 77.78% (7/9 statements in 1 files)" ] || fail "multiline quote was not covered by its closing line: $out"
+[ "$(cat "$TMP/files.tsv")" = $'77.78%\t7/9\tsample.bash' ] || fail "wrong per-file row"
 
 if "$ROOT/scripts/coverage-report" "$TMP/codecov.json" "$TMP" --min 80 >/dev/null 2>"$TMP/err"; then
   fail "accepted coverage below --min"

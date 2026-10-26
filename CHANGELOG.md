@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Quality
+- Statement coverage counts a multi-line command as covered when kcov records its hit on the closing line, and new tests cover the missing-prerequisite results of every provider health check, the Copilot helper hand-off, a failed Antigravity token refresh (the refresh token never reaches the output) and Hermes analytics cache recovery. `docs/development-gates.md` notes the kcov limitation that still understates the Hermes and OpenCode analytics files.
+
 ## 2.1.1 - 2026-10-26
 
 A patch release for DMS 2.0. The DankDash card name and its options are now translated into every plugin language. Settings, profiles, pins and history carry over unchanged; if the card is missing from **Add widget** after upgrading from 2.0.x, run `dms restart` once.
