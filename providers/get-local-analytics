@@ -130,6 +130,22 @@ case "$provider" in
     # jq localtime honours TZ, unlike slicing UTC timestamps at midnight.
     jq -sc 'map(. + {date: (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 | localtime | strftime("%Y-%m-%d"))})' "$rows" >"$rows.array" || fail 'Invalid Codex usage timestamp'
     mv "$rows.array" "$rows"
+    # Session logs carry tokens, not money. Price each row at its model's list
+    # price (the LiteLLM table Hermes uses) so subscription use still shows what
+    # the same tokens cost on the API, as the Claude card does. Cached input is
+    # part of input_tokens and reasoning part of output_tokens. A model with no
+    # list price keeps a null cost.
+    # shellcheck source=providers/local-cost-common
+    source "$script_dir/local-cost-common"
+    price_file="$(hermes_price_file || true)"
+    jq -c --slurpfile prices "${price_file:-/dev/null}" "$HERMES_PRICE_JQ"'
+      ($prices[0].models // {}) as $index
+      | map(. as $row | ($row.model | hermes_price($index)) as $p
+          | if $p == null then . else
+              .cost = (([($row.input // 0) - ($row.cacheRead // 0), 0] | max) * $p[0]
+                + ($row.cacheRead // 0) * $p[2] + ($row.output // 0) * $p[1])
+            end)' "$rows" >"$rows.array" || fail 'Failed to price Codex usage'
+    mv "$rows.array" "$rows"
     ;;
   *) fail 'Unsupported local analytics provider' ;;
 esac

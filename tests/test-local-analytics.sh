@@ -21,9 +21,22 @@ jq -cn --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
   {timestamp:$timestamp,type:"event_msg",payload:{type:"token_count",info:{total_token_usage:{total_tokens:20,input_tokens:15,output_tokens:5}}}}
 ' >"$CODEX_HOME/sessions/test.jsonl"
 printf '\nnot-json\n' >>"$CODEX_HOME/sessions/test.jsonl"
+# Offline: no price snapshot yet, so every Codex cost is unknown.
+export AIOC_NO_LITELLM=1
 result="$(bash "$ROOT/providers/get-local-analytics" codex)"
 printf '%s' "$result" | check '.today.tokens == 170 and .today.calls == 3 and .today.sessions == 1 and .today.cost == null and .today.cacheRead == 40 and .today.reasoning == 5 and (.topModels | length) == 2' 'Codex cumulative deduplication and cost unknown'
 printf '%s' "$result" | check '.topModels[0].model == "custom/gpt-test" and .topModels[0].tokens == 150 and .topProjects[0].cwd == "/project"' 'Codex model/project attribution'
+
+# With a list price, Codex rows are priced like subscription Claude usage:
+# uncached input, cached input and output each at their own rate. A model with
+# no price keeps the window total unknown instead of a partial sum.
+mkdir -p "$XDG_CACHE_HOME/AiOverviewControl"
+jq -n --arg today "$(date +%Y-%m-%d)" '{updated: $today, models: {"gpt-test": [0.000001, 0.000002, 0.0000001, 0]}}' \
+  >"$XDG_CACHE_HOME/AiOverviewControl/litellm-prices.json"
+rm -f "$XDG_CACHE_HOME/AiOverviewControl/local-analytics-codex-cache.json"
+result="$(bash "$ROOT/providers/get-local-analytics" codex)"
+printf '%s' "$result" | check '(.topModels[0].cost * 1e6 | round) == 124 and .topModels[1].cost == null and .today.cost == null' 'Codex list-price cost'
+rm -f "$XDG_CACHE_HOME/AiOverviewControl/litellm-prices.json" "$XDG_CACHE_HOME/AiOverviewControl/local-analytics-codex-cache.json"
 
 sqlite3 "$OPENCODE_DATA_DIR/opencode.db" "
 CREATE TABLE session(id TEXT PRIMARY KEY, directory TEXT);
