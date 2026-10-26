@@ -2062,7 +2062,7 @@ PluginComponent {
         }
         Loader {
             id: readerLoader
-            Component.onCompleted: setSource(Qt.resolvedUrl("LocalAnalyticsReader.qml"), {
+            Component.onCompleted: setSource(root.freshUrl("LocalAnalyticsReader.qml"), {
                 providerId: host.providerId,
                 scriptPath: host.scriptPath,
                 timeoutMs: root.fetchTimeoutMs
@@ -2079,7 +2079,7 @@ PluginComponent {
     Loader {
         id: currencyLoader
         visible: false
-        Component.onCompleted: setSource(Qt.resolvedUrl("CurrencyFormatter.qml"), {
+        Component.onCompleted: setSource(root.freshUrl("CurrencyFormatter.qml"), {
             scriptPath: root._pluginDir + "/providers/get-exchange-rates",
             currency: root.costCurrency
         })
@@ -2387,9 +2387,19 @@ PluginComponent {
     // picks the window up without a shell restart.
     property var _settingsWindow: null
 
+    // The engine caches a compiled type per URL, query included, and
+    // Qt.resolvedUrl drops the "?t=" DMS adds when it reloads this file. Every
+    // widget instance (each reload makes a new one) loads its sibling files
+    // under its own token, so a hot reload compiles the edited sources
+    // instead of reusing the stale types until a shell restart.
+    readonly property string _loadToken: String(Date.now())
+    function freshUrl(fileName) {
+        return Qt.resolvedUrl(fileName) + "?v=" + _loadToken;
+    }
+
     function openSettingsWindow() {
         if (!_settingsWindow) {
-            const component = Qt.createComponent(Qt.resolvedUrl("AiOverviewSettingsWindow.qml"));
+            const component = Qt.createComponent(root.freshUrl("AiOverviewSettingsWindow.qml"));
             if (component.status !== Component.Ready) {
                 console.warn("AiOverviewControl: settings window failed:", component.errorString());
                 PopoutService.openSettingsWithTab("plugins");
@@ -2464,7 +2474,7 @@ PluginComponent {
             }
             width: root.popoutWidth
             height: root.popoutHeight
-            Component.onCompleted: setSource(Qt.resolvedUrl("DashboardContent.qml"), {
+            Component.onCompleted: setSource(root.freshUrl("DashboardContent.qml"), {
                 controller: root,
                 parentPopout: dashboardHost.parentPopout,
                 closePopout: dashboardHost.closePopout

@@ -415,6 +415,7 @@ ShellRoot {
                 if (!codexReset || !codexReset.actionEnabled || !claudeReset || claudeReset.actionEnabled
                     || !extras || !extras.visible || !extras.showSpend || !extras.showCredits
                     || widget.formatMoney(55, "BRL").indexOf("R$") !== 0
+                    || String(widget.freshUrl("DashboardContent.qml")).indexOf("DashboardContent.qml?v=" + widget._loadToken) < 0
                     || widget.resetBlockedText(widget.providerResets(widget.providers[1])).length === 0) {
                     console.error("SMOKE FAIL: credits panel or reset button state"); return;
                 }
