@@ -29,4 +29,41 @@ printf '{"unexpected":true}\n' > "$TMP/schema.json"
 out="$(ANTIGRAVITY_RESPONSE_FILE="$TMP/schema.json" run)"
 jq -e '.[0].error.code==1 and (.[0].error.message|contains("schema changed"))' <<<"$out" >/dev/null || fail "unknown schema"
 
-echo 'OK: Antigravity fixture and transport coverage'
+# A failed OAuth token refresh is returned as an account provider error and
+# never includes the refresh token in the response.
+mkdir -p "$TMP/bin"
+cat >"$TMP/bin/sqlite3" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' '1//fixture_refresh_token_12345678901234567890'
+SH
+cat >"$TMP/bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+out=""
+while (($#)); do
+  if [[ "$1" == -o ]]; then out="$2"; shift 2; else shift; fi
+done
+case "${ANTIGRAVITY_REFRESH_MODE:-rejected}" in
+  transport) printf '000'; exit 7 ;;
+  malformed) printf '%s' '{}' >"$out"; printf '200' ;;
+  *) printf '%s' '{"error":{"message":"invalid_grant"}}' >"$out"; printf '400' ;;
+esac
+SH
+chmod +x "$TMP/bin/sqlite3" "$TMP/bin/curl"
+: >"$TMP/antigravity-state.vscdb"
+out="$(PATH="$TMP/bin:$PATH" ANTIGRAVITY_STATE_DB="$TMP/antigravity-state.vscdb" \
+  bash "$ROOT/providers/get-provider-usage" antigravity '')"
+jq -e '.[0].error.code == 400 and .[0].error.kind == "provider" and (.[0].error.message | contains("invalid_grant"))' <<<"$out" >/dev/null \
+  || fail "OAuth refresh failure was not reported"
+if grep -q 'fixture_refresh_token_12345678901234567890' <<<"$out"; then
+  fail "OAuth refresh token leaked into provider output"
+fi
+out="$(PATH="$TMP/bin:$PATH" ANTIGRAVITY_STATE_DB="$TMP/antigravity-state.vscdb" \
+  ANTIGRAVITY_REFRESH_MODE=transport bash "$ROOT/providers/get-provider-usage" antigravity '')"
+jq -e '.[0].error.code == 1 and .[0].error.kind == "provider" and (.[0].error.message | contains("could not reach Google"))' <<<"$out" >/dev/null \
+  || fail "OAuth transport failure was not reported"
+out="$(PATH="$TMP/bin:$PATH" ANTIGRAVITY_STATE_DB="$TMP/antigravity-state.vscdb" \
+  ANTIGRAVITY_REFRESH_MODE=malformed bash "$ROOT/providers/get-provider-usage" antigravity '')"
+jq -e '.[0].error.code == 1 and .[0].error.kind == "provider" and (.[0].error.message | contains("schema changed"))' <<<"$out" >/dev/null \
+  || fail "malformed OAuth response was not reported"
+echo 'OK: Antigravity fixture, transport, and token refresh coverage'

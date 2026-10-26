@@ -101,6 +101,25 @@ out2="$(run_env bash "$ROOT/providers/get-hermes-analytics")"
 [ "$out2" = "$out" ] || fail "cached output identical"
 [ "$(jq -r '.cached_at' "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json")" = "$first_ts" ] \
   || fail "TTL cache reused (cached_at unchanged)"
+# Malformed snapshots are ignored, rebuilt from SQLite and kept owner-only.
+printf '{broken' >"$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json"
+out="$(run_env bash "$ROOT/providers/get-hermes-analytics")"
+jq -e '.today.tokens == 1500 and .meta.sessions == 3' <<<"$out" >/dev/null \
+  || fail "malformed cache did not fall back to live Hermes data"
+jq -e '.data.today.tokens == 1500 and (.cached_at | type == "number")' \
+  "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json" >/dev/null \
+  || fail "malformed cache was not replaced with valid snapshot"
+[ "$(stat -c '%a' "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json")" = 600 ] \
+  || fail "analytics cache permissions are not owner-only"
+# An expired but valid snapshot must be recomputed, not served.
+jq '.cached_at = 1' "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json" \
+  >"$CACHE/stale-cache.json"
+mv "$CACHE/stale-cache.json" "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json"
+out="$(run_env bash "$ROOT/providers/get-hermes-analytics")"
+jq -e '.today.tokens == 1500 and .meta.sessions == 3' <<<"$out" >/dev/null \
+  || fail "expired cache was served instead of recomputing"
+[ "$(jq -r '.cached_at' "$CACHE/AiOverviewControl/hermes-analytics-v2-cache.json")" -gt 1 ] \
+  || fail "expired cache timestamp was not refreshed"
 
 # --- 4. missing database -> provider error, clean exit ---
 rm -f "$HOME_FIX/state.db"

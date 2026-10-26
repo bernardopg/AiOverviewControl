@@ -4,8 +4,9 @@
 kcov's bash parser marks every physical line as instrumentable, including the
 body of a multi-line quoted string (an embedded jq, awk or Python program), a
 heredoc body and a backslash-continued argument line. Those lines belong to
-the statement that starts above them and are never reported as executed, so
-they are dropped here; a statement counts as covered when its first line ran.
+the statement that starts above them and are not separate statements. They are
+grouped with that starting line, and a statement counts as covered when any
+line in the group has hits.
 
 Usage: scripts/coverage-report CODECOV_JSON ROOT [--min PERCENT] [--files TSV]
 """
@@ -22,6 +23,8 @@ def continuation_lines(text):
     """Return 1-based line numbers that continue a statement started earlier."""
     skip = set()
     quote = None          # "'" or '"' while inside a string spanning lines
+    substitution_depth = 0
+    substitution_quote = None
     heredocs = []         # pending (terminator, strip_tabs) for the next lines
     in_heredoc = None
     continued = False
@@ -32,12 +35,34 @@ def continuation_lines(text):
             if (line.lstrip("\t") if strip else line) == terminator:
                 in_heredoc = heredocs.pop(0) if heredocs else None
             continue
-        if quote or continued:
+        if quote or continued or substitution_depth:
             skip.add(number)
         continued = False
         i = 0
         while i < len(line):
             char = line[i]
+            if substitution_depth:
+                if substitution_quote == "'":
+                    if char == "'":
+                        substitution_quote = None
+                elif substitution_quote == '"':
+                    if char == "\\":
+                        i += 1
+                    elif char == '"':
+                        substitution_quote = None
+                elif line.startswith("$(", i):
+                    substitution_depth += 1
+                    i += 1
+                elif char == "'" or char == '"':
+                    substitution_quote = char
+                elif char == ")":
+                    substitution_depth -= 1
+                i += 1
+                continue
+            if line.startswith("$(", i) and quote != "'":
+                substitution_depth = 1
+                i += 2
+                continue
             if quote == "'":
                 if char == "'":
                     quote = None
@@ -84,7 +109,13 @@ def main():
         counted = {int(n): hits for n, hits in lines.items() if int(n) not in skip}
         if not counted:
             continue
-        covered = sum(1 for hits in counted.values() if int(str(hits).split("/")[0]) > 0)
+        starts = sorted(counted)
+        covered = 0
+        for index, start in enumerate(starts):
+            end = starts[index + 1] if index + 1 < len(starts) else float("inf")
+            group_hits = [hits for number, hits in lines.items() if start <= int(number) < end]
+            if any(int(str(hits).split("/")[0]) > 0 for hits in group_hits):
+                covered += 1
         rows.append((covered, len(counted), str(source.resolve().relative_to(root))))
 
     covered = sum(row[0] for row in rows)

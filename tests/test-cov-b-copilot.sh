@@ -75,4 +75,27 @@ rm -f "$XDG_CACHE_HOME/AiOverviewControl/copilot-usage.json"
 out="$(API_MODE=auth run)"
 jq -e '.error.code == 401 and .error.message == "bad credentials"' <<<"$out" >/dev/null || fail "HTTP auth failure"
 
-echo 'OK: Copilot API, cache, and DoH coverage'
+# Dispatcher helper success is forwarded; invalid output and an absent helper
+# produce asserted runtime errors.
+cat >"$TMP/copilot-helper" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' '{"provider":"copilot","source":"fixture-helper","usage":{"primary":{"usedPercent":37}}}'
+SH
+chmod +x "$TMP/copilot-helper"
+out="$(bash "$ROOT/providers/get-provider-usage" copilot "$TMP/copilot-helper")"
+jq -e '.[0].provider == "copilot" and .[0].source == "fixture-helper" and .[0].usage.primary.usedPercent == 37' <<<"$out" >/dev/null \
+  || fail "dispatcher did not forward helper JSON"
+cat >"$TMP/copilot-helper-bad" <<'SH'
+#!/usr/bin/env bash
+printf '{invalid\n'
+printf 'fixture helper failed\n' >&2
+exit 7
+SH
+chmod +x "$TMP/copilot-helper-bad"
+out="$(bash "$ROOT/providers/get-provider-usage" copilot "$TMP/copilot-helper-bad")"
+jq -e '.[0].error.code == 7 and .[0].error.kind == "runtime" and .[0].error.message == "fixture helper failed"' <<<"$out" \
+  || fail "dispatcher did not report invalid helper output"
+out="$(bash "$ROOT/providers/get-provider-usage" copilot "$TMP/no-copilot-helper")"
+jq -e '.[0].error.code == 127 and .[0].error.kind == "runtime" and (.[0].error.message | contains("missing or not executable"))' <<<"$out" >/dev/null \
+  || fail "dispatcher did not report missing helper"
+echo 'OK: Copilot API, cache, DoH, and dispatcher helper coverage'
