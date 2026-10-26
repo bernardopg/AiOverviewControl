@@ -34,7 +34,9 @@ The app-server may temporarily return only a `10080`-minute weekly window in `ra
 
 ## Claude
 
-If the local analytics are present but the 5-hour window shows an authentication error, renew the Claude subscription session:
+Claude Code's OAuth access token lasts about eight hours, and the CLI renews it whenever it starts. After a reboot nothing has started it yet, so the plugin asks the installed CLI to renew an expired or rejected token with `claude auth status` (for the same `CLAUDE_CONFIG_DIR`) and retries once. The plugin never refreshes or writes the token itself, and it tries the CLI at most once every five minutes per profile.
+
+If the local analytics are present but the 5-hour window still shows an authentication error, the refresh token itself was rejected. Renew the Claude subscription session:
 
 ```bash
 claude auth login --claudeai

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixes
+- Claude: after a reboot the card no longer reports "Claude OAuth credentials are invalid or expired" until Claude Code is started by hand. An expired or rejected access token is now renewed through the installed CLI (`claude auth status`, for the same profile) and the request is retried once; the plugin still never refreshes or writes the token itself, and tries the CLI at most once every five minutes per profile. Covered by `tests/test-claude-auth-renew.sh`.
 - Claude: a usage response that carries only the canonical `limits[]` array (no flat `five_hour` object) is accepted and cached instead of being reported as a failed request with HTTP 200.
 - pi: a malformed line in a session file no longer discards the tokens and cost recorded before it in that session.
 
