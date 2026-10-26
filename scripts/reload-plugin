@@ -13,12 +13,12 @@ if [[ "$plugin" == aiOverviewControl ]]; then
       exit 1
     fi
   done
-  for file in qmldir "$(jq -r '.component // ""' "$ROOT/plugin.json")" "$(jq -r '.settings // ""' "$ROOT/plugin.json")"; do
+  while IFS= read -r file; do
     if [[ -z "$file" || ! -f "$ROOT/$file" || ! -r "$ROOT/$file" ]]; then
       printf 'Refusing reload: missing component or qmldir: %s\n' "$file" >&2
       exit 1
     fi
-  done
+  done < <(printf 'qmldir\n'; jq -r '[.component, .settings, (.components // {} | .[])] | map(select(type == "string")) | .[]' "$ROOT/plugin.json")
   while IFS= read -r file; do
     if [[ ! -r "$ROOT/$file" ]]; then
       printf 'Refusing reload: missing QML type: %s\n' "$file" >&2

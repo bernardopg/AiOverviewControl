@@ -20,7 +20,6 @@ of its own in between.
   CI pinned to a tested DMS revision.
 - Publish the `requires_dms` constraint in the DMS plugin registry entry, so
   DMS 1.6 users stay on 1.22.0 instead of receiving an incompatible update.
-- Explore the DMS 2.0 Dash surface for a compact fleet card.
 
 ### Providers
 

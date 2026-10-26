@@ -36,6 +36,21 @@ AiOverviewControl is installed. For the setting keys themselves see
   tighten the gap around the `·` between providers. Hovering still names each
   provider.
 
+## The DankDash card
+
+The plugin adds an **AI quotas** card to the DankDash overview. Open the
+overview, hover the page icon, click the pencil, then **Add widget**.
+
+- A 1x1 card shows the provider closest to its limit as one large number.
+  Larger cards list as many providers as fit, pinned providers first, with a
+  usage bar each; wide or tall cards add the reset time.
+- The card follows **Show remaining quota** and the same usage colours as the
+  pill. In edit mode its options set how many providers to list and the tone.
+- It reads the snapshot the bar widget writes after each refresh
+  (`~/.cache/AiOverviewControl/dash-snapshot.json`, owner-only) and never
+  queries a provider itself, so it needs the bar widget to be loaded.
+- Click it to open the full dashboard.
+
 ## The popout
 
 ### Header

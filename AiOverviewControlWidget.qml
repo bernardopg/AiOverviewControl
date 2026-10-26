@@ -1787,6 +1787,48 @@ PluginComponent {
         detectBinary();
     }
 
+    // Snapshot for the DankDash overview card (AiOverviewDashCard.qml). The
+    // card is a separate surface with no access to this instance, so the
+    // widget publishes what it already fetched; the card never polls a
+    // provider itself. Written owner-only under the plugin cache directory.
+    readonly property string dashSnapshotPath: {
+        const cache = Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache");
+        return cache + "/AiOverviewControl/dash-snapshot.json";
+    }
+    function dashSnapshot() {
+        const items = [];
+        for (let i = 0; i < displayProviders.length; i++) {
+            const provider = displayProviders[i];
+            if (!provider || !provider.provider)
+                continue;
+            const window = provider.error ? null : pillWindowFor(provider);
+            items.push({
+                id: provider.provider,
+                name: providerName(provider.provider),
+                error: !!provider.error,
+                pinned: isPinned(provider.provider),
+                percent: window ? Math.max(0, Math.min(100, Number(window.usedPercent) || 0)) : null,
+                windowMinutes: window && window.windowMinutes ? Number(window.windowMinutes) : null,
+                resetsAt: window && window.resetsAt ? String(window.resetsAt) : null
+            });
+        }
+        // Pinned first, then the most used; failed providers last.
+        const rank = item => item.error ? -1 : (item.percent ?? 0);
+        items.sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (rank(b) - rank(a)));
+        return {version: 1, updatedAt: new Date().toISOString(), remaining: showRemainingQuota, items: items};
+    }
+    onProvidersChanged: dashSnapshotTimer.restart()
+    Timer {
+        id: dashSnapshotTimer
+        interval: 500
+        onTriggered: {
+            if (root.providers.length === 0 || root._pluginDir.length === 0)
+                return;
+            Quickshell.execDetached(["sh", "-c", "umask 077; d=\"${1%/*}\"; mkdir -p \"$d\" && printf '%s' \"$2\" > \"$1.tmp\" && mv -f \"$1.tmp\" \"$1\"",
+                "sh", root.dashSnapshotPath, JSON.stringify(root.dashSnapshot())]);
+        }
+    }
+
     // Manifest reader backing the popout version pill. The path binding
     // re-evaluates once _pluginDir is resolved above, so the pill appears as
     // soon as plugin.json has been read.

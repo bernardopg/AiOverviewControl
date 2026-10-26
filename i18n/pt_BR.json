@@ -384,5 +384,11 @@
   "resets.result_cooldown": "O provedor pediu para esperar antes de outro reset. Nada foi usado.",
   "resets.result_auth": "O provedor recusou o login. Abra a CLI dele uma vez e tente de novo.",
   "resets.result_unavailable": "Nenhum reset pôde ser usado agora.",
-  "resets.result_error": "O reset não foi confirmado. Confira seus limites antes de tentar de novo."
+  "resets.result_error": "O reset não foi confirmado. Confira seus limites antes de tentar de novo.",
+  "dash.reset_minutes": "reinicia em {count} min",
+  "dash.reset_hours": "reinicia em {count} h",
+  "dash.reset_days": "reinicia em {count} d",
+  "dash.title": "Cota de IA usada",
+  "dash.title_remaining": "Cota de IA restante",
+  "dash.empty": "Abra o widget AiOverviewControl uma vez para carregar os provedores."
 }

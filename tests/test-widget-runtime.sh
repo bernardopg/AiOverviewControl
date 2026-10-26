@@ -130,6 +130,7 @@ ShellRoot {
         Loader { id: hPill; sourceComponent: widget.horizontalBarPill }
         Loader { id: vPill; sourceComponent: widget.verticalBarPill }
         Plugin.AiOverviewControlSettings { id: settings; visible: false; pluginService: service }
+        Plugin.AiOverviewDashCard { id: dashCard; width: 300; height: 300 }
     }
     Plugin.AiOverviewSettingsWindow { visible: false }
     // DMS injects pluginService after the component is built; this instance
@@ -429,10 +430,14 @@ ShellRoot {
                 }
                 confirm.triggered();
                 root.step = 14;
-            } else if (root.step === 14 && widget.resettingProviderId === "") {
+            } else if (root.step === 14 && widget.resettingProviderId === "" && dashCard.items.length > 0) {
                 if (!widget.lastResetResult || widget.lastResetResult.result !== "reset"
                     || widget.resetResultText(widget.lastResetResult).length === 0) {
                     console.error("SMOKE FAIL: reset result " + JSON.stringify(widget.lastResetResult)); return;
+                }
+                // The bar widget publishes a snapshot that the DankDash card reads.
+                if (dashCard.items.length === 0 || dashCard.items[0].id !== "claude" || dashCard.rows < 2) {
+                    console.error("SMOKE FAIL: dash card did not read the widget snapshot " + JSON.stringify(dashCard.snapshot)); return;
                 }
                 widget.confirmResetProviderId = "";
                 widget.allExpanded = false;

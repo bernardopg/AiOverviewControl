@@ -384,5 +384,11 @@
   "resets.result_cooldown": "Der Anbieter bittet um eine Pause vor dem nächsten Reset. Es wurde nichts verbraucht.",
   "resets.result_auth": "Der Anbieter hat die Anmeldung abgelehnt. Öffne einmal seine CLI und versuche es erneut.",
   "resets.result_unavailable": "Derzeit konnte kein Reset verwendet werden.",
-  "resets.result_error": "Der Reset wurde nicht bestätigt. Prüfe deine Limits, bevor du es erneut versuchst."
+  "resets.result_error": "Der Reset wurde nicht bestätigt. Prüfe deine Limits, bevor du es erneut versuchst.",
+  "dash.reset_minutes": "Reset in {count} Min.",
+  "dash.reset_hours": "Reset in {count} Std.",
+  "dash.reset_days": "Reset in {count} T.",
+  "dash.title": "KI-Kontingent genutzt",
+  "dash.title_remaining": "KI-Kontingent übrig",
+  "dash.empty": "Öffne das AiOverviewControl-Widget einmal, um die Anbieter zu laden."
 }

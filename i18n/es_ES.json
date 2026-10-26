@@ -384,5 +384,11 @@
   "resets.result_cooldown": "El proveedor pidió esperar antes de otro reinicio. No se usó nada.",
   "resets.result_auth": "El proveedor rechazó la sesión. Abre su CLI una vez y vuelve a intentarlo.",
   "resets.result_unavailable": "No se pudo usar ningún reinicio ahora.",
-  "resets.result_error": "El reinicio no se confirmó. Revisa tus límites antes de volver a intentarlo."
+  "resets.result_error": "El reinicio no se confirmó. Revisa tus límites antes de volver a intentarlo.",
+  "dash.reset_minutes": "se reinicia en {count} min",
+  "dash.reset_hours": "se reinicia en {count} h",
+  "dash.reset_days": "se reinicia en {count} d",
+  "dash.title": "Cuota de IA usada",
+  "dash.title_remaining": "Cuota de IA restante",
+  "dash.empty": "Abre el widget AiOverviewControl una vez para cargar los proveedores."
 }
