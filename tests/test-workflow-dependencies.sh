@@ -53,7 +53,7 @@ if 'actions/attest-build-provenance@' not in release or '--verify-tag' not in re
     errors.append('release.yml must attest provenance and publish only a pushed tag')
 if 'git verify-tag' not in release or 'origin/main:.github/release-signing-keys.asc' not in release:
     errors.append('release.yml must verify the tag signature against the keys on main')
-if 'fuzz_provider_responses.py' not in security or '--require-hashes' not in security:
+if 'fuzz_provider_responses.py' not in security or 'fuzz_local_readers.py' not in security or '--require-hashes' not in security:
     errors.append('security.yml must fuzz provider responses with hash-pinned dependencies')
 for line in Path('tests/fuzz/requirements.txt').read_text().splitlines():
     if re.match(r'^[A-Za-z0-9_.-]+', line) and not re.match(r'^[A-Za-z0-9_.-]+==[^ ]+ \\$', line):

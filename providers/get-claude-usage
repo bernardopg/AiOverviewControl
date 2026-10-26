@@ -201,9 +201,14 @@ if [ -n "$PRICING_JSON" ]; then
 fi
 
 # --- Subscription & API Usage (with a short cache to avoid rate limits) ---
-if [ -f "$CREDENTIALS" ]; then
-    SUBSCRIPTION_TYPE=$(jq -r '.claudeAiOauth.subscriptionType // "unknown"' "$CREDENTIALS")
-    RATE_LIMIT_TIER=$(jq -r '.claudeAiOauth.rateLimitTier // "unknown"' "$CREDENTIALS")
+# A truncated or hand-edited credentials file must not take the local
+# analytics down with it (jq would exit non-zero under set -e).
+if [ -f "$CREDENTIALS" ] && ! jq -e '.claudeAiOauth | type == "object"' "$CREDENTIALS" >/dev/null 2>&1; then
+    USAGE_ERROR_KIND="authentication"
+    USAGE_ERROR_MESSAGE="Claude credentials could not be read. Run: claude auth login --claudeai"
+elif [ -f "$CREDENTIALS" ]; then
+    SUBSCRIPTION_TYPE=$(jq -r '(.claudeAiOauth.subscriptionType | strings | gsub("[\\r\\n]"; " ")) // "unknown"' "$CREDENTIALS")
+    RATE_LIMIT_TIER=$(jq -r '(.claudeAiOauth.rateLimitTier | strings | gsub("[\\r\\n]"; " ")) // "unknown"' "$CREDENTIALS")
 
     # Check if cached usage data is still fresh
     USE_CACHE=false
@@ -220,7 +225,7 @@ if [ -f "$CREDENTIALS" ]; then
     if [ "$USE_CACHE" = true ]; then
         API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
     else
-        TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
+        TOKEN=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS")
         # The access token lasts about eight hours and Claude Code renews it,
         # rotating the refresh token, whenever it starts. After a reboot
         # nothing has started it yet. The plugin never rotates the token
@@ -242,7 +247,7 @@ if [ -f "$CREDENTIALS" ]; then
             printf '%s\n' "$now" > "${ACCOUNT_CACHE}/auth-renew" 2>/dev/null || true
             timeout 20 "$cli" auth status >/dev/null 2>&1 </dev/null || true
             local renewed
-            renewed=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS" 2>/dev/null || true)
+            renewed=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS" 2>/dev/null || true)
             [ -n "$renewed" ] && [ "$renewed" != "$TOKEN" ] || return 1
             TOKEN="$renewed"
         }
@@ -351,7 +356,7 @@ if [ -f "$CREDENTIALS" ]; then
     fi
     if [ "$PREPAID_FRESH" != true ] && [ -z "$USAGE_ERROR_KIND" ] \
         && ORG_UUID="$(claude_org_uuid "$CLAUDE_DIR")"; then
-        TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
+        TOKEN=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS")
         prepaid_body=$(mktemp)
         prepaid_status=$(curl -sS --max-time 8 -o "$prepaid_body" -w '%{http_code}' \
             --config <(curl_header_config "Authorization: Bearer ${TOKEN}") \

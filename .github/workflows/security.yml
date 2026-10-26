@@ -68,7 +68,7 @@ jobs:
   fuzz:
     name: Fuzz provider responses
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -87,6 +87,16 @@ jobs:
           seconds=120
           if [ "$EVENT_NAME" = "schedule" ]; then seconds=900; fi
           /tmp/fuzz-venv/bin/python tests/fuzz/fuzz_provider_responses.py \
+            -max_total_time="$seconds" -timeout=60
+
+      - name: Fuzz local readers
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          # Transcripts, session logs, SQLite rows and CLI auth files.
+          seconds=120
+          if [ "$EVENT_NAME" = "schedule" ]; then seconds=900; fi
+          /tmp/fuzz-venv/bin/python tests/fuzz/fuzz_local_readers.py \
             -max_total_time="$seconds" -timeout=60
 
   workflows:

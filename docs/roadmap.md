@@ -37,8 +37,6 @@ of its own in between.
 
 - Keep shell statement coverage at 80% or more, and raise the weakest files
   (provider health checks, Hermes analytics, the dispatcher) toward 90%.
-- Extend fuzzing beyond the API-key adapters to the local readers (transcripts,
-  SQLite databases, OAuth files).
 - Keep the supply-chain controls current: SHA-pinned actions, checksum-verified
   CI tools, signed release provenance, secret scanning and the OpenSSF
   Scorecard.

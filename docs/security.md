@@ -135,14 +135,16 @@ expectations. To report a vulnerability, follow
 - Dynamic analysis: atheris fuzzes every API-key adapter with arbitrary HTTP
   statuses and bodies on each PR, push to `main` and weekly
   ([fuzz_provider_responses.py](../tests/fuzz/fuzz_provider_responses.py)),
+  and the local readers with arbitrary transcripts, session logs, SQLite rows
+  and CLI auth files ([fuzz_local_readers.py](../tests/fuzz/fuzz_local_readers.py)),
   directly and under ClusterFuzzLite ([.clusterfuzzlite/](../.clusterfuzzlite/)).
 - Signed release tags and signed release provenance, verifiable with
   `git verify-tag` and `gh attestation verify`.
 
 ### Known gaps
 
-- Fuzzing covers the API-key adapters; adapters that read local CLIs,
-  databases or OAuth files are covered by fixture tests only.
+- Fuzzing does not cover the Hermes and 9Router SQLite readers or the
+  Antigravity state database; those are covered by fixture tests only.
 - The project has a single maintainer; see
   [GOVERNANCE.md](../GOVERNANCE.md#continuity-and-bus-factor).
 
