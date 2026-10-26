@@ -67,7 +67,8 @@ The project will **not**:
   one per explicit user confirmation;
 - support desktop shells other than DankMaterialShell, or DMS 1.x beyond the
   1.22.0 release;
-- estimate costs that a provider does not report: unknown cost stays unknown.
+- invent costs: local usage is priced only from a public list-price table and
+  shown as an estimate, and a model without a list price stays unknown.
 
 ## How to influence the roadmap
 

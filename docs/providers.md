@@ -768,7 +768,7 @@ telemetry panel built from `~/.codex/sessions/**/*.jsonl` (and
 | --- | --- |
 | **Source** | `event_msg` / `token_count` events. Only usage counters, `cwd`, and the model name are read — never prompt or response content. |
 | **Cumulative counters** | `total_token_usage` is cumulative for the session and is re-emitted unchanged on turns that add no tokens. The adapter sums **positive deltas** between consecutive snapshots, so repeated values are not double-counted and a counter reset (a new total lower than the previous one) restarts from zero instead of producing a negative row. `last_token_usage` is deliberately unused: it is also repeated. |
-| **Cost** | Codex sessions record no cost, so every window reports cost as unknown (`—`). Consumption against a Plus/Pro subscription is not a dollar charge, and none is invented. |
+| **Cost** | Codex sessions record tokens, not money. Each row is priced at its model's list price from LiteLLM's public table (the one the Hermes and Claude adapters use, refreshed once a day; `AIOC_NO_LITELLM=1` keeps the last snapshot): uncached input, cached input and output at their own rates. Under a Plus/Pro subscription this is what the same tokens would cost on the API, not a charge, as on the Claude card. A model with no list price stays unknown (`—`), and a window containing one reports `—` rather than a partial sum. |
 | **Bucketing** | Rows are bucketed by the event's own local calendar day (via `TZ`), unlike pi/Hermes which bucket a whole session to its start day. |
 | **Adapter** | `providers/get-local-analytics codex`, cached 120s. |
 
