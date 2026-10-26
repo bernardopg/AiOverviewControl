@@ -176,3 +176,26 @@ concurrent appends, retention, and exports without accessing real accounts.
 
 Codex now emits `windowMinutes` without an English `resetDescription`, letting
 the existing widget window-label translations choose the label in every locale.
+
+## Fuzzing
+
+`tests/fuzz/fuzz_provider_responses.py` is an [atheris](https://github.com/google/atheris)
+harness: it serves arbitrary HTTP statuses and bodies through a fake `curl` to
+every API-key adapter and fails when the dispatcher does not return exactly
+one well-formed result or when the fake credential appears in the output.
+
+```bash
+python3 -m venv /tmp/fuzz-venv
+/tmp/fuzz-venv/bin/pip install --no-deps --require-hashes -r tests/fuzz/requirements.txt
+/tmp/fuzz-venv/bin/python tests/fuzz/fuzz_provider_responses.py -max_total_time=60
+```
+
+The **Fuzz provider responses** job runs it directly, and the
+**ClusterFuzzLite** workflow runs the same harness packaged by
+`.clusterfuzzlite/build.sh`. To reproduce the ClusterFuzzLite build locally:
+
+```bash
+docker build -t aioc-cflite -f .clusterfuzzlite/Dockerfile .
+docker run --rm -e SANITIZER=address -e FUZZING_LANGUAGE=python -e FUZZING_ENGINE=libfuzzer \
+  -e ARCHITECTURE=x86_64 -v "$PWD/out:/out" aioc-cflite compile
+```

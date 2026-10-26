@@ -127,7 +127,8 @@ expectations. To report a vulnerability, follow
   self-assessment.
 - Dynamic analysis: atheris fuzzes every API-key adapter with arbitrary HTTP
   statuses and bodies on each PR, push to `main` and weekly
-  ([fuzz_provider_responses.py](../tests/fuzz/fuzz_provider_responses.py)).
+  ([fuzz_provider_responses.py](../tests/fuzz/fuzz_provider_responses.py)),
+  directly and under ClusterFuzzLite ([.clusterfuzzlite/](../.clusterfuzzlite/)).
 - Signed release tags and signed release provenance, verifiable with
   `git verify-tag` and `gh attestation verify`.
 
