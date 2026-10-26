@@ -9,6 +9,7 @@
 - **Gemini**: with a Gemini CLI sign-in, the card shows per-model daily quota from the Code Assist API the CLI uses, for accounts with a Code Assist Standard or Enterprise project (`GOOGLE_CLOUD_PROJECT` selects one). Google no longer offers Code Assist for individuals to the Gemini CLI; such an account now shows Google's reason instead of "Gemini CLI authenticated". An expired CLI token is renewed in memory and never written back. A configured API key still produces the key-check card.
 
 ### Documentation
+- `TODO.md` is grouped into the next release, partial work with its follow-up, blocked and candidate providers, CI and project health, and the roadmap adds live verification of the new spend providers and the kcov upstream report.
 - `TODO.md` lists only open work again, with the date of the last upstream check for each blocked provider and the measured coverage gaps. The roadmap now plans the ClinePass usage windows, which the Cline dashboard reads from a read-only endpoint.
 - Troubleshooting covers a missing or empty DankDash card and a refused limit reset, and the architecture guide describes the DankDash snapshot, the reset helper and the shared helper scripts added in 2.1. The NVIDIA notes reflect that build.nvidia.com replaced trial credits with rate limits.
 

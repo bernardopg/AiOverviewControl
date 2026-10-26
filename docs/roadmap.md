@@ -25,6 +25,9 @@ of its own in between.
 
 - Keep every supported provider working when its API or CLI changes, with a
   fixture test for each fix.
+- Verify the Anthropic API, OpenAI API, Ollama Cloud and Vercel AI Gateway
+  cards against live accounts, and Gemini CLI quota against a licensed Code
+  Assist project, then pin a sanitized live fixture for each.
 - Show the ClinePass 5-hour, weekly and monthly usage windows from the
   read-only endpoint the Cline dashboard uses, once its shape is verified
   against a live account.
@@ -33,12 +36,17 @@ of its own in between.
   Portal half of Hermes. These are checked monthly; no work starts until the
   upstream endpoint exists.
 - Add new providers on request through the provider request form, when the
-  provider offers a documented or stable read-only usage source.
+  provider offers a documented or stable read-only usage source. JetBrains AI
+  and Windsurf are candidates once their local usage files can be read from a
+  licensed install.
 
 ### Quality and security
 
-- Keep shell statement coverage at 80% or more, and raise the weakest files
-  (provider health checks, Hermes analytics, the dispatcher) toward 90%.
+- Keep total shell statement coverage at 90% or more (the CI gate stays at
+  80%), and raise the files still below 80% (Hermes analytics, OpenCode, limit
+  resets, local analytics) toward 90%.
+- Report kcov's lost line tracking after multi-line quoted arguments upstream,
+  and drop the documented caveat once a fixed kcov ships.
 - Keep the supply-chain controls current: SHA-pinned actions, checksum-verified
   CI tools, signed release provenance, secret scanning and the OpenSSF
   Scorecard.
