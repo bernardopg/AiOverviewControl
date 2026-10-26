@@ -4,6 +4,7 @@
 
 ### Documentation
 - `TODO.md` lists only open work again, with the date of the last upstream check for each blocked provider and the measured coverage gaps. The roadmap now plans the ClinePass usage windows, which the Cline dashboard reads from a read-only endpoint.
+- Troubleshooting covers a missing or empty DankDash card and a refused limit reset, and the architecture guide describes the DankDash snapshot, the reset helper and the shared helper scripts added in 2.1. The NVIDIA notes reflect that build.nvidia.com replaced trial credits with rate limits.
 
 ## 2.1.1 - 2026-10-26
 
