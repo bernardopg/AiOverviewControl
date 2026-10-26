@@ -118,6 +118,41 @@ jobs:
           [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { cat /tmp/sway.log; exit 1; }
           tests/test-widget-runtime.sh
 
+  # ─── coverage ────────────────────────────────────────────────────────────────
+  coverage:
+    name: Statement coverage
+    runs-on: ubuntu-latest
+    # Ubuntu 24.04 does not package kcov; Arch ships it.
+    container: archlinux:base
+    timeout-minutes: 40
+    steps:
+      - name: Install kcov and test prerequisites
+        # Retried: a single flaky Arch mirror read otherwise fails the job.
+        run: |
+          for attempt in 1 2 3; do
+            pacman -Syu --noconfirm bash curl diffutils git jq kcov python shellcheck sqlite unzip zip && exit 0
+            sleep $((attempt * 10))
+          done
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Statements of the shell adapters and scripts, measured by kcov over every
+      # non-QML suite; scripts/coverage-report drops the bodies of embedded jq
+      # programs and heredocs, which kcov reports as unexecuted lines.
+      - name: Measure coverage (minimum 80%)
+        env:
+          AIOC_COVERAGE_MIN: "80"
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          scripts/coverage /tmp/coverage
+          {
+            echo "## Statement coverage"
+            echo '```'
+            cat /tmp/coverage/files.tsv
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ─── workflow lint ───────────────────────────────────────────────────────────
   actionlint:
     name: Workflow lint
@@ -279,7 +314,7 @@ jobs:
         run: |
           find providers -type f -print0 | xargs -0 -n 1 bash -n
           find tests -maxdepth 1 -name '*.sh' -type f -print0 | xargs -0 -n 1 bash -n
-          printf '%s\0' scripts/package-release scripts/check-metadata scripts/check-dco scripts/reload-plugin .githooks/pre-push | xargs -0 -n 1 bash -n
+          printf '%s\0' scripts/package-release scripts/check-metadata scripts/check-dco scripts/coverage scripts/reload-plugin .githooks/pre-push | xargs -0 -n 1 bash -n
           bash -n scripts/render-contributors
 
       - name: Confirm all scripts are executable
@@ -297,7 +332,7 @@ jobs:
               FAIL=1
             fi
           done < <(find tests -maxdepth 1 -name '*.sh' -type f -print0)
-          for f in scripts/package-release scripts/render-contributors scripts/check-dco; do
+          for f in scripts/package-release scripts/render-contributors scripts/check-dco scripts/coverage scripts/coverage-report; do
             if [ ! -x "$f" ]; then
               echo "::error::Not executable: ${f}"
               FAIL=1
@@ -318,7 +353,7 @@ jobs:
       - name: shellcheck — all provider, test, and packaging scripts (warning level)
         run: |
           find providers -type f -print0 | xargs -0 /tmp/shellcheck -S warning
-          /tmp/shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/check-dco scripts/reload-plugin .githooks/pre-push
+          /tmp/shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/check-dco scripts/coverage scripts/reload-plugin .githooks/pre-push
 
       - name: Provider dispatch coverage
         run: |
@@ -708,6 +743,50 @@ jobs:
 
       - name: Integration test — Codex/OpenCode local analytics
         run: tests/test-local-analytics.sh
+
+      - name: Branch coverage suites (pi analytics and per-adapter edge cases)
+        run: |
+          tests/test-coverage-report.sh
+          tests/test-cov-a-entrypoints.sh
+          tests/test-cov-a-exchange.sh
+          tests/test-cov-a-scripts.sh
+          tests/test-cov-b-9router.sh
+          tests/test-cov-b-antigravity.sh
+          tests/test-cov-b-claude.sh
+          tests/test-cov-b-codex.sh
+          tests/test-cov-b-copilot.sh
+          tests/test-cov-b-hermes.sh
+          tests/test-cov-c-cursor-auth.sh
+          tests/test-cov-c-zai-glm.sh
+          tests/test-cov-c2-cline.sh
+          tests/test-cov-c2-commandcode.sh
+          tests/test-cov-c2-cursor.sh
+          tests/test-cov-c2-kimi-code.sh
+          tests/test-cov-c2-kimi.sh
+          tests/test-cov-c2-neuralwatt.sh
+          tests/test-cov-c2-opencode.sh
+          tests/test-cov-c2-openrouter.sh
+          tests/test-cov-c2-zai-glm.sh
+          tests/test-cov-d-simple-api.sh
+          tests/test-cov-d2-ai21.sh
+          tests/test-cov-d2-byteplus.sh
+          tests/test-cov-d2-cloudflare.sh
+          tests/test-cov-d2-cohere.sh
+          tests/test-cov-d2-deepseek.sh
+          tests/test-cov-d2-fireworks.sh
+          tests/test-cov-d2-gemini.sh
+          tests/test-cov-d2-groq.sh
+          tests/test-cov-d2-kilo.sh
+          tests/test-cov-d2-minimax.sh
+          tests/test-cov-d2-mistral.sh
+          tests/test-cov-d2-nvidia.sh
+          tests/test-cov-d2-ollama.sh
+          tests/test-cov-d2-qwen.sh
+          tests/test-cov-d2-replicate.sh
+          tests/test-cov-d2-together.sh
+          tests/test-cov-d2-vertexai.sh
+          tests/test-cov-d2-xai.sh
+          tests/test-pi-analytics.sh
 
       - name: Smoke test — all stubs delegate correctly (structure check)
         run: |

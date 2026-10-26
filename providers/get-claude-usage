@@ -17,6 +17,9 @@ USAGE_CACHE="${ACCOUNT_CACHE}/claude-usage-cache.json"
 TRANSCRIPTS_CACHE="${ACCOUNT_CACHE}/claude-transcripts.tsv"
 VERSION_CACHE="${CACHE_DIR}/claude-version-cache.json"
 USAGE_CACHE_TTL=120  # seconds
+# A usage snapshot is valid with the canonical `limits[]` array (Claude 5) or
+# the older flat five_hour object; either one feeds the parser below.
+USAGE_VALID='(.limits | type == "array" and length > 0) or (.five_hour | type == "object")'
 VERSION_CACHE_TTL=86400  # seconds: the CLI version changes on upgrade, not per refresh
 LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
@@ -195,7 +198,7 @@ if [ -f "$CREDENTIALS" ]; then
         now_ts=$(date +%s)
         age=$(( now_ts - cache_ts ))
         if [ "$age" -ge 0 ] && [ "$age" -lt "$USAGE_CACHE_TTL" ] \
-            && jq -e '.data.five_hour | type == "object"' "$USAGE_CACHE" >/dev/null 2>&1; then
+            && jq -e ".data | ${USAGE_VALID}" "$USAGE_CACHE" >/dev/null 2>&1; then
             USE_CACHE=true
         fi
     fi
@@ -215,14 +218,14 @@ if [ -f "$CREDENTIALS" ]; then
                 "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
 
             if [ "$usage_status" = "200" ] \
-                && jq -e '.five_hour | type == "object"' "$usage_body" >/dev/null 2>&1; then
+                && jq -e "${USAGE_VALID}" "$usage_body" >/dev/null 2>&1; then
                 API_RESPONSE=$(cat "$usage_body")
                 jq -n --argjson data "$API_RESPONSE" '{cached_at: (now | floor), data: $data}' > "$USAGE_CACHE" 2>/dev/null
             elif [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; then
                 # Credentials are genuinely invalid — stale data would mislead.
                 USAGE_ERROR_KIND="authentication"
                 USAGE_ERROR_MESSAGE="Claude OAuth credentials are invalid or expired. Run: claude auth login --claudeai"
-            elif jq -e '.data.five_hour | type == "object"' "$USAGE_CACHE" >/dev/null 2>&1; then
+            elif jq -e ".data | ${USAGE_VALID}" "$USAGE_CACHE" >/dev/null 2>&1; then
                 # Transient failure (429, 5xx, network): fall back to the last
                 # good snapshot even past its TTL instead of erroring the card.
                 API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')

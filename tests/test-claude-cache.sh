@@ -70,7 +70,7 @@ bash "$ROOT/providers/get-claude-usage" > /dev/null
 # --- Caches never pollute ~/.claude; stats-cache.json is still read ---
 ! find "$CLAUDE_CONFIG_DIR" -name "*cache*.json" ! -name "stats-cache.json" | grep -q . \
   || fail "plugin wrote a cache into CLAUDE_CONFIG_DIR"
-bash "$ROOT/providers/get-claude-usage" | grep -q '^ALLTIME_MESSAGES=42$' \
+grep -q '^ALLTIME_MESSAGES=42$' <<<"$(bash "$ROOT/providers/get-claude-usage")" \
   || fail "stats-cache.json no longer read"
 
 # --- Per-file cache: unreadable-but-unchanged transcripts still served from cache ---
@@ -85,7 +85,7 @@ chmod 644 "$CLAUDE_PROJECTS/session1.jsonl"
 jq -cn --arg ts "$NOW" \
   '{type:"assistant",timestamp:$ts,sessionId:"s2",cwd:"/proj2",message:{model:"claude-opus-4",usage:{input_tokens:2000,output_tokens:1000}}}' \
   > "$CLAUDE_PROJECTS/session2.jsonl"
-bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4500$' \
+grep -q '^WEEK_TOKENS=4500$' <<<"$(bash "$ROOT/providers/get-claude-usage")" \
   || fail "added transcript not picked up"
 
 # --- Per-file cache: an appended transcript is the only one re-parsed ---
@@ -96,7 +96,7 @@ jq -cn --arg ts "$NOW" \
   '{type:"assistant",timestamp:$ts,sessionId:"s2",cwd:"/proj2",message:{model:"claude-opus-4",usage:{input_tokens:100,output_tokens:0}}}' \
   >> "$CLAUDE_PROJECTS/session2.jsonl"
 : > "$JQ_LOG"
-bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' \
+grep -q '^WEEK_TOKENS=4600$' <<<"$(bash "$ROOT/providers/get-claude-usage")" \
   || fail "appended row not counted"
 [ "$(cat "$JQ_LOG")" = "./-home-user-proj/session2.jsonl" ] \
   || fail "expected only session2 re-parsed, got: $(tr '\n' ' ' < "$JQ_LOG")"
@@ -105,13 +105,13 @@ bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' \
 printf '%s\n' '{"type":"user"}' >> "$CLAUDE_PROJECTS/session1.jsonl"
 JQ_FAIL=1 bash "$ROOT/providers/get-claude-usage" > /dev/null
 : > "$JQ_LOG"
-bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "retry after failed parse wrong"
+grep -q '^WEEK_TOKENS=4600$' <<<"$(bash "$ROOT/providers/get-claude-usage")" || fail "retry after failed parse wrong"
 [ "$(cat "$JQ_LOG")" = "./-home-user-proj/session1.jsonl" ] || fail "failed parse was cached instead of retried"
 
 # --- A UTC-offset change rebuilds the date-bucketed rows ---
 sed -i '1s/.*/#aioc-claude-transcripts v1 +9999/' "$PROFILE_CACHE/claude-transcripts.tsv"
 : > "$JQ_LOG"
-bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "rebuild after offset change wrong"
+grep -q '^WEEK_TOKENS=4600$' <<<"$(bash "$ROOT/providers/get-claude-usage")" || fail "rebuild after offset change wrong"
 [ "$(wc -l < "$JQ_LOG")" -eq 2 ] || fail "offset change did not re-parse every transcript"
 
 # --- A run killed mid-parse removes its partial transcript rewrite ---
@@ -131,7 +131,7 @@ touch "$PROFILE_CACHE/claude-transcripts.tsv.Ab12Cd" \
   "$XDG_CACHE_HOME/AiOverviewControl/claude-transcripts.tsv" \
   "$XDG_CACHE_HOME/AiOverviewControl/claude-transcripts.tsv.Ef34Gh" \
   "$XDG_CACHE_HOME/AiOverviewControl/claude-usage-cache.json"
-bash "$ROOT/providers/get-claude-usage" | grep -q '^WEEK_TOKENS=4600$' || fail "sweep broke aggregation"
+grep -q '^WEEK_TOKENS=4600$' <<<"$(bash "$ROOT/providers/get-claude-usage")" || fail "sweep broke aggregation"
 [ -z "$(find "$XDG_CACHE_HOME/AiOverviewControl" -maxdepth 1 -name 'claude-transcripts.tsv*' -o -maxdepth 1 -name 'claude-usage-cache.json')" ] \
   || fail "unscoped legacy Claude caches survived"
 [ -z "$(find "$PROFILE_CACHE" -name 'claude-transcripts.tsv.*')" ] || fail "orphaned transcript rewrite survived"

@@ -69,7 +69,9 @@ while IFS= read -r -d '' f; do
   summary="$(jq -c -n -R '
     reduce inputs as $line (
       {cwd: null, curModel: null, tokens: 0, cost: 0, byModel: {}};
-      ($line | fromjson?) as $obj
+      # A malformed line must not empty the update: in jq 1.7+ that resets the
+      # reduce state and drops every earlier line of the session.
+      (($line | fromjson?) // null) as $obj
       | if $obj == null then .
         elif $obj.type == "session" then .cwd = ($obj.cwd // .cwd)
         elif $obj.type == "model_change" then
