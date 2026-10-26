@@ -8,13 +8,18 @@
 - **Vercel AI Gateway** (`AI_GATEWAY_API_KEY`): AI Gateway Credits balance and total used from the official `/v1/credits`.
 - **Gemini**: with a Gemini CLI sign-in, the card shows per-model daily quota from the Code Assist API the CLI uses, for accounts with a Code Assist Standard or Enterprise project (`GOOGLE_CLOUD_PROJECT` selects one). Google no longer offers Code Assist for individuals to the Gemini CLI; such an account now shows Google's reason instead of "Gemini CLI authenticated". An expired CLI token is renewed in memory and never written back. A configured API key still produces the key-check card.
 
+### Fixes
+- The DankDash card fits its provider rows into the padded content area, so the last row no longer runs into the bottom edge, and its usage bars use the theme's height, rounding and spacing like the DMS example cards.
+
 ### Documentation
+- The README states "40+ providers", which only changes at the next ten, lists provider examples that match the coverage matrix, points at the 2.1 notes and links the development gates.
 - `TODO.md` is grouped into the next release, partial work with its follow-up, blocked and candidate providers, CI and project health, and the roadmap adds live verification of the new spend providers and the kcov upstream report.
 - `TODO.md` lists only open work again, with the date of the last upstream check for each blocked provider and the measured coverage gaps. The roadmap now plans the ClinePass usage windows, which the Cline dashboard reads from a read-only endpoint.
 - Troubleshooting covers a missing or empty DankDash card and a refused limit reset, and the architecture guide describes the DankDash snapshot, the reset helper and the shared helper scripts added in 2.1. The NVIDIA notes reflect that build.nvidia.com replaced trial credits with rate limits.
 
 ### Quality
 - Statement coverage counts a multi-line command as covered when kcov records its hit on the closing line, and new tests cover the missing-prerequisite results of every provider health check, the Copilot helper hand-off, a failed Antigravity token refresh (the refresh token never reaches the output) and Hermes analytics cache recovery. `docs/development-gates.md` notes the kcov limitation that still understates the Hermes and OpenCode analytics files.
+- Statement coverage rises to 97.8% and the CI gate to 95%. The Hermes analytics and summary, limit resets, OpenCode, local analytics, quota alert, history export, 9Router and package checks now reach 100%. CI builds kcov from a pinned, checksum-verified commit that keeps line tracking after multi-line SQL, and the coverage report no longer counts lines bash never traces (empty case branches, array continuations, redirected block ends).
 
 ## 2.1.1 - 2026-10-26
 

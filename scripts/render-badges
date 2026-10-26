@@ -17,11 +17,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Prose that states the provider count, per README. Each pattern has exactly
-# one group: the number.
+# one group: the count. Prose rounds down to a multiple of ten ("40+"), so it
+# only changes when the catalog reaches the next ten; the badge stays exact.
 PROSE = {
-    'README.md': [r'usage for (\d+) AI providers', r'One dashboard, (\d+) providers'],
-    'docs/README.pt-BR.md': [r'uso local de (\d+) provedores de IA', r'Um painel, (\d+) provedores'],
+    'README.md': [r'usage for (\d+\+?) AI providers', r'One dashboard, (\d+\+?) providers'],
+    'docs/README.pt-BR.md': [r'uso local de (\d+\+?) provedores de IA', r'Um painel, (\d+\+?) provedores'],
 }
+
+
+def prose_count(providers):
+    return f'{providers // 10 * 10}+' if providers >= 10 else str(providers)
 
 
 def counts():
@@ -58,7 +63,7 @@ def main():
         for pattern in patterns:
             if not re.search(pattern, updated):
                 sys.exit(f'render-badges: {name} no longer matches {pattern!r}')
-            updated = re.sub(pattern, lambda m: m.group(0).replace(m.group(1), str(data['providers'])), updated)
+            updated = re.sub(pattern, lambda m: m.group(0).replace(m.group(1), prose_count(data['providers'])), updated)
         if updated != text:
             stale.append(name)
             if not check:
