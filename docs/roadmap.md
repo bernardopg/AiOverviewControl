@@ -25,10 +25,13 @@ of its own in between.
 
 - Keep every supported provider working when its API or CLI changes, with a
   fixture test for each fix.
-- Surface richer data when upstream exposes it read-only: NVIDIA NIM balance,
-  ClinePass usage windows, Mistral rate-limit data, BytePlus per-model quotas
-  and the Nous Portal half of Hermes. These are checked monthly; no work starts
-  until the upstream endpoint exists.
+- Show the ClinePass 5-hour, weekly and monthly usage windows from the
+  read-only endpoint the Cline dashboard uses, once its shape is verified
+  against a live account.
+- Surface richer data when upstream exposes it read-only: NVIDIA NIM rate
+  limits, Mistral rate-limit data, BytePlus per-model quotas and the Nous
+  Portal half of Hermes. These are checked monthly; no work starts until the
+  upstream endpoint exists.
 - Add new providers on request through the provider request form, when the
   provider offers a documented or stable read-only usage source.
 
