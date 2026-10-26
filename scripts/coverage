@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Measure statement coverage of the shell adapters and scripts with kcov.
-# Usage: scripts/coverage [OUTPUT_DIR]; AIOC_COVERAGE_MIN=80 fails below 80%.
+# Usage: scripts/coverage [OUTPUT_DIR]; AIOC_COVERAGE_MIN=80 fails below 80%,
+# AIOC_COVERAGE_JOBS sets the parallel suites (default: CPU count).
 # Requires kcov and python3.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,22 +12,26 @@ rm -rf "$OUT"
 mkdir -p "$OUT/runs"
 cd "$ROOT"
 
-failed=0
-for test in tests/test-*.sh; do
-    case "$test" in
-        # QML suites exercise Quickshell components, not the shell adapters.
-        tests/test-widget-runtime.sh|tests/test-qml-smoke.sh|tests/test-currency-qml.sh) continue ;;
-    esac
+# One kcov run per suite, in parallel: suites use their own temp dirs, and a
+# serial run takes longer than a CI job allows.
+run_one() {
+    local test="$1" name
     name="$(basename "$test" .sh)"
     if ! kcov --include-path="$ROOT/providers,$ROOT/scripts" --exclude-path="$ROOT/scripts/coverage,$ROOT/scripts/coverage-report" \
         --bash-parse-files-in-dir="$ROOT/providers,$ROOT/scripts" \
         "$OUT/runs/$name" "$test" >"$OUT/runs/$name.log" 2>&1; then
         echo "FAIL under kcov: $test (see $OUT/runs/$name.log)" >&2
-        failed=1
+        touch "$OUT/failed"
     fi
-done
+}
+export -f run_one
+export ROOT OUT
+# QML suites exercise Quickshell components, not the shell adapters.
+find tests -maxdepth 1 -name 'test-*.sh' \
+    ! -name test-widget-runtime.sh ! -name test-qml-smoke.sh ! -name test-currency-qml.sh -print0 \
+    | sort -z | xargs -0 -n 1 -P "${AIOC_COVERAGE_JOBS:-$(nproc)}" bash -c 'run_one "$1"' _
 kcov --merge "$OUT/merged" "$OUT"/runs/test-*/ >/dev/null
-[[ "$failed" -eq 0 ]] || exit 1
+[[ ! -e "$OUT/failed" ]] || exit 1
 # kcov's raw percentage counts the bodies of embedded jq/awk programs and
 # heredocs as unexecuted statements; coverage-report counts statements only.
 "$ROOT/scripts/coverage-report" "$OUT/merged/kcov-merged/codecov.json" "$ROOT" \
