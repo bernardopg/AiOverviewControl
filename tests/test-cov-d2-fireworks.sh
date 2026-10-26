@@ -51,5 +51,5 @@ result="$(run)"; jq -e '.[0].source == "fireworks-api"' <<<"$result" >/dev/null
 # Quota API down but the key works: an authenticated note, with or without an account id.
 result="$(COV_MODELS_STATUS=200 run)"
 jq -e '.[0].error == null and .[0].usage.accountEmail == "Fireworks AI account acct-test"' <<<"$result" >/dev/null
-result="$(COV_MODELS_STATUS=200 FIREWORKS_ACCOUNT_ID= run)"
+result="$(COV_MODELS_STATUS=200 FIREWORKS_ACCOUNT_ID='' run)"
 jq -e '.[0].error == null and (.[0].usage.primary.resetDescription | contains("set FIREWORKS_ACCOUNT_ID"))' <<<"$result" >/dev/null
