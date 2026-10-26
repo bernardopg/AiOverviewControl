@@ -37,14 +37,9 @@ if (cd "$TMP/repo" && "$ROOT/scripts/check-dco" "$base" HEAD) >"$TMP/dco.out" 2>
 fi
 grep -q 'DCO check failed' "$TMP/dco.out"
 
-# The metadata gate is offline and checks the repository's actual metadata.
-# This new test is intentionally not registered because the brief forbids CI
-# edits; verify the metadata gate reaches and reports that exact guard.
-if "$ROOT/scripts/check-metadata" >"$TMP/metadata.out" 2>&1; then
-  echo 'check-metadata unexpectedly accepted an unregistered coverage test' >&2
-  exit 1
-fi
-grep -q 'test-cov-a-entrypoints.sh' "$TMP/metadata.out"
+# The metadata gate is offline and passes on the repository's own metadata;
+# its rejection cases live in tests/test-metadata.sh.
+"$ROOT/scripts/check-metadata" | grep -q '^Metadata OK:'
 
 # Render contributors in an isolated checkout with a deterministic gh stub.
 mkdir -p "$TMP/render/scripts" "$TMP/render/docs" "$TMP/render/bin"
