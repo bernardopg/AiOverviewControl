@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.1.1 - 2026-10-26
+
+A patch release for DMS 2.0. The DankDash card name and its options are now translated into every plugin language. Settings, profiles, pins and history carry over unchanged; if the card is missing from **Add widget** after upgrading from 2.0.x, run `dms restart` once.
+Long-form notes: [docs/releases/2.1.1.md](docs/releases/2.1.1.md).
+
 ### Fixes
 - The DankDash card name and its options (**AI quotas**, **Providers**, **Fit to size**, **Tone** and the tone choices) are now translated into Portuguese, Spanish, German and Chinese. DMS renders these `plugin.json` strings itself and reads their translations from the new `translations/` directory, which follows the DMS language. `tests/test-i18n.sh` fails when a manifest string lacks a translation in any locale.
 
