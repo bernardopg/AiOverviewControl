@@ -238,7 +238,11 @@ def main():
     args = [arg for arg in sys.argv if not arg.startswith("--corpus=")]
     corpus = next((arg.split("=", 1)[1] for arg in sys.argv if arg.startswith("--corpus=")), None)
     corpus_dir = Path(corpus) if corpus else WORK / "corpus"
-    seed_corpus(corpus_dir)
+    # ClusterFuzzLite ships the seeds as a corpus zip, and its build check
+    # expects only the runs it asks for, so a bundle starts empty.
+    if not BUNDLE:
+        seed_corpus(corpus_dir)
+    corpus_dir.mkdir(parents=True, exist_ok=True)
     try:
         atheris.Setup(args + [str(corpus_dir)], test_one_input)
         atheris.Fuzz()
