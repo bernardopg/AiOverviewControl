@@ -1,0 +1,8 @@
+{
+  "allowedTiers": [
+    { "id": "standard-tier", "name": "Gemini Code Assist", "isDefault": true, "userDefinedCloudaicompanionProject": true }
+  ],
+  "ineligibleTiers": [
+    { "tierId": "free-tier", "reasonCode": "UNSUPPORTED_CLIENT", "reasonMessage": "This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products: https://antigravity.google" }
+  ]
+}

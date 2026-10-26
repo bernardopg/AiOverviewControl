@@ -167,6 +167,10 @@ status_for() {
     ollama) command -v ollama >/dev/null 2>&1 || { status="missing"; detail="ollama CLI"; } ;;
     nvidia|nim) has_any_env NVIDIA_API_KEY || { status="missing"; detail="NVIDIA_API_KEY"; } ;;
     neuralwatt) has_any_env NEURALWATT_API_KEY || { status="missing"; detail="NEURALWATT_API_KEY"; } ;;
+    ollama-cloud) has_any_env OLLAMA_API_KEY || { status="missing"; detail="OLLAMA_API_KEY"; } ;;
+    anthropic|anthropic-api) has_any_env ANTHROPIC_ADMIN_KEY ANTHROPIC_ADMIN_API_KEY || { status="missing"; detail="ANTHROPIC_ADMIN_KEY (Admin API key)"; } ;;
+    openai|openai-api) has_any_env OPENAI_ADMIN_KEY || { status="missing"; detail="OPENAI_ADMIN_KEY (Admin API key)"; } ;;
+    vercel|ai-gateway) has_any_env AI_GATEWAY_API_KEY || { status="missing"; detail="AI_GATEWAY_API_KEY"; } ;;
     cline) has_any_env CLINE_API_KEY || has_cline_cli_login || { status="missing"; detail="CLINE_API_KEY or an unexpired Cline CLI sign-in"; } ;;
     cloudflare) has_any_env CLOUDFLARE_AI_TOKEN CLOUDFLARE_API_TOKEN || { status="missing"; detail="Cloudflare API token"; } ;;
     vertexai|vertex) command -v gcloud >/dev/null 2>&1 || { status="missing"; detail="gcloud CLI"; } ;;

@@ -142,6 +142,14 @@ source "$SCRIPT_DIR/native/ollama.bash"
 source "$SCRIPT_DIR/native/nvidia.bash"
 # shellcheck source=providers/native/neuralwatt.bash
 source "$SCRIPT_DIR/native/neuralwatt.bash"
+# shellcheck source=providers/native/ollama-cloud.bash
+source "$SCRIPT_DIR/native/ollama-cloud.bash"
+# shellcheck source=providers/native/anthropic.bash
+source "$SCRIPT_DIR/native/anthropic.bash"
+# shellcheck source=providers/native/openai.bash
+source "$SCRIPT_DIR/native/openai.bash"
+# shellcheck source=providers/native/vercel.bash
+source "$SCRIPT_DIR/native/vercel.bash"
 # shellcheck source=providers/native/cline.bash
 source "$SCRIPT_DIR/native/cline.bash"
 # shellcheck source=providers/native/cloudflare.bash
@@ -1119,6 +1127,18 @@ fetch_provider() {
       ;;
     neuralwatt)
       fetch_neuralwatt_native
+      ;;
+    ollama-cloud)
+      fetch_ollama_cloud_native
+      ;;
+    anthropic|anthropic-api)
+      fetch_anthropic_native
+      ;;
+    openai|openai-api)
+      fetch_openai_native
+      ;;
+    vercel|ai-gateway)
+      fetch_vercel_native
       ;;
     cloudflare)
       fetch_cloudflare_native

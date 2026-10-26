@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Providers
+- **Anthropic API** (`ANTHROPIC_ADMIN_KEY`) and **OpenAI API** (`OPENAI_ADMIN_KEY`): month-to-date and today's spend of a Claude Console or OpenAI Platform organization from the official Admin cost APIs. Neither API exposes a balance or budget, so `ANTHROPIC_MONTHLY_BUDGET_USD` / `OPENAI_MONTHLY_BUDGET_USD` optionally turn the month into a percentage. Subscription limits stay on the Claude and Codex cards.
+- **Ollama Cloud** (`OLLAMA_API_KEY`): included monthly credits, or the session and weekly limits of a legacy plan, plus purchased credits, from the official `/api/balance`. The local Ollama card is unchanged.
+- **Vercel AI Gateway** (`AI_GATEWAY_API_KEY`): AI Gateway Credits balance and total used from the official `/v1/credits`.
+- **Gemini**: with a Gemini CLI sign-in, the card shows per-model daily quota from the Code Assist API the CLI uses, for accounts with a Code Assist Standard or Enterprise project (`GOOGLE_CLOUD_PROJECT` selects one). Google no longer offers Code Assist for individuals to the Gemini CLI; such an account now shows Google's reason instead of "Gemini CLI authenticated". An expired CLI token is renewed in memory and never written back. A configured API key still produces the key-check card.
+
 ### Documentation
 - `TODO.md` lists only open work again, with the date of the last upstream check for each blocked provider and the measured coverage gaps. The roadmap now plans the ClinePass usage windows, which the Cline dashboard reads from a read-only endpoint.
 - Troubleshooting covers a missing or empty DankDash card and a refused limit reset, and the architecture guide describes the DankDash snapshot, the reset helper and the shared helper scripts added in 2.1. The NVIDIA notes reflect that build.nvidia.com replaced trial credits with rate limits.

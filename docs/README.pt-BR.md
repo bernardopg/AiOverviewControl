@@ -7,7 +7,7 @@
 **Todas as cotas de IA que você paga, ao vivo na sua DankBar.**
 
 Um plugin para o [DankMaterialShell](https://github.com/duxlabs-dev/dux-shell) que acompanha
-cota, cobrança, autenticação e uso local de 39 provedores de IA — localmente, com honestidade
+cota, cobrança, autenticação e uso local de 43 provedores de IA — localmente, com honestidade
 e sem nenhum serviço externo.
 
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
@@ -55,7 +55,7 @@ painéis. Nada de porcentagens inventadas.
 <tr>
 <td width="50%" valign="top">
 
-**📊 Um painel, 39 provedores**<br />
+**📊 Um painel, 43 provedores**<br />
 Cota, saldo, analytics e autenticação lado a lado, com visão geral da frota:
 carga média, provedor mais usado e próximo reset.
 
@@ -154,9 +154,9 @@ Prefere um arquivo de release ou um checkout do git? Veja [Instalação](./insta
 
 | Cobertura | O que você recebe | Exemplos |
 | --- | --- | --- |
-| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI |
-| **Saldo** | Crédito pré-pago restante | Kimi, DeepSeek, Neuralwatt, Cline |
-| **Analytics** | Tokens, custo e modelos a partir de dados locais | Claude, 9Router, pi, Hermes, Cloudflare |
+| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI, Gemini CLI |
+| **Saldo** | Crédito pré-pago restante | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
+| **Analytics** | Tokens, custo e modelos a partir de dados locais ou relatórios de gasto | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API |
 | **Autenticação** | Checagem de credencial, sem números de uso | Gemini, Mistral, Qwen, Groq, Cohere |
 | **Runtime local** | Modelos e sessões locais | Ollama, Vertex AI |
 | **Informativo** | Link para a página oficial de uso | Cursor, Kiro, Warp, Perplexity |

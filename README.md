@@ -7,7 +7,7 @@
 **Every AI quota you pay for, live in your DankBar.**
 
 A [DankMaterialShell](https://github.com/duxlabs-dev/dux-shell) plugin that tracks
-quota, billing, authentication, and local usage for 39 AI providers — locally, honestly,
+quota, billing, authentication, and local usage for 43 AI providers — locally, honestly,
 with no external service.
 
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
@@ -55,7 +55,7 @@ invented percentages.
 <tr>
 <td width="50%" valign="top">
 
-**📊 One dashboard, 39 providers**<br />
+**📊 One dashboard, 43 providers**<br />
 Quota, balance, analytics, and auth status side by side, with a fleet overview
 of average load, hottest provider, and next reset.
 
@@ -154,9 +154,9 @@ Prefer a release archive or a git checkout? See [Installation](./docs/installati
 
 | Coverage           | What you get                             | Examples                                                |
 | ------------------ | ---------------------------------------- | ------------------------------------------------------- |
-| **Quota**          | Real usage % and reset time              | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI |
-| **Balance**        | Remaining prepaid credit                 | Kimi, DeepSeek, Neuralwatt, Cline                       |
-| **Analytics**      | Tokens, cost, and models from local data | Claude, 9Router, pi, Hermes, Cloudflare                 |
+| **Quota**          | Real usage % and reset time              | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI, Gemini CLI |
+| **Balance**        | Remaining prepaid credit                 | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
+| **Analytics**      | Tokens, cost, and models from local data or spend reports | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API |
 | **Authentication** | Credential check, no usage numbers       | Gemini, Mistral, Qwen, Groq, Cohere                     |
 | **Local runtime**  | Local models and sessions                | Ollama, Vertex AI                                       |
 | **Informational**  | A link to the official usage page        | Cursor, Kiro, Warp, Perplexity                          |

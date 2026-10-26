@@ -172,7 +172,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
 
     readonly property var selectedProviders: {
         const parts = providerSelection.split(",");
@@ -533,6 +533,8 @@ PluginComponent {
             "tokens/week": ["window.tokens_week", "Tokens / week"],
             "tokens/month": ["window.tokens_month", "Tokens / month"],
             "balance": ["window.balance", "Balance"],
+            "month to date": ["window.month_to_date", "Month to date"],
+            "total used": ["window.total_used", "Total used"],
             "granted credits": ["window.granted_credits", "Granted credits"],
             "paid balance": ["window.paid_balance", "Paid balance"],
             "voucher / cash": ["window.voucher_cash", "Voucher / Cash"],
@@ -677,6 +679,10 @@ PluginComponent {
             perplexity: "Perplexity",
             cline: "Cline",
             neuralwatt: "Neuralwatt",
+            anthropic: "Anthropic API",
+            openai: "OpenAI API",
+            vercel: "Vercel AI Gateway",
+            "ollama-cloud": "Ollama Cloud",
             opencode: "OpenCode Go",
             kilo: "Kilo",
             kiro: "Kiro",
@@ -702,7 +708,10 @@ PluginComponent {
             vertex: "vertexai",
             ark: "byteplus",
             modelark: "byteplus",
-            grok: "xai"
+            grok: "xai",
+            "anthropic-api": "anthropic",
+            "openai-api": "openai",
+            "ai-gateway": "vercel"
         };
         const normalized = normalizeProviderId(providerId);
         return aliases[normalized] || normalized;
@@ -1063,6 +1072,14 @@ PluginComponent {
             return Theme.success;
         if (providerId === "neuralwatt")
             return Theme.success;
+        if (providerId === "anthropic" || providerId === "anthropic-api")
+            return Theme.warning;
+        if (providerId === "openai" || providerId === "openai-api")
+            return Theme.success;
+        if (providerId === "vercel" || providerId === "ai-gateway")
+            return Theme.primary;
+        if (providerId === "ollama-cloud")
+            return Theme.secondary;
         if (providerId === "cloudflare")
             return Theme.warning;
         if (providerId === "vertexai" || providerId === "vertex")
@@ -1579,6 +1596,10 @@ PluginComponent {
             cursor: "https://cursor.com/settings",
             cline: "https://app.cline.bot/dashboard/account?tab=credits",
             neuralwatt: "https://portal.neuralwatt.com",
+            anthropic: "https://platform.claude.com/cost",
+            openai: "https://platform.openai.com/usage",
+            vercel: "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway",
+            "ollama-cloud": "https://ollama.com/settings",
             opencode: "https://opencode.ai",
             kilo: "https://app.kilo.ai/credits",
             kiro: "https://app.kiro.dev/settings/account",

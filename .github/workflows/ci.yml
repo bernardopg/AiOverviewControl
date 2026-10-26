@@ -682,6 +682,12 @@ jobs:
       - name: Integration test — Neuralwatt kWh allowance, balance and key limit
         run: tests/test-neuralwatt.sh
 
+      - name: Integration test — Ollama Cloud, Anthropic API, OpenAI API and Vercel AI Gateway spend
+        run: tests/test-spend-providers.sh
+
+      - name: Integration test — Gemini CLI quota and token renewal
+        run: tests/test-gemini-cli.sh
+
       - name: Integration test — Cline credit balance and ClinePass plan
         run: tests/test-cline.sh
 
