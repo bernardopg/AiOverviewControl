@@ -73,16 +73,19 @@ and reset time. Crowded bar? Drop the names and tighten the spacing.
 <td valign="top">
 
 **🤖 Deep local telemetry**<br />
-Claude, 9Router, pi, and Hermes add token, cost, model, and project analytics
-with a seven-day chart — read from data already on your disk. Track several
-Claude accounts side by side, each from its own `CLAUDE_CONFIG_DIR`.
+Claude, Codex, 9Router, pi, and Hermes add token, cost, model, and project
+analytics with a seven-day chart — read from data already on your disk. Track
+several Claude accounts side by side, each from its own `CLAUDE_CONFIG_DIR`.
+Claude and Codex also show credits, extra usage and limit resets, and can
+redeem a held reset after a confirmation.
 
 </td>
 <td valign="top">
 
 **🔔 Quota alerts**<br />
 Desktop notifications at 75, 85, or 95% — or per-provider thresholds — updated
-in place instead of spamming. Click one to open that provider's card.
+in place instead of spamming. Click one to open that provider's card. A
+DankDash card keeps the busiest providers in the overview.
 
 </td>
 </tr>

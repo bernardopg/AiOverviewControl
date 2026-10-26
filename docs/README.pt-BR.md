@@ -73,16 +73,19 @@ reset. Barra lotada? Esconda os nomes e compacte o espaçamento.
 <td valign="top">
 
 **🤖 Telemetria local detalhada**<br />
-Claude, 9Router, pi e Hermes mostram tokens, custo, modelos e projetos com
-gráfico de sete dias — lidos de dados que já estão no seu disco. Acompanhe
+Claude, Codex, 9Router, pi e Hermes mostram tokens, custo, modelos e projetos
+com gráfico de sete dias — lidos de dados que já estão no seu disco. Acompanhe
 várias contas Claude lado a lado, cada uma com seu próprio `CLAUDE_CONFIG_DIR`.
+Claude e Codex também mostram créditos, uso extra e resets de limite, e podem
+usar um reset disponível após confirmação.
 
 </td>
 <td valign="top">
 
 **🔔 Alertas de cota**<br />
 Notificações em 75, 85 ou 95% — ou limites por provedor — atualizadas no
-lugar, sem enxurrada. Clique numa para abrir o card do provedor.
+lugar, sem enxurrada. Clique numa para abrir o card do provedor. Um card no
+DankDash mantém os provedores mais usados na visão geral.
 
 </td>
 </tr>
