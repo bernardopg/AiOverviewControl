@@ -16,11 +16,15 @@ ACCOUNT_CACHE="${CACHE_DIR}/claude-profiles/${CONFIG_HASH}"
 USAGE_CACHE="${ACCOUNT_CACHE}/claude-usage-cache.json"
 TRANSCRIPTS_CACHE="${ACCOUNT_CACHE}/claude-transcripts.tsv"
 VERSION_CACHE="${CACHE_DIR}/claude-version-cache.json"
+PREPAID_CACHE="${ACCOUNT_CACHE}/claude-prepaid-cache.json"
 USAGE_CACHE_TTL=120  # seconds
+PREPAID_CACHE_TTL=600  # seconds: the credit balance moves with spend, not per poll
 # A usage snapshot is valid with the canonical `limits[]` array (Claude 5) or
 # the older flat five_hour object; either one feeds the parser below.
 USAGE_VALID='(.limits | type == "array" and length > 0) or (.five_hour | type == "object")'
 VERSION_CACHE_TTL=86400  # seconds: the CLI version changes on upgrade, not per refresh
+# shellcheck source=providers/claude-profile-common
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/claude-profile-common"
 LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
 mkdir -p "$ACCOUNT_CACHE"
@@ -100,6 +104,12 @@ EXTRA_USAGE_USED=0
 EXTRA_USAGE_LIMIT=0
 EXTRA_USAGE_CURRENCY=""
 EXTRA_USAGE_DECIMALS=2
+EXTRA_USAGE_LIMIT_REACHED="false"
+EXTRA_USAGE_DISABLED_REASON=""
+# One-line JSON objects (or empty): the dispatcher parses them with fromjson.
+CLAUDE_SPEND=""
+CLAUDE_PREPAID=""
+CLAUDE_RESETS=""
 API_RESPONSE='{}'
 USAGE_ERROR_KIND=""
 USAGE_ERROR_MESSAGE=""
@@ -237,9 +247,9 @@ if [ -f "$CREDENTIALS" ]; then
                 -H "Authorization: Bearer ${TOKEN}" \
                 -H "Accept: application/json" \
                 -H "Content-Type: application/json" \
-                -H "User-Agent: claude-code/${CLAUDE_VERSION}" \
+                -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)" \
                 -H "anthropic-beta: oauth-2025-04-20" \
-                "https://api.anthropic.com/api/oauth/usage" 2>/dev/null || true)
+                "https://api.anthropic.com/api/oauth/usage?cedar_ember=1" 2>/dev/null || true)
         }
         # expiresAt is in milliseconds; renew a minute early.
         if [ -n "$TOKEN" ] && jq -e '(.claudeAiOauth.expiresAt | type) == "number"
@@ -299,6 +309,69 @@ if [ -f "$CREDENTIALS" ]; then
     EXTRA_USAGE_LIMIT=$(echo "$API_RESPONSE" | jq -r '.extra_usage.monthly_limit // 0')
     EXTRA_USAGE_CURRENCY=$(echo "$API_RESPONSE" | jq -r '.extra_usage.currency // ""')
     EXTRA_USAGE_DECIMALS=$(echo "$API_RESPONSE" | jq -r '.extra_usage.decimal_places // 2')
+    EXTRA_USAGE_LIMIT_REACHED=$(echo "$API_RESPONSE" | jq -r '.extra_usage.spend_limit_reached // false')
+    EXTRA_USAGE_DISABLED_REASON=$(echo "$API_RESPONSE" | jq -r '.extra_usage.disabled_reason // "" | tostring')
+
+    # `spend` states money as minor units plus an exponent, so it is the
+    # unambiguous source for the monthly spend limit and what was spent.
+    CLAUDE_SPEND=$(echo "$API_RESPONSE" | jq -c '
+        def money: if type == "object" and (.amount_minor | type) == "number"
+            then {amount: (.amount_minor / pow(10; (.exponent // 2))), currency: (.currency // null)}
+            else null end;
+        .spend | select(type == "object")
+        | {enabled: (.enabled == true), used: (.used | money), limit: (.limit | money),
+           percent: (.percent // null), severity: (.severity // null)}' 2>/dev/null || true)
+
+    # Limit resets (the CLI calls the program cedar_ember): grants the account
+    # holds, how many resets each has left, and whether one is usable now.
+    CLAUDE_RESETS=$(echo "$API_RESPONSE" | jq -c '
+        .cedar_ember | select(type == "object")
+        | {eligible: (.eligible == true), reason: (.ineligible_reason // null),
+           atLimit: (.at_limit == true), cooldownUntil: (.cooldown_until // null),
+           items: [(.grants // [])[] | select(type == "object" and (.id | type) == "string") | {
+               id, title: (.label // ""), kind: (.type // null),
+               resetsLeft: ((.resets_left // 0) | if type == "number" then . else 0 end),
+               expiresAt: (.ends_at // null), usableNow: (.usable_now == true),
+               paused: (.paused == true), requiresLimit: (.use_requires_limit != false),
+               unavailableReason: (.unavailable_reason // null)}]}
+        | .available = ([.items[] | select(.paused | not) | .resetsLeft] | add // 0)
+        | .usableNow = any(.items[]; .usableNow and (.paused | not) and .resetsLeft > 0)' 2>/dev/null || true)
+
+    # Usage credits (prepaid and promotional) live on an organization
+    # endpoint. A failed read keeps the last good balance.
+    PREPAID_FRESH=false
+    if [ -f "$PREPAID_CACHE" ]; then
+        prepaid_ts=$(jq -r '.cached_at // 0' "$PREPAID_CACHE" 2>/dev/null || echo 0)
+        prepaid_age=$(( $(date +%s) - prepaid_ts ))
+        [ "$prepaid_age" -lt 0 ] || [ "$prepaid_age" -ge "$PREPAID_CACHE_TTL" ] || PREPAID_FRESH=true
+    fi
+    if [ "$PREPAID_FRESH" != true ] && [ -z "$USAGE_ERROR_KIND" ] \
+        && ORG_UUID="$(claude_org_uuid "$CLAUDE_DIR")"; then
+        TOKEN=$(jq -r '.claudeAiOauth.accessToken // ""' "$CREDENTIALS")
+        prepaid_body=$(mktemp)
+        prepaid_status=$(curl -sS --max-time 8 -o "$prepaid_body" -w '%{http_code}' \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Accept: application/json" \
+            -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            "https://api.anthropic.com/api/oauth/organizations/${ORG_UUID}/prepaid/credits" 2>/dev/null || true)
+        if [ "$prepaid_status" = "200" ] && jq -e 'type == "object"' "$prepaid_body" >/dev/null 2>&1; then
+            jq -c '{cached_at: (now | floor), data: .}' "$prepaid_body" > "$PREPAID_CACHE" 2>/dev/null || true
+        fi
+        rm -f "$prepaid_body"
+    fi
+    if [ -f "$PREPAID_CACHE" ]; then
+        CLAUDE_PREPAID=$(jq -c '
+            def minor($v; $e): if ($v | type) == "number" then $v / pow(10; $e) else null end;
+            .data | select(type == "object")
+            | (.balance.money // {}) as $money
+            | ($money.exponent // 2) as $exp
+            | {balance: (minor($money.amount_minor; $exp) // minor(.amount; 2)),
+               currency: ($money.currency // .currency // null),
+               promo: ([.promo_tranches[]? | .remaining_amount_minor_units | numbers] | if length > 0 then add / pow(10; $exp) else null end),
+               expiresAt: (.next_expires_at // null)}
+            | select(.balance != null)' "$PREPAID_CACHE" 2>/dev/null || true)
+    fi
 else
     USAGE_ERROR_KIND="authentication"
     USAGE_ERROR_MESSAGE="Claude credentials were not found. Run: claude auth login --claudeai"
@@ -514,6 +587,11 @@ echo "EXTRA_USAGE_USED=${EXTRA_USAGE_USED}"
 echo "EXTRA_USAGE_LIMIT=${EXTRA_USAGE_LIMIT}"
 echo "EXTRA_USAGE_CURRENCY=${EXTRA_USAGE_CURRENCY}"
 echo "EXTRA_USAGE_DECIMALS=${EXTRA_USAGE_DECIMALS}"
+echo "EXTRA_USAGE_LIMIT_REACHED=${EXTRA_USAGE_LIMIT_REACHED}"
+echo "EXTRA_USAGE_DISABLED_REASON=${EXTRA_USAGE_DISABLED_REASON}"
+echo "CLAUDE_SPEND=${CLAUDE_SPEND}"
+echo "CLAUDE_PREPAID=${CLAUDE_PREPAID}"
+echo "CLAUDE_RESETS=${CLAUDE_RESETS}"
 echo "USAGE_ERROR_KIND=${USAGE_ERROR_KIND}"
 echo "USAGE_ERROR_MESSAGE=${USAGE_ERROR_MESSAGE}"
 echo "WEEK_MESSAGES=${WEEK_MESSAGES}"

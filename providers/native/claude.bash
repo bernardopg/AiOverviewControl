@@ -108,6 +108,24 @@ fetch_claude_native() {
         updatedAt:(now|todateiso8601)
       },
       credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")},
+      billing:{
+        extraUsage:(
+          (try ($d.CLAUDE_SPEND // "" | fromjson) catch null) as $spend
+          | {
+              enabled:(($d.EXTRA_USAGE_ENABLED // "") == "true"),
+              used:($spend.used.amount // null),
+              limit:($spend.limit.amount // null),
+              currency:($spend.limit.currency // $spend.used.currency // nullable($d.EXTRA_USAGE_CURRENCY)),
+              limitReached:(($d.EXTRA_USAGE_LIMIT_REACHED // "") == "true"),
+              disabledReason:nullable($d.EXTRA_USAGE_DISABLED_REASON)
+            }
+        ),
+        credits:(try ($d.CLAUDE_PREPAID // "" | fromjson) catch null)
+      },
+      limitResets:(
+        (try ($d.CLAUDE_RESETS // "" | fromjson) catch null)
+        | if type == "object" then . + {supported:true} else null end
+      ),
       analytics:$analytics
     }
   '

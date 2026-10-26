@@ -46,6 +46,12 @@ PluginComponent {
     property string historyBuffer: ""
     property string retryBuffer: ""
     property string retryingProviderId: ""
+    // Limit-reset redemption: one provider at a time, never retried.
+    property string resettingProviderId: ""
+    property string resetBuffer: ""
+    property var lastResetResult: null
+    // Provider whose reset confirmation is open in the dashboard, or "".
+    property string confirmResetProviderId: ""
     // In-process dispatch bookkeeping. The helper owns the durable state so
     // this remains only a cheap guard between refreshes in this instance.
     property var notifiedMap: ({})
@@ -154,6 +160,7 @@ PluginComponent {
     property string copilotUsageScript: _pluginDir + "/providers/get-copilot-usage"
     property string usageHistoryScript: _pluginDir + "/providers/get-usage-history"
     property string notifyAlertScript: _pluginDir + "/providers/send-quota-alert"
+    property string resetLimitsScript: _pluginDir + "/providers/reset-provider-limits"
     property string nineRouterAnalyticsScript: _pluginDir + "/providers/get-9router-analytics"
     readonly property var codexStats: codexReader.snapshot
     readonly property var opencodeStats: opencodeReader.snapshot
@@ -894,6 +901,101 @@ PluginComponent {
         if (!provider || !provider.credits)
             return "—";
         return String(provider.credits.remaining ?? "—");
+    }
+
+    // Credits, extra usage and spend controls a provider reports beside its
+    // quota windows (Claude and Codex), or null.
+    function providerBilling(provider) {
+        const billing = provider && !provider.error ? provider.billing : null;
+        return billing && typeof billing === "object" && !Array.isArray(billing) ? billing : null;
+    }
+
+    // Consumable limit resets (Claude grants, Codex reset credits), or null
+    // when the provider has no reset program.
+    function providerResets(provider) {
+        const resets = provider && !provider.error ? provider.limitResets : null;
+        if (!resets || typeof resets !== "object" || resets.supported !== true)
+            return null;
+        // Cards read providers through a Repeater model, where nested arrays
+        // arrive as Qt sequences that Array.isArray rejects.
+        const raw = resets.items;
+        const list = raw && typeof raw === "object" && typeof raw.length === "number" ? Array.prototype.slice.call(raw) : [];
+        return {
+            available: Math.max(0, Math.floor(Number(resets.available) || 0)),
+            usableNow: resets.usableNow === true,
+            eligible: resets.eligible === true,
+            reason: resets.reason ? String(resets.reason) : "",
+            atLimit: resets.atLimit === true,
+            items: list.filter(item => item && typeof item === "object")
+        };
+    }
+
+    // Why a held reset cannot be used yet, in the user's words.
+    function resetBlockedText(resets) {
+        if (!resets || resets.available === 0)
+            return t("resets.none", "No resets right now. When you get one, it shows up here with its expiry date.");
+        if (resets.usableNow)
+            return "";
+        const items = resets.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].paused)
+                return t("resets.paused", "Your resets are paused right now.");
+        }
+        return t("resets.needs_limit", "Usable once you reach a limit.");
+    }
+
+    // Provider-native money (not the USD analytics conversion): BRL stays BRL.
+    function formatMoney(amount, currency) {
+        const value = Number(amount);
+        if (amount === null || amount === undefined || !Number.isFinite(value))
+            return "—";
+        const code = typeof currency === "string" && /^[A-Za-z]{3}$/.test(currency) ? currency.toUpperCase() : "";
+        const symbols = {USD: "$", BRL: "R$", EUR: "€", GBP: "£", JPY: "¥", CNY: "¥"};
+        const digits = code === "JPY" ? 0 : 2;
+        const text = value.toLocaleString(Qt.locale(root.i18nLocale), 'f', digits);
+        if (!code)
+            return text;
+        return symbols[code] ? `${symbols[code]} ${text}` : `${code} ${text}`;
+    }
+
+    function formatShortDate(isoDate) {
+        const date = isoDate ? new Date(isoDate) : null;
+        if (!date || isNaN(date.getTime()))
+            return "";
+        return Qt.locale(root.i18nLocale).toString(date, "d MMM yyyy");
+    }
+
+    function resetResultText(result) {
+        if (!result)
+            return "";
+        switch (result.result) {
+        case "reset":
+            return t("resets.result_reset", "Your limits were reset. The card refreshes with the new usage.");
+        case "nothing_to_reset":
+        case "not_limited":
+            return t("resets.result_not_limited", "No limit needed a reset, so nothing was used.");
+        case "no_credit":
+            return t("resets.result_no_credit", "This account has no reset left.");
+        case "cooldown":
+            return t("resets.result_cooldown", "The provider asked to wait before another reset. Nothing was used.");
+        case "auth_error":
+            return t("resets.result_auth", "The provider rejected the sign-in. Open its CLI once, then try again.");
+        case "unavailable":
+            return t("resets.result_unavailable", "No reset could be used right now.");
+        default:
+            return t("resets.result_error", "The reset was not confirmed. Check your limits before trying again.");
+        }
+    }
+
+    function resetProviderLimits(providerId) {
+        if (procReset.running)
+            return;
+        resettingProviderId = normalizeProviderId(providerId);
+        resetBuffer = "";
+        lastResetResult = null;
+        procReset.environment = {"AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
+        procReset.command = ["bash", resetLimitsScript, resettingProviderId];
+        procReset.running = true;
     }
 
     function providerUpdatedMs(provider) {
@@ -1846,6 +1948,32 @@ PluginComponent {
                 // Corrupt history cache: ignore, sparklines simply stay hidden.
             }
             root.historyBuffer = "";
+        }
+    }
+
+    Process {
+        id: procReset
+        stdout: SplitParser {
+            splitMarker: ""
+            onRead: data => root.resetBuffer += data
+        }
+        onExited: code => {
+            const targetId = root.resettingProviderId;
+            let result = {provider: targetId, result: "error", resetsLeft: null, message: ""};
+            try {
+                const parsed = JSON.parse(root.resetBuffer);
+                if (parsed && typeof parsed === "object" && typeof parsed.result === "string")
+                    result = parsed;
+            } catch (error) {
+                // Keep the error result: the outcome is unknown, so the card
+                // must not claim the reset went through.
+            }
+            root.resetBuffer = "";
+            root.resettingProviderId = "";
+            root.lastResetResult = result;
+            // Refresh the card either way: a reset that did run refills the
+            // windows, and one that did not may have changed what is left.
+            root.retryProvider(targetId);
         }
     }
 
