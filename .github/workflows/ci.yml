@@ -130,7 +130,7 @@ jobs:
         # Retried: a single flaky Arch mirror read otherwise fails the job.
         run: |
           for attempt in 1 2 3; do
-            pacman -Syu --noconfirm bash curl git jq kcov python shellcheck sqlite && exit 0
+            pacman -Syu --noconfirm bash curl diffutils git jq kcov python shellcheck sqlite unzip zip && exit 0
             sleep $((attempt * 10))
           done
           exit 1

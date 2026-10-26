@@ -5,6 +5,9 @@ TMP="$(mktemp -d /tmp/aioc-cov-a.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 # Isolate every cache and config path so no real user data is read or written.
 export HOME="$TMP/home" XDG_CACHE_HOME="$TMP/cache" XDG_CONFIG_HOME="$TMP/config"
+# The isolated HOME hides a global safe.directory; CI containers check the
+# repository out under another owner, so trust it for this run's git calls.
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$ROOT"
 mkdir -p "$HOME"
 
 # The stale/invalid arguments fail before writing outside the supplied temp dir.
