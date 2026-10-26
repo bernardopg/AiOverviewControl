@@ -13,10 +13,11 @@ committed policy and the live GitHub policy after any administrative change.
 - Pull request required: no direct delivery to main, including administrator pushes.
 - Force pushes and deletion forbidden; no bypass actors are configured.
 - All review conversations must be resolved.
-- The branch must be up to date and pass the twelve named checks in the policy,
+- The branch must be up to date and pass the fourteen named checks in the policy,
   including **Changelog integrity**, **DCO sign-off** (see
   [CONTRIBUTING.md](../CONTRIBUTING.md#developer-certificate-of-origin)), **Secret scan** (gitleaks and verified
-  TruffleHog over the full history) and **Workflow security audit** (zizmor). Checks are bound to the GitHub Actions app
+  TruffleHog over the full history), **Statement coverage** (80% minimum),
+  **Fuzz provider responses** and **Workflow security audit** (zizmor). Checks are bound to the GitHub Actions app
   (integration ID 15368), not a same-named status posted by an arbitrary actor.
 - Required approving-review count is **zero**: this repository permits a sole
   maintainer to merge their own release PR after gates pass. This is not a claim

@@ -7,6 +7,7 @@
 - pi: a malformed line in a session file no longer discards the tokens and cost recorded before it in that session.
 
 ### Project
+- **Statement coverage** and **Fuzz provider responses** are now required checks on `main`.
 - The shell adapters and scripts now have 80%+ statement coverage, enforced by the new **Statement coverage** CI job (`scripts/coverage`, kcov). `scripts/coverage-report` counts shell statements only, since kcov reports the bodies of embedded jq programs and heredocs as unexecuted lines. Over 40 new fixture suites cover every provider adapter's error and edge paths.
 - The provider-response fuzzer also runs under [ClusterFuzzLite](https://google.github.io/clusterfuzzlite/) (`.clusterfuzzlite/`, **ClusterFuzzLite** workflow): 3 minutes on each pull request and a 20-minute weekly batch, packaged with the adapters and a checksum-verified static jq.
 - Releases now require a signed tag: the Release workflow verifies `vX.Y.Z` against the maintainer key in [`.github/release-signing-keys.asc`](.github/release-signing-keys.asc) on `main` before publishing, and [SECURITY.md](.github/SECURITY.md#verifying-a-release) shows how to check it with `git verify-tag`.
