@@ -347,7 +347,7 @@
   "extras.unlimited": "Ilimitado",
   "extras.spend_control": "Controle de gastos",
   "extras.limit_resets": "Resets de limite",
-  "resets.available": "{count} disponíveis",
+  "resets.available": "Disponíveis: {count}",
   "extras.monthly_spend": "Gasto mensal",
   "extras.promo_note": "{amount} promocionais · disponíveis para qualquer tarefa. Créditos promocionais são usados antes dos créditos comprados.",
   "extras.expires_on": "Expiram em {date}.",
