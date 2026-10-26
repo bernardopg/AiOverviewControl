@@ -221,9 +221,16 @@ kcov's own percentage counts every physical line, including the body of a
 multi-line jq or awk program, a heredoc body and a backslash-continued line.
 Those lines belong to the statement that starts above them and are never
 reported as executed, so `scripts/coverage-report` drops them and counts a
-statement as covered when its first line ran
+statement as one group, covered when any of its lines ran: kcov records the
+hit of a multi-line quoted command on its closing line
 (`tests/test-coverage-report.sh` pins this). The jq programs themselves are
 exercised by the fixture assertions, not measured line by line.
+
+kcov also loses line tracking after a command whose multi-line quoted argument
+contains a single quote, such as SQL with `''` or `'$WEEK_EPOCH'` literals:
+the statements after it read as unexecuted until a later line resyncs, even
+though the suites run them. The Hermes and OpenCode analytics queries are
+affected, so their per-file percentages understate what the tests exercise.
 
 Coverage suites must not clear the environment (`env -i`) or unset
 `BASH_ENV`: kcov traces child `bash` processes through it. Capture a

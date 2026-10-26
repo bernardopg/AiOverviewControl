@@ -10,6 +10,10 @@
 
 ### Documentation
 - `TODO.md` lists only open work again, with the date of the last upstream check for each blocked provider and the measured coverage gaps. The roadmap now plans the ClinePass usage windows, which the Cline dashboard reads from a read-only endpoint.
+- Troubleshooting covers a missing or empty DankDash card and a refused limit reset, and the architecture guide describes the DankDash snapshot, the reset helper and the shared helper scripts added in 2.1. The NVIDIA notes reflect that build.nvidia.com replaced trial credits with rate limits.
+
+### Quality
+- Statement coverage counts a multi-line command as covered when kcov records its hit on the closing line, and new tests cover the missing-prerequisite results of every provider health check, the Copilot helper hand-off, a failed Antigravity token refresh (the refresh token never reaches the output) and Hermes analytics cache recovery. `docs/development-gates.md` notes the kcov limitation that still understates the Hermes and OpenCode analytics files.
 
 ## 2.1.1 - 2026-10-26
 

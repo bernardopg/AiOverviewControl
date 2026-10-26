@@ -490,7 +490,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>cline</code></td>
 <td>Balance</td>
 <td>✅ <code>GET /api/v1/users/me</code></td>
-<td>❌ no ClinePass usage endpoint</td>
+<td>❌ ClinePass windows not read yet (only an undocumented dashboard endpoint)</td>
 <td>✅ ClinePass plan + billing period</td>
 <td>✅ credits (micro-USD)</td>
 <td><code>CLINE_API_KEY</code> or Cline CLI sign-in</td>
@@ -623,7 +623,7 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Env var** | `NVIDIA_API_KEY` (NGC personal key, `nvapi-` prefix). |
 | **Auth** | `Authorization: Bearer <key>`. |
 | **Key check** | `POST https://api.ngc.nvidia.com/v3/keys/get-caller-info` with the key as the `credentials` form field — the endpoint the official `ngc` CLI uses. An invalid or revoked key returns `401`; a valid one returns the key `type` (`PERSONAL_KEY` / `SERVICE_KEY`), `orgName` and, for personal keys, the owner. The key is sent in the request body from stdin, never in argv or the URL. `GET /v1/models` is public and answers `200` to any key, so it is no longer used. |
-| **Quota / balance** | ❌ None documented (re-checked 2026-10-13). Free accounts get 1,000 credits and roughly 40 requests/minute, but NVIDIA publishes no per-account rate-limit or credits API; both are visible only on build.nvidia.com. Practical exhaustion signal: inference returns `402`/`429`. |
+| **Quota / balance** | ❌ None documented (re-checked 2026-10-26). build.nvidia.com no longer gives trial credits: trial usage is limited by per-model rate limits that NVIDIA does not publish, and there is no per-account rate-limit or credits API; the current limit is visible only on build.nvidia.com. Practical exhaustion signal: inference returns `402`/`429`. |
 | **Plans** | Rate-limited Developer trial, NVIDIA Cloud Credits (USD blocks), and NVIDIA AI Enterprise for self-hosted NIM. |
 | **Billing** | **Credit-based per request** (1 credit ≈ 1 standard request; heavy models cost more). No posted $/M-token table for the hosted catalog. |
 | **Dashboard** | [build.nvidia.com/credits](https://build.nvidia.com/credits). NGC keys at [org.ngc.nvidia.com](https://org.ngc.nvidia.com). |
