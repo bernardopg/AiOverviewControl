@@ -58,11 +58,36 @@ cached="$(bash "$ROOT/providers/get-hermes-analytics")"
 [ "$cached" = "$analytics" ] || fail "cache round-trip changed analytics JSON"
 [ "$(jq -r '.cached_at' "$cache")" = "$first" ] || fail "fresh analytics cache was rewritten"
 
-# Drop the cache and point at an invalid schema to cover the honest query failure.
+# A price table jq cannot apply fails the aggregation instead of printing zeros.
 rm -f "$cache"
+prices="$XDG_CACHE_HOME/AiOverviewControl/litellm-prices.json"
+cp "$prices" "$TMP/prices.json"
+jq -n --arg today "$(date +%F)" '{updated:$today,models:{"not-listed":["a","b","c","d"]}}' > "$prices"
+out="$(bash "$ROOT/providers/get-hermes-analytics")"
+jq -e '.error|contains("failed to aggregate")' <<<"$out" >/dev/null || fail "aggregation failure response: $out"
+[ ! -e "$cache" ] || fail "failed aggregation was cached"
+mv "$TMP/prices.json" "$prices"
+
+# The native card reads today and the week separately; a database that locks
+# between the two reads is an error, not a week of zeros.
+mkdir -p "$TMP/locking-bin"
+real_sqlite3="$(command -v sqlite3)"
+cat > "$TMP/locking-bin/sqlite3" <<SH
+#!/usr/bin/env bash
+case "\$*" in *"AS INTEGER) >="*) echo 'Error: database is locked' >&2; exit 5 ;; esac
+exec "$real_sqlite3" "\$@"
+SH
+chmod +x "$TMP/locking-bin/sqlite3"
+out="$(PATH="$TMP/locking-bin:$PATH" bash "$ROOT/providers/get-provider-usage" hermes '' 2>/dev/null)"
+jq -e '.[0].error.message|contains("could not be read")' <<<"$out" >/dev/null || fail "week query failure: $out"
+
+# Point at an invalid schema to cover the honest query failure.
 mv "$HERMES_HOME/state.db" "$TMP/state.db"
 : > "$HERMES_HOME/state.db"
 out="$(bash "$ROOT/providers/get-hermes-analytics")"
 jq -e '.error|contains("could not be read")' <<<"$out" >/dev/null || fail "unsupported schema response"
+rm -f "$HERMES_HOME/state.db"
+out="$(bash "$ROOT/providers/get-hermes-analytics")"
+jq -e '.error|contains("state database not found")' <<<"$out" >/dev/null || fail "missing database response"
 
 echo 'OK: Hermes SQLite analytics, status pricing, and native coverage'

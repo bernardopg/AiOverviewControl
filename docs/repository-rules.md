@@ -16,7 +16,7 @@ committed policy and the live GitHub policy after any administrative change.
 - The branch must be up to date and pass the fourteen named checks in the policy,
   including **Changelog integrity**, **DCO sign-off** (see
   [CONTRIBUTING.md](../CONTRIBUTING.md#developer-certificate-of-origin)), **Secret scan** (gitleaks and verified
-  TruffleHog over the full history), **Statement coverage** (80% minimum),
+  TruffleHog over the full history), **Statement coverage** (95% minimum),
   **Fuzz provider responses** and **Workflow security audit** (zizmor). Checks are bound to the GitHub Actions app
   (integration ID 15368), not a same-named status posted by an arbitrary actor.
 - Required approving-review count is **zero**: this repository permits a sole

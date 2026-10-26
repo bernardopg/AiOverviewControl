@@ -8,6 +8,7 @@ out=""; url=""; a=("$@"); for ((i=0;i<${#a[@]};i++)); do case "${a[$i]}" in -o) 
 case "$CASE:$url" in
   reject:*) printf '%s' '{"message":"denied"}' >"$out"; printf 403;;
   error:*) printf '%s' '{}' >"$out"; printf 502;;
+  odd:*/users/me) printf '%s' '{"success":true,"data":{}}' >"$out"; printf 200;;
   *:*/users/me) printf '%s' '{"success":true,"data":{"id":"u1","email":"x@example.test","balance":0,"organizations":[],"plan":null}}' >"$out"; printf 200;;
   *:*/balance) printf '%s' '{"balance":0}' >"$out"; printf 200;;
   *:*/plan) printf '%s' '{}' >"$out";;
@@ -18,5 +19,6 @@ chmod +x "$TMP/bin/curl"; fail(){ echo "FAIL: $1" >&2; exit 1; }; run(){ CASE="$
 out="$(run reject)"; jq -e '.[0].error.code == 403 and (.[0].error.message | contains("rejected"))' <<<"$out" >/dev/null || fail reject
 out="$(run error)"; jq -e '.[0].error.code == 502' <<<"$out" >/dev/null || fail server-error
 out="$(run ok)"; jq -e '.[0].usage.primary.usedPercent == 100' <<<"$out" >/dev/null || fail empty-balance
+out="$(run odd)"; jq -e '.[0].error.code == 200 and (.[0].error.message | contains("unexpected payload"))' <<<"$out" >/dev/null || fail unexpected-payload
 out="$(env -u CLINE_API_KEY PATH="$TMP/bin:$PATH" "$ROOT/providers/get-provider-usage" cline 2>/dev/null)"; jq -e '.[0].error' <<<"$out" >/dev/null || fail missing
 echo 'OK: test-cov-c2-cline'

@@ -68,4 +68,18 @@ echo '{"cached_at":0,"data":[]}' > "$CACHE"
 jq -e '.[0].error == null and .[0].usage.primary.usedPercent == 0' <<<"$(card)" >/dev/null \
   || fail "invalid cache not handled"
 
+# An aggregation jq cannot finish is an error, never a week of zeros.
+rm -f "$CACHE"
+mkdir -p "$TMP/badjq"
+real_jq="$(command -v jq)"
+cat > "$TMP/badjq/jq" <<SH
+#!/usr/bin/env bash
+[ "\$1" = -s ] && exit 5
+exec "$real_jq" "\$@"
+SH
+chmod +x "$TMP/badjq/jq"
+out="$(PATH="$TMP/badjq:$PATH" analytics)"
+jq -e '.error == "failed to aggregate pi session data"' <<<"$out" >/dev/null || fail "aggregation failure: $out"
+[ ! -e "$CACHE" ] || fail "failed aggregation was cached"
+
 echo "OK: pi analytics aggregation, cache and card"

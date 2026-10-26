@@ -41,9 +41,11 @@ printf '%s %s %s\n' "$method" "$url" "$body" >> "$CURL_LOG"
 case "${GRANTS:-ready}" in
   ready) grants='{"eligible":true,"at_limit":true,"next_grant_id":"g_two","grants":[{"id":"g_one","label":"Session reset","type":"session","resets_left":1,"usable_now":false,"use_requires_limit":true},{"id":"g_two","label":"Full reset","type":"full","resets_left":2,"usable_now":true,"ends_at":"2030-01-02T00:00:00Z"}]}' ;;
   none) grants='{"eligible":false,"ineligible_reason":"no_grant","grants":[]}' ;;
+  malformed) grants='{"eligible":true,"grants":[{"id":"G ONE; rm","resets_left":1,"usable_now":true}]}' ;;
 esac
 case "$url" in
   *"/api/oauth/usage"*)
+    if [ -n "${USAGE_STATUS:-}" ]; then printf '{}' > "$out"; printf '%s' "$USAGE_STATUS"; exit 0; fi
     printf '%s' "{\"limits\":[{\"kind\":\"session\",\"percent\":91},{\"kind\":\"weekly_all\",\"percent\":40}],
       \"extra_usage\":{\"is_enabled\":true,\"monthly_limit\":2500,\"used_credits\":1250,\"currency\":\"BRL\",\"spend_limit_reached\":false},
       \"spend\":{\"enabled\":true,\"used\":{\"amount_minor\":1250,\"currency\":\"BRL\",\"exponent\":2},\"limit\":{\"amount_minor\":2500,\"currency\":\"BRL\",\"exponent\":2},\"percent\":50},
@@ -113,12 +115,33 @@ done
 out="$(GRANTS=none bash "$ROOT/providers/reset-provider-limits" claude)"
 jq -e '.result == "unavailable"' <<<"$out" >/dev/null || fail "no grant: $out"
 ! grep -q '^POST ' "$CURL_LOG" || fail "claimed without a usable grant"
+for case in 401:auth_error 503:error; do
+  out="$(USAGE_STATUS="${case%%:*}" bash "$ROOT/providers/reset-provider-limits" claude)"
+  jq -e --arg r "${case##*:}" '.result == $r' <<<"$out" >/dev/null || fail "grant read HTTP ${case%%:*}: $out"
+done
+out="$(GRANTS=malformed bash "$ROOT/providers/reset-provider-limits" claude)"
+jq -e '.result == "error" and (.message | test("malformed"))' <<<"$out" >/dev/null || fail "malformed grant: $out"
+! grep -q '^POST ' "$CURL_LOG" || fail "claimed a malformed grant"
+out="$(CLAIM=paused bash "$ROOT/providers/reset-provider-limits" claude)"
+jq -e '.result == "unavailable" and .resetsLeft == 1' <<<"$out" >/dev/null || fail "unknown claim result: $out"
+
+# --- Claude: no sign-in or no organization never reaches the API ---
+: > "$CURL_LOG"
+mkdir -p "$TMP/signed-out" "$TMP/no-org"
+cp "$CLAUDE_CONFIG_DIR/.credentials.json" "$TMP/no-org/"
+out="$(CLAUDE_CONFIG_DIR="$TMP/signed-out" bash "$ROOT/providers/reset-provider-limits" claude)"
+jq -e '.result == "auth_error" and (.message | test("not signed in"))' <<<"$out" >/dev/null || fail "signed out: $out"
+out="$(CLAUDE_CONFIG_DIR="$TMP/no-org" bash "$ROOT/providers/reset-provider-limits" claude)"
+jq -e '.result == "unavailable" and (.message | test("organization"))' <<<"$out" >/dev/null || fail "no organization: $out"
+[ ! -s "$CURL_LOG" ] || fail "reached the API without a sign-in or organization"
 
 # --- Claude profiles resolve their own config dir ---
 export AIOC_CLAUDE_PROFILES
 AIOC_CLAUDE_PROFILES="$(jq -nc --arg d "$CLAUDE_CONFIG_DIR" '{"claude-work":{configDir:$d}}')"
 out="$(env -u CLAUDE_CONFIG_DIR bash "$ROOT/providers/reset-provider-limits" claude-work)"
 jq -e '.provider == "claude-work" and .result == "reset"' <<<"$out" >/dev/null || fail "profile reset: $out"
+out="$(AIOC_CLAUDE_PROFILES='{"claude-rel":{"configDir":"relative/dir"}}' bash "$ROOT/providers/reset-provider-limits" claude-rel)"
+jq -e '.result == "error" and (.message | test("absolute"))' <<<"$out" >/dev/null || fail "relative profile dir: $out"
 out="$(bash "$ROOT/providers/reset-provider-limits" gemini)"
 jq -e '.result == "error"' <<<"$out" >/dev/null || fail "unsupported provider accepted"
 
@@ -137,9 +160,16 @@ jq -e '.result == "reset"' <<<"$out" >/dev/null || fail "codex reset: $out"
 [ "$(grep -c 'rateLimitResetCredit/consume' "$CODEX_LOG")" -eq 1 ] || fail "expected one consume request"
 grep 'rateLimitResetCredit/consume' "$CODEX_LOG" | jq -e '.params.idempotencyKey | length > 8' >/dev/null || fail "consume without idempotency key"
 [ ! -e "$XDG_CACHE_HOME/AiOverviewControl/codex-usage.json" ] || fail "codex cache kept after a reset"
-for case in nothingToReset:nothing_to_reset noCredit:no_credit alreadyRedeemed:reset error:error; do
+for case in nothingToReset:nothing_to_reset noCredit:no_credit alreadyRedeemed:reset error:error pending:error; do
   out="$(CODEX_OUTCOME="${case%%:*}" bash "$ROOT/providers/reset-provider-limits" codex)"
   jq -e --arg r "${case##*:}" '.result == $r' <<<"$out" >/dev/null || fail "codex ${case%%:*}: $out"
 done
+
+# --- Codex: a missing CLI is reported, not run ---
+mkdir -p "$TMP/no-codex"
+ln -s "$(command -v jq)" "$TMP/no-codex/jq"
+ln -s "$(command -v dirname)" "$TMP/no-codex/dirname"
+out="$(PATH="$TMP/no-codex" "$BASH" "$ROOT/providers/reset-provider-limits" codex)"
+jq -e '.result == "unavailable" and (.message | test("not installed"))' <<<"$out" >/dev/null || fail "missing codex: $out"
 
 echo "OK: Claude/Codex credits, extra usage and consumable limit resets"

@@ -59,4 +59,10 @@ export CODEX_SCRIPT="$TMP/helper"
 out="$(fetch_codex_native)"
 jq -e '.provider == "codex" and .source == "fixture"' <<<"$out" >/dev/null || fail "Codex native forwarding"
 
+# Without the Codex CLI the card says so instead of starting anything.
+mkdir -p "$TMP/no-codex"
+ln -s "$(command -v jq)" "$TMP/no-codex/jq"
+out="$(PATH="$TMP/no-codex" "$BASH" "$ROOT/providers/get-codex-usage")"
+jq -e '.error.code == 127 and (.error.message | contains("not installed"))' <<<"$out" >/dev/null || fail "missing Codex CLI: $out"
+
 echo 'OK: Codex refresh, cache, and native coverage'

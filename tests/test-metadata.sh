@@ -40,7 +40,7 @@ jq '.providers += 1' "$TMP/docs/badges.backup" > "$TMP/docs/badges.json"
 reject 'stale provider badge count'
 mv "$TMP/docs/badges.backup" "$TMP/docs/badges.json"
 cp "$TMP/README.md" "$TMP/README.backup"
-sed -i 's/usage for [0-9]* AI providers/usage for 7 AI providers/' "$TMP/README.md"
+sed -i 's/usage for [0-9+]* AI providers/usage for 30+ AI providers/' "$TMP/README.md"
 reject 'stale README provider count'
 mv "$TMP/README.backup" "$TMP/README.md"
 chmod -x "$TMP/tests/test-example.sh"

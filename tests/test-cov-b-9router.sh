@@ -22,6 +22,22 @@ jq -e '.provider=="9router" and .usage.primary.displayValue=="$0.50 · 2 req" an
 out="$(fetch_9router_native openrouter openrouter)"
 jq -e '.provider=="openrouter" and (.usage.primary.resetDescription|contains("not openrouter quota"))' <<<"$out" >/dev/null || fail "native provider alias labeling"
 
+# A provider 9router never routed is an error card, or a quiet decline when it
+# only backs another adapter.
+out="$(fetch_9router_native xai xai)"
+jq -e '.provider=="xai" and .error.code==2 and (.error.message|contains("no recorded usage for xai"))' <<<"$out" >/dev/null || fail "unrouted provider error"
+if fetch_9router_native xai xai soft; then fail "soft fallback should decline an unrouted provider"; fi
+
+# The SQLite ledger wins over usage.json when both exist.
+if command -v sqlite3 >/dev/null 2>&1; then
+  mkdir -p "$HOME/.9router/db"
+  sqlite3 "$HOME/.9router/db/data.sqlite" "CREATE TABLE usageDaily(dateKey TEXT, data TEXT);
+    INSERT INTO usageDaily VALUES('$TODAY', '{\"requests\":7,\"cost\":3,\"promptTokens\":10,\"cachedTokens\":0,\"completionTokens\":5}');"
+  out="$(fetch_9router_native)"
+  jq -e '.usage.primary.displayValue=="$3.00 · 7 req" and .usage.secondary.displayValue=="$3.00 · 7 req"' <<<"$out" >/dev/null || fail "SQLite ledger: $out"
+  rm -rf "$HOME/.9router/db"
+fi
+
 mv "$HOME/.9router/usage.json" "$TMP/usage.json"
 out="$(fetch_9router_native)"
 jq -e '.error.code==2 and (.error.message|contains("database not found"))' <<<"$out" >/dev/null || fail "missing data error"

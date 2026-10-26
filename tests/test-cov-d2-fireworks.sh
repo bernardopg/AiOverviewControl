@@ -10,7 +10,7 @@ cat >"$TMP/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 out= url= headers= write=0
 while (($#)); do case "$1" in -o) out="$2"; shift 2;; -D) headers="$2"; shift 2;; -w) write=1; shift 2;; http*) url="$1"; shift;; *) shift;; esac; done
-status="${COV_STATUS:-200}"; body="${COV_BODY-}"; [ -n "$body" ] || body='{"quotas":[{"name":"/model/day","usage":25,"value":100,"maxValue":200}]}'
+status="${COV_STATUS:-200}"; [[ "$url" != */inference/v1/models ]] || status="${COV_MODELS_STATUS:-$status}"; body="${COV_BODY-}"; [ -n "$body" ] || body='{"quotas":[{"name":"/model/day","usage":25,"value":100,"maxValue":200}]}'
 case "$url" in */api/tags) body='{"models":[{"name":"llama:latest"}]}';;
 */api/ps) body='{"models":[{"name":"llama:latest"}]}';;
 https://api.cloudflare.com/client/v4/graphql) body="${COV_GRAPH_BODY:-{"data":{"viewer":{"accounts":[{"aiInferenceAdaptiveGroups":[]}]}}}}";;
@@ -48,3 +48,8 @@ export FIREWORKS_API_KEY=sk-test-0000 FIREWORKS_ACCOUNT_ID=acct-test COV_STATUS=
 result="$(run)"; jq -e '.[0].credits.remaining == "No quotas returned"' <<<"$result" >/dev/null
 export COV_STATUS=500 COV_BODY='{}'
 result="$(run)"; jq -e '.[0].source == "fireworks-api"' <<<"$result" >/dev/null
+# Quota API down but the key works: an authenticated note, with or without an account id.
+result="$(COV_MODELS_STATUS=200 run)"
+jq -e '.[0].error == null and .[0].usage.accountEmail == "Fireworks AI account acct-test"' <<<"$result" >/dev/null
+result="$(COV_MODELS_STATUS=200 FIREWORKS_ACCOUNT_ID= run)"
+jq -e '.[0].error == null and (.[0].usage.primary.resetDescription | contains("set FIREWORKS_ACCOUNT_ID"))' <<<"$result" >/dev/null

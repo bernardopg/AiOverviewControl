@@ -29,4 +29,11 @@ jq -e '.base == "USD" and .currency == "EUR" and .rate == 0.92 and .stale == fal
 cached="$(PATH="/nonexistent:/usr/bin:/bin" bash "$ROOT/providers/get-exchange-rates" EUR)"
 jq -e '.currency == "EUR" and .rate == 0.92' <<<"$cached" >/dev/null
 
+# Opted out with a cache older than a day: served as stale, never refreshed.
+cache="$XDG_CACHE_HOME/AiOverviewControl/exchange-rate-EUR.json"
+jq --argjson at "$(( $(date +%s) - 2 * 86400 ))" '.fetchedAt = $at' "$cache" > "$TMP/old.json"
+mv "$TMP/old.json" "$cache"
+stale="$(AIOC_NO_FX=1 PATH="$TMP/bin:$PATH" bash "$ROOT/providers/get-exchange-rates" EUR)"
+jq -e '.rate == 0.92 and .stale == true' <<<"$stale" >/dev/null
+
 echo "exchange-rate coverage OK"

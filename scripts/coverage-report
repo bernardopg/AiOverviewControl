@@ -6,7 +6,13 @@ body of a multi-line quoted string (an embedded jq, awk or Python program), a
 heredoc body and a backslash-continued argument line. Those lines belong to
 the statement that starts above them and are not separate statements. They are
 grouped with that starting line, and a statement counts as covered when any
-line in the group has hits.
+line in the group has hits. The elements of a multi-line array assignment are
+grouped the same way.
+
+Bash never traces a line that runs no command: an empty case branch
+(`200) ;;`), a `fi ;;` or `esac ;;` closing a branch, or the `}` or `done` that
+redirects a block. kcov still lists those lines, so they are grouped with the
+statement above them too.
 
 Usage: scripts/coverage-report CODECOV_JSON ROOT [--min PERCENT] [--files TSV]
 """
@@ -17,6 +23,10 @@ import sys
 from pathlib import Path
 
 HEREDOC = re.compile(r"<<(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+NO_COMMAND = re.compile(
+    r"\s*(?:\(?[^\s()#;][^()#;]*\)\s*;;"        # empty case branch: pattern) ;;
+    r"|(?:fi|done|esac|\})\s*;;"                   # block closed inside a branch
+    r"|(?:done|\})\s*[0-9]*[<>].*)\s*(?:#.*)?")    # block closed with a redirection
 
 
 def continuation_lines(text):
@@ -28,6 +38,7 @@ def continuation_lines(text):
     heredocs = []         # pending (terminator, strip_tabs) for the next lines
     in_heredoc = None
     continued = False
+    array_depth = 0       # open parentheses of a NAME=( array assignment
     for number, line in enumerate(text.split("\n"), start=1):
         if in_heredoc:
             skip.add(number)
@@ -35,7 +46,7 @@ def continuation_lines(text):
             if (line.lstrip("\t") if strip else line) == terminator:
                 in_heredoc = heredocs.pop(0) if heredocs else None
             continue
-        if quote or continued or substitution_depth:
+        if quote or continued or substitution_depth or array_depth or NO_COMMAND.fullmatch(line):
             skip.add(number)
         continued = False
         i = 0
@@ -77,6 +88,10 @@ def continuation_lines(text):
                 i += 1
             elif char in "'\"":
                 quote = char
+            elif char == "(" and (array_depth or (i > 0 and line[i - 1] == "=")):
+                array_depth += 1
+            elif char == ")" and array_depth:
+                array_depth -= 1
             elif char == "#" and (i == 0 or line[i - 1] in " \t;|&("):
                 break
             elif char == "<" and line.startswith("<<", i) and not line.startswith("<<<", i):

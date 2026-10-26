@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Measure statement coverage of the shell adapters and scripts with kcov.
-# Usage: scripts/coverage [OUTPUT_DIR]; AIOC_COVERAGE_MIN=80 fails below 80%,
+# Usage: scripts/coverage [OUTPUT_DIR]; AIOC_COVERAGE_MIN=95 fails below 95%,
 # AIOC_COVERAGE_JOBS sets the parallel suites (default: CPU count).
 # Requires kcov and python3.
 set -euo pipefail
