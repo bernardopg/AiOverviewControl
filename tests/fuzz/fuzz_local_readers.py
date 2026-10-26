@@ -23,6 +23,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -96,8 +97,9 @@ def opencode_db(data):
             "CREATE TABLE session_message(id TEXT PRIMARY KEY, session_id TEXT, type TEXT,"
             " time_created INTEGER, data TEXT);"
             "INSERT INTO session_v2 VALUES('s', '/project');")
-        conn.execute("INSERT INTO session_message VALUES('m', 's', 'assistant', unixepoch() * 1000, ?)",
-                     (data.decode("utf-8", "replace"),))
+        # The bundled SQLite predates unixepoch(); pass the time in.
+        conn.execute("INSERT INTO session_message VALUES('m', 's', 'assistant', ?, ?)",
+                     (int(time.time() * 1000), data.decode("utf-8", "replace")))
 
 
 # target -> (setup(data), command, output kind)
