@@ -28,6 +28,8 @@
         {"context": "Quickshell component smoke", "integration_id": 15368},
         {"context": "Crowdin config", "integration_id": 15368},
         {"context": "Secret scan", "integration_id": 15368},
+        {"context": "Statement coverage", "integration_id": 15368},
+        {"context": "Fuzz provider responses", "integration_id": 15368},
         {"context": "Workflow security audit", "integration_id": 15368}
       ]
     }}
