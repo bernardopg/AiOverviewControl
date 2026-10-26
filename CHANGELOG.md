@@ -11,12 +11,14 @@
 
 ### Fixes
 - A plugin hot reload (`dms ipc call plugins reload aiOverviewControl`) now shows edited dashboard, settings-window, analytics-reader and currency code without a shell restart: each widget instance loads those files under its own cache-busting URL, since the engine kept the previously compiled types.
+- Claude: a truncated or corrupt `.credentials.json` no longer crashes the helper and hides the local analytics; it is reported as an authentication error. A credential field containing a line break can no longer inject extra `KEY=VALUE` lines into the helper output. Found by the new local-reader fuzzer; covered by `tests/test-cov-b-claude.sh`.
 - Codex: the local telemetry panel now shows inference cost, as the Claude card does under a subscription. Each session row is priced at its model's list price from the LiteLLM table (uncached input, cached input and output at their own rates); a model with no list price stays `—`. Covered by `tests/test-local-analytics.sh`.
 - Claude: after a reboot the card no longer reports "Claude OAuth credentials are invalid or expired" until Claude Code is started by hand. An expired or rejected access token is now renewed through the installed CLI (`claude auth status`, for the same profile) and the request is retried once; the plugin still never refreshes or writes the token itself, and tries the CLI at most once every five minutes per profile. Covered by `tests/test-claude-auth-renew.sh`.
 - Claude: a usage response that carries only the canonical `limits[]` array (no flat `five_hour` object) is accepted and cached instead of being reported as a failed request with HTTP 200.
 - pi: a malformed line in a session file no longer discards the tokens and cost recorded before it in that session.
 
 ### Project
+- New local-reader fuzzer (`tests/fuzz/fuzz_local_readers.py`): arbitrary Claude transcripts and credentials, Codex and pi session logs, OpenCode SQLite rows and Grok/Cline CLI auth files, checked for crashes, unparseable output, leaked credentials and credentials on curl's command line. It runs in the **Fuzz provider responses** job and under ClusterFuzzLite.
 - **Statement coverage** and **Fuzz provider responses** are now required checks on `main`.
 - The shell adapters and scripts now have 80%+ statement coverage, enforced by the new **Statement coverage** CI job (`scripts/coverage`, kcov). `scripts/coverage-report` counts shell statements only, since kcov reports the bodies of embedded jq programs and heredocs as unexecuted lines. Over 40 new fixture suites cover every provider adapter's error and edge paths.
 - The provider-response fuzzer also runs under [ClusterFuzzLite](https://google.github.io/clusterfuzzlite/) (`.clusterfuzzlite/`, **ClusterFuzzLite** workflow): 3 minutes on each pull request and a 20-minute weekly batch, packaged with the adapters and a checksum-verified static jq.

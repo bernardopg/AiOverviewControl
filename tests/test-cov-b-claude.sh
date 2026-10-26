@@ -78,6 +78,19 @@ rm "$CLAUDE_CONFIG_DIR/.credentials.json"
 out="$(run)"
 grep -q '^USAGE_ERROR_KIND=authentication$' <<<"$out" || fail "missing credentials"
 
+# A corrupt credentials file (found by the local-reader fuzzer) is an
+# authentication error, not a crash that hides the local analytics; values
+# with line breaks cannot forge extra KEY=VALUE lines.
+printf '{"claudeAiOauth": {' > "$CLAUDE_CONFIG_DIR/.credentials.json"
+out="$(run)" || fail "corrupt credentials crashed the helper"
+grep -q '^USAGE_ERROR_KIND=authentication$' <<<"$out" || fail "corrupt credentials not reported"
+grep -q '^WEEK_TOKENS=150$' <<<"$out" || fail "corrupt credentials hid local analytics"
+jq -n '{claudeAiOauth:{subscriptionType:"pro\nUSAGE_ERROR_KIND=forged",accessToken:"has space"}}' > "$CLAUDE_CONFIG_DIR/.credentials.json"
+out="$(run)"
+! grep -q '^USAGE_ERROR_KIND=forged' <<<"$out" || fail "line break forged a KEY=VALUE line"
+grep -q '^USAGE_ERROR_KIND=authentication$' <<<"$out" || fail "malformed token not treated as missing"
+rm "$CLAUDE_CONFIG_DIR/.credentials.json"
+
 # Sourced native adapter handles helper output, helper failure, and missing helper.
 json_error() { jq -cn --arg p "$1" --arg s "$2" --argjson c "$3" --arg k "$4" --arg m "$5" '{provider:$p,source:$s,error:{code:$c,kind:$k,message:$m}}'; }
 source "$ROOT/providers/native/claude.bash"

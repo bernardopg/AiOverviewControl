@@ -190,8 +190,15 @@ python3 -m venv /tmp/fuzz-venv
 /tmp/fuzz-venv/bin/python tests/fuzz/fuzz_provider_responses.py -max_total_time=60
 ```
 
-The **Fuzz provider responses** job runs it directly, and the
-**ClusterFuzzLite** workflow runs the same harness packaged by
+`tests/fuzz/fuzz_local_readers.py` does the same for files read from disk: a
+Claude Code transcript or `.credentials.json`, a Codex or pi session log, an
+OpenCode message row (SQLite), the Grok CLI `auth.json` and the Cline CLI
+`providers.json`. It fails on a non-zero exit, output the widget cannot parse
+(Claude's `KEY=VALUE` lines included), a leaked credential, or a credential on
+curl's command line. Run it the same way, with `fuzz_local_readers.py`.
+
+The **Fuzz provider responses** job runs both harnesses directly, and the
+**ClusterFuzzLite** workflow runs the same harnesses packaged by
 `.clusterfuzzlite/build.sh`. To reproduce the ClusterFuzzLite build locally:
 
 ```bash
