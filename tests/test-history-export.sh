@@ -18,6 +18,7 @@ mkdir -p "$HISTORY_DIR" "$TMP/out"
 export_history() { "$ROOT/providers/export-usage-history" "$@"; }
 
 # ── nothing recorded yet ────────────────────────────────────────────────────
+[ "$("$ROOT/providers/get-usage-history")" = '{}' ] || { echo "history without a store is not {}" >&2; exit 1; }
 status=0
 export_history csv "$TMP/out" >/dev/null 2>&1 || status=$?
 [ "$status" -eq 3 ] || { echo "expected exit 3 with no history, got $status" >&2; exit 1; }
@@ -88,6 +89,12 @@ second="$(export_history csv "$TMP/out")"
 status=0
 export_history csv /proc/definitely-not-writable >/dev/null 2>&1 || status=$?
 [ "$status" -eq 4 ] || { echo "expected exit 4 for a bad destination, got $status" >&2; exit 1; }
+# /proc exists but takes no new files, even for root.
+status=0
+export_history csv /proc >/dev/null 2>"$TMP/err" || status=$?
+if [ "$status" -ne 4 ] || ! grep -q 'cannot write to destination' "$TMP/err"; then
+  echo "expected exit 4 for a read-only destination, got $status" >&2; exit 1
+fi
 
 # ── default destination follows XDG_DOWNLOAD_DIR from user-dirs.dirs ────────
 mkdir -p "$XDG_CONFIG_HOME" "$TMP/downloads"
@@ -99,5 +106,15 @@ case "$defaulted" in
 esac
 # Sourcing user-dirs.dirs must not leak into this shell.
 [ -z "${XDG_DOWNLOAD_DIR:-}" ] || { echo "XDG_DOWNLOAD_DIR leaked" >&2; exit 1; }
+
+# ── without user-dirs.dirs: ~/Downloads, else the home directory ────────────
+mkdir -p "$TMP/home/Downloads" "$TMP/bare-home"
+defaulted="$(HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/no-config" XDG_DOWNLOAD_DIR='' export_history csv)"
+case "$defaulted" in
+  "$TMP/home/Downloads"/*) ;;
+  *) echo "default destination is not ~/Downloads: $defaulted" >&2; exit 1 ;;
+esac
+defaulted="$(HOME="$TMP/bare-home" XDG_CONFIG_HOME="$TMP/no-config" XDG_DOWNLOAD_DIR='' export_history csv)"
+[ "$(dirname "$defaulted")" = "$TMP/bare-home" ] || { echo "default destination is not ~: $defaulted" >&2; exit 1; }
 
 echo "OK: test-history-export"

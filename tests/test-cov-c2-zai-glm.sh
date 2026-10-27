@@ -21,4 +21,9 @@ for p in zai z.ai glm zhipu; do
   if [[ "$p" == glm || "$p" == zhipu ]]; then jq -e '.[0].error.code == 500' <<<"$out" >/dev/null || fail "$p fallback failure"
   else jq -e '.[0].usage.accountEmail == "Z.ai account"' <<<"$out" >/dev/null || fail "$p fallback note"; fi
 done
+# Without any key the card says which variables to set, and never calls out.
+for p in zai glm; do
+  out="$(PATH="$TMP/bin:$PATH" env -u ZAI_API_KEY -u GLM_API_KEY -u ZHIPU_API_KEY "$ROOT/providers/get-provider-usage" "$p" 2>/dev/null)"
+  jq -e '.[0].error.code == 2 and (.[0].error.message | contains("is not set"))' <<<"$out" >/dev/null || fail "$p missing key: $out"
+done
 echo 'OK: test-cov-c2-zai-glm'

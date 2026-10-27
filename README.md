@@ -7,7 +7,7 @@
 **Every AI quota you pay for, live in your DankBar.**
 
 A [DankMaterialShell](https://github.com/duxlabs-dev/dux-shell) plugin that tracks
-quota, billing, authentication, and local usage for 43 AI providers — locally, honestly,
+quota, billing, authentication, and local usage for 40+ AI providers — locally, honestly,
 with no external service.
 
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
@@ -55,7 +55,7 @@ invented percentages.
 <tr>
 <td width="50%" valign="top">
 
-**📊 One dashboard, 43 providers**<br />
+**📊 One dashboard, 40+ providers**<br />
 Quota, balance, analytics, and auth status side by side, with a fleet overview
 of average load, hottest provider, and next reset.
 
@@ -73,7 +73,7 @@ and reset time. Crowded bar? Drop the names and tighten the spacing.
 <td valign="top">
 
 **🤖 Deep local telemetry**<br />
-Claude, Codex, 9Router, pi, and Hermes add token, cost, model, and project
+Claude, Codex, OpenCode, 9Router, pi, and Hermes add token, cost, model, and project
 analytics with a seven-day chart — read from data already on your disk. Track
 several Claude accounts side by side, each from its own `CLAUDE_CONFIG_DIR`.
 Claude and Codex also show credits, extra usage and limit resets, and can
@@ -152,14 +152,14 @@ Prefer a release archive or a git checkout? See [Installation](./docs/installati
 
 ## 🧩 Providers
 
-| Coverage           | What you get                             | Examples                                                |
-| ------------------ | ---------------------------------------- | ------------------------------------------------------- |
-| **Quota**          | Real usage % and reset time              | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI, Gemini CLI |
-| **Balance**        | Remaining prepaid credit                 | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
-| **Analytics**      | Tokens, cost, and models from local data or spend reports | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API |
-| **Authentication** | Credential check, no usage numbers       | Gemini, Mistral, Qwen, Groq, Cohere                     |
-| **Local runtime**  | Local models and sessions                | Ollama, Vertex AI                                       |
-| **Informational**  | A link to the official usage page        | Cursor, Kiro, Warp, Perplexity                          |
+| Coverage           | What you get                                              | Examples                                                               |
+| ------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Quota**          | Real usage % and reset time                               | Codex, Copilot, Cursor, Antigravity, OpenRouter, Z.ai, xAI, Gemini CLI |
+| **Balance**        | Remaining prepaid credit                                  | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway     |
+| **Analytics**      | Tokens, cost, and models from local data or spend reports | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API     |
+| **Authentication** | Credential check, no usage numbers                        | Mistral, Qwen, Groq, Cohere, NVIDIA                                    |
+| **Local runtime**  | Local models and sessions                                 | Ollama, Vertex AI                                                      |
+| **Informational**  | A link to the official usage page                         | Kiro, Warp, Perplexity, Amp                                            |
 
 The full list, data sources, and credentials are in [Providers](./docs/providers.md).
 
@@ -172,26 +172,29 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 
 ## 📚 Documentation
 
-For the latest release, start with the [2.0.0 changes guide](./docs/releases/2.0.0.md).
+New in 2.1: credits, extra usage, limit resets and the DankDash card — see the
+[2.1.0 notes](./docs/releases/2.1.0.md). Coming from DMS 1.6? Read the
+[2.0.0 upgrade guide](./docs/releases/2.0.0.md).
 See [cost currency and privacy](./docs/currency.md), [runtime module boundaries](./docs/refactoring.md),
 and [protected PR/release rules](./docs/repository-rules.md).
 
-|                                              |                                                      |
-| -------------------------------------------- | ---------------------------------------------------- |
-| [Usage](./docs/usage.md)                     | Pill, popout, cards, keyboard, IPC, history, privacy |
-| [Installation](./docs/installation.md)       | Store, archive, and git installs; upgrades           |
-| [Configuration](./docs/configuration.md)     | Every setting, environment variables, health checks  |
-| [Providers](./docs/providers.md)             | Coverage matrix and per-provider data sources        |
-| [Troubleshooting](./docs/troubleshooting.md) | Missing cards, credentials, notifications            |
-| [Architecture](./docs/architecture.md)       | Runtime flow and the adapter contract                |
-| [Translations](./docs/i18n-crowdin.md)       | Locales and Crowdin                                  |
-| [Contributing](./CONTRIBUTING.md)            | Local checks and conventions                         |
-| [Governance](./GOVERNANCE.md)                | Decisions, roles, code review, continuity            |
-| [Roadmap](./docs/roadmap.md)                 | What is planned for the next year, and what is not   |
-| [Security model](./docs/security.md)         | Security requirements and assurance case             |
-| [Security policy](./.github/SECURITY.md)     | Reporting vulnerabilities, verifying releases        |
-| [Code of conduct](./CODE_OF_CONDUCT.md)      | Contributor Covenant 2.1                             |
-| [Changelog](./CHANGELOG.md)                  | Release history                                      |
+|                                                  |                                                      |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| [Usage](./docs/usage.md)                         | Pill, popout, cards, keyboard, IPC, history, privacy |
+| [Installation](./docs/installation.md)           | Store, archive, and git installs; upgrades           |
+| [Configuration](./docs/configuration.md)         | Every setting, environment variables, health checks  |
+| [Providers](./docs/providers.md)                 | Coverage matrix and per-provider data sources        |
+| [Troubleshooting](./docs/troubleshooting.md)     | Missing cards, credentials, notifications            |
+| [Architecture](./docs/architecture.md)           | Runtime flow and the adapter contract                |
+| [Translations](./docs/i18n-crowdin.md)           | Locales and Crowdin                                  |
+| [Contributing](./CONTRIBUTING.md)                | Local checks and conventions                         |
+| [Development gates](./docs/development-gates.md) | Tests, statement coverage, fuzzing and CI gates      |
+| [Governance](./GOVERNANCE.md)                    | Decisions, roles, code review, continuity            |
+| [Roadmap](./docs/roadmap.md)                     | What is planned for the next year, and what is not   |
+| [Security model](./docs/security.md)             | Security requirements and assurance case             |
+| [Security policy](./.github/SECURITY.md)         | Reporting vulnerabilities, verifying releases        |
+| [Code of conduct](./CODE_OF_CONDUCT.md)          | Contributor Covenant 2.1                             |
+| [Changelog](./CHANGELOG.md)                      | Release history                                      |
 
 ## 💜 Support the project
 

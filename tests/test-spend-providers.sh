@@ -128,6 +128,10 @@ out="$(run anthropic "$TMP/anthropic-err.json" 403)"
 check "anthropic 403" '.[0].error.code == 403 and .[0].error.message == "Admin key required"' "$out"
 out="$(run anthropic "$TMP/odd.json")"
 check "anthropic schema" '.[0].error.code == 200 and (.[0].error.message | contains("unexpected"))' "$out"
+out="$(run anthropic "$TMP/odd.json" 429)"
+check "anthropic 429" '.[0].error.code == 429 and (.[0].error.message | contains("rate limited"))' "$out"
+out="$(run anthropic "$TMP/odd.json" 502)"
+check "anthropic 502" '.[0].error.code == 502 and .[0].error.message == "Anthropic cost report returned HTTP 502."' "$out"
 missing anthropic ANTHROPIC_ADMIN_KEY
 
 # --- OpenAI API -----------------------------------------------------------
@@ -160,6 +164,10 @@ out="$(run openai "$TMP/openai-err.json" 401)"
 check "openai 401" '.[0].error.code == 401 and (.[0].error.message | contains("Admin API key"))' "$out"
 out="$(run openai "$TMP/openai-err.json" 429)"
 check "openai 429" '.[0].error.code == 429 and (.[0].error.message | contains("rate limited"))' "$out"
+out="$(run openai "$TMP/odd.json")"
+check "openai schema" '.[0].error.code == 200 and (.[0].error.message | contains("unexpected"))' "$out"
+out="$(run openai "$TMP/odd.json" 502)"
+check "openai 502" '.[0].error.code == 502 and .[0].error.message == "OpenAI costs API returned HTTP 502."' "$out"
 missing openai OPENAI_ADMIN_KEY
 
 # --- Vercel AI Gateway ----------------------------------------------------

@@ -27,8 +27,8 @@ the coverage-measurement fix and the 2.1 documentation.
   `plugins/bernardopg-aioverviewcontrol.json`, so DMS 1.6 users keep 1.22.0.
   Open as
   [duxlabs-dev/dux-plugin-registry#1095](https://github.com/duxlabs-dev/dux-plugin-registry/pull/1095),
-  waiting for the registry maintainers. It states 39 providers: update the
-  description to 43 after 2.2.0 ships. `S · ★★★`
+  waiting for the registry maintainers. The description says "40+ AI
+  providers", so it only changes when the catalog reaches 50. `S · ★★★`
 - [~] **Live check of the new spend providers** — Anthropic API, OpenAI API,
   Ollama Cloud and Vercel AI Gateway are tested against the documented example
   responses only; no account was available. Run each card once with a real key
@@ -38,18 +38,11 @@ the coverage-measurement fix and the 2.1 documentation.
   accounts since 2026), but the per-model buckets of a Code Assist Standard or
   Enterprise project are only fixture-tested from the CLI's
   `RetrieveUserQuotaResponse` type. Verify with a licensed account. `S · ★★`
-- [~] **Weakest coverage files** — total shell statement coverage is 90.13%
-  (gate 80%). Below 80%, measured 2026-10-26:
-  `providers/get-hermes-analytics` 66.67%, `providers/native/hermes.bash`
-  71.88%, `providers/reset-provider-limits` 71.88% (Claude sign-in and HTTP
-  error branches), `providers/native/opencode.bash` 72.22%,
-  `providers/get-local-analytics` 75.00%. The Hermes and OpenCode figures are
-  understated by the kcov limitation below. `M · ★★`
-- [ ] **Report the kcov line-tracking bug upstream** — kcov loses line
-  tracking after a command whose multi-line quoted argument contains a single
-  quote; reproducers are in `docs/development-gates.md`. File it at
-  SimonKagstrom/kcov, then drop the caveat when a fixed kcov reaches Arch.
-  `S · ★`
+- [~] **Last uncovered statements** — total statement coverage is 97.8%
+  (gate 95%). The rest are hard-to-reach paths: killing a stuck Codex
+  app-server, a 10 s exchange-rate lock timeout, curl network failures in
+  `get-claude-usage`, and Antigravity and xAI account-error branches. Cover
+  them when a test can fake the condition cheaply. `M · ★`
 
 ## Providers — Data & Auth
 
@@ -98,6 +91,11 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
   "Handler was registered but will not be used" for the extra ones. IPC works;
   register the handler from one instance only to silence it. `S · ★`
 
+- [ ] **Packaged kcov** — CI builds kcov from a pinned commit after 43,
+  which fixed lost bash line tracking after a multi-line quoted argument with
+  a single quote. Switch back to the Arch package once kcov 44 ships, and
+  update the local build note in `docs/development-gates.md`. `S · ★`
+
 ## Project health
 
 - [ ] **Account successor** — designate a GitHub account successor for the
@@ -115,6 +113,11 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
   refresh and Hermes cache tests (#81).
 - [x] **New providers** — Anthropic API, OpenAI API, Ollama Cloud and Vercel
   AI Gateway, plus Gemini CLI quota and the ineligible-account reason (#82).
+- [x] **Coverage to 97.8%** — the files below 80% (Hermes analytics and
+  summary, limit resets, OpenCode, local analytics) now at 100%; CI measures
+  with a kcov build that tracks multi-line SQL, and the gate rises to 95%.
+- [x] **README refresh** — "40+ providers" prose, provider examples matching
+  the coverage matrix, 2.1 notes and the development gates.
 - [x] **Dash plugin surface** — `AiOverviewDashCard.qml`, shipped in 2.1.0.
 
 ## Decided against

@@ -206,7 +206,6 @@ docker build -t aioc-cflite -f .clusterfuzzlite/Dockerfile .
 docker run --rm -e SANITIZER=address -e FUZZING_LANGUAGE=python -e FUZZING_ENGINE=libfuzzer \
   -e ARCHITECTURE=x86_64 -v "$PWD/out:/out" aioc-cflite compile
 ```
-||||||| parent of 2bcc33c (test: raise shell statement coverage to 80% and enforce it in CI)
 
 ## Statement coverage
 
@@ -214,7 +213,7 @@ docker run --rm -e SANITIZER=address -e FUZZING_LANGUAGE=python -e FUZZING_ENGIN
 under [kcov](https://github.com/SimonKagstrom/kcov), merges the runs and prints
 statement coverage of `providers/` and `scripts/`, with a per-file table in
 `OUTPUT_DIR/files.tsv` (default `./coverage/`, ignored by git). Set
-`AIOC_COVERAGE_MIN=80` to fail below 80%, as the **Statement coverage** CI job
+`AIOC_COVERAGE_MIN=95` to fail below 95%, as the **Statement coverage** CI job
 does.
 
 kcov's own percentage counts every physical line, including the body of a
@@ -222,15 +221,27 @@ multi-line jq or awk program, a heredoc body and a backslash-continued line.
 Those lines belong to the statement that starts above them and are never
 reported as executed, so `scripts/coverage-report` drops them and counts a
 statement as one group, covered when any of its lines ran: kcov records the
-hit of a multi-line quoted command on its closing line
-(`tests/test-coverage-report.sh` pins this). The jq programs themselves are
-exercised by the fixture assertions, not measured line by line.
+hit of a multi-line quoted command on its closing line. The elements of a
+multi-line array assignment are grouped the same way. Lines that run no
+command (an empty `200) ;;` case branch, a `fi ;;` or `esac ;;` closing a
+branch, a `}` or `done` that redirects a block) are never traced by bash, so
+they join the statement above them too. `tests/test-coverage-report.sh` pins
+these rules. The jq programs themselves are exercised by the fixture
+assertions, not measured line by line.
 
-kcov also loses line tracking after a command whose multi-line quoted argument
-contains a single quote, such as SQL with `''` or `'$WEEK_EPOCH'` literals:
-the statements after it read as unexecuted until a later line resyncs, even
-though the suites run them. The Hermes and OpenCode analytics queries are
-affected, so their per-file percentages understate what the tests exercise.
+kcov 43 loses line tracking after a command whose multi-line quoted argument
+contains a single quote, such as SQL with `''` literals: the statements after
+it read as unexecuted. kcov fixed this after 43 (commit `ba175851`), so CI
+builds kcov from a pinned, checksum-verified commit (`KCOV_COMMIT` in
+`ci.yml`). Locally, build the same commit when the packaged kcov is 43 or
+older:
+
+```bash
+git clone https://github.com/SimonKagstrom/kcov /tmp/kcov && cd /tmp/kcov
+git checkout 460cd988eaaa2271b682bbf1702443e90fb45c5e
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+PATH="/tmp/kcov/build/src:$PATH" scripts/coverage
+```
 
 Coverage suites must not clear the environment (`env -i`) or unset
 `BASH_ENV`: kcov traces child `bash` processes through it. Capture a

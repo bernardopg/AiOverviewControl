@@ -178,4 +178,28 @@ touch -d '-5 minutes' "$cache_dir/.notify-waiter.orphan" "$cache_dir/.notify-wai
 kill "$holder"; wait "$holder" 2>/dev/null || true
 rm -f "$cache_dir/.notify-waiter.held" "$cache_dir/.notify-waiter.fresh"
 
+# Icons: a provider SVG is recoloured opaque on a padded square box and cached
+# by source and colour; anything else falls back to the theme icon. Invalid
+# urgency and cooldown values fall back to their defaults.
+rm -f "$CLICK_FILE"
+printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 12"><path d="M0 0h24v12H0z"/></svg>\n' > "$TMP/logo.svg"
+printf '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1H0z"/></svg>\n' > "$TMP/no-box.svg"
+: > "$TMP/logo.png"
+icon_of() {
+  : > "$NOTIFY_LOG"
+  "$ROOT/providers/send-quota-alert" "icon:$3" "${5:-0}" "${4:-normal}" "$1" "$2" 'Quota test' 'Fixture body'
+  sed -E 's/.* -i ([^ ]+) .*/\1/' "$NOTIFY_LOG"
+}
+icon="$(icon_of "$TMP/logo.svg" '#FF6750A4' rgb)"
+case "$icon" in "$cache_dir"/notification-icons/*.svg) ;; *) echo "icon not rendered: $icon" >&2; exit 1 ;; esac
+grep -q 'viewBox="-3.600000 -9.600000 31.200000 31.200000"' "$icon" || { echo 'icon box not square and padded' >&2; exit 1; }
+grep -q 'values="0 0 0 0 0.403922 0 0 0 0 0.313725 0 0 0 0 0.643137 0 0 0 1 0"' "$icon" || { echo 'icon colour matrix' >&2; exit 1; }
+grep -qx '<path d="M0 0h24v12H0z"/>' "$icon" && [ "$(tail -n 1 "$icon")" = '</g></svg>' ] || { echo 'icon body' >&2; exit 1; }
+[ "$(icon_of "$TMP/logo.svg" '#6750A4' cached)" = "$icon" ] || { echo 'icon not reused from cache' >&2; exit 1; }
+for bad in "$TMP/logo.png:#6750A4" "$TMP/logo.svg:red" "$TMP/logo.svg:#12345" "$TMP/logo.svg:#GG50A4" "$TMP/no-box.svg:#6750A4"; do
+  [ "$(icon_of "${bad%:*}" "${bad##*:}" bad)" = dialog-warning ] || { echo "icon fallback for $bad" >&2; exit 1; }
+done
+icon_of dialog-warning '#6750A4' defaults bogus soon >/dev/null
+grep -q -- '-u normal' "$NOTIFY_LOG" || { echo 'invalid urgency kept' >&2; exit 1; }
+
 echo 'Quota alert deduplication and click action: OK'

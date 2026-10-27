@@ -122,7 +122,7 @@ find providers -type f -print0 | xargs -0 shellcheck -S warning
 shellcheck -S warning tests/*.sh scripts/check-metadata scripts/check-dco scripts/package-release \
   scripts/qmlls-setup scripts/reload-plugin scripts/render-contributors .githooks/pre-push
 for test in tests/test-*.sh; do bash "$test"; done
-AIOC_COVERAGE_MIN=80 scripts/coverage   # kcov statement coverage (CI: Statement coverage)
+AIOC_COVERAGE_MIN=95 scripts/coverage   # kcov statement coverage (CI: Statement coverage)
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml   # exit code is the signal; without a TTY
                                           # messages go to journald, not stderr
 actionlint

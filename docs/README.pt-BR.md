@@ -7,7 +7,7 @@
 **Todas as cotas de IA que você paga, ao vivo na sua DankBar.**
 
 Um plugin para o [DankMaterialShell](https://github.com/duxlabs-dev/dux-shell) que acompanha
-cota, cobrança, autenticação e uso local de 43 provedores de IA — localmente, com honestidade
+cota, cobrança, autenticação e uso local de 40+ provedores de IA — localmente, com honestidade
 e sem nenhum serviço externo.
 
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
@@ -55,7 +55,7 @@ painéis. Nada de porcentagens inventadas.
 <tr>
 <td width="50%" valign="top">
 
-**📊 Um painel, 43 provedores**<br />
+**📊 Um painel, 40+ provedores**<br />
 Cota, saldo, analytics e autenticação lado a lado, com visão geral da frota:
 carga média, provedor mais usado e próximo reset.
 
@@ -73,7 +73,7 @@ reset. Barra lotada? Esconda os nomes e compacte o espaçamento.
 <td valign="top">
 
 **🤖 Telemetria local detalhada**<br />
-Claude, Codex, 9Router, pi e Hermes mostram tokens, custo, modelos e projetos
+Claude, Codex, OpenCode, 9Router, pi e Hermes mostram tokens, custo, modelos e projetos
 com gráfico de sete dias — lidos de dados que já estão no seu disco. Acompanhe
 várias contas Claude lado a lado, cada uma com seu próprio `CLAUDE_CONFIG_DIR`.
 Claude e Codex também mostram créditos, uso extra e resets de limite, e podem
@@ -154,18 +154,19 @@ Prefere um arquivo de release ou um checkout do git? Veja [Instalação](./insta
 
 | Cobertura | O que você recebe | Exemplos |
 | --- | --- | --- |
-| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Antigravity, OpenRouter, Z.ai, GLM, xAI, Gemini CLI |
+| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Cursor, Antigravity, OpenRouter, Z.ai, xAI, Gemini CLI |
 | **Saldo** | Crédito pré-pago restante | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
 | **Analytics** | Tokens, custo e modelos a partir de dados locais ou relatórios de gasto | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API |
-| **Autenticação** | Checagem de credencial, sem números de uso | Gemini, Mistral, Qwen, Groq, Cohere |
+| **Autenticação** | Checagem de credencial, sem números de uso | Mistral, Qwen, Groq, Cohere, NVIDIA |
 | **Runtime local** | Modelos e sessões locais | Ollama, Vertex AI |
-| **Informativo** | Link para a página oficial de uso | Cursor, Kiro, Warp, Perplexity |
+| **Informativo** | Link para a página oficial de uso | Kiro, Warp, Perplexity, Amp |
 
 A lista completa, as fontes de dados e as credenciais estão em [Provedores](./providers.md).
 
 ## 📚 Documentação
 
-O [guia do release 2.0.0](./releases/2.0.0.md) reúne mudanças, privacidade e limitações (em inglês).
+Novo na 2.1: créditos, uso extra, resets de limite e o card do DankDash — veja as
+[notas da 2.1.0](./releases/2.1.0.md). Vindo do DMS 1.6? Leia o [guia de atualização 2.0.0](./releases/2.0.0.md) (em inglês).
 Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
 e [regras de PR e publicação](./repository-rules.md).
 
@@ -181,6 +182,7 @@ A documentação detalhada está em inglês.
 | [Arquitetura](./architecture.md) | Fluxo de execução e contrato dos adaptadores |
 | [Traduções](./i18n-crowdin.md) | Idiomas e Crowdin |
 | [Contribuindo](../CONTRIBUTING.md) | Checagens locais e convenções |
+| [Gates de desenvolvimento](./development-gates.md) | Testes, cobertura de statements, fuzzing e gates de CI (em inglês) |
 | [Governança](../GOVERNANCE.md) | Decisões, papéis, revisão de código, continuidade |
 | [Roadmap](./roadmap.md) | O que está planejado para o próximo ano, e o que não está |
 | [Modelo de segurança](./security.md) | Requisitos de segurança e assurance case |

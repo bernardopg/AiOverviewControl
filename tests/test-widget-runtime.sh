@@ -439,11 +439,40 @@ ShellRoot {
                 if (dashCard.items.length === 0 || dashCard.items[0].id !== "claude" || dashCard.rows < 2) {
                     console.error("SMOKE FAIL: dash card did not read the widget snapshot " + JSON.stringify(dashCard.snapshot)); return;
                 }
+                // Shrink the card to the smallest height that still lists every
+                // provider; the next tick checks the rows once they are laid out.
+                const listed = dashCard.snapshot.items.length;
+                let h = dashCard.height;
+                while (h > 1 && dashCard.rows >= listed)
+                    dashCard.height = --h;
+                dashCard.height = h + 1;
+                root.step = 15;
+            } else if (root.step === 15) {
+                // With the theme's bar height and spacing, every row still fits.
+                // The offscreen window never polishes, so lay the columns out first.
+                const layout = item => { for (const c of item.children) layout(c); if (typeof item.forceLayout === "function") item.forceLayout(); };
+                layout(dashCard);
+                // Content leaves (not the full-size card background) must keep the
+                // same margin at the bottom as the card's padding at the top.
+                const leaves = [];
+                const collect = item => {
+                    if (!item.visible) return;
+                    const shown = Array.from(item.children).filter(c => c.visible);
+                    if (shown.length === 0 && item.height > 0 && item.height < dashCard.height) leaves.push(item);
+                    shown.forEach(collect);
+                };
+                collect(dashCard);
+                const top = Math.min(...leaves.map(l => l.mapToItem(dashCard, 0, 0).y));
+                const bottom = Math.max(...leaves.map(l => l.mapToItem(dashCard, 0, l.height).y));
+                if (dashCard.items.length !== dashCard.snapshot.items.length || bottom > dashCard.height - top + 0.5) {
+                    console.error("SMOKE FAIL: dash card rows overflow at height " + dashCard.height + ": " + bottom + " > " + (dashCard.height - top)); return;
+                }
+                dashCard.height = 300;
                 widget.confirmResetProviderId = "";
                 widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");
-                root.step = 15;
+                root.step = 16;
             }
         }
     }

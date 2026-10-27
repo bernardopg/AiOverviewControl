@@ -27,6 +27,10 @@ env:
   SHELLCHECK_SHA256: "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6"
   CROWDIN_CLI_VERSION: "5.3.0"
   CROWDIN_CLI_SHA256: "d3f8e74471b98d47c0964e85c992a04eb411d06138c4239118a4c94d29e3e9e4"
+  # kcov master after v43: v43 loses bash line tracking after a multi-line
+  # quoted argument that contains a single quote (fixed upstream in ba175851).
+  KCOV_COMMIT: "460cd988eaaa2271b682bbf1702443e90fb45c5e"
+  KCOV_SHA256: "9fdf40cca84ec358f515a90d69b20e8523821cf222f1af3f4c9d17c70b7d862b"
 
 jobs:
   changelog:
@@ -122,27 +126,38 @@ jobs:
   coverage:
     name: Statement coverage
     runs-on: ubuntu-latest
-    # Ubuntu 24.04 does not package kcov; Arch ships it.
+    # Arch ships the current build toolchain and kcov's libraries.
     container: archlinux:base
     timeout-minutes: 40
     steps:
-      - name: Install kcov and test prerequisites
+      - name: Install build and test prerequisites
         # Retried: a single flaky Arch mirror read otherwise fails the job.
         run: |
           for attempt in 1 2 3; do
-            pacman -Syu --noconfirm bash curl diffutils git jq kcov python shellcheck sqlite unzip zip && exit 0
+            pacman -Syu --noconfirm bash binutils cmake curl diffutils elfutils gcc git jq make openssl \
+              python shellcheck sqlite unzip zip zlib && exit 0
             sleep $((attempt * 10))
           done
           exit 1
+      - name: Build kcov (verified checksum)
+        run: |
+          TARBALL="/tmp/kcov.tar.gz"
+          curl -fsSL "https://github.com/SimonKagstrom/kcov/archive/${KCOV_COMMIT}.tar.gz" -o "$TARBALL"
+          echo "${KCOV_SHA256}  ${TARBALL}" | sha256sum --check --strict
+          tar -xzf "$TARBALL" -C /tmp
+          cmake -S "/tmp/kcov-${KCOV_COMMIT}" -B /tmp/kcov-build -DCMAKE_BUILD_TYPE=Release >/dev/null
+          cmake --build /tmp/kcov-build --parallel "$(nproc)" >/dev/null
+          install -m 0755 /tmp/kcov-build/src/kcov /usr/local/bin/kcov
+          kcov --version
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # Statements of the shell adapters and scripts, measured by kcov over every
       # non-QML suite; scripts/coverage-report drops the bodies of embedded jq
       # programs and heredocs, which kcov reports as unexecuted lines.
-      - name: Measure coverage (minimum 80%)
+      - name: Measure coverage (minimum 95%)
         env:
-          AIOC_COVERAGE_MIN: "80"
+          AIOC_COVERAGE_MIN: "95"
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           scripts/coverage /tmp/coverage
@@ -764,6 +779,12 @@ jobs:
 
       - name: Integration test — Codex/OpenCode local analytics
         run: tests/test-local-analytics.sh
+
+      - name: Integration test — release package refusals
+        run: tests/test-package-release.sh
+
+      - name: Integration test — qmlls import tree
+        run: tests/test-qmlls-setup.sh
 
       - name: Branch coverage suites (pi analytics and per-adapter edge cases)
         run: |

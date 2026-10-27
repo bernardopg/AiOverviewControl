@@ -51,7 +51,7 @@ case "$url" in
     ;;
   *zen/go/v1/models*)
     [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-models.json" "$out"
-    status=200
+    status="${OC_MODELS_STATUS:-200}"
     ;;
 esac
 if [ "$write_code" -eq 1 ]; then printf '%s' "$status"; fi
@@ -142,5 +142,10 @@ out="$(OC_USAGE_MODE=forbidden run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user
 out="$(OC_USAGE_MODE=down run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user_test)"
 [ "$(jq -r '.[0].source' <<<"$out")" = "opencode-models" ] || fail "fallback source"
 grep -q '^Authorization: Bearer user_test$' "$HDR_LOG" || fail "auth header forwarded to models fallback"
+
+# 10. Both endpoints down → the key is reported as set, never as invalid.
+out="$(OC_USAGE_MODE=down OC_MODELS_STATUS=503 run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user_test)"
+jq -e '.[0].source == "opencode-api" and .[0].error == null
+  and .[0].usage.primary.resetDescription == "API key set; OpenCode Zen unreachable"' <<<"$out" >/dev/null || fail "both endpoints down: $out"
 
 echo "OK: test-opencode"

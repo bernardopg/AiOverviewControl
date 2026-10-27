@@ -155,5 +155,12 @@ CODEX_HOME=/nonexistent bash "$ROOT/providers/get-local-analytics" codex \
   | check '.error == "Codex local sessions not found"' 'Codex missing source is not served from cache'
 OPENCODE_DATA_DIR=/nonexistent bash "$ROOT/providers/get-local-analytics" opencode \
   | check '.error == "OpenCode local database not found"' 'OpenCode missing source is not served from cache'
+bash "$ROOT/providers/get-local-analytics" claude \
+  | check '.error == "Unsupported local analytics provider"' 'Unsupported local analytics provider'
+# A database without OpenCode tables is an error card, not empty telemetry.
+mkdir -p "$TMP/opencode-empty"
+sqlite3 "$TMP/opencode-empty/opencode.db" "CREATE TABLE unrelated(id TEXT);"
+OPENCODE_DATA_DIR="$TMP/opencode-empty" bash "$ROOT/providers/get-provider-usage" opencode \
+  | check '.[0].source == "opencode-local" and (.[0].error.message | contains("could not be read"))' 'OpenCode unreadable database card'
 
 echo 'OK: local harness analytics and cost semantics'

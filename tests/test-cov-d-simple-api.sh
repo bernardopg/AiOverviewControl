@@ -86,5 +86,11 @@ for provider in cloudflare deepseek fireworks replicate gemini kilo together coh
 done
 export COV_STATUS=500 COV_BODY='{"message":"offline"}'
 result="$(run deepseek)"; jq -e '.[0].error.code == 500' <<<"$result" >/dev/null
+# Vertex AI without a gcloud sign-in says how to sign in.
+mkdir -p "$TMP/gcloud-out"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$TMP/gcloud-out/gcloud"
+chmod +x "$TMP/gcloud-out/gcloud"
+result="$(PATH="$TMP/gcloud-out:$PATH" run vertexai)"
+jq -e '.[0].error.code == 2 and (.[0].error.message | contains("gcloud auth login"))' <<<"$result" >/dev/null
 export COV_STATUS=200 COV_BODY='not-json'
 result="$(run replicate)"; jq -e '.[0].provider == "replicate"' <<<"$result" >/dev/null 2>&1

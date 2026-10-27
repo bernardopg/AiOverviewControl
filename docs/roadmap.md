@@ -42,11 +42,10 @@ of its own in between.
 
 ### Quality and security
 
-- Keep total shell statement coverage at 90% or more (the CI gate stays at
-  80%), and raise the files still below 80% (Hermes analytics, OpenCode, limit
-  resets, local analytics) toward 90%.
-- Report kcov's lost line tracking after multi-line quoted arguments upstream,
-  and drop the documented caveat once a fixed kcov ships.
+- Keep total shell statement coverage at 95% or more, enforced by CI, and
+  cover each new adapter's error paths with fixture tests.
+- Return to the packaged kcov once a release after 43 ships; CI builds a
+  pinned, checksum-verified commit until then.
 - Keep the supply-chain controls current: SHA-pinned actions, checksum-verified
   CI tools, signed release provenance, secret scanning and the OpenSSF
   Scorecard.
