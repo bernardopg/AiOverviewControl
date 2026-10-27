@@ -165,8 +165,10 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-Novo na 2.1: créditos, uso extra, resets de limite e o card do DankDash — veja as
-[notas da 2.1.0](./releases/2.1.0.md). Vindo do DMS 1.6? Leia o [guia de atualização 2.0.0](./releases/2.0.0.md) (em inglês).
+Novo na 2.2: Anthropic API, OpenAI API, Ollama Cloud e Vercel AI Gateway, e a
+cota do Gemini CLI — veja as [notas da 2.2.0](./releases/2.2.0.md). Créditos,
+resets de limite e o card do DankDash chegaram na [2.1.0](./releases/2.1.0.md).
+Vindo do DMS 1.6? Leia o [guia de atualização 2.0.0](./releases/2.0.0.md) (em inglês).
 Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
 e [regras de PR e publicação](./repository-rules.md).
 

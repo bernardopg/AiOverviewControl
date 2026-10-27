@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.2.0 - 2026-10-26
+
+A feature release for DMS 2.0. Four providers join the catalog (Anthropic API, OpenAI API, Ollama Cloud and Vercel AI Gateway, 43 in all), and the Gemini card shows per-model daily quota for Gemini CLI accounts on a Code Assist Standard or Enterprise project. The DankDash card no longer clips its last row. Settings, profiles, pins and history carry over unchanged; no restart is needed beyond the usual plugin reload.
+Long-form notes: [docs/releases/2.2.0.md](docs/releases/2.2.0.md).
+
 ### Providers
 - **Anthropic API** (`ANTHROPIC_ADMIN_KEY`) and **OpenAI API** (`OPENAI_ADMIN_KEY`): month-to-date and today's spend of a Claude Console or OpenAI Platform organization from the official Admin cost APIs. Neither API exposes a balance or budget, so `ANTHROPIC_MONTHLY_BUDGET_USD` / `OPENAI_MONTHLY_BUDGET_USD` optionally turn the month into a percentage. Subscription limits stay on the Claude and Codex cards.
 - **Ollama Cloud** (`OLLAMA_API_KEY`): included monthly credits, or the session and weekly limits of a legacy plan, plus purchased credits, from the official `/api/balance`. The local Ollama card is unchanged.
@@ -18,8 +23,8 @@
 - Troubleshooting covers a missing or empty DankDash card and a refused limit reset, and the architecture guide describes the DankDash snapshot, the reset helper and the shared helper scripts added in 2.1. The NVIDIA notes reflect that build.nvidia.com replaced trial credits with rate limits.
 
 ### Quality
-- Statement coverage counts a multi-line command as covered when kcov records its hit on the closing line, and new tests cover the missing-prerequisite results of every provider health check, the Copilot helper hand-off, a failed Antigravity token refresh (the refresh token never reaches the output) and Hermes analytics cache recovery. `docs/development-gates.md` notes the kcov limitation that still understates the Hermes and OpenCode analytics files.
-- Statement coverage rises to 97.8% and the CI gate to 95%. The Hermes analytics and summary, limit resets, OpenCode, local analytics, quota alert, history export, 9Router and package checks now reach 100%. CI builds kcov from a pinned, checksum-verified commit that keeps line tracking after multi-line SQL, and the coverage report no longer counts lines bash never traces (empty case branches, array continuations, redirected block ends).
+- Statement coverage counts a multi-line command as covered when kcov records its hit on the closing line, and new tests cover the missing-prerequisite results of every provider health check, the Copilot helper hand-off, a failed Antigravity token refresh (the refresh token never reaches the output) and Hermes analytics cache recovery.
+- Statement coverage rises to 97% and the CI gate to 95%. The Hermes analytics and summary, limit resets, OpenCode, local analytics, quota alert, history export, 9Router and package checks now reach 100%. CI builds kcov from a pinned, checksum-verified commit that keeps line tracking after multi-line SQL, and the coverage report no longer counts lines bash never traces (empty case branches, array continuations, redirected block ends).
 
 ## 2.1.1 - 2026-10-26
 
