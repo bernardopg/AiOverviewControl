@@ -11,24 +11,13 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ---
 
-## 🚀 Next release (2.2.0)
+## 🚀 Next release
 
-`## Unreleased` in `CHANGELOG.md` holds four new providers, Gemini CLI quota,
-the coverage-measurement fix and the 2.1 documentation.
-
-- [ ] **Release 2.2.0** — follow `docs/release-checklist.md`: release branch,
-  version bump in `plugin.json`, `## 2.2.0` heading, `docs/releases/2.2.0.md`,
-  PR with green checks, signed tag. `S · ★★★`
+- [ ] **Release 2.3.0** — nothing is queued in `## Unreleased` yet; follow
+  `docs/release-checklist.md` once it is. `S · ★★★`
 
 ## 🔧 Partial — needs a follow-up
 
-- [~] **Registry entry** — `requires_dms: ">=2.0.0"`, the `dash-card`
-  capability and the provider count in
-  `plugins/bernardopg-aioverviewcontrol.json`, so DMS 1.6 users keep 1.22.0.
-  Open as
-  [duxlabs-dev/dux-plugin-registry#1095](https://github.com/duxlabs-dev/dux-plugin-registry/pull/1095),
-  waiting for the registry maintainers. The description says "40+ AI
-  providers", so it only changes when the catalog reaches 50. `S · ★★★`
 - [~] **Live check of the new spend providers** — Anthropic API, OpenAI API,
   Ollama Cloud and Vercel AI Gateway are tested against the documented example
   responses only; no account was available. Run each card once with a real key
@@ -103,7 +92,7 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 - [ ] **Second maintainer** — grant the maintain role to a second trusted
   contributor, then require one approving review on `main`. `L · ★★`
 
-## ✅ Done since 2.1.1 (moves to the 2.2.0 notes)
+## ✅ Shipped in 2.2.0 (removed after the next release)
 
 - [x] **Backlog refresh** — only open work, dated upstream checks (#79).
 - [x] **2.1 documentation** — DankDash card and limit resets in architecture
@@ -118,6 +107,10 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
   with a kcov build that tracks multi-line SQL, and the gate rises to 95%.
 - [x] **README refresh** — "40+ providers" prose, provider examples matching
   the coverage matrix, 2.1 notes and the development gates.
+- [x] **Registry entry** — `requires_dms: ">=2.0.0"`, the `dash-card`
+  capability and a "40+ AI providers" description, merged in
+  [duxlabs-dev/dux-plugin-registry#1095](https://github.com/duxlabs-dev/dux-plugin-registry/pull/1095).
+- [x] **Release 2.2.0** — [docs/releases/2.2.0.md](docs/releases/2.2.0.md).
 - [x] **Dash plugin surface** — `AiOverviewDashCard.qml`, shipped in 2.1.0.
 
 ## Decided against
@@ -136,4 +129,4 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 
 ---
 
-Shipped work before 2.1.1 is in `CHANGELOG.md`.
+Shipped work before 2.2.0 is in `CHANGELOG.md`.
