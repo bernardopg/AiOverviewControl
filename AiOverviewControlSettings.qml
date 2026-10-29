@@ -937,7 +937,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the DankBar by default. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h 45% / 7d 80%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
+                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the DankBar by default. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h\u00a045%\u00a0/\u00a07d\u00a080%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
                 wrapMode: Text.WordWrap
                 color: Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
@@ -1107,7 +1107,7 @@ PluginSettings {
         visible: notifyToggle.checked
         width: parent.width
         text: t("settings.notify.window_scope", "Windows that raise alerts")
-        description: t("settings.notify.window_scope_desc", "“displayed” alerts on whatever window the DankBar shows for each provider — identical to “primary” until you override a provider above. “all” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
+        description: t("settings.notify.window_scope_desc", "“Displayed” alerts on whatever windows the DankBar shows for each provider — identical to “Primary” until you override a provider above. “All windows” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
         selected: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
         values: ["displayed", "all", "primary"]
         labels: [t("settings.option.displayed", "Displayed"), t("settings.option.all", "All windows"), t("settings.option.primary", "Primary")]
