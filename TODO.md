@@ -13,7 +13,7 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## 🚀 Next release
 
-- [ ] **Release 2.3.0** — nothing is queued in `## Unreleased` yet; follow
+- [ ] **Next release** — nothing is queued in `## Unreleased` yet; follow
   `docs/release-checklist.md` once it is. `S · ★★★`
 
 ## 🔧 Partial — needs a follow-up
@@ -91,6 +91,12 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
   maintainer account (see `GOVERNANCE.md`). `S · ★★`
 - [ ] **Second maintainer** — grant the maintain role to a second trusted
   contributor, then require one approving review on `main`. `L · ★★`
+
+## ✅ Shipped in 2.2.1 (removed after the next release)
+
+- [x] **Several bar windows per provider** — `primary+secondary` and `all` in
+  `barWindowOverrides`, each window tagged with its length (#86, #87).
+- [x] **Release 2.2.1** — [docs/releases/2.2.1.md](docs/releases/2.2.1.md).
 
 ## ✅ Shipped in 2.2.0 (removed after the next release)
 
