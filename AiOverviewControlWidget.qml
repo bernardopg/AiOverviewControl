@@ -8,6 +8,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
+import "BarWindows.js" as BarWindows
 import "ClaudeProfiles.js" as ClaudeProfiles
 
 PluginComponent {
@@ -108,7 +109,7 @@ PluginComponent {
         return override !== undefined ? override : notifyThreshold;
     }
     // Which quota windows raise notifications.
-    //   displayed — the window the DankBar shows (barWindowOverrides). Equal to
+    //   displayed — the windows the DankBar shows (barWindowOverrides). Equal to
     //               "primary" until an override is set, so this is a safe default.
     //   all       — every window the provider reports (5h *and* 7d, ...).
     //   primary   — the pre-1.12 behaviour, primary window only.
@@ -260,26 +261,7 @@ PluginComponent {
     // notification thresholds (z.ai → zai, agy → antigravity, ...) so an
     // override survives however the user spelled the provider. Unknown or
     // empty slots are discarded so a typo can never blank the bar.
-    readonly property var barWindowOverrideMap: {
-        const raw = String(barWindowOverrides || "").trim();
-        const map = {};
-        if (raw.length === 0)
-            return map;
-        const pairs = raw.split(",");
-        for (let i = 0; i < pairs.length; i++) {
-            const kv = pairs[i].split(":");
-            if (kv.length !== 2)
-                continue;
-            const id = notificationProviderId(kv[0].trim());
-            const slot = kv[1].trim().toLowerCase();
-            if (id.length === 0)
-                continue;
-            if (slot === "primary" || slot === "secondary" || slot === "tertiary" || slot === "highest") {
-                map[id] = slot;
-            }
-        }
-        return map;
-    }
+    readonly property var barWindowOverrideMap: BarWindows.parseOverrides(barWindowOverrides, id => notificationProviderId(id))
 
     readonly property var pillDisplayProviders: {
         if (pillMode === "top") {
@@ -1235,46 +1217,54 @@ PluginComponent {
         return slot !== undefined ? slot : "primary";
     }
 
-    // The window the DankBar shows for this provider: the configured
-    // barWindowOverrides slot, or "highest" = the most-constrained window.
-    // Payload shapes vary per account (e.g. Codex weekly-only has a null
-    // secondary), so a chosen slot that is absent falls back to the primary
-    // window — an override must never blank or zero the bar.
-    function pillWindowFor(provider) {
+    // The windows the DankBar shows for this provider, in slot order: the
+    // configured barWindowOverrides slot, a set of windows ("primary+secondary",
+    // "all"), or "highest" = the most-constrained window. A chosen window that
+    // is absent from the payload falls back to the primary window — an
+    // override must never blank or zero the bar.
+    function pillWindowsFor(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        if (!usage)
-            return null;
-        const slot = barWindowChoiceFor(provider.provider);
-        if (slot === "highest") {
-            let best = null;
-            const candidates = [usage.primary, usage.secondary, usage.tertiary];
-            for (let i = 0; i < candidates.length; i++) {
-                const window = candidates[i];
-                if (!window)
-                    continue;
-                if (!best || Number(window.usedPercent || 0) > Number(best.usedPercent || 0)) {
-                    best = window;
-                }
-            }
-            return best || primaryUsageWindow(provider);
+        return BarWindows.windowsFor(usage, barWindowChoiceFor(provider ? provider.provider : ""));
+    }
+
+    // The single window that stands for the bar number: the displayed window,
+    // or the most used of several displayed windows.
+    function pillWindowFor(provider) {
+        const windows = pillWindowsFor(provider);
+        let best = null;
+        for (let i = 0; i < windows.length; i++) {
+            if (!best || Number(windows[i].usedPercent || 0) > Number(best.usedPercent || 0))
+                best = windows[i];
         }
-        if (slot !== "primary" && usage[slot])
-            return usage[slot];
-        return primaryUsageWindow(provider);
+        return best;
     }
 
     // Bar-display percent for a provider — the only percentage call the
-    // DankBar pills should use. Cards, hero, fleet rollup, notifications and
-    // history keep providerPercent()/primaryUsageWindow().
+    // DankBar pills should use; with several displayed windows it is the
+    // highest of them, so "top" and "auto" rank by the most-constrained one.
+    // Cards, hero, fleet rollup and history keep
+    // providerPercent()/primaryUsageWindow().
     function pillPercentFor(provider) {
-        const windowData = pillWindowFor(provider);
-        if (!windowData)
-            return 0;
-        return Number(windowData.usedPercent || 0);
+        return BarWindows.maxPercent(pillWindowsFor(provider));
+    }
+
+    // Short, locale-aware length tag that tells the bar's windows apart when
+    // one provider shows several ("5h 45% · 7d 80%"). Windows without a length
+    // use the first letter of their label; the tooltip spells both out.
+    function pillWindowTag(windowData) {
+        const minutes = Number(windowData && windowData.windowMinutes) || 0;
+        if (minutes > 0) {
+            if (minutes % 1440 === 0)
+                return t("time.days", "{d}d", { d: minutes / 1440 });
+            if (minutes % 60 === 0)
+                return t("time.hours", "{h}h", { h: minutes / 60 });
+            return t("time.minutes", "{m}m", { m: minutes });
+        }
+        return String(windowLabel(windowData)).charAt(0).toUpperCase();
     }
 
     // One line describing exactly what the DankBar is showing: provider,
-    // which quota window the number came from, the percentage, and the reset.
+    // which quota window each number came from, the percentage, and the reset.
     // DTooltip renders a single elided line, so the reset is only appended
     // when the pill tracks one provider.
     function pillTooltipText() {
@@ -1282,20 +1272,23 @@ PluginComponent {
         const withReset = pillDisplayProviders.length === 1;
         for (let i = 0; i < pillDisplayProviders.length; i++) {
             const provider = pillDisplayProviders[i];
-            const windowData = pillWindowFor(provider);
-            if (!windowData)
+            const windows = pillWindowsFor(provider);
+            if (windows.length === 0)
                 continue;
             const segment = [providerName(provider.provider)];
-            const label = windowLabel(windowData);
-            if (label && String(label).length > 0)
-                segment.push(label);
-            segment.push(quotaPercentText(windowData.usedPercent));
-            if (withReset) {
-                const reset = formatTimeUntil(windowData.resetsAt);
-                if (reset.length > 0)
-                    segment.push(t("notify.resets_in", "resets in {time}", {
-                        time: reset
-                    }));
+            for (let j = 0; j < windows.length; j++) {
+                const windowData = windows[j];
+                const label = windowLabel(windowData);
+                if (label && String(label).length > 0)
+                    segment.push(label);
+                segment.push(quotaPercentText(windowData.usedPercent));
+                if (withReset) {
+                    const reset = formatTimeUntil(windowData.resetsAt);
+                    if (reset.length > 0)
+                        segment.push(t("notify.resets_in", "resets in {time}", {
+                            time: reset
+                        }));
+                }
             }
             entries.push(segment.join(" · "));
         }
@@ -1365,8 +1358,10 @@ PluginComponent {
             }
             return every;
         }
-        const single = notifyWindowScope === "primary" ? primaryUsageWindow(provider) : pillWindowFor(provider);
-        return single ? [single] : [];
+        if (notifyWindowScope === "displayed")
+            return pillWindowsFor(provider);
+        const primary = primaryUsageWindow(provider);
+        return primary ? [primary] : [];
     }
 
     // Providers exposing more than one signed-in account (Antigravity surfaces
@@ -2321,6 +2316,10 @@ PluginComponent {
                         required property var modelData
                         required property int index
                         readonly property color usageColor: root.getUsageColor(root.pillPercentFor(modelData))
+                        // More than one window (issue #86): each gets its own
+                        // length tag and colour instead of the single number.
+                        readonly property var barWindows: root.pillWindowsFor(modelData)
+                        readonly property bool multiWindow: barWindows.length > 1
                         objectName: "pill-entry-" + modelData.provider
                         spacing: root.pillCompact ? 2 : 4
 
@@ -2354,11 +2353,52 @@ PluginComponent {
                         }
 
                         StyledText {
+                            visible: !pillEntry.multiWindow
                             text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(pillEntry.modelData)))}%`
                             color: pillEntry.usageColor
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.Bold
                             anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Repeater {
+                            model: pillEntry.multiWindow ? pillEntry.barWindows : []
+
+                            Row {
+                                id: pillWindow
+                                required property var modelData
+                                required property int index
+                                objectName: "pill-window-" + pillEntry.modelData.provider + "-" + index
+                                spacing: root.pillCompact ? 2 : 3
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                StyledText {
+                                    visible: pillWindow.index > 0
+                                    text: "/"
+                                    color: Theme.withAlpha(Theme.surfaceText, 0.3)
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.DemiBold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                StyledText {
+                                    objectName: "pill-window-tag"
+                                    text: root.pillWindowTag(pillWindow.modelData)
+                                    color: Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.DemiBold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                StyledText {
+                                    objectName: "pill-window-percent"
+                                    text: `${Math.round(root.quotaDisplayPercent(pillWindow.modelData.usedPercent))}%`
+                                    color: root.getUsageColor(Number(pillWindow.modelData.usedPercent || 0))
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.Bold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
                         }
                     }
                 }
@@ -2394,23 +2434,57 @@ PluginComponent {
                 model: root.pillDisplayProviders
 
                 Column {
+                    id: verticalEntry
                     required property var modelData
+                    readonly property var barWindows: root.pillWindowsFor(modelData)
+                    readonly property bool multiWindow: barWindows.length > 1
+                    objectName: "pill-vertical-entry-" + modelData.provider
                     spacing: 1
                     anchors.horizontalCenter: parent.horizontalCenter
 
                     ProviderLogo {
-                        providerId: modelData.provider
+                        providerId: verticalEntry.modelData.provider
                         logoSize: 13
                         tintColor: root.providerLogoColor
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
 
                     StyledText {
-                        text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(modelData)))}%`
-                        color: root.getUsageColor(root.pillPercentFor(modelData))
+                        visible: !verticalEntry.multiWindow
+                        text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(verticalEntry.modelData)))}%`
+                        color: root.getUsageColor(root.pillPercentFor(verticalEntry.modelData))
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
                         anchors.horizontalCenter: parent.horizontalCenter
+                    }
+
+                    // A vertical bar is too narrow for "5h 45%" on one line:
+                    // the length tag sits above each window's percentage.
+                    Repeater {
+                        model: verticalEntry.multiWindow ? verticalEntry.barWindows : []
+
+                        Column {
+                            id: verticalWindow
+                            required property var modelData
+                            spacing: 0
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            StyledText {
+                                text: root.pillWindowTag(verticalWindow.modelData)
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall - 2
+                                font.weight: Font.DemiBold
+                                anchors.horizontalCenter: parent.horizontalCenter
+                            }
+
+                            StyledText {
+                                text: `${Math.round(root.quotaDisplayPercent(verticalWindow.modelData.usedPercent))}%`
+                                color: root.getUsageColor(Number(verticalWindow.modelData.usedPercent || 0))
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.DemiBold
+                                anchors.horizontalCenter: parent.horizontalCenter
+                            }
+                        }
                     }
                 }
             }

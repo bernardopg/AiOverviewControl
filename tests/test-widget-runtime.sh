@@ -380,6 +380,31 @@ ShellRoot {
                     || !pill.children.find(item => item.text === "19%")) {
                     console.error("SMOKE FAIL: remaining profile secondary window changed primary data"); return;
                 }
+                // Issue #86: both windows side by side, each with its length tag
+                // and its own percentage; the bar ranks by the higher one.
+                widget.barWindowOverrides = "claude-work:primary+secondary";
+                const windows = [0, 1].map(i => input.findChild(hPill.item, `pill-window-claude-work-${i}`));
+                const texts = windows.map(row => row ? row.children.filter(item => item.visible && item.text).map(item => item.text).join(" ") : "");
+                const vertical = input.findChild(vPill.item, "pill-vertical-entry-claude-work");
+                const single = input.findChild(hPill.item, "pill-entry-claude-personal");
+                const tooltip = widget.pillTooltipText();
+                if (texts[0] !== "5h 27%" || texts[1] !== "/ 7d 19%" || widget.pillPercentFor(widget.providers[0]) !== 81
+                    || widget.notifyWindowsFor(widget.providers[0]).length !== 2
+                    || tooltip.indexOf(widget.quotaPercentText(73)) < 0 || tooltip.indexOf(widget.quotaPercentText(81)) < 0
+                    || !vertical || vertical.children.filter(item => item.visible && item.children.length === 2)
+                        .map(item => item.children.map(text => text.text).join(" ")).join(",") !== "5h 27%,7d 19%"
+                    || input.findChild(hPill.item, "pill-window-claude-personal-0")
+                    || !single.children.find(item => item.visible && item.text === "88%")) {
+                    console.error("SMOKE FAIL: multi-window pill " + JSON.stringify(texts)); return;
+                }
+                settings.saveValue("barWindowOverrides", "claude-work:secondary+primary");
+                if (settings.barChoiceFor("claude-work") !== "primary+secondary") {
+                    console.error("SMOKE FAIL: settings multi-window slot"); return;
+                }
+                settings.setBarChoice("claude-work", "tertiary+secondary+primary");
+                if (settings.loadValue("barWindowOverrides", "") !== "claude-work:all") {
+                    console.error("SMOKE FAIL: settings did not store the canonical multi-window slot"); return;
+                }
                 settings.selectedIds = ["claude-work"];
                 settings.pinnedIds = ["claude-work"];
                 settings.pillIds = ["claude-work"];

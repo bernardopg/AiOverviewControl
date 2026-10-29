@@ -8,6 +8,7 @@ import qs.Services
 import qs.Widgets
 import qs.DCommon.Widgets
 import qs.Modules.Plugins
+import "BarWindows.js" as BarWindows
 import "ClaudeProfiles.js" as ClaudeProfiles
 
 PluginSettings {
@@ -107,26 +108,12 @@ PluginSettings {
         saveValue("pinnedProviders", result.join(","));
     }
 
-    // Per-provider DankBar window overrides (issue #17). Mirrors the widget's
-    // barWindowOverrideMap parsing: same slot vocabulary. Only entries that
-    // differ from "primary" are persisted, so restoring the default removes
-    // the pair and the CSV stays small.
+    // Per-provider DankBar window overrides (issues #17 and #86). BarWindows.js
+    // is the widget's parser too, so both read the same slot vocabulary. Only
+    // entries that differ from "primary" are persisted, so restoring the
+    // default removes the pair and the CSV stays small.
     function barWindowOverrideMap() {
-        const map = {};
-        const raw = String(loadValue("barWindowOverrides", "") || "").trim();
-        if (raw.length === 0) return map;
-        const pairs = raw.split(",");
-        for (let i = 0; i < pairs.length; i++) {
-            const kv = pairs[i].split(":");
-            if (kv.length !== 2) continue;
-            const id = kv[0].trim().toLowerCase();
-            const slot = kv[1].trim().toLowerCase();
-            if (id.length === 0) continue;
-            if (slot === "primary" || slot === "secondary" || slot === "tertiary" || slot === "highest") {
-                map[id] = slot;
-            }
-        }
-        return map;
+        return BarWindows.parseOverrides(loadValue("barWindowOverrides", ""));
     }
 
     function barChoiceFor(id) {
@@ -137,8 +124,9 @@ PluginSettings {
     function setBarChoice(id, slot) {
         if (!isSelected(id)) return;
         const map = barWindowOverrideMap();
-        if (slot === "primary") delete map[id];
-        else map[id] = slot;
+        const canonical = BarWindows.normalizeSlot(slot);
+        if (canonical === "primary" || canonical === "") delete map[id];
+        else map[id] = canonical;
         const pairs = [];
         for (const key in map) pairs.push(key + ":" + map[key]);
         saveValue("barWindowOverrides", pairs.join(","));
@@ -949,7 +937,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) always show the primary window in the DankBar. Choose a different window per provider — the dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
+                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the DankBar by default. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h\u00a045%\u00a0/\u00a07d\u00a080%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
                 wrapMode: Text.WordWrap
                 color: Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
@@ -963,10 +951,10 @@ PluginSettings {
                     width: parent.width
                     text: root.providerDisplayName(modelData)
                     selected: { root.settingsEpoch; return root.barChoiceFor(modelData); }
-                    values: ["primary", "secondary", "tertiary", "highest"]
-                    labels: [t("settings.option.primary", "Primary"), t("settings.option.secondary", "Secondary"), t("settings.option.tertiary", "Tertiary"), t("settings.option.highest", "Highest")]
-                    optionIcons: ["looks_one", "looks_two", "looks_3", "trending_up"]
-                    dropdownWidth: 200
+                    values: ["primary", "secondary", "tertiary", "highest", "primary+secondary", "all"]
+                    labels: [t("settings.option.primary", "Primary"), t("settings.option.secondary", "Secondary"), t("settings.option.tertiary", "Tertiary"), t("settings.option.highest", "Highest"), t("settings.option.primary_secondary", "Primary + secondary"), t("settings.option.all_windows", "All windows")]
+                    optionIcons: ["looks_one", "looks_two", "looks_3", "trending_up", "view_agenda", "view_list"]
+                    dropdownWidth: 220
                     onPicked: function(value) { root.setBarChoice(modelData, value); }
                 }
             }
@@ -1119,7 +1107,7 @@ PluginSettings {
         visible: notifyToggle.checked
         width: parent.width
         text: t("settings.notify.window_scope", "Windows that raise alerts")
-        description: t("settings.notify.window_scope_desc", "“displayed” alerts on whatever window the DankBar shows for each provider — identical to “primary” until you override a provider above. “all” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
+        description: t("settings.notify.window_scope_desc", "“Displayed” alerts on whatever windows the DankBar shows for each provider — identical to “Primary” until you override a provider above. “All windows” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
         selected: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
         values: ["displayed", "all", "primary"]
         labels: [t("settings.option.displayed", "Displayed"), t("settings.option.all", "All windows"), t("settings.option.primary", "Primary")]

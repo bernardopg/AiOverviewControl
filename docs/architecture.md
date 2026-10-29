@@ -16,6 +16,7 @@ ProviderLogo.qml                  Local provider-logo resolution and fallback ic
 HeaderAction.qml                  Icon-only capsule button shared by the popout, cards, and windows
 AiOverviewSettingsWindow.qml      Standalone settings window and About window (hosts the settings page)
 AiOverviewDashCard.qml            DankDash "AI quotas" card; reads dash-snapshot.json, never queries providers
+BarWindows.js                     DankBar window selection: barWindowOverrides parsing and the windows the pill shows
 ClaudeProfiles.js                 Claude profile parsing and the per-profile details view model
 providers/get-provider-usage      Multi-provider dispatcher and normalization
 providers/native/*.bash          Native provider fetch implementations
@@ -157,13 +158,13 @@ All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode,
 | `showErrorProviders` | `true` | Keep provider failures visible. |
 | `pillMode` | `auto` | Automatic, custom, or highest-usage (`top`) DankBar provider list. |
 | `pillProviders` | selection | Strict custom DankBar provider subset; independent from the tracked provider list. |
-| `barWindowOverrides` | empty | Per-provider DankBar usage window (`provider:slot`, e.g. `claude:secondary`); slot is `primary`/`secondary`/`tertiary`/`highest`, with graceful fallback to the primary window when the slot is absent from the payload. Cards, hero, and history keep the primary window; notifications follow it by default through `notifyWindowScope`. |
+| `barWindowOverrides` | empty | Per-provider DankBar usage window (`provider:slot`, e.g. `claude:secondary`); slot is `primary`/`secondary`/`tertiary`/`highest`/`all` or a `+`-joined set such as `primary+secondary`, parsed by `BarWindows.js` for both the widget and settings. Absent windows are skipped, with fallback to the primary window when none of the chosen ones exists. Cards, hero, and history keep the primary window; notifications follow it by default through `notifyWindowScope`. |
 | `densityMode` | `comfortable` | Comfortable or compact card layout. |
 | `languageOverride` | `auto` | Plugin locale override. |
 | `quotaNotifications` | `true` | Enable desktop quota notifications. |
 | `notifyThreshold` | `85` | Global quota notification threshold. |
 | `notifyThresholds` | empty | Per-provider `id:percent` notification overrides. |
-| `notifyWindowScope` | `displayed` | Quota windows evaluated by `checkNotifications()`: `displayed` (the window the DankBar shows, per `barWindowOverrides`), `all` (every window in the payload), or `primary`. |
+| `notifyWindowScope` | `displayed` | Quota windows evaluated by `checkNotifications()`: `displayed` (the windows the DankBar shows, per `barWindowOverrides`), `all` (every window in the payload), or `primary`. |
 | `notifyCooldownMinutes` | `0` | Minimum minutes between in-place notification updates; `0` means once per quota window. |
 | `historyRetention` | `2000` | Maximum local usage-history snapshots. |
 | `pinnedProviders` | empty | Provider IDs sorted before unpinned cards. |
@@ -189,7 +190,7 @@ Legacy settings unknown to the current code are ignored.
 
 ## UI structure
 
-- DankBar pill: selected measurable providers. Per provider, `barWindowOverrides` selects which usage window the pill displays (`primary` by default, or `secondary`/`tertiary`/`highest`); the ranking used by `top` and `auto` pill modes follows the same displayed number.
+- DankBar pill: selected measurable providers. Per provider, `barWindowOverrides` selects which usage windows the pill displays (`primary` by default, or `secondary`/`tertiary`/`highest`, or several at once such as `primary+secondary`/`all`, each tagged with its length); the ranking used by `top` and `auto` pill modes follows the highest displayed number.
 - Overview: active/error counts and local backend status.
 - Provider manager: add and remove providers without editing settings files.
 - Filter: shown when more than five cards are visible. Status chips (All / Live / Issues, with counts) appear whenever any provider is configured.
