@@ -6,7 +6,7 @@ command -v qs >/dev/null || { echo 'QML smoke requires Quickshell (qs)' >&2; exi
 TMP="$(mktemp -d)"
 pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
-cp "$ROOT/LocalAnalyticsReader.qml" "$ROOT/ClaudeProfiles.js" "$TMP/"
+cp "$ROOT/LocalAnalyticsReader.qml" "$ROOT/BarWindows.js" "$ROOT/ClaudeProfiles.js" "$TMP/"
 python3 - "$ROOT/AiOverviewControlWidget.qml" "$TMP/ProviderOrder.js" <<'PY'
 import re, sys
 from pathlib import Path
@@ -30,6 +30,7 @@ cat > "$TMP/shell.qml" <<'QML'
 import QtQuick
 import Quickshell
 import "ProviderOrder.js" as ProviderOrder
+import "BarWindows.js" as BarWindows
 import "ClaudeProfiles.js" as ClaudeProfiles
 ShellRoot {
     id: root
@@ -122,8 +123,40 @@ ShellRoot {
         if (bad >= 0) console.error("SMOKE FAIL: claude details check " + bad);
         return bad < 0;
     }
+    // Issue #86: one provider can put several quota windows in the bar.
+    function barWindowsOk() {
+        const usage = {
+            primary: {usedPercent: 45, windowMinutes: 300},
+            secondary: {usedPercent: 80, windowMinutes: 10080},
+            tertiary: null
+        };
+        const weeklyOnly = {primary: null, secondary: {usedPercent: 12}, tertiary: null};
+        const pcts = windows => windows.map(w => w.usedPercent).join(",");
+        const alias = id => ({"z.ai": "zai"})[id.toLowerCase()] || id.toLowerCase();
+        const map = BarWindows.parseOverrides(
+            " claude:Secondary+PRIMARY, codex:all,z.ai:highest,glm:primary+bogus,kimi:primary+primary,x:,:all,bad, cline:primary+secondary+tertiary", alias);
+        const checks = [
+            BarWindows.normalizeSlot("secondary+primary") === "primary+secondary",
+            BarWindows.normalizeSlot("tertiary+secondary+primary") === "all",
+            BarWindows.normalizeSlot("primary+") === "" && BarWindows.normalizeSlot(undefined) === "",
+            JSON.stringify(map) === JSON.stringify({claude: "primary+secondary", codex: "all", zai: "highest", cline: "all"}),
+            pcts(BarWindows.windowsFor(usage, "primary+secondary")) === "45,80",
+            pcts(BarWindows.windowsFor(usage, "all")) === "45,80",
+            pcts(BarWindows.windowsFor(usage, "secondary")) === "80",
+            pcts(BarWindows.windowsFor(usage, "highest")) === "80",
+            pcts(BarWindows.windowsFor(usage, "tertiary")) === "45",
+            pcts(BarWindows.windowsFor(usage, undefined)) === "45",
+            pcts(BarWindows.windowsFor(weeklyOnly, "primary+tertiary")) === "12",
+            BarWindows.windowsFor(null, "all").length === 0 && BarWindows.windowsFor({}, "all").length === 0,
+            BarWindows.isMultiSlot("all") && BarWindows.isMultiSlot("primary+secondary") && !BarWindows.isMultiSlot("highest"),
+            BarWindows.maxPercent(BarWindows.windowsFor(usage, "all")) === 80 && BarWindows.maxPercent([]) === 0
+        ];
+        const bad = checks.indexOf(false);
+        if (bad >= 0) console.error("SMOKE FAIL: bar windows check " + bad);
+        return bad < 0;
+    }
     Component.onCompleted: {
-        if (!claudeDetailsOk()) return;
+        if (!claudeDetailsOk() || !barWindowsOk()) return;
         const pins = ["codex", "claude", "kimi-code"];
         if (ProviderOrder.reorderedPins(pins, "kimi-code", "codex").join(",") !== "kimi-code,codex,claude"
             || ProviderOrder.reorderedPins(pins, "codex", "kimi-code").join(",") !== "claude,codex,kimi-code"

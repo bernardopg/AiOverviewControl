@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Features
+- The DankBar pill can show several quota windows of one provider at once ([#86](https://github.com/bernardopg/AiOverviewControl/issues/86)). **DankBar usage window** adds **Primary + secondary** and **All windows**; each percentage is then tagged with its window length and coloured on its own, as in `Claude 5h 45% / 7d 80%`, and the tooltip names every window. In `barWindowOverrides` the same choice reads `claude:primary+secondary` or `claude:all`. The `top` and `auto` pill modes rank such a provider by its highest window, and with the default `notifyWindowScope` each shown window raises its own alert. Single-window choices look exactly as before.
+
 ## 2.2.0 - 2026-10-26
 
 A feature release for DMS 2.0. Four providers join the catalog (Anthropic API, OpenAI API, Ollama Cloud and Vercel AI Gateway, 43 in all), and the Gemini card shows per-model daily quota for Gemini CLI accounts on a Code Assist Standard or Enterprise project. The DankDash card no longer clips its last row. Settings, profiles, pins and history carry over unchanged; no restart is needed beyond the usual plugin reload.

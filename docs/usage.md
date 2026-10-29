@@ -29,7 +29,8 @@ AiOverviewControl is installed. For the setting keys themselves see
 - Providers with more than one quota window (Claude's 5 hour and 7 day, for
   example) can show any window in the bar. Pick it per provider in
   **DankBar usage window**, or choose `highest` to follow the most-constrained
-  window.
+  window. **Primary + secondary** and **All windows** show several windows at
+  once, each tagged with its length: `Claude 5h 45% / 7d 80%`.
 - Hover the pill to see which window each number comes from and when it resets.
 - Crowded bar? In **Settings → Interface**, turn off **Provider names in pill**
   to keep only the logo and percentage, and turn on **Compact pill spacing** to

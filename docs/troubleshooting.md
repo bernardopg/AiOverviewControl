@@ -202,8 +202,9 @@ that was killed outright.
 By default only the window the DankBar shows for that provider raises alerts
 (`notifyWindowScope` = `displayed`, which equals the primary window until a
 `barWindowOverrides` slot is set). To be alerted on Claude's 5 hour *and*
-7 day windows, or Codex's weekly alongside its session window, set **Windows
-that raise alerts** to `all` in Settings.
+7 day windows, or Codex's weekly alongside its session window, either show both
+in the bar (**DankBar usage window** → **Primary + secondary**) or set
+**Windows that raise alerts** to `all` in Settings.
 
 If a per-provider threshold seems ignored, check the inline validation under
 **Per-provider threshold overrides** — entries with an unknown provider ID, a
