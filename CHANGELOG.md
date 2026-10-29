@@ -2,8 +2,17 @@
 
 ## Unreleased
 
+## 2.2.1 - 2026-10-29
+
+A small release for DMS 2.0. The DankBar pill can show Claude's 5 hour and 7 day windows side by side, or every window of any provider, each tagged with its length (`Claude 5h 45% / 7d 80%`). Settings, profiles, pins and history carry over unchanged, and single-window choices look exactly as before. Run `dms restart` once after upgrading.
+Long-form notes: [docs/releases/2.2.1.md](docs/releases/2.2.1.md).
+
 ### Features
 - The DankBar pill can show several quota windows of one provider at once ([#86](https://github.com/bernardopg/AiOverviewControl/issues/86)). **DankBar usage window** adds **Primary + secondary** and **All windows**; each percentage is then tagged with its window length and coloured on its own, as in `Claude 5h 45% / 7d 80%`, and the tooltip names every window. In `barWindowOverrides` the same choice reads `claude:primary+secondary` or `claude:all`. The `top` and `auto` pill modes rank such a provider by its highest window, and with the default `notifyWindowScope` each shown window raises its own alert. Single-window choices look exactly as before. Run `dms restart` once after upgrading: the new `BarWindows.js` module does not load on a hot reload, which leaves the plugin disabled until the shell restarts.
+
+### Thanks
+
+- Thanks to [@guidi-injenia](https://github.com/guidi-injenia) for the request that shaped this release.
 
 ## 2.2.0 - 2026-10-26
 

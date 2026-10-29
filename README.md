@@ -173,7 +173,9 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 ## 📚 Documentation
 
 New in 2.2: Anthropic API, OpenAI API, Ollama Cloud and Vercel AI Gateway, and
-Gemini CLI quota — see the [2.2.0 notes](./docs/releases/2.2.0.md). Credits,
+Gemini CLI quota — see the [2.2.0 notes](./docs/releases/2.2.0.md). Since
+[2.2.1](./docs/releases/2.2.1.md) the DankBar can show several quota windows of
+one provider at once (`Claude 5h 45% / 7d 80%`). Credits,
 limit resets and the DankDash card came in [2.1.0](./docs/releases/2.1.0.md).
 Coming from DMS 1.6? Read the [2.0.0 upgrade guide](./docs/releases/2.0.0.md).
 See [cost currency and privacy](./docs/currency.md), [runtime module boundaries](./docs/refactoring.md),
