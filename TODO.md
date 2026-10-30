@@ -92,6 +92,12 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 - [ ] **Second maintainer** — grant the maintain role to a second trusted
   contributor, then require one approving review on `main`. `L · ★★`
 
+## ✅ Shipped in 2.2.2 (removed after the next release)
+
+- [x] **Claude stale fallback** — a usage snapshot reused after a 429 keeps its
+  fetch time and reads as stale; windows past their reset read 0% (#89, #90).
+- [x] **Release 2.2.2** — [docs/releases/2.2.2.md](docs/releases/2.2.2.md).
+
 ## ✅ Shipped in 2.2.1 (removed after the next release)
 
 - [x] **Several bar windows per provider** — `primary+secondary` and `all` in
