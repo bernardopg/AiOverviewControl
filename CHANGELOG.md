@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixes
+- The Claude card no longer passes an old usage snapshot off as live ([#89](https://github.com/bernardopg/AiOverviewControl/issues/89)). When Anthropic's usage endpoint fails transiently (HTTP 429 is common, since it is rate-limited per account), the adapter reuses the last good snapshot; it used to stamp that copy with the current time, so the card read **Live** while its percentages trailed Claude Code's (weekly 79% against 89%). The snapshot now keeps the time it was fetched, so the card shows **Stale** with the real **Updated** time, and a window whose reset has passed since then reads 0% instead of its pre-reset value.
+
 ## 2.2.1 - 2026-10-29
 
 A small release for DMS 2.0. The DankBar pill can show Claude's 5 hour and 7 day windows side by side, or every window of any provider, each tagged with its length (`Claude 5h 45% / 7d 80%`). Settings, profiles, pins and history carry over unchanged, and single-window choices look exactly as before. Run `dms restart` once after upgrading.

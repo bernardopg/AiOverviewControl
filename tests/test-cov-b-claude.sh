@@ -57,6 +57,23 @@ jq '.cached_at=(now|floor - 121)' "$usage_cache" > "$TMP/stale-cache.json"
 mv "$TMP/stale-cache.json" "$usage_cache"
 out="$(CLAUDE_HTTP=503 run)"
 grep -q '^FIVE_HOUR_UTIL=37$' <<<"$out" || fail "transient failure did not use prior response cache"
+grep -q "^USAGE_UPDATED_AT=$(jq -r .cached_at "$usage_cache")$" <<<"$out" || fail "fallback snapshot lost its fetch time"
+# The fallback snapshot keeps its fetch time so the card reads as stale
+# (issue #89), and a window whose reset has passed no longer shows its old
+# percentage. A live fetch is stamped with the current time.
+jq '.cached_at = 1700000000 | .data.limits[1].resets_at = "2020-01-01T00:00:00.123456+00:00"' \
+  "$usage_cache" > "$TMP/stale-cache.json"
+mv "$TMP/stale-cache.json" "$usage_cache"
+out="$(CLAUDE_HTTP=429 bash "$ROOT/providers/get-provider-usage" claude-work)"
+jq -e '.[0].usage.updatedAt == "2023-11-14T22:13:20Z"
+  and .[0].usage.primary.usedPercent == 37 and .[0].usage.primary.resetsAt == "2030-01-02T03:04:05Z"
+  and .[0].usage.secondary.usedPercent == 0 and .[0].usage.secondary.resetsAt == null' <<<"$out" >/dev/null \
+  || fail "stale fallback reported as fresh: $out"
+out="$(bash "$ROOT/providers/get-provider-usage" claude-work)"
+jq -e '(.[0].usage.updatedAt | fromdateiso8601) >= (now - 60) and .[0].usage.secondary.usedPercent == 44' <<<"$out" >/dev/null \
+  || fail "live snapshot not stamped now: $out"
+jq '.cached_at=(now|floor - 121)' "$usage_cache" > "$TMP/stale-cache.json"
+mv "$TMP/stale-cache.json" "$usage_cache"
 out="$(CLAUDE_HTTP=401 run)"
 grep -q '^USAGE_ERROR_KIND=authentication$' <<<"$out" || fail "rejected OAuth reported as transient"
 
