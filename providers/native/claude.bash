@@ -74,7 +74,19 @@ fetch_claude_native() {
   jq -n --argjson d "$fields" --argjson analytics "$analytics" '
     def nullable($v): if ($v == null or $v == "") then null else $v end;
     def clamp($n): if $n < 0 then 0 elif $n > 100 then 100 else $n end;
-    {
+    # The API writes resets_at as "2026-11-02T08:59:59.617745+00:00".
+    def epoch($v): try ($v | sub("\\.[0-9]+"; "") | sub("\\+00:00$"; "Z") | fromdateiso8601) catch null;
+    # A cached snapshot served while the endpoint fails can outlive one of
+    # its windows. Past its reset the old percentage no longer applies, so
+    # the window reads as freshly reset instead of re-alerting on it.
+    def window($pct; $reset; $minutes; $label):
+      nullable($reset) as $at
+      | (if $at != null and ((epoch($at) // infinite) <= now) then {used: 0, at: null}
+         else {used: clamp(($pct // 0 | tonumber? // 0)), at: $at} end) as $w
+      | {usedPercent: $w.used, windowMinutes: $minutes, resetsAt: $w.at, resetDescription: $label};
+    # A snapshot keeps the time it was fetched, so a fallback copy reads as stale.
+    (($d.USAGE_UPDATED_AT // "") | tonumber? // null) as $fetched
+    | {
       provider:"claude",
       source:"claude-local",
       usage:{
@@ -85,27 +97,14 @@ fetch_claude_native() {
         },
         accountEmail:"Claude Code",
         loginMethod:($d.SUBSCRIPTION_TYPE // "unknown"),
-        primary:{
-          usedPercent:clamp(($d.FIVE_HOUR_UTIL // 0 | tonumber? // 0)),
-          windowMinutes:300,
-          resetsAt:nullable($d.FIVE_HOUR_RESET),
-          resetDescription:"5 hour"
-        },
-        secondary:{
-          usedPercent:clamp(($d.SEVEN_DAY_UTIL // 0 | tonumber? // 0)),
-          windowMinutes:10080,
-          resetsAt:nullable($d.SEVEN_DAY_RESET),
-          resetDescription:"7 day"
-        },
+        primary:window($d.FIVE_HOUR_UTIL; $d.FIVE_HOUR_RESET; 300; "5 hour"),
+        secondary:window($d.SEVEN_DAY_UTIL; $d.SEVEN_DAY_RESET; 10080; "7 day"),
         tertiary:(
-          if (($d.SCOPED_LIMIT_MODEL // "") != "") then {
-            usedPercent:clamp(($d.SCOPED_LIMIT_UTIL // 0 | tonumber? // 0)),
-            windowMinutes:10080,
-            resetsAt:nullable($d.SCOPED_LIMIT_RESET),
-            resetDescription:("7 day · " + $d.SCOPED_LIMIT_MODEL)
-          } else null end
+          if (($d.SCOPED_LIMIT_MODEL // "") != "") then
+            window($d.SCOPED_LIMIT_UTIL; $d.SCOPED_LIMIT_RESET; 10080; ("7 day · " + $d.SCOPED_LIMIT_MODEL))
+          else null end
         ),
-        updatedAt:(now|todateiso8601)
+        updatedAt:(($fetched // now) | floor | todateiso8601)
       },
       credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")},
       billing:{

@@ -115,6 +115,9 @@ CLAUDE_SPEND=""
 CLAUDE_PREPAID=""
 CLAUDE_RESETS=""
 API_RESPONSE='{}'
+# Epoch second the shown usage snapshot was fetched. A cached or fallback
+# snapshot keeps its own fetch time so the widget can flag it as stale.
+USAGE_UPDATED_AT=""
 USAGE_ERROR_KIND=""
 USAGE_ERROR_MESSAGE=""
 
@@ -224,6 +227,7 @@ elif [ -f "$CREDENTIALS" ]; then
 
     if [ "$USE_CACHE" = true ]; then
         API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
+        USAGE_UPDATED_AT="$cache_ts"
     else
         TOKEN=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS")
         # The access token lasts about eight hours and Claude Code renews it,
@@ -276,7 +280,9 @@ elif [ -f "$CREDENTIALS" ]; then
             if [ "$usage_status" = "200" ] \
                 && jq -e "${USAGE_VALID}" "$usage_body" >/dev/null 2>&1; then
                 API_RESPONSE=$(cat "$usage_body")
-                jq -n --argjson data "$API_RESPONSE" '{cached_at: (now | floor), data: $data}' > "$USAGE_CACHE" 2>/dev/null
+                USAGE_UPDATED_AT="$(date +%s)"
+                jq -n --argjson data "$API_RESPONSE" --argjson at "$USAGE_UPDATED_AT" \
+                    '{cached_at: $at, data: $data}' > "$USAGE_CACHE" 2>/dev/null
             elif [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; then
                 # Credentials are genuinely invalid — stale data would mislead.
                 USAGE_ERROR_KIND="authentication"
@@ -284,7 +290,10 @@ elif [ -f "$CREDENTIALS" ]; then
             elif jq -e ".data | ${USAGE_VALID}" "$USAGE_CACHE" >/dev/null 2>&1; then
                 # Transient failure (429, 5xx, network): fall back to the last
                 # good snapshot even past its TTL instead of erroring the card.
+                # It keeps its own fetch time: reporting it as fresh would hide
+                # that the endpoint has been failing (issue #89).
                 API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
+                USAGE_UPDATED_AT=$(jq -r '.cached_at // empty | numbers | floor' "$USAGE_CACHE" 2>/dev/null || true)
             else
                 USAGE_ERROR_KIND="network"
                 USAGE_ERROR_MESSAGE="Claude usage request failed with HTTP ${usage_status:-unknown}."
@@ -601,6 +610,7 @@ echo "EXTRA_USAGE_DISABLED_REASON=${EXTRA_USAGE_DISABLED_REASON}"
 echo "CLAUDE_SPEND=${CLAUDE_SPEND}"
 echo "CLAUDE_PREPAID=${CLAUDE_PREPAID}"
 echo "CLAUDE_RESETS=${CLAUDE_RESETS}"
+echo "USAGE_UPDATED_AT=${USAGE_UPDATED_AT}"
 echo "USAGE_ERROR_KIND=${USAGE_ERROR_KIND}"
 echo "USAGE_ERROR_MESSAGE=${USAGE_ERROR_MESSAGE}"
 echo "WEEK_MESSAGES=${WEEK_MESSAGES}"

@@ -51,6 +51,8 @@ claude auth status
 
 Claude analytics require readable JSONL files under `~/.claude/projects` (or `$CLAUDE_CONFIG_DIR/projects` when `CLAUDE_CONFIG_DIR` is set). Quota windows are best-effort and may be absent when Claude Code changes its private OAuth behavior.
 
+If the Claude card shows **Stale** and an older **Updated** time than the last refresh, the usage endpoint is failing transiently, most often with HTTP 429 (it is rate-limited per account and shares that limit with Claude Code itself). The card keeps the last good snapshot with the time it was fetched, so its percentages can trail the numbers Claude Code shows until a request succeeds again; a window whose reset passed in the meantime reads 0%. Check the endpoint directly with `./providers/get-claude-usage | grep -E '^(SEVEN_DAY_UTIL|USAGE_UPDATED_AT)='`: a `USAGE_UPDATED_AT` epoch well behind `date +%s` confirms it.
+
 ## Copilot
 
 ```bash
