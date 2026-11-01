@@ -31,6 +31,7 @@ pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/plugin/providers" "$TMP/home" "$TMP/bin"
 cp "$ROOT"/*.qml "$ROOT"/*.js "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
+cp -r "$ROOT/lib" "$TMP/plugin/"
 cp -r "$ROOT/i18n" "$ROOT/assets" "$TMP/plugin/"
 for name in get-provider-usage get-provider-health get-local-analytics get-claude-usage get-9router-analytics get-pi-analytics get-hermes-analytics get-usage-history get-history-stats get-exchange-rates record-usage-history; do
     printf '#!/bin/bash\nprintf '\''{"providers":[],"error":"fixture"}\\n'\''\n' > "$TMP/plugin/providers/$name"

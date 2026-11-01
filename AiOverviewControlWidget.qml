@@ -8,7 +8,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
-import "BarWindows.js" as BarWindows
+import "lib/BarWindows.js" as BarWindows
 import "ClaudeProfiles.js" as ClaudeProfiles
 
 PluginComponent {

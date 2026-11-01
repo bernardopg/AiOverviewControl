@@ -13,7 +13,10 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 out="$(bash "$ROOT/providers/get-9router-analytics")"
 jq -e '.days|length==7' <<<"$out" >/dev/null || fail "seven calendar buckets"
-jq -e --arg today "$TODAY" --arg yesterday "$YESTERDAY" '(.days[]|select(.date==$today)|.requests)==2 and (.days[]|select(.date==$yesterday)|.cachedTokens)==0 and .today.cost==0.5 and .week.requests==5 and .month.completionTokens>=800 and .topModels[0].model=="model-b" and .byProvider[0].provider=="anthropic"' <<<"$out" >/dev/null || fail "analytics totals and model/provider ordering"
+# On the 1st, yesterday belongs to the previous month and leaves the month total.
+MONTH_MIN=800
+[ "${YESTERDAY%-*}" = "${TODAY%-*}" ] || MONTH_MIN=300
+jq -e --arg today "$TODAY" --arg yesterday "$YESTERDAY" --argjson monthMin "$MONTH_MIN" '(.days[]|select(.date==$today)|.requests)==2 and (.days[]|select(.date==$yesterday)|.cachedTokens)==0 and .today.cost==0.5 and .week.requests==5 and .month.completionTokens>=$monthMin and .topModels[0].model=="model-b" and .byProvider[0].provider=="anthropic"' <<<"$out" >/dev/null || fail "analytics totals and model/provider ordering"
 
 json_error() { jq -cn --arg p "$1" --arg s "$2" --argjson c "$3" --arg k "$4" --arg m "$5" '{provider:$p,source:$s,error:{code:$c,kind:$k,message:$m}}'; }
 source "$ROOT/providers/native/9router.bash"
