@@ -16,7 +16,7 @@ ProviderLogo.qml                  Local provider-logo resolution and fallback ic
 HeaderAction.qml                  Icon-only capsule button shared by the popout, cards, and windows
 AiOverviewSettingsWindow.qml      Standalone settings window and About window (hosts the settings page)
 AiOverviewDashCard.qml            DankDash "AI quotas" card; reads dash-snapshot.json, never queries providers
-BarWindows.js                     DankBar window selection: barWindowOverrides parsing and the windows the pill shows
+lib/BarWindows.js                 DankBar window selection: barWindowOverrides parsing and the windows the pill shows
 ClaudeProfiles.js                 Claude profile parsing and the per-profile details view model
 providers/get-provider-usage      Multi-provider dispatcher and normalization
 providers/native/*.bash          Native provider fetch implementations

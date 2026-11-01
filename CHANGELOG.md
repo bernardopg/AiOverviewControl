@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixes
+- The plugin loads again after an update without restarting the shell ([#92](https://github.com/bernardopg/AiOverviewControl/issues/92)). 2.2.1 added `BarWindows.js` to the plugin root, but a running shell keeps the file list of that directory from when it first loaded the plugin, so after an update the new file read as missing (`BarWindows.js unavailable … File name case mismatch`) and the plugin could not be enabled until `dms restart`. The module now lives in `lib/BarWindows.js`, a directory the shell has never listed, so updating from any earlier version, including a 2.2.2 install that is stuck disabled, loads the plugin as soon as DMS rescans it. A new test keeps future modules out of directories a running shell has already listed.
+
 ## 2.2.2 - 2026-10-30
 
 A bug-fix release for DMS 2.0. The Claude card no longer shows an old usage snapshot as live when Anthropic's usage endpoint is rate-limiting the account; it is flagged **Stale** with the time it was really fetched. Settings, profiles, pins and history carry over unchanged; the usual plugin reload is enough.

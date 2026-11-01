@@ -8,7 +8,7 @@ import qs.Services
 import qs.Widgets
 import qs.DCommon.Widgets
 import qs.Modules.Plugins
-import "BarWindows.js" as BarWindows
+import "lib/BarWindows.js" as BarWindows
 import "ClaudeProfiles.js" as ClaudeProfiles
 
 PluginSettings {
@@ -108,7 +108,7 @@ PluginSettings {
         saveValue("pinnedProviders", result.join(","));
     }
 
-    // Per-provider DankBar window overrides (issues #17 and #86). BarWindows.js
+    // Per-provider DankBar window overrides (issues #17 and #86). lib/BarWindows.js
     // is the widget's parser too, so both read the same slot vocabulary. Only
     // entries that differ from "primary" are persisted, so restoring the
     // default removes the pair and the CSV stays small.

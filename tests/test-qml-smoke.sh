@@ -6,7 +6,7 @@ command -v qs >/dev/null || { echo 'QML smoke requires Quickshell (qs)' >&2; exi
 TMP="$(mktemp -d)"
 pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
-cp "$ROOT/LocalAnalyticsReader.qml" "$ROOT/BarWindows.js" "$ROOT/ClaudeProfiles.js" "$TMP/"
+cp "$ROOT/LocalAnalyticsReader.qml" "$ROOT/lib/BarWindows.js" "$ROOT/ClaudeProfiles.js" "$TMP/"
 python3 - "$ROOT/AiOverviewControlWidget.qml" "$TMP/ProviderOrder.js" <<'PY'
 import re, sys
 from pathlib import Path

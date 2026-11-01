@@ -152,6 +152,12 @@ Close and reopen the popout after a reload: an open popout keeps the old
 instance. New QML files and changes to the `AiOverviewControlI18n` singleton
 need a full `dms restart`.
 
+Users update the plugin while the shell runs, and the engine caches each
+directory's file list the first time it loads the plugin: a QML/JS file added
+to an existing runtime directory fails with `File name case mismatch` until a
+restart (issue #92). Put a new module in a new directory, never next to the
+existing ones; `tests/test-hot-upgrade-layout.sh` freezes the root and `lib/`.
+
 ## Release
 
 Follow [docs/release-checklist.md](docs/release-checklist.md): release branch,

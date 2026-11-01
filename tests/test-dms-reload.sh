@@ -6,6 +6,7 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/bin" "$TMP/plugin/scripts"
 cp "$ROOT/scripts/reload-plugin" "$TMP/plugin/scripts/"
 cp "$ROOT"/*.qml "$ROOT"/*.js "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
+cp -r "$ROOT/lib" "$TMP/plugin/"
 cp -r "$ROOT/i18n" "$TMP/plugin/"
 RELOAD="$TMP/plugin/scripts/reload-plugin"
 export QS_CALLS="$TMP/qs-calls"
@@ -42,6 +43,19 @@ if bash "$RELOAD" > "$TMP/missing-module.log" 2>&1; then
 fi
 [[ ! -s "$QS_CALLS" ]] || { echo 'FAIL: missing module reached the running shell' >&2; exit 1; }
 cp "$ROOT/ClaudeProfiles.js" "$TMP/plugin/"
+# Modules under lib/ are checked the same way, missing or conflicted.
+mv "$TMP/plugin/lib/BarWindows.js" "$TMP/plugin/bar.backup"
+if bash "$RELOAD" > "$TMP/missing-lib.log" 2>&1; then
+  echo 'FAIL: reload accepted a missing lib/ module' >&2; exit 1
+fi
+[[ ! -s "$QS_CALLS" ]] || { echo 'FAIL: missing lib/ module reached the running shell' >&2; exit 1; }
+mv "$TMP/plugin/bar.backup" "$TMP/plugin/lib/BarWindows.js"
+printf '\n>>>>>>> branch\n' >> "$TMP/plugin/lib/BarWindows.js"
+if bash "$RELOAD" > "$TMP/conflict-lib.log" 2>&1; then
+  echo 'FAIL: reload accepted unresolved lib/ source' >&2; exit 1
+fi
+[[ ! -s "$QS_CALLS" ]] || { echo 'FAIL: unresolved lib/ source reached the running shell' >&2; exit 1; }
+cp "$ROOT/lib/BarWindows.js" "$TMP/plugin/lib/"
 mv "$TMP/plugin/AiOverviewControlWidget.qml" "$TMP/plugin/widget.backup"
 if bash "$RELOAD" > "$TMP/missing-widget.log" 2>&1; then
   echo 'FAIL: reload accepted a missing widget entry point' >&2; exit 1

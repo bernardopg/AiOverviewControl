@@ -26,7 +26,7 @@ if [[ "$plugin" == aiOverviewControl ]]; then
     fi
   done < <(awk '$NF ~ /\.qml$/ { print $NF }' "$ROOT/qmldir")
   shopt -s nullglob
-  sources=("$ROOT"/*.qml "$ROOT"/*.js)
+  sources=("$ROOT"/*.qml "$ROOT"/*.js "$ROOT"/lib/*.js)
   if grep -lE '^(<<<<<<< |>>>>>>> |\|\|\|\|\|\|\| |=======$)' "${sources[@]}" >&2; then
     echo 'Refusing reload: unresolved conflicts in runtime source' >&2
     exit 1

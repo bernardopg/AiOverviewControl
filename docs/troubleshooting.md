@@ -20,6 +20,33 @@ $PLUGIN/providers/get-provider-usage "codex,claude,copilot" $PLUGIN/providers/ge
 
 If terminal output is valid, run `qmllint` and restart DMS.
 
+## The plugin cannot be enabled after an update
+
+If **Settings → Plugins** shows the plugin switched off with an error such as:
+
+```text
+Script file:///…/plugins/aiOverviewControl/BarWindows.js unavailable
+file:///…/plugins/aiOverviewControl/BarWindows.js: File name case mismatch
+```
+
+the running shell still holds the plugin directory as it looked before the
+update. The QML engine caches each directory's file list the first time it
+loads a plugin and keeps it until the shell exits, so a file that an update adds
+to that directory reads as missing (Qt reports it as a case mismatch). 2.2.1 and
+2.2.2 added `BarWindows.js` to the plugin root, so updating to them without a
+restart left the plugin unable to load ([#92](https://github.com/bernardopg/AiOverviewControl/issues/92)).
+
+2.2.3 moved the module into `lib/`, which a running shell has never listed, so
+it loads straight after the update:
+
+- Update through **Settings → Plugins → Check for updates**. DMS rescans the
+  plugin after the update and loads it.
+- After a manual `git pull`, ask DMS to rescan it:
+  `dms ipc call plugin-scan rescan aiOverviewControl`. Toggling the plugin on
+  is not enough while the failed load is still cached, because DMS retries the
+  same component URL.
+- `dms restart` always clears the cache.
+
 ## Codex
 
 ```bash
