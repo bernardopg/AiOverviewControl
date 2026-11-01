@@ -92,6 +92,12 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 - [ ] **Second maintainer** — grant the maintain role to a second trusted
   contributor, then require one approving review on `main`. `L · ★★`
 
+## ✅ Shipped in 2.2.3 (removed after the next release)
+
+- [x] **Hot upgrade** — `BarWindows.js` moved to `lib/` so an in-session update
+  loads without `dms restart`; the runtime layout is frozen by a test (#92, #93).
+- [x] **Release 2.2.3** — [docs/releases/2.2.3.md](docs/releases/2.2.3.md).
+
 ## ✅ Shipped in 2.2.2 (removed after the next release)
 
 - [x] **Claude stale fallback** — a usage snapshot reused after a 429 keeps its
