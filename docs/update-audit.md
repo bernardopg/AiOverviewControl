@@ -27,8 +27,8 @@ each version comment matches its SHA.
   release `.zip` and `.tar.gz`.
 - [scorecard-action v2.5.0](https://github.com/ossf/scorecard-action/releases/tag/v2.5.0):
   `fa7117db83c52d787ae5a89f350999701505d78e` (resolved annotated tag).
-- [codeql-action/upload-sarif v4.39.0](https://github.com/github/codeql-action/releases/tag/v4.39.0):
-  `6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee`, adopted through Dependabot after
+- [codeql-action/upload-sarif v4.39.1](https://github.com/github/codeql-action/releases/tag/v4.39.1):
+  `9b3254085494b55a0f7c4c2b3d2d52cc712ce370`, adopted through Dependabot after
   the quarantine window.
 - `softprops/action-gh-release` was removed: the runner's own `gh release create
   --verify-tag` publishes the release, so no third-party action holds
