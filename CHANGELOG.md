@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Bump `github/codeql-action/upload-sarif` to v4.39.1 for the Scorecard upload, once past the seven-day quarantine.
+
 ## 2.2.3 - 2026-11-01
 
 A bug-fix release for DMS 2.0. The plugin loads again right after an update, without restarting the shell; this also repairs a 2.2.1 or 2.2.2 install that an in-session update left disabled. Settings, profiles, pins and history carry over unchanged.
