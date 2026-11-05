@@ -99,7 +99,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: duxlabs-dev/dux-shell
-          ref: 9b413296b16721f7679fb62e624cb1ed2433fa58 # v2.0.0
+          ref: 7627111c3ebd402662283f5f4a93223cda9e0a9d # v2.1.0
           path: .dms
           submodules: true
           persist-credentials: false
