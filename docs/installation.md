@@ -1,8 +1,10 @@
 # Installation
 
-## Install from the DMS plugin store
+## Install from the Dux Shell plugin store
 
-The simplest path: install **AiOverviewControl** through DMS's built-in plugin store. Store installs land under the manifest id — note the lowercase leading `a`:
+The simplest path: install **AiOverviewControl** through the built-in plugin
+store of [Dux Shell](https://github.com/duxlabs-dev/dux-shell) (formerly
+Dux Shell), or with `dms plugins install aiOverviewControl`. Store installs land under the manifest id — note the lowercase leading `a`:
 
 ```text
 ~/.config/dms/plugins/aiOverviewControl
@@ -15,15 +17,17 @@ directory `ls ~/.config/dms/plugins` actually shows.
 
 ## Install from a checkout
 
-Run this from the checkout root. Copy **all** root `.qml` files and the
-`scripts/` directory, not a hand-picked subset: `qmldir` resolves the root QML
-components by name, and `providers/get-local-analytics` reads
-`scripts/local-analytics.jq`. A partial copy loads but fails at runtime.
+Run this from the checkout root. Copy **all** root `.qml` and `.js` files and
+the `lib/` and `scripts/` directories, not a hand-picked subset: `qmldir`
+resolves the root QML components by name, the widget and settings import
+`lib/BarWindows.js` and `ClaudeProfiles.js`, and `providers/get-local-analytics`
+reads `scripts/local-analytics.jq`. Without `lib/` the plugin does not load;
+without `scripts/` it loads but local analytics fail at runtime.
 
 ```bash
 PLUGIN="$HOME/.config/dms/plugins/AiOverviewControl"
 mkdir -p "$PLUGIN"
-cp -a ./*.qml ./*.js plugin.json qmldir providers scripts assets \
+cp -a ./*.qml ./*.js plugin.json qmldir lib providers scripts assets \
   README.md CHANGELOG.md LICENSE docs i18n translations screenshot.png \
   "$PLUGIN"/
 chmod +x "$PLUGIN"/providers/get-*
@@ -65,14 +69,21 @@ dms restart
 
 ## Core dependencies
 
-DMS **2.0 or newer** is required (`requires_dms: ">=2.0.0"` in `plugin.json`); DMS 1.x
-reports the plugin as incompatible instead of loading it. Stay on
+Dux Shell **2.0 or newer** is required (`requires_dms: ">=2.0.0"` in
+`plugin.json`; the key keeps the shell's former Dux Shell name). Each release is
+tested against Dux Shell 2.1. DankMaterialShell 1.x reports the plugin as
+incompatible instead of loading it: stay on
 [1.22.0](https://github.com/bernardopg/AiOverviewControl/releases/tag/v1.22.0), the last
-release for DMS 1.6, until your distribution ships DMS 2.0.
+release for DMS 1.6, until your distribution ships Dux Shell 2.0.
 
-DMS 2.0 moved its directories from `DankMaterialShell` to `dms`
-(`~/.config/dms`, `~/.local/state/dms`, `~/.cache/dms`) and leaves a symlink at each old
-path, so an existing checkout under `~/.config/DankMaterialShell/plugins` keeps working.
+DankMaterialShell became Dux Shell with 2.0. Its CLI is still `dms`, and it
+moved its directories from `DankMaterialShell` to `dms` (`~/.config/dms`,
+`~/.local/state/dms`, `~/.cache/dms`), leaving a symlink at each old path, so an
+existing checkout under `~/.config/DankMaterialShell/plugins` keeps working.
+Distribution packages are now named `dux-shell` (Arch's package replaces
+`dms-shell`), and `dms migrate dux` (2.1+) moves an install from the legacy
+AvengeMedia package repositories to the Dux Labs ones. None of this changes the
+plugin directory or its settings.
 
 ```bash
 command -v bash
@@ -98,18 +109,20 @@ These commands are optional unless the matching provider is selected.
 cd ~/.config/dms/plugins/AiOverviewControl
 ./providers/get-provider-health "codex,claude,copilot" | jq .
 ./providers/get-codex-usage | jq .
-./providers/get-provider-usage "codex,claude,copilot" ./providers/get-copilot-usage | jq .
+./providers/get-provider-usage "codex,claude,copilot" | jq .
+./providers/get-copilot-usage | jq .
 ```
 
-Then enable the plugin in DMS settings and add the widget to the desired DankBar section.
+Then enable the plugin in Dux Shell settings (**Settings → Plugins**) and add the
+widget to a bar section (**Settings → Bars**).
 
 ## Upgrade
 
-Replace the installed plugin files using either method above, preserve the DMS settings store, restore executable bits, and restart DMS:
+Replace the installed plugin files using either method above, preserve the shell's plugin settings store, restore executable bits, and restart the shell:
 
 ```bash
 chmod +x ~/.config/dms/plugins/AiOverviewControl/providers/get-*
 dms restart
 ```
 
-Version 1.3 ignores obsolete aggregation settings from earlier releases; they can be removed from the DMS plugin data store if desired.
+Version 1.3 ignores obsolete aggregation settings from earlier releases; they can be removed from the shell's plugin data store if desired.
