@@ -86,6 +86,9 @@ fetch_claude_native() {
       | {usedPercent: $w.used, windowMinutes: $minutes, resetsAt: $w.at, resetDescription: $label};
     # A snapshot keeps the time it was fetched, so a fallback copy reads as stale.
     (($d.USAGE_UPDATED_AT // "") | tonumber? // null) as $fetched
+    # While the endpoint backs off (HTTP 429/5xx), the next request time and
+    # why, so the card can say when the snapshot will be refreshed.
+    | (($d.USAGE_RETRY_AT // "") | tonumber? // null) as $retry
     | {
       provider:"claude",
       source:"claude-local",
@@ -104,7 +107,11 @@ fetch_claude_native() {
             window($d.SCOPED_LIMIT_UTIL; $d.SCOPED_LIMIT_RESET; 10080; ("7 day · " + $d.SCOPED_LIMIT_MODEL))
           else null end
         ),
-        updatedAt:(($fetched // now) | floor | todateiso8601)
+        updatedAt:(($fetched // now) | floor | todateiso8601),
+        retryAt:(if $retry != null then ($retry | floor | todateiso8601) else null end),
+        retryReason:(if $retry != null then
+            (if ($d.USAGE_RETRY_REASON // "") == "rate_limited" then "rate_limited" else "server_error" end)
+          else null end)
       },
       credits:{remaining:($d.RATE_LIMIT_TIER // "unknown")},
       billing:{

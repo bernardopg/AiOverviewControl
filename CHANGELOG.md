@@ -2,7 +2,16 @@
 
 ## Unreleased
 
+### Fixes
+- The Claude adapter backs off a rate-limited usage endpoint instead of polling it at the normal interval ([#96](https://github.com/bernardopg/AiOverviewControl/issues/96)). After HTTP 429 or a 5xx it waits one cache TTL (120 s), doubling per consecutive failure up to 30 minutes, or longer when the server sends `Retry-After` (capped at one hour), and keeps serving the last good snapshot meanwhile. The backoff is shared by every widget instance on the account (one per monitor) and by the credits request, so a bar on several screens no longer multiplies requests while the account is already limited. The card's **Updated** line says **Rate limited · next try HH:MM**; without a snapshot the error names the next attempt.
+- The DankBar pill fades a provider's percentage once its numbers are stale (older than two refresh intervals), and its tooltip adds **stale since HH:MM:SS** and the next try, so an old snapshot no longer reads as live on the bar ([#96](https://github.com/bernardopg/AiOverviewControl/issues/96)).
+
+### Project
 - Bump `github/codeql-action/upload-sarif` to v4.39.1 for the Scorecard upload, once past the seven-day quarantine.
+
+### Thanks
+
+- Thanks to [@guidi-injenia](https://github.com/guidi-injenia) for the report and for tracing it to HTTP 429 from several pollers on one account, with the per-monitor detail that pinned it down.
 
 ## 2.2.3 - 2026-11-01
 
