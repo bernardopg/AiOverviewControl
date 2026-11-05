@@ -32,7 +32,8 @@ find providers -type f -print0 | xargs -0 -n 1 bash -n
 find providers -type f -print0 | xargs -0 shellcheck -S warning
 find tests -name '*.sh' -print0 | xargs -0 -n 1 bash -n
 shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors \
-  scripts/check-metadata scripts/reload-plugin .githooks/pre-push
+  scripts/check-metadata scripts/check-dco scripts/coverage scripts/qmlls-setup \
+  scripts/reload-plugin .githooks/pre-push
 for test in tests/*.sh; do bash "$test"; done
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
 actionlint
