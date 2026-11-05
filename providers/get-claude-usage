@@ -20,6 +20,14 @@ TRANSCRIPTS_CACHE="${ACCOUNT_CACHE}/claude-transcripts.tsv"
 VERSION_CACHE="${CACHE_DIR}/claude-version-cache.json"
 PREPAID_CACHE="${ACCOUNT_CACHE}/claude-prepaid-cache.json"
 USAGE_CACHE_TTL=120  # seconds
+# A rate-limited (429) or failing (5xx) usage endpoint is not asked again until
+# a backoff expires: USAGE_CACHE_TTL doubled per consecutive failure up to
+# USAGE_BACKOFF_MAX, or the server's Retry-After when that is longer. The state
+# sits in the account cache under the account lock, so every widget instance
+# (one per monitor) and every overlapping refresh honours it (issue #96).
+USAGE_BACKOFF="${ACCOUNT_CACHE}/claude-usage-backoff.json"
+USAGE_BACKOFF_MAX=1800  # seconds: cap of the doubling
+USAGE_RETRY_AFTER_MAX=3600  # seconds: the longest Retry-After honoured
 PREPAID_CACHE_TTL=600  # seconds: the credit balance moves with spend, not per poll
 # A usage snapshot is valid with the canonical `limits[]` array (Claude 5) or
 # the older flat five_hour object; either one feeds the parser below.
@@ -118,6 +126,10 @@ API_RESPONSE='{}'
 # Epoch second the shown usage snapshot was fetched. A cached or fallback
 # snapshot keeps its own fetch time so the widget can flag it as stale.
 USAGE_UPDATED_AT=""
+# Epoch second of the next usage request while a backoff holds, and why
+# ("rate_limited" for HTTP 429, "server_error" for 5xx).
+USAGE_RETRY_AT=""
+USAGE_RETRY_REASON=""
 USAGE_ERROR_KIND=""
 USAGE_ERROR_MESSAGE=""
 
@@ -203,6 +215,87 @@ if [ -n "$PRICING_JSON" ]; then
         | join(",")' 2>/dev/null || echo "")
 fi
 
+# --- Usage endpoint backoff (issue #96) ---
+BACKOFF_UNTIL=0
+BACKOFF_FAILURES=0
+BACKOFF_STATUS=""
+if [ -f "$USAGE_BACKOFF" ]; then
+    IFS=$'\t' read -r BACKOFF_UNTIL BACKOFF_FAILURES BACKOFF_STATUS < <(jq -r '
+        [((.until | numbers | floor) // 0), ((.failures | numbers | floor) // 0),
+         ((.status | strings | select(test("^[0-9]{3}$"))) // "")] | @tsv' "$USAGE_BACKOFF" 2>/dev/null) || true
+    case "$BACKOFF_UNTIL" in '' | *[!0-9]*) BACKOFF_UNTIL=0 ;; esac
+    case "$BACKOFF_FAILURES" in '' | *[!0-9]*) BACKOFF_FAILURES=0 ;; esac
+fi
+
+# True while a recorded backoff still holds. A deadline further away than the
+# longest delay ever recorded means the clock moved back: ignore it.
+usage_backoff_active() {
+    local now
+    now="$(date +%s)"
+    [ "$BACKOFF_UNTIL" -gt "$now" ] && [ $(( BACKOFF_UNTIL - now )) -le "$USAGE_RETRY_AFTER_MAX" ]
+}
+
+# Seconds the server asked to wait in its last Retry-After header (delay in
+# seconds or an HTTP date), or nothing. Always succeeds.
+retry_after_seconds() {
+    local value at now
+    value="$(tr -d '\r' < "$1" 2>/dev/null \
+        | awk 'tolower($0) ~ /^retry-after:/ { sub(/^[^:]*:[ \t]*/, ""); v = $0 } END { print v }' || true)"
+    if [[ "$value" =~ ^[0-9]{1,7}$ ]]; then
+        printf '%s\n' "$(( 10#$value ))"
+    elif [ -n "$value" ] && [ "${#value}" -le 64 ] && at="$(date -d "$value" +%s 2>/dev/null)"; then
+        now="$(date +%s)"
+        [ "$at" -le "$now" ] || printf '%s\n' "$(( at - now ))"
+    fi
+    return 0
+}
+
+# Records one more failed request ($1: HTTP status, $2: response headers).
+record_usage_backoff() {
+    local delay retry_after now i
+    BACKOFF_FAILURES=$(( BACKOFF_FAILURES + 1 ))
+    [ "$BACKOFF_FAILURES" -le 16 ] || BACKOFF_FAILURES=16
+    delay="$USAGE_CACHE_TTL"
+    for (( i = 1; i < BACKOFF_FAILURES && delay < USAGE_BACKOFF_MAX; i++ )); do
+        delay=$(( delay * 2 ))
+    done
+    [ "$delay" -le "$USAGE_BACKOFF_MAX" ] || delay="$USAGE_BACKOFF_MAX"
+    retry_after="$(retry_after_seconds "$2")"
+    [ -z "$retry_after" ] || [ "$retry_after" -le "$delay" ] || delay="$retry_after"
+    [ "$delay" -le "$USAGE_RETRY_AFTER_MAX" ] || delay="$USAGE_RETRY_AFTER_MAX"
+    now="$(date +%s)"
+    BACKOFF_UNTIL=$(( now + delay ))
+    BACKOFF_STATUS="$1"
+    jq -cn --argjson until "$BACKOFF_UNTIL" --argjson failures "$BACKOFF_FAILURES" --arg status "$1" \
+        '{until: $until, failures: $failures, status: $status}' > "$USAGE_BACKOFF" 2>/dev/null || true
+}
+
+# Serves the last good snapshot after a failed or skipped request ($1: the
+# HTTP status behind it), or reports the failure when there is none.
+use_usage_fallback() {
+    local status="$1" next=""
+    if usage_backoff_active; then
+        USAGE_RETRY_AT="$BACKOFF_UNTIL"
+        USAGE_RETRY_REASON="server_error"
+        [ "$status" != "429" ] || USAGE_RETRY_REASON="rate_limited"
+        next=" Next attempt after $(date -d "@${BACKOFF_UNTIL}" +%H:%M)."
+    fi
+    if jq -e ".data | ${USAGE_VALID}" "$USAGE_CACHE" >/dev/null 2>&1; then
+        # Transient failure (429, 5xx, network): fall back to the last
+        # good snapshot even past its TTL instead of erroring the card.
+        # It keeps its own fetch time: reporting it as fresh would hide
+        # that the endpoint has been failing (issue #89).
+        API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
+        USAGE_UPDATED_AT=$(jq -r '.cached_at // empty | numbers | floor' "$USAGE_CACHE" 2>/dev/null || true)
+    elif [ "$status" = "429" ]; then
+        USAGE_ERROR_KIND="network"
+        USAGE_ERROR_MESSAGE="Claude usage endpoint is rate limited (HTTP 429).${next}"
+    else
+        USAGE_ERROR_KIND="network"
+        USAGE_ERROR_MESSAGE="Claude usage request failed with HTTP ${status:-unknown}.${next}"
+    fi
+}
+
 # --- Subscription & API Usage (with a short cache to avoid rate limits) ---
 # A truncated or hand-edited credentials file must not take the local
 # analytics down with it (jq would exit non-zero under set -e).
@@ -228,6 +321,9 @@ elif [ -f "$CREDENTIALS" ]; then
     if [ "$USE_CACHE" = true ]; then
         API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
         USAGE_UPDATED_AT="$cache_ts"
+    elif usage_backoff_active; then
+        # The endpoint asked for a pause: asking again now only extends it.
+        use_usage_fallback "$BACKOFF_STATUS"
     else
         TOKEN=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS")
         # The access token lasts about eight hours and Claude Code renews it,
@@ -256,7 +352,7 @@ elif [ -f "$CREDENTIALS" ]; then
             TOKEN="$renewed"
         }
         fetch_claude_usage() {
-            usage_status=$(curl -sS --max-time 8 -o "$usage_body" -w '%{http_code}' \
+            usage_status=$(curl -sS --max-time 8 -o "$usage_body" -D "$usage_headers" -w '%{http_code}' \
                 --config <(curl_header_config "Authorization: Bearer ${TOKEN}") \
                 -H "Accept: application/json" \
                 -H "Content-Type: application/json" \
@@ -271,6 +367,7 @@ elif [ -f "$CREDENTIALS" ]; then
         fi
         if [ -n "$TOKEN" ]; then
             usage_body=$(mktemp)
+            usage_headers=$(mktemp)
             fetch_claude_usage
             # A token revoked before its expiry gets one renewal and retry.
             if { [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; } && renew_claude_auth; then
@@ -283,22 +380,18 @@ elif [ -f "$CREDENTIALS" ]; then
                 USAGE_UPDATED_AT="$(date +%s)"
                 jq -n --argjson data "$API_RESPONSE" --argjson at "$USAGE_UPDATED_AT" \
                     '{cached_at: $at, data: $data}' > "$USAGE_CACHE" 2>/dev/null
+                rm -f "$USAGE_BACKOFF"
             elif [ "$usage_status" = "401" ] || [ "$usage_status" = "403" ]; then
                 # Credentials are genuinely invalid — stale data would mislead.
                 USAGE_ERROR_KIND="authentication"
                 USAGE_ERROR_MESSAGE="Claude OAuth credentials are invalid or expired. Run: claude auth login --claudeai"
-            elif jq -e ".data | ${USAGE_VALID}" "$USAGE_CACHE" >/dev/null 2>&1; then
-                # Transient failure (429, 5xx, network): fall back to the last
-                # good snapshot even past its TTL instead of erroring the card.
-                # It keeps its own fetch time: reporting it as fresh would hide
-                # that the endpoint has been failing (issue #89).
-                API_RESPONSE=$(jq -r '.data' "$USAGE_CACHE" 2>/dev/null || echo '{}')
-                USAGE_UPDATED_AT=$(jq -r '.cached_at // empty | numbers | floor' "$USAGE_CACHE" 2>/dev/null || true)
             else
-                USAGE_ERROR_KIND="network"
-                USAGE_ERROR_MESSAGE="Claude usage request failed with HTTP ${usage_status:-unknown}."
+                case "$usage_status" in
+                    429 | 5[0-9][0-9]) record_usage_backoff "$usage_status" "$usage_headers" ;;
+                esac
+                use_usage_fallback "$usage_status"
             fi
-            rm -f "$usage_body"
+            rm -f "$usage_body" "$usage_headers"
         else
             USAGE_ERROR_KIND="authentication"
             USAGE_ERROR_MESSAGE="Claude OAuth access token is missing. Run: claude auth login --claudeai"
@@ -363,7 +456,8 @@ elif [ -f "$CREDENTIALS" ]; then
         prepaid_age=$(( $(date +%s) - prepaid_ts ))
         [ "$prepaid_age" -lt 0 ] || [ "$prepaid_age" -ge "$PREPAID_CACHE_TTL" ] || PREPAID_FRESH=true
     fi
-    if [ "$PREPAID_FRESH" != true ] && [ -z "$USAGE_ERROR_KIND" ] \
+    # A backoff covers this endpoint too: it shares the account's rate limit.
+    if [ "$PREPAID_FRESH" != true ] && [ -z "$USAGE_ERROR_KIND" ] && [ -z "$USAGE_RETRY_AT" ] \
         && ORG_UUID="$(claude_org_uuid "$CLAUDE_DIR")"; then
         TOKEN=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS")
         prepaid_body=$(mktemp)
@@ -611,6 +705,8 @@ echo "CLAUDE_SPEND=${CLAUDE_SPEND}"
 echo "CLAUDE_PREPAID=${CLAUDE_PREPAID}"
 echo "CLAUDE_RESETS=${CLAUDE_RESETS}"
 echo "USAGE_UPDATED_AT=${USAGE_UPDATED_AT}"
+echo "USAGE_RETRY_AT=${USAGE_RETRY_AT}"
+echo "USAGE_RETRY_REASON=${USAGE_RETRY_REASON}"
 echo "USAGE_ERROR_KIND=${USAGE_ERROR_KIND}"
 echo "USAGE_ERROR_MESSAGE=${USAGE_ERROR_MESSAGE}"
 echo "WEEK_MESSAGES=${WEEK_MESSAGES}"

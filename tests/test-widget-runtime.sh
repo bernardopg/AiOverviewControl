@@ -495,10 +495,40 @@ ShellRoot {
                 }
                 dashCard.height = 300;
                 widget.confirmResetProviderId = "";
+                // Issue #96: a snapshot older than two refresh intervals fades
+                // its pill and says so in the tooltip, and a backoff names the
+                // next request on the card.
+                const old = new Date(Date.now() - widget.refreshIntervalMs * 3).toISOString();
+                const retry = new Date(Date.now() + 600000).toISOString();
+                widget.pillProviders = "claude,codex";
+                widget.barWindowOverrides = "";
+                widget.providers = [
+                    {provider: "claude", usage: {primary: {usedPercent: 50}, updatedAt: old, retryAt: retry, retryReason: "rate_limited"}},
+                    {provider: "codex", usage: {primary: {usedPercent: 50}, updatedAt: new Date().toISOString()}}];
+                root.step = 16;
+            } else if (root.step === 16) {
+                const stale = input.findChild(hPill.item, "pill-percent-claude");
+                const live = input.findChild(hPill.item, "pill-percent-codex");
+                const backoff = input.findChild(widget.dashboardView, "provider-backoff-claude");
+                const quiet = input.findChild(widget.dashboardView, "provider-backoff-codex");
+                const tooltip = widget.pillTooltipText();
+                const retry = widget.providers[0].usage.retryAt;
+                const time = Qt.formatDateTime(new Date(widget.providerRetryAtMs(widget.providers[0])), "hh:mm");
+                if (!stale || !live || !(stale.color.a < 0.5) || live.color.a !== 1
+                    || !widget.providerIsStale(widget.providers[0]) || widget.providerIsStale(widget.providers[1])
+                    || tooltip.indexOf("stale since " + widget.providerUpdatedLabel(widget.providers[0])) < 0
+                    || tooltip.indexOf("Rate limited · next try " + time) < 0
+                    || tooltip.split("stale since").length !== 2
+                    || !backoff || !backoff.visible || backoff.text !== "· Rate limited · next try " + time
+                    || !quiet || quiet.visible
+                    || widget.providerBackoffText({usage: {retryAt: new Date(Date.now() - 1000).toISOString()}}) !== ""
+                    || widget.providerBackoffText({usage: {retryAt: retry, retryReason: "server_error"}}) !== "Endpoint failing · next try " + time) {
+                    console.error("SMOKE FAIL: stale pill or backoff notice: " + tooltip + " / " + (backoff ? backoff.text : "none")); return;
+                }
                 widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");
-                root.step = 16;
+                root.step = 17;
             }
         }
     }

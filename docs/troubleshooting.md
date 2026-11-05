@@ -80,6 +80,8 @@ Claude analytics require readable JSONL files under `~/.claude/projects` (or `$C
 
 If the Claude card shows **Stale** and an older **Updated** time than the last refresh, the usage endpoint is failing transiently, most often with HTTP 429 (it is rate-limited per account and shares that limit with Claude Code itself). The card keeps the last good snapshot with the time it was fetched, so its percentages can trail the numbers Claude Code shows until a request succeeds again; a window whose reset passed in the meantime reads 0%. Check the endpoint directly with `./providers/get-claude-usage | grep -E '^(SEVEN_DAY_UTIL|USAGE_UPDATED_AT)='`: a `USAGE_UPDATED_AT` epoch well behind `date +%s` confirms it.
 
+After a 429 or 5xx the adapter stops asking until a backoff ends (120 s, doubling per consecutive failure up to 30 minutes, or the server's `Retry-After` when longer), and the card's **Updated** line shows **Rate limited · next try HH:MM**. A manual refresh honours that backoff too, since asking again only extends the limit. The limit is per account and shared with Claude Code and with any other tool polling the same endpoint (another quota widget, a status line script): if the backoff keeps returning, raise **Refresh interval** and stop the other pollers. `./providers/get-claude-usage | grep -E '^USAGE_RETRY_(AT|REASON)='` shows the current backoff, and `claude-usage-backoff.json` under `~/.cache/AiOverviewControl/claude-profiles/<hash>/` holds it; deleting that file ends it early.
+
 ## Copilot
 
 ```bash

@@ -2575,11 +2575,7 @@ PopoutComponent {
         property bool veryCompact: width < 430
         property bool dense: root.densityMode === "compact"
         property bool hovered: cardMouse.containsMouse
-        readonly property bool isStale: {
-            root.staleTickMs;
-            const updated = root.providerUpdatedMs(provider);
-            return updated > 0 && (Date.now() - updated) > root.refreshIntervalMs * 2;
-        }
+        readonly property bool isStale: root.providerIsStale(provider)
 
         function toggleExpanded() {
             if (root.allExpanded) {
@@ -4084,6 +4080,18 @@ PopoutComponent {
                         time: root.providerUpdatedLabel(card.provider)
                     })
                     color: card.isStale ? Theme.withAlpha(Theme.warning, 0.8) : Theme.withAlpha(Theme.surfaceVariantText, 0.6)
+                    font.pixelSize: Theme.fontSizeSmall - 2
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // The adapter is backing off a rate-limited or failing usage
+                // endpoint (issue #96): say when it will ask again.
+                StyledText {
+                    objectName: "provider-backoff-" + (card.provider ? card.provider.provider : "")
+                    readonly property string backoff: root.providerBackoffText(card.provider)
+                    visible: backoff.length > 0
+                    text: "· " + backoff
+                    color: Theme.withAlpha(Theme.warning, 0.8)
                     font.pixelSize: Theme.fontSizeSmall - 2
                     anchors.verticalCenter: parent.verticalCenter
                 }

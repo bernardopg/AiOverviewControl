@@ -1002,6 +1002,44 @@ PluginComponent {
         return value > 0 ? Qt.formatDateTime(new Date(value), "hh:mm:ss") : lastUpdated;
     }
 
+    // A provider's numbers are stale once they are older than two refresh
+    // intervals: an adapter serving its last good snapshot while the endpoint
+    // fails keeps that snapshot's fetch time (issues #89, #96). Reading
+    // staleTickMs re-evaluates callers as time passes.
+    function providerIsStale(provider) {
+        staleTickMs;
+        const updated = providerUpdatedMs(provider);
+        return updated > 0 && (Date.now() - updated) > refreshIntervalMs * 2;
+    }
+
+    // When an adapter backing off a failing endpoint will ask it again
+    // (usage.retryAt), or 0 when no backoff holds.
+    function providerRetryAtMs(provider) {
+        staleTickMs;
+        const value = provider && provider.usage ? provider.usage.retryAt : "";
+        if (!value)
+            return 0;
+        const parsed = new Date(value).getTime();
+        return Number.isFinite(parsed) && parsed > Date.now() ? parsed : 0;
+    }
+
+    function providerBackoffText(provider) {
+        const retryMs = providerRetryAtMs(provider);
+        if (retryMs <= 0)
+            return "";
+        const time = Qt.formatDateTime(new Date(retryMs), "hh:mm");
+        return provider.usage.retryReason === "rate_limited"
+            ? t("usage.backoff_rate_limited", "Rate limited · next try {time}", { time: time })
+            : t("usage.backoff_failing", "Endpoint failing · next try {time}", { time: time });
+    }
+
+    // Bar colour for a percentage: the usage scale, faded while the
+    // provider's numbers are stale so an old snapshot never reads as live.
+    function pillUsageColor(provider, percent) {
+        const color = getUsageColor(percent);
+        return providerIsStale(provider) ? Theme.withAlpha(color, 0.45) : color;
+    }
+
     function compactPath(value) {
         const text = String(value || "");
         if (text.length === 0)
@@ -1290,6 +1328,13 @@ PluginComponent {
                         }));
                 }
             }
+            if (providerIsStale(provider))
+                segment.push(t("pill.stale_since", "stale since {time}", {
+                    time: providerUpdatedLabel(provider)
+                }));
+            const backoff = providerBackoffText(provider);
+            if (backoff.length > 0)
+                segment.push(backoff);
             entries.push(segment.join(" · "));
         }
         return entries.join("   •   ");
@@ -2315,7 +2360,7 @@ PluginComponent {
                         id: pillEntry
                         required property var modelData
                         required property int index
-                        readonly property color usageColor: root.getUsageColor(root.pillPercentFor(modelData))
+                        readonly property color usageColor: root.pillUsageColor(modelData, root.pillPercentFor(modelData))
                         // More than one window (issue #86): each gets its own
                         // length tag and colour instead of the single number.
                         readonly property var barWindows: root.pillWindowsFor(modelData)
@@ -2353,6 +2398,7 @@ PluginComponent {
                         }
 
                         StyledText {
+                            objectName: "pill-percent-" + pillEntry.modelData.provider
                             visible: !pillEntry.multiWindow
                             text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(pillEntry.modelData)))}%`
                             color: pillEntry.usageColor
@@ -2393,7 +2439,7 @@ PluginComponent {
                                 StyledText {
                                     objectName: "pill-window-percent"
                                     text: `${Math.round(root.quotaDisplayPercent(pillWindow.modelData.usedPercent))}%`
-                                    color: root.getUsageColor(Number(pillWindow.modelData.usedPercent || 0))
+                                    color: root.pillUsageColor(pillEntry.modelData, Number(pillWindow.modelData.usedPercent || 0))
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Bold
                                     anchors.verticalCenter: parent.verticalCenter
@@ -2452,7 +2498,7 @@ PluginComponent {
                     StyledText {
                         visible: !verticalEntry.multiWindow
                         text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(verticalEntry.modelData)))}%`
-                        color: root.getUsageColor(root.pillPercentFor(verticalEntry.modelData))
+                        color: root.pillUsageColor(verticalEntry.modelData, root.pillPercentFor(verticalEntry.modelData))
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -2479,7 +2525,7 @@ PluginComponent {
 
                             StyledText {
                                 text: `${Math.round(root.quotaDisplayPercent(verticalWindow.modelData.usedPercent))}%`
-                                color: root.getUsageColor(Number(verticalWindow.modelData.usedPercent || 0))
+                                color: root.pillUsageColor(verticalEntry.modelData, Number(verticalWindow.modelData.usedPercent || 0))
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.DemiBold
                                 anchors.horizontalCenter: parent.horizontalCenter

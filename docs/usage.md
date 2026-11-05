@@ -88,8 +88,12 @@ Hover a button and the line under the title names its action.
 - The capsule on each card pins (★), removes (✕), and expands (⌄) it.
 - Keyboard: focus a card, then **Enter**/**Space** expands, **Delete** removes,
   **P** pins, **R** retries a failed provider.
-- Data is marked stale after twice the refresh interval. Failed cards offer a
-  provider-specific retry.
+- Data is marked stale after twice the refresh interval: the card shows
+  **Stale**, and the DankBar pill fades that provider's percentage and adds
+  **stale since HH:MM:SS** to its tooltip. While an adapter backs off a
+  rate-limited or failing endpoint, the card's **Updated** line and the tooltip
+  add **Rate limited · next try HH:MM** (or **Endpoint failing**). Failed cards
+  offer a provider-specific retry.
 - Expanded cards show the available windows, credits, source, identity, and
   update time. Fields a provider does not report are left out, never invented.
 - Claude (and each Claude profile) and Codex cards add a **Credits & limit
