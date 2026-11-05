@@ -72,9 +72,6 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 
 ## Quality / CI
 
-- [ ] **DMS pin** — the `qml-runtime` job checks out DankMaterialShell
-  `v2.0.0`, still the latest release on 2026-10-26; bump it when a newer 2.x
-  ships. `S · ★★`
 - [ ] **Duplicate IPC handler warning** — with more than one bar, every widget
   instance registers the `aiOverviewControl` IPC target and Quickshell logs
   "Handler was registered but will not be used" for the extra ones. IPC works;

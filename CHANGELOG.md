@@ -7,6 +7,7 @@
 - The DankBar pill fades a provider's percentage once its numbers are stale (older than two refresh intervals), and its tooltip adds **stale since HH:MM:SS** and the next try, so an old snapshot no longer reads as live on the bar ([#96](https://github.com/bernardopg/AiOverviewControl/issues/96)).
 
 ### Project
+- The native UI suite now runs against Dux Shell 2.1.0 (`duxlabs-dev/dux-shell` at `7627111`), the release distributions ship as `dux-shell`. 2.1.0 changed no plugin API the widget uses, so `requires_dms` stays `>=2.0.0`; the pin was adopted on its publication day, an exception to the seven-day quarantine recorded in [docs/update-audit.md](docs/update-audit.md).
 - Bump `github/codeql-action/upload-sarif` to v4.39.1 for the Scorecard upload, once past the seven-day quarantine.
 
 ### Thanks

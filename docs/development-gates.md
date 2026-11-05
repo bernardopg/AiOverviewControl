@@ -108,7 +108,7 @@ Use `scripts/qmlls-setup` first, or supply the import-tree parent with
 `AIOC_DMS_IMPORTS`. It needs a native Wayland connection because Qt offscreen
 cannot construct DMS PanelWindow types; without these prerequisites it reports
 **SKIP** locally. CI makes it mandatory: the `qml-runtime` job checks out
-DankMaterialShell at a pinned tag (with its `dank-qml-common` submodule), builds
+Dux Shell (`duxlabs-dev/dux-shell`) at a pinned tag (with its `dux-qml-common` submodule), builds
 the import tree with `scripts/qmlls-setup`, starts headless sway
 (`WLR_BACKENDS=headless`, pixman renderer) and runs the suite, including the
 pointer-drag pass, with `AIOC_REQUIRE_NATIVE_UI=1` so a missing prerequisite
