@@ -650,7 +650,7 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | | |
 | --- | --- |
 | **API base** | `https://api.commandcode.ai/provider/v1` (OpenAI/Anthropic-compatible); quota `https://api.commandcode.ai/alpha/billing/credits` (Bearer, no cookies). |
-| **Credentials** | `COMMAND_CODE_API_KEY` (preferred when available to DMS), or the `apiKey` in CLI-owned `~/.commandcode/auth.json` after `cmd login`. Both are the same Provider API key used for `/provider/v1/models`, `/alpha/whoami`, `/alpha/billing/credits`. |
+| **Credentials** | `COMMAND_CODE_API_KEY` (preferred when available to Dux Shell), or the `apiKey` in CLI-owned `~/.commandcode/auth.json` after `cmd login`. Both are the same Provider API key used for `/provider/v1/models`, `/alpha/whoami`, `/alpha/billing/credits`. |
 | **Auth** | `Authorization: Bearer ***` |
 | **Quota / balance** | `/alpha/billing/credits` returns `windowLimits.fiveHour` (5h USD used/cap, Unix-ms `resetAt`), `windowLimits.weekly` (7-day USD used/cap, Unix-ms `resetAt`), and `credits.monthlyCredits` (remaining USD this billing cycle). `/alpha/billing/subscriptions` exposes `planId` (e.g. `individual-goat`) and `currentPeriodEnd`. |
 | **Plans** | **Go** $1 / $10 credit &middot; **GOAT** $10 / $70 credit, 5h $14 / weekly $35 &middot; **Pro** $20 / $80 credit, 5h $16 / weekly $40 &middot; **Max 10×** $100 / $150 credit, 5h $45 / weekly $90 &middot; **Max 20×** $200 / $300 credit, 5h $90 / weekly $180 &middot; **Team Pro** $40 / $40 credit, 5h $12 / weekly $24 &middot; **Provider API** $15 + pay-as-you-go. |
@@ -762,7 +762,7 @@ force the Zen path.
 | | |
 | --- | --- |
 | **API base** | `https://opencode.ai/zen/go/v1` — OpenCode Zen's Go-plan quota surface, alongside the OpenAI-compatible `/zen/v1` inference API. |
-| **Credentials** | `OPENCODE_API_KEY` (preferred when available to DMS), or the `key` in CLI-owned `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json` (saved by `opencode auth login`). The adapter follows this XDG path on Linux, the plugin's supported platform. The same key created in OpenCode Studio/Zen drives both inference and quota introspection. |
+| **Credentials** | `OPENCODE_API_KEY` (preferred when available to Dux Shell), or the `key` in CLI-owned `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json` (saved by `opencode auth login`). The adapter follows this XDG path on Linux, the plugin's supported platform. The same key created in OpenCode Studio/Zen drives both inference and quota introspection. |
 | **Auth** | `Authorization: Bearer ***` |
 | **Quota / balance** | `/zen/go/v1/usage` returns `rollingUsage` (5h window), `weeklyUsage`, and `monthlyUsage`, each `{status, resetInSec, usagePercent}` — percentages are computed server-side, so the adapter never derives them from raw byte/token counts. The adapter accepts a quota response only when all three windows have valid percentage/reset values; otherwise it falls back to auth-only status. `resetInSec` is seconds-from-now, converted to an absolute ISO 8601 timestamp. `useBalance: true` is rendered as **balance fallback enabled**; the endpoint does not return the balance amount, so none is invented. |
 | **Plans** | **OpenCode Go** $10/mo — $12 of usage per 5-hour window, $30 weekly, $60 monthly. |

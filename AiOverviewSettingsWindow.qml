@@ -217,7 +217,7 @@ FloatingWindow {
                         position: "first"
                         iconName: "favorite"
                         accent: Theme.error
-                        label: win.t("header.upvote", "Upvote on the DMS plugin registry")
+                        label: win.t("header.upvote", "Upvote on the Dux Shell plugin registry")
                         onHoveredChanged: win.hoveredAction = hovered ? label : ""
                         onTriggered: Qt.openUrlExternally(win.registryUrl)
                     }
@@ -349,7 +349,7 @@ FloatingWindow {
                 StyledText {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    text: win.t("about.description", "AI quota, billing, authentication and local usage telemetry for DankMaterialShell.")
+                    text: win.t("about.description", "AI quota, billing, authentication and local usage telemetry for Dux Shell.")
                     color: Theme.surfaceVariantText
                     font.pixelSize: Theme.fontSizeSmall
                     wrapMode: Text.WordWrap
@@ -475,7 +475,7 @@ FloatingWindow {
 
             AboutLink {
                 iconName: "thumb_up"
-                label: win.t("header.upvote", "Upvote on the DMS plugin registry")
+                label: win.t("header.upvote", "Upvote on the Dux Shell plugin registry")
                 url: win.registryUrl
             }
 
@@ -483,7 +483,7 @@ FloatingWindow {
                 Layout.fillWidth: true
                 Layout.topMargin: Theme.spacingXS
                 horizontalAlignment: Text.AlignHCenter
-                text: win.t("about.license", "MIT License · made with care for the Dank community")
+                text: win.t("about.license", "MIT License · made with care for the Dux Shell community")
                 color: Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall - 2
             }

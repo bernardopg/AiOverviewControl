@@ -44,4 +44,4 @@ plugin does not fetch the original transaction/day's historical FX rate.
 
 Tests cover cache corruption, wrong bases, missing/zero rates, outages, opt-out,
 concurrent refreshes, locale/precision, invalid values and in-flight selection
-changes. A full DMS runtime fixture also switches the widget from BRL to USD.
+changes. A full Dux Shell runtime fixture also switches the widget from BRL to USD.

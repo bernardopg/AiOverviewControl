@@ -7,18 +7,18 @@ The detailed backlog, with effort and impact estimates, lives in
 
 ## Direction
 
-AiOverviewControl stays a **local-first** DankMaterialShell plugin: it reads
+AiOverviewControl stays a **local-first** Dux Shell plugin: it reads
 quota, billing, authentication and usage data that each AI tool or provider
-already exposes, and shows it in the DankBar and a dashboard, with no service
+already exposes, and shows it in the bar and a dashboard, with no service
 of its own in between.
 
 ## Planned
 
-### DankMaterialShell 2.x
+### Dux Shell 2.x
 
-- Keep the plugin working on each DMS 2.x release, with the native UI test in
-  CI pinned to a tested DMS revision.
-- Publish the `requires_dms` constraint in the DMS plugin registry entry, so
+- Keep the plugin working on each Dux Shell 2.x release, with the native UI test in
+  CI pinned to a tested Dux Shell revision.
+- Publish the `requires_dms` constraint in the Dux Shell plugin registry entry, so
   DMS 1.6 users stay on 1.22.0 instead of receiving an incompatible update.
 
 ### Providers
@@ -70,7 +70,7 @@ The project will **not**:
 - change provider settings, buy credits or perform any write action on a
   provider account, except redeeming a limit reset the account already holds,
   one per explicit user confirmation;
-- support desktop shells other than DankMaterialShell, or DMS 1.x beyond the
+- support desktop shells other than Dux Shell, or DMS 1.x beyond the
   1.22.0 release;
 - invent costs: local usage is priced only from a public list-price table and
   shown as an estimate, and a model without a list price stays unknown.

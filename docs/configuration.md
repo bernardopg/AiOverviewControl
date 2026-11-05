@@ -1,6 +1,6 @@
 # Configuration
 
-All settings are stored through DMS. Plugin updates do not overwrite user choices.
+All settings are stored through Dux Shell. Plugin updates do not overwrite user choices.
 
 ## Settings
 
@@ -11,16 +11,16 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 | `refreshInterval` | 60000, 120000, 300000, 900000, 1800000 | 120000 | Refresh interval in milliseconds. |
 | `showErrorProviders` | `true` / `false` | `true` | Keep failed provider cards visible. |
 | `densityMode` | `comfortable`, `compact` | `comfortable` | Compact cards hide the preview bar; expanded details remain available. |
-| `pillMode` | `auto`, `custom`, `top` | `auto` | DankBar pill providers: measurable providers, an explicit compact subset, or the most-used provider. |
+| `pillMode` | `auto`, `custom`, `top` | `auto` | Bar pill providers: measurable providers, an explicit compact subset, or the most-used provider. |
 | `pillProviders` | comma-separated IDs | provider selection | Strict provider subset used by `custom` pill mode. The settings UI exposes this as provider chips and never falls back to every tracked provider. |
 | `claudeProfiles` | JSON object (stored as a string) | `{}` | Up to 16 named Claude accounts, keyed by unique `claude-...` provider IDs; each entry contains `name` and an absolute `configDir`. Manage them under **Claude profiles** in settings. |
-| `barWindowOverrides` | `provider:slot,...` | empty | Per-provider DankBar usage window, for example `claude:secondary`. Slot is `primary` (default), `secondary`, `tertiary`, `highest` (most-constrained), `all`, or several windows joined with `+`, such as `claude:primary+secondary`. With more than one window the pill tags each percentage with its length (`5h 45% / 7d 80%`), and the `top`/`auto` pill modes rank the provider by the highest of them. Dashboard cards and history keep the primary window. Notifications follow this choice by default (`notifyWindowScope` = `displayed`). Windows missing from the payload are skipped; when none of the chosen windows exists, the primary window is shown. |
-| `pillTooltip` | `true` / `false` | `true` | Hovering the DankBar pill shows the provider, the quota window the percentage came from, and the reset. With one provider in the pill it also appends `resets in ...`. |
-| `pillShowNames` | `true` / `false` | `true` | Show each provider's name in the horizontal DankBar pill. `false` keeps only the logo and percentage; the tooltip still names the provider. Vertical bars never show names. |
-| `showRemainingQuota` | `true` / `false` | `false` | Show remaining quota (`100 − used`) in DankBar percentages, tooltips and dashboard quota bars/rings. Labels in the dashboard and tooltip identify remaining quota. Colors, provider ranking, fleet load/peak, historical charts, notifications and analytics shares still use consumption. |
-| `pillCompact` | `true` / `false` | `false` | Tighter DankBar pill: drops the padding spaces around the `·` separator between providers and shrinks the gap between logo, name, and percentage (vertical bars: the gap between providers). |
+| `barWindowOverrides` | `provider:slot,...` | empty | Per-provider bar usage window, for example `claude:secondary`. Slot is `primary` (default), `secondary`, `tertiary`, `highest` (most-constrained), `all`, or several windows joined with `+`, such as `claude:primary+secondary`. With more than one window the pill tags each percentage with its length (`5h 45% / 7d 80%`), and the `top`/`auto` pill modes rank the provider by the highest of them. Dashboard cards and history keep the primary window. Notifications follow this choice by default (`notifyWindowScope` = `displayed`). Windows missing from the payload are skipped; when none of the chosen windows exists, the primary window is shown. |
+| `pillTooltip` | `true` / `false` | `true` | Hovering the bar pill shows the provider, the quota window the percentage came from, and the reset. With one provider in the pill it also appends `resets in ...`. |
+| `pillShowNames` | `true` / `false` | `true` | Show each provider's name in the horizontal bar pill. `false` keeps only the logo and percentage; the tooltip still names the provider. Vertical bars never show names. |
+| `showRemainingQuota` | `true` / `false` | `false` | Show remaining quota (`100 − used`) in bar percentages, tooltips and dashboard quota bars/rings. Labels in the dashboard and tooltip identify remaining quota. Colors, provider ranking, fleet load/peak, historical charts, notifications and analytics shares still use consumption. |
+| `pillCompact` | `true` / `false` | `false` | Tighter bar pill: drops the padding spaces around the `·` separator between providers and shrinks the gap between logo, name, and percentage (vertical bars: the gap between providers). |
 | `pinnedProviders` | comma-separated IDs | empty | Pinned cards sort before other cards. |
-| `providerLogoColor` | QML color string | current DMS primary color | Monochrome tint used for provider logos and notification icons. |
+| `providerLogoColor` | QML color string | current Dux Shell primary color | Monochrome tint used for provider logos and notification icons. |
 | `quotaNotifications` | `true` / `false` | `true` | Enables quota threshold notifications. |
 | `notifyThreshold` | 75, 85, or 95 | 85 | Global notification threshold. Per-provider `notifyThresholds` overrides accept any value from 1–100. |
 | `notifyThresholds` | `provider:percent,...` | empty | Per-provider threshold overrides, for example `codex:75,claude:90`. Settings validates the CSV inline: malformed pairs, unknown or duplicated providers, providers that are not tracked, and percentages outside 1–100 are reported as you type. |
@@ -59,7 +59,7 @@ It prints the absolute path of the file it wrote on stdout and writes it
 
 **Reset plugin settings** in Settings restores every key in this table to its
 default, including tracked providers, pins, notification thresholds, and
-DankBar overrides. It is a two-step confirmation and never touches the
+bar window overrides. It is a two-step confirmation and never touches the
 recorded usage history.
 
 ## Multiple Claude accounts
@@ -76,7 +76,7 @@ profile definitions. Paths are literal, not shell expressions: `~` and `$HOME` a
 not expanded. IDs use lowercase letters, digits, `_` or `-` after `claude-` (1–56
 characters; the first must be a letter or digit). Names are 1–80 characters.
 
-When upgrading from a version without Claude profiles, restart DMS once
+When upgrading from a version without Claude profiles, restart Dux Shell once
 (`dms restart`) so Qt discovers the new JavaScript module; later profile changes
 only require a refresh.
 
@@ -109,7 +109,7 @@ One detected account stays in the normal provider-card layout. When two or more 
 
 ## Environment variables
 
-Environment variables must be present in the process that starts DMS. Shell-only exports (including `~/.zshenv`) may not reach a graphical session. For a systemd-managed DMS session, either run `cmd login` for Command Code (the plugin safely reads its CLI-owned `~/.commandcode/auth.json` fallback), or import an already-exported key and restart DMS:
+Environment variables must be present in the process that starts Dux Shell. Shell-only exports (including `~/.zshenv`) may not reach a graphical session. For a systemd-managed Dux Shell session, either run `cmd login` for Command Code (the plugin safely reads its CLI-owned `~/.commandcode/auth.json` fallback), or import an already-exported key and restart Dux Shell:
 
 ```bash
 systemctl --user import-environment COMMAND_CODE_API_KEY
@@ -120,10 +120,10 @@ For a durable environment-variable setup, configure your display manager or user
 
 ## Provider readiness labels
 
-The settings health check describes whether the plugin can run an adapter in the current DMS process; it is not a claim that the provider publishes a quota API.
+The settings health check describes whether the plugin can run an adapter in the current shell process; it is not a claim that the provider publishes a quota API.
 
 - **Ready** means the required CLI, local session, database, or environment variable was found.
-- **Missing** names the credential or executable that DMS cannot see. In particular, a key exported only by an interactive shell is invisible when DMS was started by the graphical session.
+- **Missing** names the credential or executable that Dux Shell cannot see. In particular, a key exported only by an interactive shell is invisible when Dux Shell was started by the graphical session.
 - **Informational** means the provider does not expose a stable public read-only quota surface. The plugin can still show a card that points to the official usage page.
 - **Checking…** is transient while the asynchronous readiness command runs. Provider changes made during a running check are queued and checked immediately afterward.
 
@@ -172,4 +172,4 @@ The settings page executes `providers/get-provider-health` for selected provider
 
 Health checks do not send network requests and never print secret values.
 
-Quota notifications require `flock` in the DMS process environment. They use `notify-send` (libnotify) when it is installed and fall back to `dms notify` otherwise; the fallback cannot replace an earlier popup in place, set urgency or open the provider card on click. Antigravity readiness accepts a valid `agy` token file, `secret-tool` for keyring-backed sessions, or `sqlite3` plus a readable IDE state database.
+Quota notifications require `flock` in the shell process environment. They use `notify-send` (libnotify) when it is installed and fall back to `dms notify` otherwise; the fallback cannot replace an earlier popup in place, set urgency or open the provider card on click. Antigravity readiness accepts a valid `agy` token file, `secret-tool` for keyring-backed sessions, or `sqlite3` plus a readable IDE state database.

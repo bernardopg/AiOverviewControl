@@ -790,7 +790,7 @@ PluginSettings {
             spacing: Theme.spacingS
 
             StyledText {
-                text: t("settings.pill_providers.label", "Providers shown in DankBar")
+                text: t("settings.pill_providers.label", "Providers shown in the bar")
                 color: Theme.surfaceText
                 font.pixelSize: Theme.fontSizeMedium
                 font.weight: Font.DemiBold
@@ -798,7 +798,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: t("settings.pill_providers.description", "Choose a compact subset of tracked providers. This only changes the DankBar pill; tracking and dashboard cards remain unchanged.")
+                text: t("settings.pill_providers.description", "Choose a compact subset of tracked providers. This only changes the bar pill; tracking and dashboard cards remain unchanged.")
                 wrapMode: Text.WordWrap
                 color: Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
@@ -876,7 +876,7 @@ PluginSettings {
         // DToggle insets its text by spacingM; bleed out to align with the other rows.
         x: -Theme.spacingM
         width: parent.width + Theme.spacingM * 2
-        text: t("settings.pill_tooltip", "DankBar pill tooltip")
+        text: t("settings.pill_tooltip", "Bar pill tooltip")
         description: t("settings.pill_tooltip_desc", "Hovering the bar pill spells out the provider, which quota window the percentage came from, and when it resets.")
         checked: { root.settingsEpoch; return loadValue("pillTooltip", "true") === "true"; }
         onToggled: function(checked) { saveValue("pillTooltip", checked ? "true" : "false"); }
@@ -929,7 +929,7 @@ PluginSettings {
             spacing: Theme.spacingS
 
             StyledText {
-                text: t("settings.bar_window.label", "DankBar usage window")
+                text: t("settings.bar_window.label", "Bar usage window")
                 color: Theme.surfaceText
                 font.pixelSize: Theme.fontSizeMedium
                 font.weight: Font.DemiBold
@@ -937,7 +937,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the DankBar by default. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h\u00a045%\u00a0/\u00a07d\u00a080%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
+                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the bar by default. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h 45% / 7d 80%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
                 wrapMode: Text.WordWrap
                 color: Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
@@ -1107,7 +1107,7 @@ PluginSettings {
         visible: notifyToggle.checked
         width: parent.width
         text: t("settings.notify.window_scope", "Windows that raise alerts")
-        description: t("settings.notify.window_scope_desc", "“Displayed” alerts on whatever windows the DankBar shows for each provider — identical to “Primary” until you override a provider above. “All windows” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
+        description: t("settings.notify.window_scope_desc", "“Displayed” alerts on whatever windows the bar shows for each provider — identical to “Primary” until you override a provider above. “All windows” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
         selected: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
         values: ["displayed", "all", "primary"]
         labels: [t("settings.option.displayed", "Displayed"), t("settings.option.all", "All windows"), t("settings.option.primary", "Primary")]
@@ -1503,7 +1503,7 @@ PluginSettings {
             StyledText {
                 width: parent.width
                 text: resetCard.armed
-                    ? t("settings.reset_confirm_desc", "This restores every option on this page, including tracked providers, pins, notification thresholds, and DankBar overrides. Recorded usage history is kept.")
+                    ? t("settings.reset_confirm_desc", "This restores every option on this page, including tracked providers, pins, notification thresholds, and bar window overrides. Recorded usage history is kept.")
                     : t("settings.reset_desc", "Restore every option on this page to its default. Recorded usage history is kept.")
                 wrapMode: Text.WordWrap
                 color: resetCard.armed ? Theme.error : Theme.surfaceVariantText

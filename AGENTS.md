@@ -27,11 +27,13 @@ more depth.
 
 ## Project
 
-Quickshell/DankMaterialShell plugin (`id: aiOverviewControl`) that surfaces AI
-provider quota, billing, authentication and local usage telemetry in a DankBar
-pill and a popout dashboard. Runtime is QML at the repo root plus bash + jq
-adapters in `providers/`. Targets DMS 2.0+ on Quickshell 0.3 (`requires_dms` in
-`plugin.json`); 1.22.0 is the last release for DMS 1.6.
+Quickshell plugin for Dux Shell, formerly DankMaterialShell (`id:
+aiOverviewControl`), that surfaces AI provider quota, billing, authentication
+and local usage telemetry in a bar pill and a popout dashboard. Runtime is QML
+at the repo root plus bash + jq adapters in `providers/`. Targets Dux Shell
+2.0+ on Quickshell 0.3 (`requires_dms` in `plugin.json`; CI tests 2.1); the
+shell's CLI and directories are still `dms`. 1.22.0 is the last release for
+DMS 1.6.
 
 ## Layout
 
@@ -45,6 +47,9 @@ CurrencyFormatter.qml         Display-only USD estimate conversion
 AiOverviewControlI18n.qml     Locale loading singleton (registered in qmldir)
 ProviderLogo.qml              Logo resolution, tint and fallback icon (single icon source)
 HeaderAction.qml              Shared header button
+AiOverviewDashCard.qml        Dashboard "AI quotas" card; reads dash-snapshot.json only
+ClaudeProfiles.js             Claude profile catalog validation + details view model
+lib/BarWindows.js             Bar window selection (barWindowOverrides); new modules go in new dirs
 providers/get-provider-usage  Dispatcher; sources providers/native/*.bash explicitly
 providers/get-*               Per-provider and analytics entrypoints (must be executable)
 providers/local-cost-common   Shared Hermes cost SQL + LiteLLM per-model pricing (sourced)
@@ -95,11 +100,11 @@ docs/                         User/operator docs; docs/releases/<version>.md per
   entry; extend `i18n/en.json` first, then mirror every locale.
 - UI strings use `t("key", "English fallback")`, and the key must still exist
   in all five bundles with matching placeholders.
-- DMS renders the `plugin.json` dash title and option strings itself; translate
+- Dux Shell renders the `plugin.json` dash title and option strings itself; translate
   each one in every `translations/*.json` (the English term is its own bucket).
 - A Repeater delegate that is a custom component needs
   `required property var modelData`.
-- Shared widgets come from `qs.DCommon.Widgets` with their DMS 2.0 names
+- Shared widgets come from `qs.DCommon.Widgets` with their Dux Shell 2.0 names
   (`DIcon`, `DToggle`, `DButton`, …); `qs.Widgets` keeps only shell types
   (`StyledText`, `StyledRect`, `DTooltip`). The `Dank*` names are deprecated
   wrappers and `tests/test-widget-runtime.sh` rejects them.
@@ -119,8 +124,9 @@ scripts/check-changelog --base origin/main
 scripts/check-dco origin/main     # Signed-off-by on every non-merge commit
 find providers -type f -print0 | xargs -0 -n 1 bash -n
 find providers -type f -print0 | xargs -0 shellcheck -S warning
-shellcheck -S warning tests/*.sh scripts/check-metadata scripts/check-dco scripts/package-release \
-  scripts/qmlls-setup scripts/reload-plugin scripts/render-contributors .githooks/pre-push
+shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors \
+  scripts/check-metadata scripts/check-dco scripts/coverage scripts/qmlls-setup \
+  scripts/reload-plugin .githooks/pre-push
 for test in tests/test-*.sh; do bash "$test"; done
 AIOC_COVERAGE_MIN=95 scripts/coverage   # kcov statement coverage (CI: Statement coverage)
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml   # exit code is the signal; without a TTY
@@ -135,9 +141,9 @@ Optional hook: `git config core.hooksPath .githooks` runs the metadata gate
 before every push.
 
 `tests/test-widget-runtime.sh` builds the real widget, pills, dashboard,
-settings and window against DMS imports. Locally run `scripts/qmlls-setup`
-first (copies the running DMS shell into `~/.cache/dms-qmlls`); without
-Wayland + imports it SKIPs. CI checks out DankMaterialShell at a pinned SHA
+settings and window against Dux Shell imports. Locally run `scripts/qmlls-setup`
+first (copies the running Dux Shell into `~/.cache/dms-qmlls`); without
+Wayland + imports it SKIPs. CI checks out Dux Shell at a pinned SHA
 **with submodules**, starts headless sway and sets
 `AIOC_REQUIRE_NATIVE_UI=1`, so there it can only pass or fail.
 `AIOC_TEST_POINTER=1` adds the pointer-drag pass.

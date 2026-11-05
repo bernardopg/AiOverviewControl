@@ -20,7 +20,9 @@ How the popout, provider cards, settings window, and IPC commands behave once
 AiOverviewControl is installed. For the setting keys themselves see
 [Configuration](./configuration.md).
 
-## The DankBar pill
+<a id="the-dankbar-pill"></a>
+
+## The bar pill
 
 - Shows one entry per provider: logo, name, and the used percentage of its
   quota window. The percentage uses the usage colour scale.
@@ -28,7 +30,7 @@ AiOverviewControl is installed. For the setting keys themselves see
   usage, `custom` shows an explicit list, `top` shows only the busiest one.
 - Providers with more than one quota window (Claude's 5 hour and 7 day, for
   example) can show any window in the bar. Pick it per provider in
-  **DankBar usage window**, or choose `highest` to follow the most-constrained
+  **Bar usage window**, or choose `highest` to follow the most-constrained
   window. **Primary + secondary** and **All windows** show several windows at
   once, each tagged with its length: `Claude 5h 45% / 7d 80%`.
 - Hover the pill to see which window each number comes from and when it resets.
@@ -37,9 +39,11 @@ AiOverviewControl is installed. For the setting keys themselves see
   tighten the gap around the `·` between providers. Hovering still names each
   provider.
 
-## The DankDash card
+<a id="the-dankdash-card"></a>
 
-The plugin adds an **AI quotas** card to the DankDash overview. Open the
+## The Dashboard card
+
+The plugin adds an **AI quotas** card to the Dashboard overview. Open the
 overview, hover the page icon, click the pencil, then **Add widget**.
 
 - A 1x1 card shows the provider closest to its limit as one large number.
@@ -47,7 +51,7 @@ overview, hover the page icon, click the pencil, then **Add widget**.
   usage bar each; wide or tall cards add the reset time.
 - The card follows **Show remaining quota** and the same usage colours as the
   pill. In edit mode its options set how many providers to list and the tone.
-- DMS draws the card name and its options, so they follow the DMS language
+- Dux Shell draws the card name and its options, so they follow the Dux Shell language
   (**Settings → Locale**), not the plugin's **Language** setting.
 - It reads the snapshot the bar widget writes after each refresh
   (`~/.cache/AiOverviewControl/dash-snapshot.json`, owner-only) and never
@@ -60,7 +64,7 @@ overview, hover the page icon, click the pencil, then **Add widget**.
 
 | Button | Action |
 | --- | --- |
-| ❤ | Upvote the plugin on the DMS plugin registry. |
+| ❤ | Upvote the plugin on the Dux Shell plugin registry. |
 | `<>` | Open the GitHub repository. |
 | ⟳ | Refresh every provider now. Spins while a refresh runs. |
 | ⚙ | Open the settings window. |
@@ -89,7 +93,7 @@ Hover a button and the line under the title names its action.
 - Keyboard: focus a card, then **Enter**/**Space** expands, **Delete** removes,
   **P** pins, **R** retries a failed provider.
 - Data is marked stale after twice the refresh interval: the card shows
-  **Stale**, and the DankBar pill fades that provider's percentage and adds
+  **Stale**, and the bar pill fades that provider's percentage and adds
   **stale since HH:MM:SS** to its tooltip. While an adapter backs off a
   rate-limited or failing endpoint, the card's **Updated** line and the tooltip
   add **Rate limited · next try HH:MM** (or **Endpoint failing**). Failed cards
@@ -114,7 +118,7 @@ Hover a button and the line under the title names its action.
 ## Settings window
 
 The ⚙ button opens a standalone settings window. It hosts the same page as
-**DMS Settings → Plugins → AiOverviewControl**, so both write the same values.
+**Dux Shell Settings → Plugins → AiOverviewControl**, so both write the same values.
 
 Its header adds links to upvote, the repository, the issue tracker, and an
 **About** window with the version, the developer, and ways to support the
@@ -179,7 +183,7 @@ fabricated zeroes. See [the persistence contract](development-gates.md#codex-cre
 ## Network endpoints
 
 Every credential is sent only to its own provider's official API. Beyond those,
-the plugin contacts exactly two third-party hosts, both optional:
+the plugin contacts exactly three third-party hosts, all optional:
 
 - **`raw.githubusercontent.com`** — the Claude and Hermes adapters refresh
   LiteLLM's public pricing table (`model_prices_and_context_window.json`) once
@@ -193,6 +197,11 @@ the plugin contacts exactly two third-party hosts, both optional:
   resolve an alternate GitHub edge IP. TLS hostname verification stays enabled
   (`curl --resolve`), and no credential crosses this lookup. Set
   `AIOC_NO_DOH_FALLBACK=1` to disable it.
+- **`api.frankfurter.dev`** — only when a non-USD **Estimated cost currency** is
+  selected, `get-exchange-rates` reads the day's USD reference rate for that
+  currency, cached for 24 hours. Only currency codes are sent. Set
+  `AIOC_NO_FX=1` to disable it; costs then stay in USD. See
+  [currency.md](currency.md).
 
 All caches are written under `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/`.
 The plugin never writes into another tool's config directory; Claude Code's

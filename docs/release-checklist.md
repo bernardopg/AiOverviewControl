@@ -32,7 +32,8 @@ find providers -type f -print0 | xargs -0 -n 1 bash -n
 find providers -type f -print0 | xargs -0 shellcheck -S warning
 find tests -name '*.sh' -print0 | xargs -0 -n 1 bash -n
 shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors \
-  scripts/check-metadata scripts/reload-plugin .githooks/pre-push
+  scripts/check-metadata scripts/check-dco scripts/coverage scripts/qmlls-setup \
+  scripts/reload-plugin .githooks/pre-push
 for test in tests/*.sh; do bash "$test"; done
 QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
 actionlint
@@ -44,10 +45,10 @@ The metadata gate checks locale key/placeholder parity, executable entrypoints,
 registered integration suites and release notes. Sourced native `.bash` modules
 need syntax/lint/packaging checks, not executable permissions.
 
-- If QML interactions changed, materialize DMS imports with `scripts/qmlls-setup`
+- If QML interactions changed, materialize Dux Shell imports with `scripts/qmlls-setup`
   and run `AIOC_TEST_POINTER=1 tests/test-widget-runtime.sh`. It briefly opens a
   fixture window. CI runs the same suite under headless sway against a pinned
-  DankMaterialShell checkout and fails rather than skipping.
+  Dux Shell checkout and fails rather than skipping.
 - Reload with `scripts/reload-plugin` (discovers the live instance). Check the
   popout, both version pills, settings, empty/error cards, expanded analytics,
   currency fallback and pin ordering as applicable. Keep credentials out of logs.

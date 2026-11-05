@@ -82,7 +82,7 @@ so GitHub Actions is the only package ecosystem Dependabot can track.
 Runtime tools come from the installation environment. Ubuntu CI packages follow
 the distribution channel; Quickshell smoke follows the Arch rolling channel and
 installs `jq`, which the widget requires before it enables provider refreshes.
-The Qt5 syntax-only gate is not equivalent to Qt6 semantic validation with DMS
+The Qt5 syntax-only gate is not equivalent to Qt6 semantic validation with Dux Shell
 imports. Neither a floating runner image nor a successful older remote run proves
 an unpushed change compatible; run the documented local gates and fresh remote CI
 before releasing.

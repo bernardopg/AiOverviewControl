@@ -34,6 +34,18 @@ path.write_text(path.read_text().replace('providers scripts assets', 'providers 
 PY
 reject 'checkout install missing scripts directory'
 mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
+# lib/BarWindows.js is imported by the widget and the settings body: a
+# checkout install without lib/ cannot load the plugin.
+cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
+sed -i 's| lib providers | providers |' "$TMP/docs/installation.md"
+reject 'checkout install missing lib directory'
+mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
+cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
+sed -i 's| \./\*\.js | |' "$TMP/docs/installation.md"
+printf '// fixture\n' > "$TMP/Fixture.js"
+reject 'checkout install missing root JavaScript modules'
+rm "$TMP/Fixture.js"
+mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
 # README counts are derived from the catalog; a hand-edited number is stale.
 cp "$TMP/docs/badges.json" "$TMP/docs/badges.backup"
 jq '.providers += 1' "$TMP/docs/badges.backup" > "$TMP/docs/badges.json"

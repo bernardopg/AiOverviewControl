@@ -28,7 +28,7 @@ expectations. To report a vulnerability, follow
 4. **No hidden destinations.** Besides each selected provider's API, the
    plugin contacts three third parties, each with an opt-out:
    - the LiteLLM price table on `raw.githubusercontent.com`, to price local
-     Hermes rows (`AIOC_NO_LITELLM=1`);
+     Claude and Hermes usage (`AIOC_NO_LITELLM=1`);
    - Google DNS-over-HTTPS (`dns.google`), only as a fallback when the system
      resolver cannot resolve the Copilot API (`AIOC_NO_DOH_FALLBACK=1`);
    - `api.frankfurter.dev` exchange rates, when a non-USD display currency is
@@ -61,7 +61,7 @@ expectations. To report a vulnerability, follow
   provider reports. Some adapters rely on endpoints that the provider uses for
   its own clients but does not formally document; they can change without
   notice.
-- **Protection against a compromised DankMaterialShell, Quickshell, `curl`,
+- **Protection against a compromised Dux Shell, Quickshell, `curl`,
   `jq` or provider CLI.** Those are trusted dependencies.
 - **Confidentiality of what the bar displays.** Quota, plan and cost values
   are shown on screen and in desktop notifications.
