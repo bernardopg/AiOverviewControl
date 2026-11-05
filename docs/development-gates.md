@@ -84,19 +84,19 @@ actual `LocalAnalyticsReader.qml`, with a deterministic bash adapter replacing
 network/local account access. The suite checks pinned-order invariants, valid JSON, malformed JSON,
 adapter errors, nonzero exit status, deadline cancellation, retry after timeout,
 failure-retention policy, empty-argument scripts, and suppression of duplicate refreshes. All subprocesses are bounded and the
-shell instance is stopped during cleanup. This test does not reload your DMS.
+shell instance is stopped during cleanup. This test does not reload your Dux Shell.
 
 The extracted component receives its provider, script path, and timeout from the
-widget. It does not depend on DMS services or dashboard state. The widget exposes
+widget. It does not depend on Dux Shell services or dashboard state. The widget exposes
 `codexStats`/`opencodeStats` snapshots from the reader's `result`.
 Neither overrides QtQuick Item's default `data` property. The component is loaded
-by URL so an existing DMS engine's cached qmldir cannot break hot reload.
+by URL so an existing Dux Shell engine's cached qmldir cannot break hot reload.
 
 `tests/test-currency-qml.sh` also runs offscreen and verifies conversion, locale,
 precision, unavailable-rate fallback and currency changes during an active request.
 
 `tests/test-widget-runtime.sh` instantiates the actual widget, both bar pills,
-extracted dashboard, settings body and settings window with real DMS imports and
+extracted dashboard, settings body and settings window with real Dux Shell imports and
 fixture-only provider scripts. Its isolated HOME/no-credential environment never
 opens visible windows. It checks empty-provider bindings and live BRL→USD changes.
 The entry point is also compiled through DMS-style cache-busted `file://...?...`
@@ -106,24 +106,24 @@ Claude Code details panel per profile and window selection, settings reconstruct
 with both features enabled together. Translation-load errors fail the suite.
 Use `scripts/qmlls-setup` first, or supply the import-tree parent with
 `AIOC_DMS_IMPORTS`. It needs a native Wayland connection because Qt offscreen
-cannot construct DMS PanelWindow types; without these prerequisites it reports
+cannot construct Dux Shell PanelWindow types; without these prerequisites it reports
 **SKIP** locally. CI makes it mandatory: the `qml-runtime` job checks out
 Dux Shell (`duxlabs-dev/dux-shell`) at a pinned tag (with its `dux-qml-common` submodule), builds
 the import tree with `scripts/qmlls-setup`, starts headless sway
 (`WLR_BACKENDS=headless`, pixman renderer) and runs the suite, including the
 pointer-drag pass, with `AIOC_REQUIRE_NATIVE_UI=1` so a missing prerequisite
-fails instead of skipping. Bump the pinned DMS ref when the plugin targets a
-newer DMS.
+fails instead of skipping. Bump the pinned Dux Shell ref when the plugin targets a
+newer Dux Shell.
 
 See [refactoring.md](refactoring.md) for the controller/dashboard/native-adapter
 boundaries and [currency.md](currency.md) for monetary units and network policy.
 Lint of all root QML files and recursive syntax/ShellCheck of `providers/` remain
 mandatory.
 
-## Running DMS discovery
+## Running Dux Shell discovery
 
 Use `scripts/reload-plugin` rather than guessing a config path. `dms run` can
-launch Quickshell under `/run/user/<uid>/dms-shell/<hash>` (DMS 2.x;
+launch Quickshell under `/run/user/<uid>/dms-shell/<hash>` (Dux Shell 2.x;
 `danklinux-shell/<hash>` on 1.x), not `~/.config/quickshell/dms`. The script discovers running instances via
 `qs list --all`, queries each plugin IPC target, and reloads only shells where
 the plugin is loaded. It never enables intentionally disabled plugins.
@@ -135,7 +135,7 @@ discovery and failure handling using a fake qs.
 
 A Quickshell process started before a new QML/JavaScript dependency was installed
 may reject a cache-busted reload with **File name case mismatch**, even when the
-same code compiles in a fresh process. Restart DMS once (`dms restart`) after such
+same code compiles in a fresh process. Restart Dux Shell once (`dms restart`) after such
 an upgrade. A second normal load can reuse the old compiled component, so a
 successful fallback is not proof that the new features are running. After the
 restart, verify plugin status and repeat the reload; reopen any old popout.

@@ -21,7 +21,7 @@ body:
     attributes:
       label: Area
       options:
-        - DankBar widget
+        - Bar widget
         - Settings UI
         - Provider usage helper
         - Installation
@@ -33,9 +33,9 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: DMS/Quickshell version, compositor, distro, and relevant CLI versions.
+      description: Dux Shell (`dms version`)/Quickshell version, compositor, distro, and relevant CLI versions.
       placeholder: |
-        DMS:
+        Dux Shell:
         Quickshell:
         Compositor:
         Distro:

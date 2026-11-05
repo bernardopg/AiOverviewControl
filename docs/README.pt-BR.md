@@ -4,14 +4,14 @@
 
 # AiOverviewControl
 
-**Todas as cotas de IA que você paga, ao vivo na sua DankBar.**
+**Todas as cotas de IA que você paga, ao vivo na barra do Dux Shell.**
 
-Um plugin para o [DankMaterialShell](https://github.com/duxlabs-dev/dux-shell) que acompanha
+Um plugin para o [Dux Shell](https://github.com/duxlabs-dev/dux-shell) (antigo DankMaterialShell) que acompanha
 cota, cobrança, autenticação e uso local de 40+ provedores de IA — localmente, com honestidade
 e sem nenhum serviço externo.
 
 [![Release](https://img.shields.io/github/v/release/bernardopg/AiOverviewControl?color=8B5CF6&label=release)](https://github.com/bernardopg/AiOverviewControl/releases/latest)
-[![DMS](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fplugin.json&query=%24.requires_dms&label=DMS&color=7C3AED)](./installation.md)
+[![Dux Shell](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fplugin.json&query=%24.requires_dms&label=Dux%20Shell&color=7C3AED)](./installation.md)
 [![CI](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/ci.yml)
 [![Security](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bernardopg/AiOverviewControl/badge)](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
@@ -85,7 +85,7 @@ usar um reset disponível após confirmação.
 **🔔 Alertas de cota**<br />
 Notificações em 75, 85 ou 95% — ou limites por provedor — atualizadas no
 lugar, sem enxurrada. Clique numa para abrir o card do provedor. Um card no
-DankDash mantém os provedores mais usados na visão geral.
+Dashboard mantém os provedores mais usados na visão geral.
 
 </td>
 </tr>
@@ -111,7 +111,7 @@ rótulos que os adaptadores dos provedores enviam.
 
 <table>
 <tr>
-<td align="center" width="50%"><img src="./assets/settings.png" alt="Janela de configurações" /><br /><sub><b>Janela de configurações</b> — também em Configurações do DMS → Plugins</sub></td>
+<td align="center" width="50%"><img src="./assets/settings.png" alt="Janela de configurações" /><br /><sub><b>Janela de configurações</b> — também em Configurações do Dux Shell → Plugins</sub></td>
 <td align="center" width="50%"><img src="./assets/about.png" alt="Janela Sobre" /><br /><sub><b>Sobre</b> — versão, desenvolvedor e formas de apoiar o projeto</sub></td>
 </tr>
 </table>
@@ -119,20 +119,20 @@ rótulos que os adaptadores dos provedores enviam.
 ## ⚡ Início rápido
 
 > [!IMPORTANT]
-> O AiOverviewControl 2.0 exige o **DMS 2.0 ou mais recente**. No DMS 1.6, continue
+> O AiOverviewControl 2.0 exige o **Dux Shell 2.0 ou mais recente**. No DMS 1.6, continue
 > na [1.22.0](https://github.com/bernardopg/AiOverviewControl/releases/tag/v1.22.0)
-> até a sua distribuição publicar o DMS 2.0.
+> até a sua distribuição publicar o Dux Shell 2.0.
 
-**1. Instale** pela loja de plugins do DMS:
+**1. Instale** pela loja de plugins do Dux Shell:
 
 ```bash
 dms plugins install aiOverviewControl
 ```
 
-Ou procure **AiOverviewControl** em Configurações do DMS → Plugins, ou no
-[diretório de plugins do DMS](https://duxlabs.dev/plugins).
+Ou procure **AiOverviewControl** em Configurações do Dux Shell → Plugins, ou no
+[diretório de plugins do Dux Shell](https://duxlabs.dev/plugins).
 
-**2. Adicione o widget** a uma seção da DankBar nas configurações do DMS.
+**2. Adicione o widget** a uma seção da barra nas configurações do Dux Shell.
 
 **3. Entre** nos provedores que você usa. O conjunto padrão precisa de:
 
@@ -163,13 +163,20 @@ Prefere um arquivo de release ou um checkout do git? Veja [Instalação](./insta
 
 A lista completa, as fontes de dados e as credenciais estão em [Provedores](./providers.md).
 
+> **Privacidade:** cada credencial é enviada só para a API oficial do próprio provedor.
+> O plugin faz três chamadas opcionais a terceiros, cada uma com uma forma
+> documentada de desligar (`AIOC_NO_LITELLM=1`, `AIOC_NO_DOH_FALLBACK=1`, `AIOC_NO_FX=1`),
+> e grava caches só em `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/`. Veja
+> [Network endpoints](./usage.md#network-endpoints) e o
+> [mecanismo de acesso do Antigravity](./usage.md#antigravity-access-mechanism) (em inglês).
+
 ## 📚 Documentação
 
 Novo na 2.2: Anthropic API, OpenAI API, Ollama Cloud e Vercel AI Gateway, e a
 cota do Gemini CLI — veja as [notas da 2.2.0](./releases/2.2.0.md). Desde a
-[2.2.1](./releases/2.2.1.md) (em inglês), o DankBar mostra várias janelas de cota
+[2.2.1](./releases/2.2.1.md) (em inglês), a barra mostra várias janelas de cota
 de um provedor ao mesmo tempo (`Claude 5h 45% / 7d 80%`). Créditos,
-resets de limite e o card do DankDash chegaram na [2.1.0](./releases/2.1.0.md).
+resets de limite e o card do Dashboard chegaram na [2.1.0](./releases/2.1.0.md).
 Vindo do DMS 1.6? Leia o [guia de atualização 2.0.0](./releases/2.0.0.md) (em inglês).
 Veja também [conversão de custos e privacidade](./currency.md), [módulos de runtime](./refactoring.md)
 e [regras de PR e publicação](./repository-rules.md).
@@ -196,14 +203,14 @@ A documentação detalhada está em inglês.
 
 ## 💜 Apoie o projeto
 
-O [diretório de plugins do DMS](https://duxlabs.dev/plugins) ordena os plugins pelas
+O [diretório de plugins do Dux Shell](https://duxlabs.dev/plugins) ordena os plugins pelas
 reações 👍 na issue de registro de cada um. Uma reação é a coisa mais útil que
-você pode fazer — ela decide se outros usuários do DankMaterialShell vão
+você pode fazer — ela decide se outros usuários do Dux Shell vão
 encontrar o plugin.
 
 <div align="center">
 
-[![Vote no DMS Plugins](https://img.shields.io/badge/DMS%20Plugins-%F0%9F%91%8D%20votar-8B5CF6?style=for-the-badge)](https://github.com/duxlabs-dev/dux-plugin-registry/issues/358)
+[![Vote no Dux Shell Plugins](https://img.shields.io/badge/Dux%20Shell%20Plugins-%F0%9F%91%8D%20votar-8B5CF6?style=for-the-badge)](https://github.com/duxlabs-dev/dux-plugin-registry/issues/358)
 [![Estrela no GitHub](https://img.shields.io/github/stars/bernardopg/AiOverviewControl?style=for-the-badge&color=FFC400&label=estrela)](https://github.com/bernardopg/AiOverviewControl/stargazers)
 
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/bernardopg)
@@ -242,5 +249,5 @@ Contribuições são bem-vindas — comece por [CONTRIBUTING.md](../CONTRIBUTING
 ---
 
 <div align="center">
-<sub>Licença MIT · feito com 💜 para a comunidade <a href="https://github.com/duxlabs-dev/dux-shell">DankMaterialShell</a></sub>
+<sub>Licença MIT · feito com 💜 para a comunidade <a href="https://github.com/duxlabs-dev/dux-shell">Dux Shell</a></sub>
 </div>

@@ -251,7 +251,7 @@ PopoutComponent {
                             position: "first"
                             iconName: "favorite"
                             accent: Theme.error
-                            label: t("header.upvote", "Upvote on the DMS plugin registry")
+                            label: t("header.upvote", "Upvote on the Dux Shell plugin registry")
                             onHoveredChanged: popout.hoveredAction = hovered ? label : ""
                             onTriggered: Qt.openUrlExternally("https://github.com/duxlabs-dev/dux-plugin-registry/issues/358")
                         }

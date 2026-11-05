@@ -2,7 +2,7 @@
 
 The `PLUGIN=` path below matches a manual checkout or release-archive install
 (see [installation](./installation.md)), which uses the `AiOverviewControl`
-display-name casing. A DMS plugin-store install instead uses the manifest id
+display-name casing. A Dux Shell plugin-store install instead uses the manifest id
 and lands at `~/.config/dms/plugins/aiOverviewControl`
 (lowercase leading `a`) — Linux paths are case-sensitive, so adjust the
 `PLUGIN=` line below to match whichever directory `ls
@@ -18,7 +18,7 @@ $PLUGIN/providers/get-provider-health "codex,claude,copilot" | jq .
 $PLUGIN/providers/get-provider-usage "codex,claude,copilot" $PLUGIN/providers/get-copilot-usage | jq .
 ```
 
-If terminal output is valid, run `qmllint` and restart DMS.
+If terminal output is valid, run `qmllint` and restart Dux Shell.
 
 ## The plugin cannot be enabled after an update
 
@@ -39,11 +39,11 @@ restart left the plugin unable to load ([#92](https://github.com/bernardopg/AiOv
 2.2.3 moved the module into `lib/`, which a running shell has never listed, so
 it loads straight after the update:
 
-- Update through **Settings → Plugins → Check for updates**. DMS rescans the
+- Update through **Settings → Plugins → Check for updates**. Dux Shell rescans the
   plugin after the update and loads it.
-- After a manual `git pull`, ask DMS to rescan it:
+- After a manual `git pull`, ask Dux Shell to rescan it:
   `dms ipc call plugin-scan rescan aiOverviewControl`. Toggling the plugin on
-  is not enough while the failed load is still cached, because DMS retries the
+  is not enough while the failed load is still cached, because Dux Shell retries the
   same component URL.
 - `dms restart` always clears the cache.
 
@@ -94,18 +94,18 @@ The adapter uses the GitHub-authenticated Copilot quota snapshot. If the regiona
 
 ## Environment variable is present in a terminal but missing in settings
 
-DMS may have been started before the variable was exported. A shell-only export — including one in `~/.zshenv` — is not inherited by an existing systemd-managed graphical session. Import it from a terminal where it is already set, restart DMS, and run the health helper again:
+Dux Shell may have been started before the variable was exported. A shell-only export — including one in `~/.zshenv` — is not inherited by an existing systemd-managed graphical session. Import it from a terminal where it is already set, restart Dux Shell, and run the health helper again:
 
 ```bash
 systemctl --user import-environment COMMAND_CODE_API_KEY
 systemctl --user restart dms.service
 ```
 
-For Command Code specifically, `cmd login` is usually preferable: the plugin reads the CLI's protected `~/.commandcode/auth.json` credential when `COMMAND_CODE_API_KEY` is absent from DMS. The helper reports credential source names only, never secret values.
+For Command Code specifically, `cmd login` is usually preferable: the plugin reads the CLI's protected `~/.commandcode/auth.json` credential when `COMMAND_CODE_API_KEY` is absent from Dux Shell. The helper reports credential source names only, never secret values.
 
 ## xAI / Grok shows "XAI_API_KEY is not set"
 
-You do not need an inference API key to see SuperGrok / Grok Build usage. Sign in with `grok login` so `~/.grok/auth.json` exists; the card reads that file (or `$GROK_HOME/auth.json`) the same way the CLI does. Graphical DMS sessions do not inherit shell exports, so `export XAI_API_KEY=…` in a terminal will not reach the widget until you import it into the user systemd environment — `grok login` avoids that.
+You do not need an inference API key to see SuperGrok / Grok Build usage. Sign in with `grok login` so `~/.grok/auth.json` exists; the card reads that file (or `$GROK_HOME/auth.json`) the same way the CLI does. Graphical Dux Shell sessions do not inherit shell exports, so `export XAI_API_KEY=…` in a terminal will not reach the widget until you import it into the user systemd environment — `grok login` avoids that.
 
 An `XAI_API_KEY` from [console.x.ai](https://console.x.ai/team/default/api-keys) only proves the key works. It cannot return remaining credits. Prepaid API balance needs a **Management** key (Settings → Management Keys), not an inference key:
 
@@ -160,7 +160,7 @@ The widget has a 45-second total timeout. Each network adapter also has a shorte
 ## Notifications do not appear
 
 Quota alerts require `flock`, plus `notify-send` or `dms`, in the environment that starts
-DMS:
+Dux Shell:
 
 ```bash
 command -v flock notify-send dms
@@ -179,11 +179,13 @@ bash "$PLUGIN/providers/send-quota-alert" \
 
 Adjust `PLUGIN` for a plugin-store install as described at the top of this page.
 
-## The DankDash card is missing or empty
+<a id="the-dankdash-card-is-missing-or-empty"></a>
 
-The **AI quotas** card needs DMS 2.0 or later. If it is not listed under
+## The Dashboard card is missing or empty
+
+The **AI quotas** card needs Dux Shell 2.0 or later. If it is not listed under
 **Add widget** after upgrading from 2.0.x, run `dms restart` once: the plugin
-became a composite plugin in 2.1.0 and DMS reads that manifest only at start.
+became a composite plugin in 2.1.0 and Dux Shell reads that manifest only at start.
 
 The card never queries providers itself; it shows the snapshot the bar widget
 writes after each refresh. "Open the AiOverviewControl widget once to load
@@ -213,7 +215,7 @@ $PLUGIN/providers/reset-provider-limits codex | jq .
 ## Clicking a notification does nothing
 
 The click runs `dms ipc call aiOverviewControl focus <provider>`, so `dms` must
-be on the `PATH` of the DMS process. Check the IPC target directly:
+be on the `PATH` of the shell process. Check the IPC target directly:
 
 ```bash
 dms ipc call aiOverviewControl focus claude   # expect PROVIDER_FOCUSED
@@ -222,7 +224,7 @@ dms ipc call aiOverviewControl focus claude   # expect PROVIDER_FOCUSED
 While an alert is on screen the helper keeps one `notify-send` process per
 alert waiting for the click (its pid is stored as `waiter` in
 `notify-state.json`). It exits when the notification is closed, expires or is
-replaced. A click on an entry in the DMS notification history after that
+replaced. A click on an entry in the Dux Shell notification history after that
 process exited is not routed back. Each waiter writes to a
 `.notify-waiter.*` file in the plugin cache; the helper removes it when it
 exits or is terminated, and widget start-up sweeps files left by a helper
@@ -230,11 +232,11 @@ that was killed outright.
 
 ## A quota window never alerts
 
-By default only the window the DankBar shows for that provider raises alerts
+By default only the window the bar shows for that provider raises alerts
 (`notifyWindowScope` = `displayed`, which equals the primary window until a
 `barWindowOverrides` slot is set). To be alerted on Claude's 5 hour *and*
 7 day windows, or Codex's weekly alongside its session window, either show both
-in the bar (**DankBar usage window** → **Primary + secondary**) or set
+in the bar (**Bar usage window** → **Primary + secondary**) or set
 **Windows that raise alerts** to `all` in Settings.
 
 If a per-provider threshold seems ignored, check the inline validation under

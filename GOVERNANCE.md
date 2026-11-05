@@ -1,6 +1,6 @@
 # Governance
 
-AiOverviewControl is a community plugin for DankMaterialShell with a single
+AiOverviewControl is a community plugin for Dux Shell with a single
 maintainer. This document describes how decisions are made, who holds which
 role, what each role must do, and how the project continues if the maintainer
 becomes unavailable.
@@ -88,7 +88,7 @@ Planned improvements, tracked in the [roadmap](docs/roadmap.md):
 Until then, if the maintainer is unresponsive for more than 30 days on a
 security report or a release-blocking bug, contributors are encouraged to fork
 the project and announce the fork in the
-[DankMaterialShell plugin registry](https://github.com/duxlabs-dev/dux-plugin-registry).
+[Dux Shell plugin registry](https://github.com/duxlabs-dev/dux-plugin-registry).
 
 ## Changes to this document
 

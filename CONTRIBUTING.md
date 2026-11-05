@@ -60,7 +60,7 @@ Two caveats that cost real debugging time:
   `radius: width / 2` (see the provider card and `MetricTile` indicators).
 - **Local `qmllint` import noise.** With the Qt5 `qmllint` (default, no `-U`)
   the files lint clean. If you pass `-U` or use the Qt6 `qmllint`, you will see
-  unavoidable `qs.*` import-resolution warnings for DankMaterialShell modules
+  unavoidable `qs.*` import-resolution warnings for Dux Shell modules
   that are not on the lint path — filter them:
 
   ```bash
@@ -98,9 +98,18 @@ Quickshell runtime smoke coverage, and the extracted history-writer contract.
 | **i18n key parity** (all locales == `en`) | `for locale in pt_BR zh_CN es_ES de_DE; do diff <(jq -r 'keys[]' i18n/en.json) <(jq -r 'keys[]' "i18n/$locale.json") || exit 1; done` |
 | CHANGELOG has the `plugin.json` version | `VERSION="$(jq -r .version plugin.json)"; grep -qF "## $VERSION" CHANGELOG.md \|\| grep -qF "## [$VERSION]" CHANGELOG.md` |
 | **QML lint (hard gate)** | `QT_FORCE_STDERR_LOGGING=1 qmllint *.qml` |
-| Shell syntax | `find providers -type f -print0 \| xargs -0 -n 1 bash -n; for test in tests/*.sh; do bash -n "$test"; done; bash -n scripts/package-release` |
-| Shell lint | `find providers -type f -print0 \| xargs -0 shellcheck -S warning; shellcheck -S warning tests/*.sh scripts/package-release` |
+| Shell syntax | `find providers -type f -print0 \| xargs -0 -n 1 bash -n; for f in tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/check-dco scripts/coverage scripts/qmlls-setup scripts/reload-plugin .githooks/pre-push; do bash -n "$f"; done` |
+| Shell lint | `find providers -type f -print0 \| xargs -0 shellcheck -S warning; shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/check-dco scripts/coverage scripts/qmlls-setup scripts/reload-plugin .githooks/pre-push` |
 | Release package | `scripts/package-release` |
+| Shared metadata (badges, install docs, tests in `ci.yml`) | `scripts/check-metadata` |
+| Changelog notes for this branch | `scripts/check-changelog --base origin/main` |
+| DCO sign-off | `scripts/check-dco origin/main` |
+| Fixture test suites | `for test in tests/test-*.sh; do bash "$test"; done` |
+| Statement coverage (95% minimum) | `AIOC_COVERAGE_MIN=95 scripts/coverage` |
+| Workflow lint | `actionlint` |
+| Secret scan | `gitleaks git --no-banner --redact .` |
+| Workflow security audit | `GH_TOKEN="$(gh auth token)" zizmor --min-severity=medium .github/workflows` |
+| Whitespace | `git diff --check` |
 
 Parity is strict: every key in `en.json` must exist in `pt_BR`, `zh_CN`,
 `es_ES`, and `de_DE`, and vice versa. Prefer `t("key", "English fallback")`

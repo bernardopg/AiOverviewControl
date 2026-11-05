@@ -6,9 +6,9 @@ body:
     id: setup
     attributes:
       label: Setup
-      description: DMS/Quickshell version, distro, compositor, and provider set.
+      description: Dux Shell (`dms version`)/Quickshell version, distro, compositor, and provider set.
       placeholder: |
-        DMS:
+        Dux Shell:
         Quickshell:
         Distro:
         Compositor:

@@ -110,7 +110,7 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 ## ✅ Shipped in 2.2.0 (removed after the next release)
 
 - [x] **Backlog refresh** — only open work, dated upstream checks (#79).
-- [x] **2.1 documentation** — DankDash card and limit resets in architecture
+- [x] **2.1 documentation** — Dashboard card and limit resets in architecture
   and troubleshooting; NVIDIA credits note (#80).
 - [x] **Coverage** — 85.61% → 90.13%: multi-line statements measured on the
   line kcov records, new health-check, Copilot helper, Antigravity token
@@ -136,7 +136,7 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
   ~2 s (`ponytail:` note in `get-claude-usage`).
 - **Translating `formatTier()` names** — `Max 20x`/`Pro`/`Free` are brand plan
   names, not UI chrome.
-- **Separate marketplace metadata** — the DMS plugin registry entry is the
+- **Separate marketplace metadata** — the Dux Shell plugin registry entry is the
   marketplace metadata; it is tracked under the registry item above.
 - **Rewriting SQL to work around kcov** — single-line SQL pieces did not
   restore kcov's line tracking and cost readability; the limitation is

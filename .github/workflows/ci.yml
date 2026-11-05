@@ -335,7 +335,7 @@ jobs:
         run: |
           find providers -type f -print0 | xargs -0 -n 1 bash -n
           find tests -maxdepth 1 -name '*.sh' -type f -print0 | xargs -0 -n 1 bash -n
-          printf '%s\0' scripts/package-release scripts/check-metadata scripts/check-dco scripts/coverage scripts/reload-plugin .githooks/pre-push | xargs -0 -n 1 bash -n
+          printf '%s\0' scripts/package-release scripts/check-metadata scripts/check-dco scripts/coverage scripts/qmlls-setup scripts/reload-plugin .githooks/pre-push | xargs -0 -n 1 bash -n
           bash -n scripts/render-contributors
 
       - name: Confirm all scripts are executable
@@ -374,7 +374,7 @@ jobs:
       - name: shellcheck — all provider, test, and packaging scripts (warning level)
         run: |
           find providers -type f -print0 | xargs -0 /tmp/shellcheck -S warning
-          /tmp/shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/check-dco scripts/coverage scripts/reload-plugin .githooks/pre-push
+          /tmp/shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contributors scripts/check-metadata scripts/check-dco scripts/coverage scripts/qmlls-setup scripts/reload-plugin .githooks/pre-push
 
       - name: Provider dispatch coverage
         run: |
@@ -912,7 +912,7 @@ jobs:
 
       # Qt5's qmllint is a syntax verifier: it validates QML/JS structure
       # (braces, bindings, property declarations) and exits non-zero on a
-      # malformed file, without trying to resolve the DankMaterialShell `qs.*`
+      # malformed file, without trying to resolve the Dux Shell `qs.*`
       # modules — so there is no import-resolution noise to filter. Qt6's
       # qmllint resolves imports and would drown the run in unavoidable
       # `qs.*`/unqualified warnings, so we deliberately pin the Qt5 tool to keep

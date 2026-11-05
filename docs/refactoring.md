@@ -24,7 +24,7 @@ display and provider implementations without changing adapter JSON contracts.
   an invented `choices` interface.
 
 New components load by URL, not newly introduced static types on an old cached
-`qmldir`. This matters for live DMS reloads. Reader state uses `result`/`snapshot`,
+`qmldir`. This matters for live Dux Shell reloads. Reader state uses `result`/`snapshot`,
 not `Item.data`. Currency and dashboard bindings remain reactive after loading.
 The empty-provider hero is null-safe even while invisible: visibility does not
 prevent QML from evaluating its bindings.
@@ -47,15 +47,15 @@ the archived tree.
 
 ## Validation boundaries
 
-Offscreen Quickshell suites exercise reader and currency lifecycles without DMS.
-`test-widget-runtime.sh` loads real DMS types and constructs horizontal/vertical
+Offscreen Quickshell suites exercise reader and currency lifecycles without Dux Shell.
+`test-widget-runtime.sh` loads real Dux Shell types and constructs horizontal/vertical
 pills, empty/populated dashboard, settings and settings window; it tests live
 BRL→USD bindings in an isolated fixture HOME with provider scripts replaced and
 no inherited credentials. No visible test windows are opened.
 
 The full suite requires Wayland and the import tree from `scripts/qmlls-setup`.
 It reports **SKIP**, not a fake pass, without these prerequisites locally. CI
-provisions both (pinned DankMaterialShell checkout plus headless sway) and sets
+provisions both (pinned Dux Shell checkout plus headless sway) and sets
 `AIOC_REQUIRE_NATIVE_UI=1`, so there the native suite is a mandatory gate. Neither fixture tests nor
 module extraction certify undocumented external billing APIs or every native
 pointer gesture.
