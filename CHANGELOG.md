@@ -2,20 +2,25 @@
 
 ## Unreleased
 
+## 2.2.4 - 2026-11-04
+
+A bug-fix release for Dux Shell 2.0 and 2.1, the shell formerly called DankMaterialShell. The Claude card stops polling Anthropic's usage endpoint while it is rate-limited, sharing one backoff across every bar, and the bar fades numbers that are no longer fresh. The docs and settings strings use the Dux Shell names, and the documented checkout install works again. Settings, profiles, pins and history carry over unchanged; no restart is needed.
+Long-form notes: [docs/releases/2.2.4.md](docs/releases/2.2.4.md).
+
 ### Fixes
 - The Claude adapter backs off a rate-limited usage endpoint instead of polling it at the normal interval ([#96](https://github.com/bernardopg/AiOverviewControl/issues/96)). After HTTP 429 or a 5xx it waits one cache TTL (120 s), doubling per consecutive failure up to 30 minutes, or longer when the server sends `Retry-After` (capped at one hour), and keeps serving the last good snapshot meanwhile. The backoff is shared by every widget instance on the account (one per monitor) and by the credits request, so a bar on several screens no longer multiplies requests while the account is already limited. The card's **Updated** line says **Rate limited · next try HH:MM**; without a snapshot the error names the next attempt.
-- The DankBar pill fades a provider's percentage once its numbers are stale (older than two refresh intervals), and its tooltip adds **stale since HH:MM:SS** and the next try, so an old snapshot no longer reads as live on the bar ([#96](https://github.com/bernardopg/AiOverviewControl/issues/96)).
+- The bar pill fades a provider's percentage once its numbers are stale (older than two refresh intervals), and its tooltip adds **stale since HH:MM:SS** and the next try, so an old snapshot no longer reads as live on the bar ([#96](https://github.com/bernardopg/AiOverviewControl/issues/96)).
 - The checkout install in [docs/installation.md](docs/installation.md) now copies `lib/`. Since 2.2.3 the widget and settings import `lib/BarWindows.js`, so a plugin installed with the documented command did not load; `scripts/check-metadata` now rejects an install command that leaves out `lib/`, `providers/`, `assets/`, `i18n/` or a root `.js` module. The first-validation commands no longer run two helpers on one line.
 
 ### Documentation
 - DankMaterialShell is now [Dux Shell](https://github.com/duxlabs-dev/dux-shell), and the README (English and Portuguese), the docs, the issue templates, the manifest description and the settings and About strings in all five languages say so. The bar and the dashboard card use the shell's own names (**Bar usage window**, **Dashboard** card) instead of DankBar and DankDash. The `dms` CLI, `~/.config/dms` and `requires_dms` are unchanged, and the old `usage.md` anchors still resolve.
 - [Installation](docs/installation.md) covers the rename: Dux Shell 2.0 or newer is required and 2.1 is tested, packages are now `dux-shell`, and `dms migrate dux` moves an install off the legacy package repositories without touching plugins.
 - The README and [Network endpoints](docs/usage.md#network-endpoints) said the plugin contacts two third-party hosts; it contacts three, each optional, including the Frankfurter exchange-rate API (`AIOC_NO_FX=1`). The security model now says the LiteLLM price table prices Claude as well as Hermes usage, and the Portuguese README gains the privacy note.
-- The contributor guide lists every local gate CI runs, and its shell lint list matches CI and `AGENTS.md`.
+- The contributor guide lists every local gate CI runs, and its shell lint list matches CI, `AGENTS.md` and the release checklist.
 
 ### Project
 - CI also syntax-checks and lints `scripts/qmlls-setup`.
-- The native UI suite now runs against Dux Shell 2.1.0 (`duxlabs-dev/dux-shell` at `7627111`), the release distributions ship as `dux-shell`. 2.1.0 changed no plugin API the widget uses, so `requires_dms` stays `>=2.0.0`; the pin was adopted on its publication day, an exception to the seven-day quarantine recorded in [docs/update-audit.md](docs/update-audit.md).
+- The native UI suite now runs against Dux Shell 2.1.0 (`duxlabs-dev/dux-shell` at `7627111`), the release distributions now ship as `dux-shell`. 2.1.0 changed no plugin API the widget uses, so `requires_dms` stays `>=2.0.0`; the pin was adopted on its publication day, an exception to the seven-day quarantine recorded in [docs/update-audit.md](docs/update-audit.md).
 - Bump `github/codeql-action/upload-sarif` to v4.39.1 for the Scorecard upload, once past the seven-day quarantine.
 
 ### Thanks
