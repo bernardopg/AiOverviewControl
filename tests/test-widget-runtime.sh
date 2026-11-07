@@ -525,6 +525,14 @@ ShellRoot {
                     || widget.providerBackoffText({usage: {retryAt: retry, retryReason: "server_error"}}) !== "Endpoint failing · next try " + time) {
                     console.error("SMOKE FAIL: stale pill or backoff notice: " + tooltip + " / " + (backoff ? backoff.text : "none")); return;
                 }
+                const exhaustedCodex = {provider: "codex", usage: {primary: {usedPercent: 0, windowMinutes: 300}, secondary: {usedPercent: 100, windowMinutes: 10080}}};
+                const balanceDeepseek = {provider: "deepseek", usage: {primary: {usedPercent: 0, isBalance: true, windowMinutes: null, resetsAt: null, resetDescription: "Balance", displayValue: "CNY 9.34"}}};
+                const noteWindow = {usedPercent: 0, windowMinutes: null, resetsAt: null, resetDescription: "Unlimited", displayValue: "Unlimited"};
+                if (widget.pillPercentFor(exhaustedCodex) !== 100 || widget.providerPercent(exhaustedCodex) !== 100
+                    || widget.pillDisplayText(balanceDeepseek) !== "¥9.34"
+                    || widget.shouldShowDisplayValueInPill(noteWindow)) {
+                    console.error("SMOKE FAIL: exhausted window promotion or balance pill formatting"); return;
+                }
                 widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");

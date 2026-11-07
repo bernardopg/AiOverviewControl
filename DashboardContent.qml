@@ -2542,7 +2542,11 @@ PopoutComponent {
                     width: parent.width
                     label: modelData.name || modelData.resetDescription || ""
                     percent: Number(modelData.usedPercent || 0)
-                    aside: (!root.showRemainingQuota && modelData.description && String(modelData.description).length > 0) ? String(modelData.description) : root.quotaPercentText(modelData.usedPercent)
+                    aside: {
+                        const percentText = root.quotaPercentText(modelData.usedPercent);
+                        const reset = root.formatTimeUntil(modelData.resetsAt || "");
+                        return reset.length > 0 ? `${percentText} · ${reset}` : percentText;
+                    }
                     accentColor: root.getUsageColor(Number(modelData.usedPercent || 0))
                 }
             }
@@ -2865,7 +2869,11 @@ PopoutComponent {
                     }
 
                     StyledText {
-                        text: card.provider.error ? t("status.error", "Error") : root.quotaPercentText(root.providerPercent(card.provider))
+                        readonly property var primaryWin: root.primaryUsageWindow(card.provider)
+                        readonly property bool showBalance: !card.provider.error && root.shouldShowDisplayValueInPill(primaryWin) && !!primaryWin.displayValue
+                        text: card.provider.error
+                            ? t("status.error", "Error")
+                            : (showBalance ? root.formatBalanceDisplay(primaryWin.displayValue) : root.quotaPercentText(root.providerPercent(card.provider)))
                         color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
                         font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                         font.weight: Font.Bold

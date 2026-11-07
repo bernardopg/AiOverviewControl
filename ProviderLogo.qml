@@ -28,6 +28,7 @@ Item {
             ark: "byteplus",
             modelark: "byteplus",
             grok: "xai",
+            "grok-bot": "grokbot",
             "anthropic-api": "anthropic",
             "openai-api": "openai",
             "ai-gateway": "vercel"
@@ -45,7 +46,7 @@ Item {
             cloudflare: "shield", vertexai: "hexagon", byteplus: "bolt",
             perplexity: "travel_explore", cursor: "ads_click", ollama: "dns",
             together: "join_inner", groq: "fast_forward", cohere: "waves",
-            replicate: "content_copy", fireworks: "local_fire_department", xai: "bolt",
+            replicate: "content_copy", fireworks: "local_fire_department", xai: "bolt", grokbot: "smart_toy",
             ai21: "looks_21", cline: "terminal", commandcode: "terminal", neuralwatt: "energy_savings_leaf", anthropic: "psychology", openai: "data_object", vercel: "change_history", "ollama-cloud": "cloud_queue", opencode: "code", warp: "rocket_launch",
             amp: "electric_bolt", kilo: "speed", kiro: "tune"
         };

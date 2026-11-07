@@ -173,7 +173,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "grokbot", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
 
     readonly property var selectedProviders: {
         const parts = providerSelection.split(",");
@@ -593,12 +593,47 @@ PluginComponent {
         return showRemainingQuota ? t("quota.remaining", "{percent}% left", {percent: percent}) : `${percent}%`;
     }
 
+    function formatBalanceDisplay(displayValue) {
+        if (!displayValue) return "";
+        const str = String(displayValue).trim();
+        if (str.startsWith("CNY ")) return "¥" + str.slice(4).trim();
+        if (str.startsWith("USD ")) return "$" + str.slice(4).trim();
+        if (str.startsWith("EUR ")) return "€" + str.slice(4).trim();
+        if (str.startsWith("GBP ")) return "£" + str.slice(4).trim();
+        return str;
+    }
+
+    function isBalanceWindow(windowData) {
+        if (!windowData) return false;
+        if (windowData.isBalance === true) return true;
+        const val = String(windowData.displayValue || "").trim();
+        if (val.length === 0 || val.indexOf("/") >= 0 || val.toLowerCase().indexOf("unavailable") >= 0)
+            return false;
+        const desc = String(windowData.resetDescription || "").toLowerCase();
+        return windowData.windowMinutes === null && windowData.resetsAt === null
+            && (desc.indexOf("balance") >= 0 || desc === "credits" || desc === "granted credits");
+    }
+
+    function shouldShowDisplayValueInPill(windowData) {
+        return isBalanceWindow(windowData);
+    }
+
+    function pillDisplayText(provider, windowData) {
+        const win = windowData || pillWindowFor(provider);
+        if (win && shouldShowDisplayValueInPill(win)) {
+            if (win.displayValue && String(win.displayValue).length > 0)
+                return formatBalanceDisplay(win.displayValue);
+        }
+        const pct = windowData ? (windowData.usedPercent !== undefined ? windowData.usedPercent : 0) : pillPercentFor(provider);
+        return `${Math.round(quotaDisplayPercent(pct))}%`;
+    }
+
     function formatUsageLine(windowData) {
         if (!windowData) {
             return "";
         }
         if (windowData.displayValue && String(windowData.displayValue).length > 0) {
-            return String(windowData.displayValue);
+            return formatBalanceDisplay(String(windowData.displayValue));
         }
         const percent = quotaPercentText(windowData.usedPercent);
         const reset = formatTimeUntil(windowData.resetsAt);
@@ -658,6 +693,8 @@ PluginComponent {
             ai21: "AI21",
             xai: "xAI",
             grok: "xAI",
+            grokbot: "Grok Bot",
+            "grok-bot": "Grok Bot",
             perplexity: "Perplexity",
             cline: "Cline",
             neuralwatt: "Neuralwatt",
@@ -1116,7 +1153,7 @@ PluginComponent {
             return Theme.primary;
         if (providerId === "fireworks")
             return Theme.warning;
-        if (providerId === "xai" || providerId === "grok")
+        if (providerId === "xai" || providerId === "grok" || providerId === "grokbot" || providerId === "grok-bot")
             return Theme.primary;
         if (providerId === "ai21")
             return Theme.secondary;
@@ -1135,7 +1172,9 @@ PluginComponent {
             pi: "agent",
             hermes: "agent,provider",
             "9router": "gateway",
-            ollama: "local"
+            ollama: "local",
+            grokbot: "agent",
+            "grok-bot": "agent"
         };
         const value = kinds[normalizeProviderId(providerId)];
         return value ? value.split(",") : ["provider"];
@@ -1243,11 +1282,23 @@ PluginComponent {
         return windows;
     }
 
+    function exhaustedUsageWindow(usage) {
+        if (!usage)
+            return null;
+        const slots = [usage.primary, usage.secondary, usage.tertiary];
+        for (let i = 0; i < slots.length; i++) {
+            const w = slots[i];
+            if (w && !isBalanceWindow(w) && Number(w.usedPercent || 0) >= 100)
+                return w;
+        }
+        return null;
+    }
+
     function primaryUsageWindow(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
         if (!usage)
             return null;
-        return usage.primary || usage.secondary || usage.tertiary || null;
+        return exhaustedUsageWindow(usage) || usage.primary || usage.secondary || usage.tertiary || null;
     }
 
     function barWindowChoiceFor(providerId) {
@@ -1262,7 +1313,14 @@ PluginComponent {
     // override must never blank or zero the bar.
     function pillWindowsFor(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
-        return BarWindows.windowsFor(usage, barWindowChoiceFor(provider ? provider.provider : ""));
+        const id = notificationProviderId(provider ? provider.provider : "");
+        const explicitSlot = barWindowOverrideMap[id];
+        if (explicitSlot === undefined) {
+            const exhausted = exhaustedUsageWindow(usage);
+            if (exhausted)
+                return [exhausted];
+        }
+        return BarWindows.windowsFor(usage, explicitSlot !== undefined ? explicitSlot : "primary");
     }
 
     // The single window that stands for the bar number: the displayed window,
@@ -1319,7 +1377,11 @@ PluginComponent {
                 const label = windowLabel(windowData);
                 if (label && String(label).length > 0)
                     segment.push(label);
-                segment.push(quotaPercentText(windowData.usedPercent));
+                if (shouldShowDisplayValueInPill(windowData) && windowData.displayValue) {
+                    segment.push(formatBalanceDisplay(windowData.displayValue));
+                } else {
+                    segment.push(quotaPercentText(windowData.usedPercent));
+                }
                 if (withReset) {
                     const reset = formatTimeUntil(windowData.resetsAt);
                     if (reset.length > 0)
@@ -1632,6 +1694,8 @@ PluginComponent {
             ai21: "https://studio.ai21.com",
             xai: "https://console.x.ai/billing",
             grok: "https://console.x.ai/billing",
+            grokbot: "https://cursor.com/v2/billing?host=desktop&entrypoint=grok_bot_billing",
+            "grok-bot": "https://cursor.com/v2/billing?host=desktop&entrypoint=grok_bot_billing",
             perplexity: "https://www.perplexity.ai/settings",
             cursor: "https://cursor.com/settings",
             cline: "https://app.cline.bot/dashboard/account?tab=credits",
@@ -2400,7 +2464,7 @@ PluginComponent {
                         StyledText {
                             objectName: "pill-percent-" + pillEntry.modelData.provider
                             visible: !pillEntry.multiWindow
-                            text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(pillEntry.modelData)))}%`
+                            text: root.pillDisplayText(pillEntry.modelData)
                             color: pillEntry.usageColor
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.Bold
@@ -2438,7 +2502,7 @@ PluginComponent {
 
                                 StyledText {
                                     objectName: "pill-window-percent"
-                                    text: `${Math.round(root.quotaDisplayPercent(pillWindow.modelData.usedPercent))}%`
+                                    text: root.pillDisplayText(pillEntry.modelData, pillWindow.modelData)
                                     color: root.pillUsageColor(pillEntry.modelData, Number(pillWindow.modelData.usedPercent || 0))
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Bold
@@ -2497,7 +2561,7 @@ PluginComponent {
 
                     StyledText {
                         visible: !verticalEntry.multiWindow
-                        text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(verticalEntry.modelData)))}%`
+                        text: root.pillDisplayText(verticalEntry.modelData)
                         color: root.pillUsageColor(verticalEntry.modelData, root.pillPercentFor(verticalEntry.modelData))
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
@@ -2524,7 +2588,7 @@ PluginComponent {
                             }
 
                             StyledText {
-                                text: `${Math.round(root.quotaDisplayPercent(verticalWindow.modelData.usedPercent))}%`
+                                text: root.pillDisplayText(verticalEntry.modelData, verticalWindow.modelData)
                                 color: root.pillUsageColor(verticalEntry.modelData, Number(verticalWindow.modelData.usedPercent || 0))
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.DemiBold

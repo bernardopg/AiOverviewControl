@@ -343,6 +343,7 @@
   "provider.note.ai21": "Konfiguration erkannt; keine dokumentierte Nutzungs-API mit Lesezugriff",
   "provider.note.perplexity": "Keine öffentliche Kontingent-API mit Lesezugriff",
   "provider.note.cursor": "Cursor-Modelle und andere Modelle aus der angemeldeten Cursor-Sitzung",
+  "provider.note.grokbot": "Wöchentliches Grok-Bot-Plan-Kontingent aus der angemeldeten Grok-Bot-Desktop-App",
   "provider.note.cline": "Cline-Guthaben (persönlich oder aktive Organisation), heutige Anfragen und Tokens inklusive kostenloser Modelle sowie ClinePass-Tarif; nutzt CLINE_API_KEY oder eine gültige Cline-CLI-Anmeldung",
   "provider.note.opencode": "OPENCODE_API_KEY oder opencode auth login; Zen-5h-/Wochen-/Monatskontingente, Guthabenrückfall und Modellprüfung",
   "provider.note.kiro": "Abonnement-IDE; keine öffentliche API",

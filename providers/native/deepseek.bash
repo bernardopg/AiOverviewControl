@@ -38,6 +38,7 @@ fetch_deepseek_native() {
           loginMethod: "api-key",
           primary: {
             usedPercent: $used_pct,
+            isBalance: true,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Balance",
@@ -45,6 +46,7 @@ fetch_deepseek_native() {
           },
           secondary: {
             usedPercent: 0,
+            isBalance: true,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Granted credits",
@@ -52,6 +54,7 @@ fetch_deepseek_native() {
           },
           tertiary: {
             usedPercent: 0,
+            isBalance: true,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Paid balance",

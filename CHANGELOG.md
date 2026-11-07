@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Features
+- Add **Grok Bot** (`grokbot` / `grok-bot`) desktop provider adapter reading weekly Grok Bot Plan usage and reset timestamps from the signed-in desktop session via `GetSandUsageStatus`, with local persistence snapshot fallback when offline.
+- Show formatted currency balances directly in the bar pill and card header for prepaid balance providers (such as DeepSeek, Kimi API and Vercel AI Gateway) instead of synthetic percentages.
+
+### Fixes
+- Surface exhausted (`100%` used / `0%` left) secondary or tertiary quota windows on the bar pill and card header by default when no explicit `barWindowOverrides` slot is configured, preventing rate-limited Codex or Claude accounts from showing `100% left` when their 5-hour window decays to `0%`.
+- Read live multi-group Antigravity quota pools (including `Gemini 4 Argon`) from the running local `language_server` Connect-RPC endpoint when available, and include per-window reset countdowns alongside percentages in the Antigravity card.
+
 ## 2.2.4 - 2026-11-04
 
 A bug-fix release for Dux Shell 2.0 and 2.1, the shell formerly called DankMaterialShell. The Claude card stops polling Anthropic's usage endpoint while it is rate-limited, sharing one backoff across every bar, and the bar fades numbers that are no longer fresh. The docs and settings strings use the Dux Shell names, and the documented checkout install works again. Settings, profiles, pins and history carry over unchanged; no restart is needed.
