@@ -2865,7 +2865,11 @@ PopoutComponent {
                     }
 
                     StyledText {
-                        text: card.provider.error ? t("status.error", "Error") : root.quotaPercentText(root.providerPercent(card.provider))
+                        readonly property var primaryWin: root.primaryUsageWindow(card.provider)
+                        readonly property bool showBalance: !card.provider.error && root.shouldShowDisplayValueInPill(primaryWin) && !!primaryWin.displayValue
+                        text: card.provider.error
+                            ? t("status.error", "Error")
+                            : (showBalance ? root.formatBalanceDisplay(primaryWin.displayValue) : root.quotaPercentText(root.providerPercent(card.provider)))
                         color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
                         font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                         font.weight: Font.Bold
