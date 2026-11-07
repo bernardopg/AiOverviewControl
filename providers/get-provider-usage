@@ -320,18 +320,20 @@ antigravity_account_json() {
     def fam: (.displayName // .bucketId // "Model") | gsub("\\s*\\([^)]*\\)\\s*$"; "");
     def group_label($g):
       ($g.displayName // "Models") as $raw
-      | if ($raw | test("gemini"; "i")) then "Gemini Models"
+      | if ($raw | test("argon"; "i")) then "Gemini 4 Argon"
+        elif ($raw | test("gemini"; "i")) then "Gemini Models"
         elif ($raw | test("claude|openai|gpt|3p"; "i")) then "Claude & OpenAI Models"
         else $raw end;
     def group_rank($label):
-      if ($label | test("^Gemini"; "i")) then 0
-      elif ($label | test("^Claude|OpenAI|GPT"; "i")) then 1
-      else 2 end;
+      if ($label | test("^Gemini Models|Gemini"; "i") and ($label | test("Argon"; "i") | not)) then 0
+      elif ($label | test("Claude|OpenAI|GPT"; "i")) then 1
+      elif ($label | test("Argon"; "i")) then 2
+      else 3 end;
     def window_kind:
       ((.window // .displayName // .bucketId // "") | ascii_downcase) as $raw
-      | if ($raw | test("(^|[^a-z0-9])5[ -]?(h|hour)")) then
+      | if ($raw | test("(^|[^a-z0-9])5[ -]?(h|hour)|5小时")) then
           {id:"5h", label:"5h", minutes:300, rank:0}
-        elif ($raw | test("week|(^|[^a-z0-9])7[ -]?d")) then
+        elif ($raw | test("week|(^|[^a-z0-9])7[ -]?d|每周|7天")) then
           {id:"weekly", label:"Weekly", minutes:10080, rank:1}
         else null end;
 
@@ -551,10 +553,59 @@ antigravity_append_models_account() {
   printf '%s\n' "$parsed" >> "$accounts_file"
 }
 
+antigravity_try_local_rpc() {
+  local output_file="$1" endpoint="$2"
+  [ -z "${ANTIGRAVITY_RESPONSE_FILE:-}" ] || return 1
+  if [ -n "${ANTIGRAVITY_STATE_DB:-}" ] && [ "${ANTIGRAVITY_ALLOW_LOCAL_RPC:-0}" != "1" ]; then
+    return 1
+  fi
+  if [ -n "$endpoint" ] && [ "$endpoint" != "https://daily-cloudcode-pa.googleapis.com" ]; then
+    return 1
+  fi
+
+  local proc_root="${ANTIGRAVITY_PROC_DIR:-/proc}" pid csrf ports port resp
+  pid="$(pgrep -f "resources/bin/language_server" 2>/dev/null | head -n 1)"
+  [ -n "$pid" ] || return 1
+  [ -r "$proc_root/$pid/cmdline" ] || return 1
+
+  csrf="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | grep -A 1 "^--csrf_token$" | tail -n 1)"
+  [ -n "$csrf" ] || return 1
+
+  command -v ss >/dev/null 2>&1 || return 1
+  ports="$(ss -Htlpn 2>/dev/null | grep "pid=$pid," | awk '{print $4}' | awk -F: '{print $NF}')"
+  [ -n "$ports" ] || return 1
+
+  for port in $ports; do
+    resp="$(curl -k -sS --max-time 2 -X POST "https://127.0.0.1:$port/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary" \
+      -H "Content-Type: application/json" \
+      -H "Connect-Protocol-Version: 1" \
+      --config <(curl_header_config "x-codeium-csrf-token: ${csrf}") \
+      -d "{}" 2>/dev/null || true)"
+    if echo "$resp" | jq -e '(.response.groups | type) == "array"' >/dev/null 2>&1; then
+      echo "$resp" | jq -c '.response' > "$output_file"
+      return 0
+    elif echo "$resp" | jq -e '(.groups | type) == "array"' >/dev/null 2>&1; then
+      echo "$resp" | jq -c '.' > "$output_file"
+      return 0
+    fi
+  done
+  return 1
+}
+
 antigravity_fetch_account() {
   local accounts_file="$1" errors_file="$2" body_file="$3" install="$4" email="$5" login="$6"
   local access_token="$7" endpoint="$8" quota_body="$9" user_agent="${10}" preferred_method="${11}"
   local method status curl_status=0 message="" final_stage="$preferred_method"
+
+  # Fast path: if Antigravity language_server is running locally, retrieve full
+  # live multi-group quota directly via local Connect-RPC.
+  if antigravity_try_local_rpc "$body_file" "$endpoint" 2>/dev/null; then
+    if jq -e '(.groups | type) == "array"' "$body_file" >/dev/null 2>&1 \
+        && antigravity_append_group_account "$accounts_file" "$body_file" "$install" "$email" "$login"; then
+      return 0
+    fi
+  fi
+
   local -a methods=("$preferred_method")
   [ "$preferred_method" = "v1internal:fetchAvailableModels" ] || methods+=("v1internal:fetchAvailableModels")
 

@@ -2542,7 +2542,11 @@ PopoutComponent {
                     width: parent.width
                     label: modelData.name || modelData.resetDescription || ""
                     percent: Number(modelData.usedPercent || 0)
-                    aside: (!root.showRemainingQuota && modelData.description && String(modelData.description).length > 0) ? String(modelData.description) : root.quotaPercentText(modelData.usedPercent)
+                    aside: {
+                        const percentText = root.quotaPercentText(modelData.usedPercent);
+                        const reset = root.formatTimeUntil(modelData.resetsAt || "");
+                        return reset.length > 0 ? `${percentText} · ${reset}` : percentText;
+                    }
                     accentColor: root.getUsageColor(Number(modelData.usedPercent || 0))
                 }
             }
