@@ -145,7 +145,7 @@ PluginSettings {
         agy: "antigravity", moonshot: "kimi", zhipu: "glm",
         "z.ai": "zai", dashscope: "qwen", alibaba: "qwen", nim: "nvidia",
         vertex: "vertexai", ark: "byteplus", modelark: "byteplus",
-        grok: "xai"
+        grok: "xai", "grok-bot": "grokbot"
     })
 
     // Inline validation for the per-provider threshold CSV. The widget's
@@ -320,6 +320,7 @@ PluginSettings {
         { id:"kilo", name:"Kilo", icon:"straighten", mode:"telemetry", requirement:"API key", envVar:"KILO_API_KEY", note:"Configured-key status; the no-auth models endpoint is only a best-effort probe" },
         { id:"ai21", name:"AI21", icon:"looks_21", mode:"telemetry", requirement:"API key", envVar:"AI21_API_KEY", note:"Configured status; no documented read-only usage API" },
         { id:"cursor", name:"Cursor", icon:"mouse", mode:"telemetry", requirement:"Cursor IDE session or cursor-agent login", envVar:"", note:"Cursor Models and Other Models from the signed-in Cursor session" },
+        { id:"grokbot", name:"Grok Bot", icon:"smart_toy", mode:"telemetry", requirement:"Grok Bot desktop app sign-in", envVar:"", note:"Weekly Grok Bot Plan quota from the signed-in Grok Bot desktop app" },
         { id:"perplexity", name:"Perplexity", icon:"auto_awesome", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },
         { id:"cline", name:"Cline", icon:"code_blocks", mode:"telemetry", requirement:"API key or Cline CLI login", envVar:"CLINE_API_KEY", note:"Cline credit balance (personal or active organization), today's requests and tokens including free models, and ClinePass plan; uses CLINE_API_KEY or a valid Cline CLI sign-in" },
         { id:"opencode", name:"OpenCode Go", icon:"open_in_new", mode:"telemetry", requirement:"API key or CLI login", envVar:"OPENCODE_API_KEY", note:"Uses OPENCODE_API_KEY or the credential saved by `opencode auth login` to ~/.local/share/opencode/auth.json. Reads OpenCode Zen's /zen/go/v1/usage for live 5h/weekly/monthly quota; shows when balance fallback is enabled; falls back to /zen/go/v1/models on failure." },

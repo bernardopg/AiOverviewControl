@@ -343,6 +343,7 @@
   "provider.note.ai21": "Configuração detectada; sem API documentada de uso somente leitura",
   "provider.note.perplexity": "Sem API pública de cota somente leitura",
   "provider.note.cursor": "Modelos do Cursor e outros modelos da sessão do Cursor",
+  "provider.note.grokbot": "Cota semanal do Grok Bot Plan na sessão conectada do aplicativo Grok Bot",
   "provider.note.cline": "Saldo de créditos da Cline (pessoal ou da organização ativa), requisições e tokens de hoje, incluindo modelos gratuitos, e plano ClinePass; usa CLINE_API_KEY ou um login válido do Cline CLI",
   "provider.note.opencode": "OPENCODE_API_KEY ou opencode auth login; cotas Zen 5h/semanal/mensal, saldo alternativo e validação de modelos",
   "provider.note.kiro": "IDE por assinatura; sem API pública",

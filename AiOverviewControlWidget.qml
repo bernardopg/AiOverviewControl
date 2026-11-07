@@ -693,6 +693,8 @@ PluginComponent {
             ai21: "AI21",
             xai: "xAI",
             grok: "xAI",
+            grokbot: "Grok Bot",
+            "grok-bot": "Grok Bot",
             perplexity: "Perplexity",
             cline: "Cline",
             neuralwatt: "Neuralwatt",
@@ -1151,7 +1153,7 @@ PluginComponent {
             return Theme.primary;
         if (providerId === "fireworks")
             return Theme.warning;
-        if (providerId === "xai" || providerId === "grok")
+        if (providerId === "xai" || providerId === "grok" || providerId === "grokbot" || providerId === "grok-bot")
             return Theme.primary;
         if (providerId === "ai21")
             return Theme.secondary;
@@ -1170,7 +1172,9 @@ PluginComponent {
             pi: "agent",
             hermes: "agent,provider",
             "9router": "gateway",
-            ollama: "local"
+            ollama: "local",
+            grokbot: "agent",
+            "grok-bot": "agent"
         };
         const value = kinds[normalizeProviderId(providerId)];
         return value ? value.split(",") : ["provider"];
@@ -1690,6 +1694,8 @@ PluginComponent {
             ai21: "https://studio.ai21.com",
             xai: "https://console.x.ai/billing",
             grok: "https://console.x.ai/billing",
+            grokbot: "https://cursor.com/v2/billing?host=desktop&entrypoint=grok_bot_billing",
+            "grok-bot": "https://cursor.com/v2/billing?host=desktop&entrypoint=grok_bot_billing",
             perplexity: "https://www.perplexity.ai/settings",
             cursor: "https://cursor.com/settings",
             cline: "https://app.cline.bot/dashboard/account?tab=credits",
