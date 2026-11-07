@@ -176,6 +176,8 @@ source "$SCRIPT_DIR/native/ai21.bash"
 source "$SCRIPT_DIR/native/qwen.bash"
 # shellcheck source=providers/native/xai.bash
 source "$SCRIPT_DIR/native/xai.bash"
+# shellcheck source=providers/native/grokbot.bash
+source "$SCRIPT_DIR/native/grokbot.bash"
 # shellcheck source=providers/native/kilo.bash
 source "$SCRIPT_DIR/native/kilo.bash"
 # shellcheck source=providers/native/cursor.bash
@@ -1276,6 +1278,9 @@ fetch_provider() {
       ;;
     xai|grok)
       fetch_xai_native
+      ;;
+    grokbot|grok-bot)
+      fetch_grokbot_native
       ;;
     perplexity)
       json_note_usage perplexity perplexity-web "Perplexity account" "subscription" "No public quota API; usage is available in Perplexity settings" "perplexity.ai/settings"

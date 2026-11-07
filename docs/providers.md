@@ -487,6 +487,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>cursor.com/api/usage-summary</code> (dashboard session)</td>
 </tr>
 <tr>
+<td><code>grokbot</code></td>
+<td>Quota</td>
+<td>local Grok Bot desktop session (<code>sand-secrets.json</code>)</td>
+<td>✅ weekly Grok Bot Plan pool + reset time (offline persistence fallback)</td>
+<td>✅ Grok Bot Plan</td>
+<td>—</td>
+<td>—</td>
+<td><a href="https://cursor.com/v2/billing?host=desktop&amp;entrypoint=grok_bot_billing">cursor.com/v2/billing</a></td>
+<td><code>api2.cursor.sh/.../GetSandUsageStatus</code> (desktop session)</td>
+</tr>
+<tr>
 <td><code>cline</code></td>
 <td>Balance</td>
 <td>✅ <code>GET /api/v1/users/me</code></td>

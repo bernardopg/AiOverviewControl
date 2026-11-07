@@ -85,6 +85,25 @@ has_cursor_session() {
   cursor_db_has_token "$HOME/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
 }
 
+grokbot_secrets_has_token() {
+  local secrets_file="$1"
+  [ -r "$secrets_file" ] || return 1
+  jq -e '
+    (.["cursor-accounts"] // empty | fromjson? // empty) as $accts
+    | ($accts.accounts[$accts.active // empty]["cursor-access-token"] | type) == "string"
+    and ($accts.accounts[$accts.active // empty]["cursor-access-token"] | length) > 0
+  ' "$secrets_file" >/dev/null 2>&1
+}
+
+has_grokbot_session() {
+  if [ -n "${GROKBOT_CONFIG_DIR+x}" ]; then
+    [ -n "${GROKBOT_CONFIG_DIR}" ] && grokbot_secrets_has_token "${GROKBOT_CONFIG_DIR}/sand-secrets.json"
+    return $?
+  fi
+  grokbot_secrets_has_token "${XDG_CONFIG_HOME:-$HOME/.config}/Grok Bot/sand-secrets.json" && return 0
+  grokbot_secrets_has_token "$HOME/Library/Application Support/Grok Bot/sand-secrets.json"
+}
+
 has_xai_credentials() {
   local auth_file="${GROK_HOME:-$HOME/.grok}/auth.json"
   has_any_env XAI_API_KEY XAI_MANAGEMENT_KEY XAI_MANAGEMENT_API_KEY && return 0
@@ -195,6 +214,15 @@ status_for() {
       else
         status="missing"
         detail="Cursor IDE session or cursor-agent auth.json"
+      fi
+      ;;
+    grokbot|grok-bot)
+      if has_grokbot_session; then
+        status="ready"
+        detail="Configured"
+      else
+        status="missing"
+        detail="Grok Bot desktop app sign-in"
       fi
       ;;
     perplexity|kiro|warp|amp)

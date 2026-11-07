@@ -18,6 +18,10 @@
 - Antigravity reads a pool whose remaining fraction is omitted (protobuf drops a zero) as used up instead of hiding it, accepts the fraction nested under `remaining`, labels the Gemini 4 Argon pool and recognizes Chinese 5-hour and weekly window names.
 - Antigravity keeps each account's email on systems whose `base64` rejects stray padding, such as Ubuntu 26.04 with uutils coreutils; an id_token payload that needed no padding lost its email and showed "Antigravity account".
 - Antigravity account windows show the reset countdown next to a bare percentage, and keep the server's own description in used mode.
+- Add **Grok Bot** (`grokbot` / `grok-bot`) desktop provider adapter reading weekly Grok Bot Plan usage and reset timestamps from the signed-in desktop session via `GetSandUsageStatus`, with local persistence snapshot fallback when offline.
+- Show formatted currency balances directly in the bar pill and card header for prepaid balance providers (such as DeepSeek, Kimi API and Vercel AI Gateway) instead of synthetic percentages.
+- Surface exhausted (`100%` used / `0%` left) secondary or tertiary quota windows on the bar pill and card header by default when no explicit `barWindowOverrides` slot is configured, preventing rate-limited Codex or Claude accounts from showing `100% left` when their 5-hour window decays to `0%`.
+- Read live multi-group Antigravity quota pools (including `Gemini 4 Argon`) from the running local `language_server` Connect-RPC endpoint when available, and include per-window reset countdowns alongside percentages in the Antigravity card.
 
 ### Thanks
 

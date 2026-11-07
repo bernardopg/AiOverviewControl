@@ -782,6 +782,9 @@ jobs:
       - name: Integration test — Cursor plan usage
         run: tests/test-cursor-usage.sh
 
+      - name: Integration test — Grok Bot weekly usage
+        run: tests/test-grokbot.sh
+
       - name: Integration test — Codex/OpenCode local analytics
         run: tests/test-local-analytics.sh
 
