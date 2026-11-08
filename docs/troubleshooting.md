@@ -101,6 +101,8 @@ systemctl --user import-environment COMMAND_CODE_API_KEY
 systemctl --user restart dms.service
 ```
 
+For OpenRouter, Z.ai, GLM and OpenCode Go the key can stay in the desktop keyring instead: set the provider's `AIOC_VAULT_*` lookup spec (not the key) in the user-service environment and the adapter reads the key at the moment of use. See [Keys from the keyring](configuration.md#keys-from-the-keyring). A card that reports `found no unlocked keyring entry` means the entry does not exist under those attributes or sits in a locked collection; `secret-tool lookup <the same words>` in a terminal shows which.
+
 For Command Code specifically, `cmd login` is usually preferable: the plugin reads the CLI's protected `~/.commandcode/auth.json` credential when `COMMAND_CODE_API_KEY` is absent from Dux Shell. The helper reports credential source names only, never secret values.
 
 ## xAI / Grok shows "XAI_API_KEY is not set"

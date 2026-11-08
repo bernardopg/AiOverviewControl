@@ -118,6 +118,27 @@ systemctl --user restart dms.service
 
 For a durable environment-variable setup, configure your display manager or user-service environment rather than relying on an interactive shell.
 
+### Keys from the keyring
+
+A provider key can come from the freedesktop keyring instead, read at the moment of use. Give the provider a lookup spec and the adapter runs `secret-tool lookup` with those words whenever the environment has no key:
+
+```bash
+AIOC_VAULT_OPENROUTER="service openrouter username quota"
+AIOC_VAULT_ZAI="service zai username quota"
+AIOC_VAULT_GLM="service glm username quota"
+AIOC_VAULT_OPENCODE="service opencode username quota"
+```
+
+Store the key under the same attributes first, for example:
+
+```bash
+secret-tool store --label="OpenRouter quota" service openrouter username quota
+```
+
+The spec names the attributes the entry is stored under, so it is not a secret and can live in the display manager's or the user service's environment file, such as `~/.config/environment.d/90-dms.conf`. It is split on whitespace and never glob-expanded, so it must be a list of attribute/value pairs, and no attribute or value can contain a space; a spec with an odd number of words is ignored. The key never enters the process environment or a command line: it reaches `curl` through the same `--config` pipe as an exported key, and it is never cached or logged. An exported key still wins, so an existing setup keeps working unchanged.
+
+The adapters refresh in the background, so a lookup must never raise an unlock prompt. Before reading the key, the adapter asks the Secret Service (`SearchItems` over D-Bus through `busctl`, which never prompts) where the entry lives; when it sits only in a locked collection, or does not exist, no lookup runs and the card reports the missing key until the keyring is unlocked. The login keyring is normally unlocked at sign-in, so this only matters for a separate collection or a keyring locked by hand. When the Secret Service cannot be asked, the lookup still runs, bounded by `AIOC_VAULT_TIMEOUT` in seconds (default 3), so a keyring that does not answer delays one refresh rather than blocking it. Readiness accepts a spec without asking the keyring anything, so opening the settings never raises a prompt.
+
 ## Provider readiness labels
 
 The settings health check describes whether the plugin can run an adapter in the current shell process; it is not a claim that the provider publishes a quota API.
@@ -132,12 +153,13 @@ The settings health check describes whether the plugin can run an adapter in the
 | Copilot | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`; `AIOC_NO_DOH_FALLBACK=1` disables the `dns.google` DNS-over-HTTPS fallback used to resolve an alternate `api.github.com` edge after a regional route fails (TLS hostname verification stays enabled either way) |
 | Antigravity | No environment variable is normally required. Credentials are discovered from `~/.gemini/antigravity-cli/antigravity-oauth-token`, the desktop keyring, or the IDE state database. Optional `ANTIGRAVITY_API_BASE_URL` retargets Cloud Code Assist; `ANTIGRAVITY_QUOTA_METHOD` can pin the compatibility method for diagnostics. |
 | Gemini | Gemini CLI sign-in (`~/.gemini/oauth_creds.json`) for per-model quota with a Code Assist Standard or Enterprise project; optional `GOOGLE_CLOUD_PROJECT` (or `GOOGLE_CLOUD_PROJECT_ID`) selects the project. Otherwise `GEMINI_API_KEY`, `GOOGLE_API_KEY`, or `GOOGLE_GENERATIVE_AI_API_KEY` for a key check. The CLI token is renewed in memory only; `GEMINI_CLI_OAUTH_CLIENT_ID`, `GEMINI_CLI_OAUTH_CLIENT_SECRET`, `GEMINI_CLI_TOKEN_URL` and `GEMINI_CODE_ASSIST_ENDPOINT` override the CLI's defaults for diagnostics |
-| OpenRouter | `OPENROUTER_API_KEY` |
+| OpenRouter | `OPENROUTER_API_KEY`, or `AIOC_VAULT_OPENROUTER` for a keyring entry |
+| OpenCode | `OPENCODE_API_KEY`, or `AIOC_VAULT_OPENCODE` for a keyring entry; otherwise the CLI's `~/.local/share/opencode/auth.json` |
 | DeepSeek | `DEEPSEEK_API_KEY` |
 | Kimi | Balance: `MOONSHOT_API_KEY` or `KIMI_API_KEY` (optional `MOONSHOT_API_BASE`). Kimi Code subscription quota: `KIMI_CODING_API_KEY` (or a `sk-kimi-` prefixed `KIMI_API_KEY`; optional `KIMI_CODE_BASE_URL`; legacy `KIMI_BASE_URL` also accepted) |
 | MiniMax | `MINIMAX_TOKEN_PLAN_KEY` (Token Plan Subscription Key, `sk-cp-...`) — backward-compatible: a `sk-cp-` value in `MINIMAX_API_KEY` is also recognised. PAYG `sk-api-` keys stay on `MINIMAX_API_KEY` and surface auth-only; set both to keep an auth-only card when the Token Plan endpoint is unreachable. Optional `MINIMAX_API_BASE` retargets both read-only endpoints at a gateway or mirror. |
 | Command Code | `COMMAND_CODE_API_KEY`, or the `apiKey` saved by `cmd login` in `~/.commandcode/auth.json` |
-| GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; optional `GLM_API_BASE` |
+| GLM / Z.ai | `ZAI_API_KEY`, `GLM_API_KEY`, or `ZHIPU_API_KEY`; or a keyring entry through `AIOC_VAULT_ZAI` (Z.ai card) or `AIOC_VAULT_GLM` (GLM card); optional `GLM_API_BASE` |
 | Mistral | `MISTRAL_API_KEY` |
 | Ollama | optional `OLLAMA_HOST`; requires the `ollama` CLI in PATH |
 | Ollama Cloud | `OLLAMA_API_KEY` |

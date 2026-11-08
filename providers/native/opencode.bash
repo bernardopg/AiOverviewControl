@@ -45,7 +45,7 @@ fetch_opencode_native() {
   local key
   key="$(opencode_api_key)"
   if [ -z "$key" ]; then
-    json_error opencode opencode-api 2 provider "OpenCode credentials are unavailable. Set OPENCODE_API_KEY or run 'opencode auth login' so ~/.local/share/opencode/auth.json has a key."
+    json_error opencode opencode-api 2 provider "OpenCode credentials are unavailable. Set OPENCODE_API_KEY, point AIOC_VAULT_OPENCODE at an unlocked keyring entry, or run 'opencode auth login' so ~/.local/share/opencode/auth.json has a key."
     return 0
   fi
 

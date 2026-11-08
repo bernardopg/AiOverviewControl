@@ -2,13 +2,17 @@
 
 ## Unreleased
 
+### Providers
+
+- A provider key can come from the freedesktop keyring, read at the moment of use, for a session that never exported it. `AIOC_VAULT_OPENROUTER`, `AIOC_VAULT_ZAI`, `AIOC_VAULT_GLM`, and `AIOC_VAULT_OPENCODE` name the `secret-tool lookup` attribute/value pairs for an entry, and the OpenRouter, Z.ai, GLM, and OpenCode Go adapters use that key when the environment has none. The spec is not a secret, so it can live in a display manager or user-service environment file. An exported key still wins. A background refresh never raises an unlock prompt: an entry the Secret Service reports in a locked collection is skipped, and `AIOC_VAULT_TIMEOUT` (default 3 s) bounds any other lookup. Readiness accepts a spec without asking the keyring, so the settings page cannot raise a prompt either.
+
 ### Fixes
 
 - The OpenCode Go adapter accepts the endpoint's nested `usage.rolling` / `percent` / `resetsAt` envelope, so the 5-hour, weekly and monthly windows survive the API's change instead of degrading to the authenticated-only card. The older flat `rollingUsage` / `resetInSec` shape is still parsed, so an older deployment is unchanged.
 
 ### Thanks
 
-- Thanks to [@alvorithm](https://github.com/alvorithm) for tracking down the OpenCode Go envelope change and fixing it ([#103](https://github.com/bernardopg/AiOverviewControl/pull/103)).
+- Thanks to [@alvorithm](https://github.com/alvorithm) for tracking down the OpenCode Go envelope change and fixing it ([#103](https://github.com/bernardopg/AiOverviewControl/pull/103)), and for reading provider keys from the desktop keyring ([#102](https://github.com/bernardopg/AiOverviewControl/pull/102)).
 
 ## 2.2.4 - 2026-11-04
 

@@ -14,7 +14,15 @@ expectations. To report a vulnerability, follow
    (for example `~/.codex/auth.json`, `gh auth token`, `KIMI_CODING_API_KEY`).
    A credential is sent only to the API of the provider it belongs to. The
    plugin never copies credentials into its settings, caches, logs,
-   notifications, history exports or test fixtures.
+   notifications, history exports or test fixtures. The keyring route is
+   opt-in per provider through a lookup spec in the environment
+   (`AIOC_VAULT_OPENROUTER` and its siblings), which is not a secret. The
+   key reaches `curl` through a `--config` pipe, never the environment or a
+   command line. A background refresh never raises an unlock prompt: the
+   adapter first asks the Secret Service whether the entry is unlocked
+   (`SearchItems`, which does not prompt) and skips a locked one. What is left
+   is bounded by `AIOC_VAULT_TIMEOUT`, and readiness never asks the keyring,
+   so the settings page cannot raise a prompt either.
 2. **Read-only access, with one confirmed exception.** The plugin reads quota,
    billing and usage data. It never changes provider settings, buys credits or
    writes into a tool's own configuration directory. The one write is redeeming

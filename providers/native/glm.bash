@@ -3,8 +3,9 @@ fetch_glm_native() {
   # GLM and Z.ai share one credential family. Honor ZAI_API_KEY here too so a
   # single key drives both cards (matches docs/providers.md credential matrix).
   local key="${GLM_API_KEY:-${ZHIPU_API_KEY:-${ZAI_API_KEY:-}}}"
+  [ -n "$key" ] || key="$(vault_key glm)"
   if [ -z "$key" ]; then
-    json_error glm glm-api 2 provider "GLM_API_KEY, ZHIPU_API_KEY, or ZAI_API_KEY is not set."
+    json_error glm glm-api 2 provider "GLM_API_KEY, ZHIPU_API_KEY, or ZAI_API_KEY is not set, and AIOC_VAULT_GLM found no unlocked keyring entry."
     return 0
   fi
   local base="${GLM_API_BASE:-https://open.bigmodel.cn/api/paas/v4}"

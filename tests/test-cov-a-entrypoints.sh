@@ -87,13 +87,14 @@ health="$(env -u XDG_DATA_HOME -u OPENROUTER_API_KEY -u DEEPSEEK_API_KEY \
   -u CURSOR_STATE_DB -u CURSOR_AUTH_FILE -u OPENCODE_DATA_DIR \
   -u OPENCODE_USAGE_SOURCE -u CLAUDE_CONFIG_DIR -u AIOC_CLAUDE_PROFILES \
   -u GROK_HOME -u XDG_DATA_HOME \
+  -u AIOC_VAULT_OPENROUTER -u AIOC_VAULT_ZAI -u AIOC_VAULT_GLM -u AIOC_VAULT_OPENCODE \
   PATH="$TMP/no-cli" HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" \
   bash "$ROOT/providers/get-provider-health" \
   9router,openrouter,deepseek,kimi-code,kimi,minimax,opencode,glm,zai,mistral,ollama,nvidia,neuralwatt,cline,cloudflare,vertexai,byteplus,qwen,together,groq,cohere,replicate,fireworks,xai,kilo,ai21,pi,hermes,cursor,perplexity)"
 jq -e 'length == 30 and all(.[0:29][]; .status == "missing")
   and .[29].status == "info"
   and .[0].detail == "9Router usage database"
-  and .[6].detail == "OpenCode local database or OPENCODE_API_KEY"
+  and .[6].detail == "OpenCode local database, OPENCODE_API_KEY, or a keyring entry"
   and .[14].detail == "Cloudflare API token"
   and .[28].detail == "Cursor IDE session or cursor-agent auth.json"
   and .[29].detail == "No public read-only quota API"' <<<"$health" >/dev/null \
