@@ -4,6 +4,7 @@
 
 ### Features
 
+- The settings page is reorganised into foldable groups (General, Bar pill, Dashboard, Notifications, Providers, Claude profiles, History and data, Diagnostics), each summarising its state while folded, with a button to expand or collapse them all. A **Live preview** at the top draws the bar pill, a vertical bar and the hover tooltip with sample numbers and follows every bar setting as you change it. The provider grid gains a search field, the bar usage window list shows each provider's logo with its long explanation behind **How it works**, Claude profiles become cards with a remove button, and the provider logo color can return to the theme accent. Every setting the plugin stores is still on the page.
 - The bar pill, its tooltip and the card header show a prepaid balance as its amount (`$95.50`, `¥9.34`) instead of a percentage that read 100% left for any non-empty balance. Adapters mark these windows with `isBalance`: DeepSeek, Kimi, xAI prepaid credits, Cline credits, Ollama Cloud purchased credits and Vercel AI Gateway. DeepSeek amounts now carry the currency symbol and two decimals (`¥9.34` rather than `CNY 9.34`).
 
 ### Providers
@@ -20,6 +21,7 @@
 - Antigravity keeps each account's email on systems whose `base64` rejects stray padding, such as Ubuntu 26.04 with uutils coreutils; an id_token payload that needed no padding lost its email and showed "Antigravity account".
 - Antigravity account windows show the reset countdown next to a bare percentage, and keep the server's own description in used mode.
 - The readiness detail in Settings (what a provider is missing, such as "Grok Bot desktop app sign-in") is translated in every language instead of always showing English.
+- Settings no longer truncates option labels such as "Once per window" or "2,000 snapshots", and the Brazilian Portuguese and German texts use one term each for the bar pill and for providers instead of mixing in English.
 - The Claude adapter never moves its LiteLLM pricing table into a directory that occupies the cache path, and `scripts/qmlls-setup` looks for the running shell under `XDG_RUNTIME_DIR` when it is set.
 
 ### Documentation

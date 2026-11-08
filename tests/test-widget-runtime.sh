@@ -157,7 +157,7 @@ ShellRoot {
                 // Real DMS injects a physical plugin path; qs directory imports use a VFS URL.
                 widget._pluginDir = Quickshell.env("AIOC_TEST_PLUGIN_DIR");
                 lateSettings.pluginService = service;
-                const choice = settings.content.find(item => item.values && item.values.indexOf("BRL") >= 0);
+                const choice = input.findChild(settings, "setting-costCurrency");
                 if (!choice) { console.error("SMOKE FAIL: missing currency control"); return; }
                 choice.picked("BRL");
                 if (settings.loadValue("costCurrency", "USD") !== "BRL") {
@@ -181,7 +181,7 @@ ShellRoot {
                 root.step = 2;
             } else if (root.step === 2 && widget.formatCost(2).indexOf("$2") === 0) {
                 if (!widget.dashboardView) { console.error("SMOKE FAIL: view not attached"); return; }
-                const remaining = settings.content.find(item => item.text === settings.t("settings.show_remaining", "Show remaining quota"));
+                const remaining = input.findChild(settings, "setting-showRemainingQuota");
                 if (!remaining || remaining.checked) { console.error("SMOKE FAIL: remaining quota default/control"); return; }
                 remaining.toggled(true);
                 widget.pluginData = service.data;
@@ -256,11 +256,10 @@ ShellRoot {
                 const before = root.pillSize();
                 root.pillWidth = before.width;
                 root.pillHeight = before.height;
-                for (const key of ["settings.pill_show_names", "settings.pill_compact"]) {
-                    const label = widget.t(key, "");
-                    const toggle = settings.content.find(item => item.text === label && item.toggled);
-                    if (!toggle) { console.error("SMOKE FAIL: missing toggle " + key); return; }
-                    toggle.toggled(key === "settings.pill_compact");
+                for (const key of ["pillShowNames", "pillCompact"]) {
+                    const toggle = input.findChild(settings, "setting-" + key);
+                    if (!toggle || !toggle.toggled) { console.error("SMOKE FAIL: missing toggle " + key); return; }
+                    toggle.toggled(key === "pillCompact");
                 }
                 if (service.data.pillShowNames !== "false" || service.data.pillCompact !== "true") {
                     console.error("SMOKE FAIL: pill toggles did not persist"); return;
@@ -318,7 +317,7 @@ ShellRoot {
                     console.error("SMOKE FAIL: Claude profile creation, identity or catalog"); return;
                 }
                 settings.addClaudeProfile("claude-personal", "Personal", "/tmp/personal");
-                settings.content.find(item => item.text === settings.t("settings.show_remaining", "Show remaining quota")).toggled(true);
+                input.findChild(settings, "setting-showRemainingQuota").toggled(true);
                 settings.saveValue("historyRetention", "321");
                 widget.pluginData = service.data;
                 widget.providerSelection = "claude-work,claude-personal";
@@ -620,8 +619,67 @@ ShellRoot {
                 }
                 widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
-                console.warn("FULL_UI_SMOKE_OK");
+                // Settings page: every stored key has a control in a foldable
+                // group, folded groups summarise their state, and the live
+                // preview follows the bar settings.
+                settings.resetToDefaults();
+                settings.selectedIds = ["codex", "claude", "deepseek"];
+                settings.saveValue("providerSelection", "codex,claude,deepseek");
+                settings.pillIds = ["codex", "claude", "deepseek"];
+                settings.saveValue("pillProviders", "codex,claude,deepseek");
+                settings.saveValue("pillMode", "custom");
+                settings.setAllGroupsExpanded(true);
                 root.step = 20;
+            } else if (root.step === 20) {
+                const unreachable = Object.keys(settings.settingDefaults)
+                    .filter(key => ["pinnedProviders", "pillProviders", "claudeProfiles"].indexOf(key) < 0)
+                    .filter(key => !input.findChild(settings, "setting-" + key));
+                const groups = settings.groupIds.filter(id => !input.findChild(settings, "settings-group-" + id));
+                if (unreachable.length > 0 || groups.length > 0 || !settings.allGroupsExpanded) {
+                    console.error("SMOKE FAIL: settings controls or groups missing: " + unreachable.concat(groups).join(",")); return;
+                }
+                const preview = input.findChild(settings, "settings-preview");
+                const claudeEntry = input.findChild(preview, "preview-entry-claude");
+                const deepseekEntry = input.findChild(preview, "preview-entry-deepseek");
+                // QML child lists are not JS arrays; copy before walking them.
+                const numbers = item => item ? Array.from(item.children).reduce((all, row) => all.concat(Array.from(row.children || [])), [])
+                    .filter(t => t.objectName === "preview-number").map(t => t.text) : [];
+                if (!preview || preview.entries.join(",") !== "codex,claude,deepseek" || !claudeEntry
+                    || numbers(deepseekEntry).join() !== "¥9.34" || numbers(claudeEntry).join() !== "67%") {
+                    console.error("SMOKE FAIL: preview entries: " + (preview ? preview.entries : "none") + " " + numbers(claudeEntry) + " " + numbers(deepseekEntry)); return;
+                }
+                settings.setBarChoice("claude", "primary+secondary");
+                input.findChild(settings, "setting-showRemainingQuota").toggled(true);
+                input.findChild(settings, "setting-pillShowNames").toggled(false);
+                root.step = 21;
+            } else if (root.step === 21) {
+                const preview = input.findChild(settings, "settings-preview");
+                const claudeEntry = input.findChild(preview, "preview-entry-claude");
+                const numbers = Array.from(claudeEntry.children).reduce((all, row) => all.concat(Array.from(row.children || [])), [])
+                    .filter(t => t.objectName === "preview-number").map(t => t.text);
+                const tooltip = input.findChild(preview, "preview-tooltip");
+                // The page itself is hidden in this scene, so visibility is checked
+                // through the conditions the items bind to.
+                if (numbers.join(",") !== "33%,19%" || preview.names || preview.tooltip !== true || !tooltip
+                    || settings.previewTooltipText().indexOf("Claude · " + settings.t("window.session", "Session")) < 0) {
+                    console.error("SMOKE FAIL: preview did not follow the bar settings: " + numbers + " / " + settings.previewTooltipText()); return;
+                }
+                // Folded groups summarise their state; the search narrows the grid.
+                settings.setAllGroupsExpanded(false);
+                const summary = input.findChild(settings, "settings-group-summary-bar");
+                const notify = input.findChild(settings, "settings-group-summary-notifications");
+                settings.providerQuery = "deeps";
+                const matches = settings.allProviders.filter(p => settings.providerMatches(p)).map(p => p.id);
+                settings.providerQuery = "";
+                if (settings.allGroupsExpanded || settings.isGroupExpanded("bar") || !summary
+                    || summary.text.indexOf(settings.t("settings.option.custom", "Custom")) !== 0
+                    || summary.text.indexOf(settings.t("settings.summary.in_bar", "", {count: 3})) < 0
+                    || !notify || notify.text.indexOf("85%") < 0 || matches.join(",") !== "deepseek") {
+                    console.error("SMOKE FAIL: group summaries or provider search: " + (summary ? summary.text : "none") + " / " + matches); return;
+                }
+                settings.resetToDefaults();
+                console.warn("FULL_UI_SMOKE_OK");
+                root.step = 22;
             }
         }
     }
