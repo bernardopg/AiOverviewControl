@@ -213,8 +213,9 @@ docker run --rm -e SANITIZER=address -e FUZZING_LANGUAGE=python -e FUZZING_ENGIN
 under [kcov](https://github.com/SimonKagstrom/kcov), merges the runs and prints
 statement coverage of `providers/` and `scripts/`, with a per-file table in
 `OUTPUT_DIR/files.tsv` (default `./coverage/`, ignored by git). Set
-`AIOC_COVERAGE_MIN=95` to fail below 95%, as the **Statement coverage** CI job
-does.
+`AIOC_COVERAGE_MIN=97` to fail below 97%, as the **Statement coverage** CI job
+does. Coverage is at 100%; the gate leaves room for a hard-to-fake branch, but
+a new adapter or script ships with tests for every statement.
 
 kcov's own percentage counts every physical line, including the body of a
 multi-line jq or awk program, a heredoc body and a backslash-continued line.
@@ -228,6 +229,16 @@ branch, a `}` or `done` that redirects a block) are never traced by bash, so
 they join the statement above them too. `tests/test-coverage-report.sh` pins
 these rules. The jq programs themselves are exercised by the fixture
 assertions, not measured line by line.
+
+bash reports a multi-line command inside a command substitution on its last
+line, which kcov often does not list, so the statement reads as unexecuted even
+when a test ran it. Keep such commands attributable: put curl arguments in an
+array declared with `local -a` (or `declare -a` outside a function) and keep
+the `$(curl "${args[@]}" …)` call on one line, write a short jq or awk program
+on the same line as its command, move a longer jq program into a function
+whose body is a plain command, and move a loop out of a `$(… | while …)`
+pipeline into a function. A plain multi-line array assignment (`args=(…)`)
+has the same problem; the `local`/`declare` form does not.
 
 kcov 43 loses line tracking after a command whose multi-line quoted argument
 contains a single quote, such as SQL with `''` literals: the statements after
