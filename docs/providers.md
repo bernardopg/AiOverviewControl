@@ -151,7 +151,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ per-window % + reset timestamp</td>
 <td>✅ GLM Coding Plan $18–$160/mo</td>
 <td>✅ per token</td>
-<td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code> (<code>ZHIPU_API_KEY</code> also accepted; precedence depends on the adapter — see <a href="#glm--zai-zhipu-ai">GLM / Z.ai</a>)</td>
+<td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code> (<code>ZHIPU_API_KEY</code> also accepted; precedence depends on the adapter — see <a href="#glm--zai-zhipu-ai">GLM / Z.ai</a>), or a keyring entry (<code>AIOC_VAULT_ZAI</code>)</td>
 <td><a href="https://z.ai/manage-apikey/billing">z.ai/manage-apikey</a></td>
 <td><a href="https://docs.z.ai/">docs.z.ai</a> / <a href="https://open.bigmodel.cn/dev/api">open.bigmodel.cn</a></td>
 </tr>
@@ -239,7 +239,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ <code>/zen/go/v1/usage</code> (5h + weekly + monthly)</td>
 <td>✅ OpenCode Go $10/mo</td>
 <td>—</td>
-<td><code>OPENCODE_API_KEY</code> or CLI <code>~/.local/share/opencode/auth.json</code></td>
+<td><code>OPENCODE_API_KEY</code>, a keyring entry (<code>AIOC_VAULT_OPENCODE</code>), or CLI <code>~/.local/share/opencode/auth.json</code></td>
 <td><a href="https://opencode.ai/zen">opencode.ai/zen</a></td>
 <td><a href="https://opencode.ai/docs/go">opencode.ai/docs/go</a></td>
 </tr>
@@ -339,7 +339,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ limit/daily/monthly/balance + free-model requests/day</td>
 <td>—</td>
 <td>✅ per token</td>
-<td><code>OPENROUTER_API_KEY</code></td>
+<td><code>OPENROUTER_API_KEY</code> or a keyring entry (<code>AIOC_VAULT_OPENROUTER</code>)</td>
 <td><a href="https://openrouter.ai/credits">openrouter.ai/credits</a></td>
 <td><a href="https://openrouter.ai/docs/api-reference/limits">openrouter.ai/docs</a></td>
 </tr>

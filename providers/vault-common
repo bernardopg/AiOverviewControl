@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Keyring lookups for a plugin started by the graphical session. Such a
+# process inherits the user manager's environment and never an interactive
+# shell's, so a key exported in ~/.bashrc never arrives. The adapter reads the
+# key at the moment of use instead, which keeps the value out of the process
+# environment, out of every child process, and out of the plugin's caches.
+#
+# Opt in per provider with a lookup spec: the attribute/value words
+# `secret-tool lookup` takes. The spec is not a secret, so it can live in any
+# environment file, and the key itself stays in the keyring.
+#
+#   AIOC_VAULT_OPENROUTER="service openrouter username quota"
+#   AIOC_VAULT_ZAI="service zai username quota"
+#   AIOC_VAULT_OPENCODE="service opencode username quota"
+#
+# Unset means no lookup, and an exported key still wins. AIOC_VAULT_TIMEOUT
+# bounds the wait in seconds (default 3): a locked keyring raises a prompt and
+# waits for an answer, so a caller with no person in front of it must not
+# block its refresh.
+
+# Print the lookup spec for a provider id, or nothing.
+vault_spec() {
+  local var
+  var="AIOC_VAULT_$(printf '%s' "$1" | tr 'a-z-' 'A-Z_')"
+  printf '%s' "${!var:-}"
+}
+
+# Print the provider's key from the keyring, or nothing.
+vault_key() {
+  local spec
+  spec="$(vault_spec "$1")"
+  [ -n "$spec" ] || return 0
+  command -v secret-tool >/dev/null 2>&1 || return 0
+  # shellcheck disable=SC2086 # the spec is deliberately a list of lookup words
+  timeout "${AIOC_VAULT_TIMEOUT:-3}" secret-tool lookup $spec 2>/dev/null || true
+}
+
+# True when the provider has a lookup spec and the keyring tool is installed.
+# Readiness only: it never performs a lookup, so opening the settings cannot
+# raise a keyring prompt.
+has_vault_spec() {
+  [ -n "$(vault_spec "$1")" ] && command -v secret-tool >/dev/null 2>&1
+}

@@ -745,6 +745,9 @@ jobs:
       - name: Credentials off the command line, owner-only caches
         run: tests/test-secret-argv.sh
 
+      - name: Provider keys from the keyring
+        run: tests/test-vault-keys.sh
+
       - name: Append-only contributor grid
         run: tests/test-render-contributors.sh
 
