@@ -185,4 +185,28 @@ PATH="$TMP/bin:$PATH" ANTIGRAVITY_STATE_DB="$TMP/antigravity-state.vscdb" ANTIGR
   bash "$ROOT/providers/get-provider-usage" antigravity '' >/dev/null
 grep -q '127.0.0.1' "$AG_ARGV_LOG" && fail "a pinned state DB probed the local server without opting in"
 true
+# The id_token email survives every base64 padding length, including a
+# payload that needs none. The shim decodes like uutils coreutils (Ubuntu
+# 26.04): input with stray padding prints nothing, where GNU base64 prints the
+# data and then complains.
+mkdir -p "$TMP/strict-bin"
+real_base64="$(command -v base64)"
+cat >"$TMP/strict-bin/base64" <<SH
+#!/usr/bin/env bash
+if [ "\${1:-}" = -d ]; then
+  input="\$(cat)"
+  [ \$(( \${#input} % 4 )) -eq 0 ] || { echo "base64: invalid input" >&2; exit 1; }
+  printf '%s' "\$input" | "$real_base64" -d
+else
+  exec "$real_base64" "\$@"
+fi
+SH
+chmod +x "$TMP/strict-bin/base64"
+for payload in '{"email":"dev@example.com"}' '{"email":"a@b.co"}' '{"email":"ab@b.co"}' '{"email":"abc@b.co"}'; do
+  token="x.$(printf '%s' "$payload" | base64 -w0 | tr '+/' '-_' | tr -d '=').y"
+  got="$(PATH="$TMP/strict-bin:$PATH" bash -c 'source <(sed -n "/^antigravity_email_from_idtoken()/,/^}/p" "$1"); antigravity_email_from_idtoken "$2"' _ \
+    "$ROOT/providers/get-provider-usage" "$token")"
+  [ "$got" = "$(jq -r .email <<<"$payload")" ] || fail "id_token email lost for payload $payload: '$got'"
+done
+
 echo 'OK: Antigravity fixture, transport, and token refresh coverage'

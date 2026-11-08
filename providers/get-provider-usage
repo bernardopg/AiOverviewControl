@@ -305,8 +305,11 @@ antigravity_email_from_idtoken() {
   [ -n "$idt" ] || return 0
   payload="$(printf '%s' "$idt" | cut -d. -f2)"
   [ -n "$payload" ] || return 0
+  # Restore the padding JWT strips. A payload already a multiple of four
+  # characters gets none: `printf '=%.0s'` with no arguments would still print
+  # one "=", which strict base64 decoders reject.
   pad=$(( (4 - ${#payload} % 4) % 4 ))
-  payload="${payload}$(printf '=%.0s' $(seq 1 "$pad" 2>/dev/null))"
+  while [ "$pad" -gt 0 ]; do payload="${payload}="; pad=$((pad - 1)); done
   printf '%s' "$payload" | tr '_-' '/+' | base64 -d 2>/dev/null | jq -r '.email // empty' 2>/dev/null || true
 }
 
