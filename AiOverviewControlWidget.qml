@@ -1293,6 +1293,41 @@ PluginComponent {
         return best;
     }
 
+    // A prepaid balance window: the adapter marks it `isBalance` and puts the
+    // formatted amount in displayValue. Its usedPercent only says whether the
+    // balance is used up (0 or 100), so the bar shows the amount instead of a
+    // percentage that would read "100% left" for any non-empty balance.
+    function isBalanceWindow(windowData) {
+        return !!windowData && windowData.isBalance === true
+            && windowData.displayValue !== undefined && windowData.displayValue !== null
+            && String(windowData.displayValue).length > 0;
+    }
+
+    // The number the bar shows for one window: the balance amount, or the
+    // percentage in the user's used/remaining convention.
+    function pillWindowText(windowData) {
+        if (isBalanceWindow(windowData))
+            return String(windowData.displayValue);
+        return `${Math.round(quotaDisplayPercent(Number(windowData ? windowData.usedPercent || 0 : 0)))}%`;
+    }
+
+    // The number a single-window pill shows for a provider.
+    function pillText(provider) {
+        const windowData = pillWindowFor(provider);
+        if (isBalanceWindow(windowData))
+            return String(windowData.displayValue);
+        return `${Math.round(quotaDisplayPercent(pillPercentFor(provider)))}%`;
+    }
+
+    // The number a card header shows: the headline window's balance amount,
+    // or its percentage.
+    function headlineText(provider) {
+        const windowData = headlineUsageWindow(provider);
+        if (isBalanceWindow(windowData))
+            return String(windowData.displayValue);
+        return quotaPercentText(headlinePercent(provider));
+    }
+
     // Bar-display percent for a provider — the only percentage call the
     // DankBar pills should use; with several displayed windows it is the
     // highest of them, so "top" and "auto" rank by the most-constrained one.
@@ -1335,7 +1370,7 @@ PluginComponent {
                 const label = windowLabel(windowData);
                 if (label && String(label).length > 0)
                     segment.push(label);
-                segment.push(quotaPercentText(windowData.usedPercent));
+                segment.push(isBalanceWindow(windowData) ? String(windowData.displayValue) : quotaPercentText(windowData.usedPercent));
                 if (withReset) {
                     const reset = formatTimeUntil(windowData.resetsAt);
                     if (reset.length > 0)
@@ -2416,7 +2451,7 @@ PluginComponent {
                         StyledText {
                             objectName: "pill-percent-" + pillEntry.modelData.provider
                             visible: !pillEntry.multiWindow
-                            text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(pillEntry.modelData)))}%`
+                            text: root.pillText(pillEntry.modelData)
                             color: pillEntry.usageColor
                             font.pixelSize: Theme.fontSizeSmall
                             font.weight: Font.Bold
@@ -2454,7 +2489,7 @@ PluginComponent {
 
                                 StyledText {
                                     objectName: "pill-window-percent"
-                                    text: `${Math.round(root.quotaDisplayPercent(pillWindow.modelData.usedPercent))}%`
+                                    text: root.pillWindowText(pillWindow.modelData)
                                     color: root.pillUsageColor(pillEntry.modelData, Number(pillWindow.modelData.usedPercent || 0))
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Bold
@@ -2513,7 +2548,7 @@ PluginComponent {
 
                     StyledText {
                         visible: !verticalEntry.multiWindow
-                        text: `${Math.round(root.quotaDisplayPercent(root.pillPercentFor(verticalEntry.modelData)))}%`
+                        text: root.pillText(verticalEntry.modelData)
                         color: root.pillUsageColor(verticalEntry.modelData, root.pillPercentFor(verticalEntry.modelData))
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
@@ -2540,7 +2575,7 @@ PluginComponent {
                             }
 
                             StyledText {
-                                text: `${Math.round(root.quotaDisplayPercent(verticalWindow.modelData.usedPercent))}%`
+                                text: root.pillWindowText(verticalWindow.modelData)
                                 color: root.pillUsageColor(verticalEntry.modelData, Number(verticalWindow.modelData.usedPercent || 0))
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.DemiBold

@@ -43,9 +43,21 @@ jq -e '.[0].provider == "deepseek"' <<<"$result" >/dev/null
 
 # Missing balance fields use zero/default currency; unavailable funds show depleted.
 export DEEPSEEK_API_KEY=sk-test-0000 COV_STATUS=200 COV_BODY='{"balance_infos":[]}'
-result="$(run)"; jq -e '.[0].usage.primary.displayValue == "CNY 0"' <<<"$result" >/dev/null
+result="$(run)"; jq -e '.[0].usage.primary.displayValue == "¥0.00"' <<<"$result" >/dev/null
 export COV_BODY='{"balance_infos":[{"is_available":false}]}'
-result="$(run)"; jq -e '.[0].usage.primary.usedPercent == 100 and .[0].usage.tertiary.displayValue == "CNY 0"' <<<"$result" >/dev/null
+result="$(run)"; jq -e '.[0].usage.primary.usedPercent == 100 and .[0].usage.tertiary.displayValue == "¥0.00"' <<<"$result" >/dev/null
+# Every balance window is marked isBalance so the bar shows the amount, and
+# amounts carry the currency symbol with two decimals.
+export COV_BODY='{"balance_infos":[{"currency":"USD","total_balance":"9.5","granted_balance":"0.345","topped_up_balance":"9.156","is_available":true}]}'
+result="$(run)"; jq -e '
+  .[0].usage.primary.displayValue == "$9.50" and .[0].usage.secondary.displayValue == "$0.35"
+  and .[0].usage.tertiary.displayValue == "$9.16" and .[0].credits.remaining == "$9.50"
+  and ([.[0].usage.primary, .[0].usage.secondary, .[0].usage.tertiary] | all(.isBalance == true))
+  and .[0].usage.primary.usedPercent == 0' <<<"$result" >/dev/null
+export COV_BODY='{"balance_infos":[{"currency":"CNY","total_balance":"110.00","granted_balance":"10","topped_up_balance":"100","is_available":true}]}'
+result="$(run)"; jq -e '.[0].usage.primary.displayValue == "¥110.00"' <<<"$result" >/dev/null
+export COV_BODY='{"balance_infos":[{"currency":"EUR","total_balance":"3","is_available":true}]}'
+result="$(run)"; jq -e '.[0].usage.primary.displayValue == "EUR 3.00"' <<<"$result" >/dev/null
 # DeepSeek's nested error message and empty-body fallback are both surfaced.
 export DEEPSEEK_API_KEY=sk-test-0000 COV_STATUS=403 COV_BODY='{"error":{"message":"forbidden"}}'
 result="$(run)"; jq -e '.[0].error.message == "forbidden"' <<<"$result" >/dev/null

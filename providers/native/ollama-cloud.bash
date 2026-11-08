@@ -69,6 +69,7 @@ fetch_ollama_cloud_native() {
         windowMinutes: null,
         resetsAt: null,
         resetDescription: "Credits",
+        isBalance: true,
         displayValue: usd($bought)
       }] else [] end)) as $all
     | {

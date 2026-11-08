@@ -2865,7 +2865,7 @@ PopoutComponent {
                     }
 
                     StyledText {
-                        text: card.provider.error ? t("status.error", "Error") : root.quotaPercentText(root.headlinePercent(card.provider))
+                        text: card.provider.error ? t("status.error", "Error") : root.headlineText(card.provider)
                         color: card.provider.error ? Theme.error : root.getUsageColor(root.headlinePercent(card.provider))
                         font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                         font.weight: Font.Bold

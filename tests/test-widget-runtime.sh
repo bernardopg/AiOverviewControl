@@ -560,10 +560,36 @@ ShellRoot {
                     console.error("SMOKE FAIL: explicit primary override must keep the primary window"); return;
                 }
                 widget.barWindowOverrides = "";
+                // A prepaid balance shows its amount in the bar, the tooltip and
+                // the card header instead of a 0%/100% stand-in.
+                widget.providers = [{provider: "codex", usage: {
+                    primary: {usedPercent: 0, isBalance: true, windowMinutes: null, resetsAt: null, resetDescription: "Balance", displayValue: "¥9.34"},
+                    secondary: {usedPercent: 0, windowMinutes: null, resetsAt: null, resetDescription: "Today", displayValue: "3 requests"}}}];
+                root.step = 18;
+            } else if (root.step === 18) {
+                const wallet = widget.providers[0];
+                const pillText = input.findChild(hPill.item, "pill-percent-codex");
+                const header = input.findChild(widget.dashboardView, "provider-percent-codex");
+                const headerText = header ? header.children.filter(item => item.visible && item.text !== undefined).map(item => item.text).join("") : "";
+                const note = {usedPercent: 0, windowMinutes: null, resetsAt: null, resetDescription: "Balance", displayValue: "Unlimited"};
+                if (!pillText || pillText.text !== "¥9.34" || headerText !== "¥9.34"
+                    || widget.pillTooltipText().indexOf("¥9.34") < 0
+                    || widget.isBalanceWindow(note) || widget.pillWindowText(note) !== `${Math.round(widget.quotaDisplayPercent(0))}%`
+                    || widget.isBalanceWindow({isBalance: true, displayValue: ""}) || widget.isBalanceWindow(null)
+                    || widget.pillWindowText(wallet.usage.primary) !== "¥9.34") {
+                    console.error("SMOKE FAIL: balance pill: " + (pillText ? pillText.text : "none") + " / " + headerText); return;
+                }
+                widget.barWindowOverrides = "codex:primary+secondary";
+                const balanceRow = input.findChild(hPill.item, "pill-window-codex-0");
+                const balanceText = balanceRow ? balanceRow.children.filter(item => item.visible && item.text).map(item => item.text).join(" ") : "";
+                widget.barWindowOverrides = "";
+                if (balanceText.indexOf("¥9.34") < 0) {
+                    console.error("SMOKE FAIL: multi-window balance pill: " + balanceText); return;
+                }
                 widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");
-                root.step = 18;
+                root.step = 19;
             }
         }
     }

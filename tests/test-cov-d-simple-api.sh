@@ -77,7 +77,7 @@ for provider in cloudflare deepseek fireworks replicate gemini kilo together coh
 done
 set_credential deepseek
 export COV_BODY='{"balance_infos":[{"currency":"USD","total_balance":"12.5","granted_balance":"5","topped_up_balance":"7.5","is_available":true}]}'
-jq -e '.[0].usage.primary.displayValue == "USD 12.5" and .[0].usage.secondary.displayValue == "USD 5" and .[0].usage.tertiary.displayValue == "USD 7.5" and .[0].credits.remaining == "USD 12.5"' <<<"$(run deepseek)" >/dev/null
+jq -e '.[0].usage.primary.displayValue == "$12.50" and .[0].usage.secondary.displayValue == "$5.00" and .[0].usage.tertiary.displayValue == "$7.50" and .[0].credits.remaining == "$12.50"' <<<"$(run deepseek)" >/dev/null
 export COV_STATUS=401 COV_BODY='{"message":"denied"}'
 for provider in cloudflare deepseek fireworks replicate gemini kilo together cohere byteplus ai21 qwen mistral; do
   set_credential "$provider"

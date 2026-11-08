@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- The bar pill, its tooltip and the card header show a prepaid balance as its amount (`$95.50`, `¥9.34`) instead of a percentage that read 100% left for any non-empty balance. Adapters mark these windows with `isBalance`: DeepSeek, Kimi, xAI prepaid credits, Cline credits, Ollama Cloud purchased credits and Vercel AI Gateway. DeepSeek amounts now carry the currency symbol and two decimals (`¥9.34` rather than `CNY 9.34`).
+
 ### Providers
 
 - A provider key can come from the freedesktop keyring, read at the moment of use, for a session that never exported it. `AIOC_VAULT_OPENROUTER`, `AIOC_VAULT_ZAI`, `AIOC_VAULT_GLM`, and `AIOC_VAULT_OPENCODE` name the `secret-tool lookup` attribute/value pairs for an entry, and the OpenRouter, Z.ai, GLM, and OpenCode Go adapters use that key when the environment has none. The spec is not a secret, so it can live in a display manager or user-service environment file. An exported key still wins. A background refresh never raises an unlock prompt: an entry the Secret Service reports in a locked collection is skipped, and `AIOC_VAULT_TIMEOUT` (default 3 s) bounds any other lookup. Readiness accepts a spec without asking the keyring, so the settings page cannot raise a prompt either.
@@ -14,7 +18,7 @@
 ### Thanks
 
 - Thanks to [@alvorithm](https://github.com/alvorithm) for tracking down the OpenCode Go envelope change and fixing it ([#103](https://github.com/bernardopg/AiOverviewControl/pull/103)), and for reading provider keys from the desktop keyring ([#102](https://github.com/bernardopg/AiOverviewControl/pull/102)).
-- Thanks to [@DotRedstone](https://github.com/DotRedstone) for showing a used-up quota window in the bar ([#101](https://github.com/bernardopg/AiOverviewControl/pull/101)).
+- Thanks to [@DotRedstone](https://github.com/DotRedstone) for showing a used-up quota window and prepaid balances in the bar ([#101](https://github.com/bernardopg/AiOverviewControl/pull/101)).
 
 ## 2.2.4 - 2026-11-04
 
