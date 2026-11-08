@@ -417,6 +417,13 @@ ShellRoot {
                     console.error("SMOKE FAIL: settings automatic slot must remove the pair"); return;
                 }
                 settings.setBarChoice("claude-work", "all");
+                // Readiness details go through health.detail.<slug>; a bare
+                // variable name has no key and is shown unchanged.
+                if (settings.healthDetailText("OPENROUTER_API_KEY, a keyring entry, or 9Router data") !== settings.t("health.detail.openrouter_api_key_a_keyring_entry_or_9router_data", "?")
+                    || settings.healthDetailText("DEEPSEEK_API_KEY") !== "DEEPSEEK_API_KEY"
+                    || settings.healthDetailText("") !== "") {
+                    console.error("SMOKE FAIL: readiness detail localization"); return;
+                }
                 settings.selectedIds = ["claude-work"];
                 settings.pinnedIds = ["claude-work"];
                 settings.pillIds = ["claude-work"];

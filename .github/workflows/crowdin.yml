@@ -1,0 +1,112 @@
+name: Crowdin sync
+
+# Keeps the Crowdin project (.github/crowdin.yml) in step with the repository.
+# Translations are reviewed in pull requests, so the repository is the source
+# of truth for what ships; Crowdin is where translators propose changes.
+#
+# - A push to main that touches a bundle first checks that Crowdin still
+#   matches the previous commit. When it does, sources and translations are
+#   uploaded, with the repository's translations approved. When it does not,
+#   a translator changed something in Crowdin that never reached the
+#   repository: nothing is overwritten and the job fails with the list.
+# - Every week the same comparison runs against main, so an edit made in
+#   Crowdin shows up as a failed run until `crowdin download` brings it in.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "i18n/**"
+      - "translations/**"
+      - ".github/crowdin.yml"
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  CROWDIN_CLI_VERSION: "5.3.0"
+  CROWDIN_CLI_SHA256: "d3f8e74471b98d47c0964e85c992a04eb411d06138c4239118a4c94d29e3e9e4"
+
+jobs:
+  sync:
+    name: Sync translations with Crowdin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install Crowdin CLI (verified checksum)
+        run: |
+          curl -fsSL --retry 3 --max-time 180 \
+            "https://github.com/crowdin/crowdin-cli/releases/download/${CROWDIN_CLI_VERSION}/crowdin-linux-x64" \
+            -o /tmp/crowdin
+          echo "${CROWDIN_CLI_SHA256}  /tmp/crowdin" | sha256sum --check --strict
+          chmod +x /tmp/crowdin
+          /tmp/crowdin --version | grep -Fx "$CROWDIN_CLI_VERSION"
+
+      - name: Write the Crowdin identity
+        env:
+          CROWDIN_API_TOKEN: ${{ secrets.CROWDIN_API_TOKEN }}
+        run: |
+          if [ -z "${CROWDIN_API_TOKEN:-}" ]; then
+            echo "::error::CROWDIN_API_TOKEN is not set; the sync cannot reach Crowdin."
+            exit 1
+          fi
+          umask 077
+          python3 -c 'import json, os; print(json.dumps({"api_token": os.environ["CROWDIN_API_TOKEN"]}))' \
+            > /tmp/crowdin-identity.yml
+
+      # The reference is what Crowdin should already hold: the commit before
+      # this push, or main itself for the weekly check.
+      - name: Compare Crowdin with the repository
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          reference=HEAD
+          if [ "$EVENT_NAME" = push ] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            reference="$BEFORE_SHA"
+          fi
+          mkdir -p /tmp/reference /tmp/export
+          git archive "$reference" i18n translations .github/crowdin.yml | tar -x -C /tmp/reference
+          cp -r /tmp/reference/. /tmp/export/
+          rm -f /tmp/export/i18n/[a-z][a-z]_[A-Z][A-Z].json /tmp/export/translations/[a-z][a-z].json
+          cp i18n/en.json /tmp/export/i18n/en.json
+          cp translations/en.json /tmp/export/translations/en.json
+          (cd /tmp/export && /tmp/crowdin download --config .github/crowdin.yml \
+            --identity /tmp/crowdin-identity.yml --no-progress --no-colors)
+          set +e
+          scripts/crowdin-drift /tmp/export /tmp/reference > /tmp/drift.txt
+          status=$?
+          set -e
+          {
+            echo "## Crowdin compared with \`$reference\`"
+            echo '```'
+            cat /tmp/drift.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::warning::$line"; done < /tmp/drift.txt
+            echo "::error::Crowdin holds translations the repository does not. Run 'crowdin download --config .github/crowdin.yml', review the diff in a pull request, then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Upload sources and translations
+        if: github.event_name != 'schedule'
+        run: |
+          /tmp/crowdin upload sources --config .github/crowdin.yml \
+            --identity /tmp/crowdin-identity.yml --no-progress --no-colors
+          /tmp/crowdin upload translations --auto-approve-imported --import-eq-suggestions \
+            --config .github/crowdin.yml --identity /tmp/crowdin-identity.yml --no-progress --no-colors
