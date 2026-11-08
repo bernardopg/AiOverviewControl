@@ -20,6 +20,10 @@
 - Antigravity keeps each account's email on systems whose `base64` rejects stray padding, such as Ubuntu 26.04 with uutils coreutils; an id_token payload that needed no padding lost its email and showed "Antigravity account".
 - Antigravity account windows show the reset countdown next to a bare percentage, and keep the server's own description in used mode.
 
+### Documentation
+
+- The README contributor grid, in English and Portuguese, credits [@alvorithm](https://github.com/alvorithm) and [@DotRedstone](https://github.com/DotRedstone).
+
 ### Thanks
 
 - Thanks to [@alvorithm](https://github.com/alvorithm) for tracking down the OpenCode Go envelope change and fixing it ([#103](https://github.com/bernardopg/AiOverviewControl/pull/103)), and for reading provider keys from the desktop keyring ([#102](https://github.com/bernardopg/AiOverviewControl/pull/102)).
