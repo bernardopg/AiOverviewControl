@@ -42,6 +42,7 @@ case "$url" in
   *zen/go/v1/usage*)
     case "${OC_USAGE_MODE:-ok}" in
       ok)           [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-usage.json" "$out"; status=200 ;;
+      live)         [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-usage-live.json" "$out"; status=200 ;;
       unauthorized) [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-error-401.json" "$out"; status=401 ;;
       forbidden)    [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-error-403.json" "$out"; status=403 ;;
       down)         [ -n "$out" ] && printf '' > "$out"; status=500 ;;
@@ -76,6 +77,15 @@ out="$(OC_USAGE_MODE=ok run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user_test)"
 [ "$(jq -r '.[0].credits.remaining'                 <<<"$out")" = "OpenCode Go" ]            || fail "credits remaining"
 [ "$(jq -r '.[0].usage.identity.accountEmail'       <<<"$out")" = "OpenCode Go account" ]    || fail "identity"
 [ "$(grep -c '^Authorization: Bearer user_test$' "$HDR_LOG")" -ge 1 ]                          || fail "auth header forwarded"
+
+# 1b. The endpoint's nested envelope (usage.rolling/percent/resetsAt) parses to
+#     the same windows, so a server that moved on is not read as unavailable.
+out="$(OC_USAGE_MODE=live run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user_test)"
+[ "$(jq -r '.[0].source'                          <<<"$out")" = "opencode-usage" ]            || fail "live source"
+[ "$(jq -r '.[0].usage.primary.usedPercent'       <<<"$out")" = "0" ]                        || fail "live 5h percent"
+[ "$(jq -r '.[0].usage.primary.resetsAt'          <<<"$out")" = "2026-11-08T15:24:56.000Z" ] || fail "live 5h reset"
+[ "$(jq -r '.[0].usage.secondary.usedPercent'     <<<"$out")" = "19" ]                       || fail "live weekly percent"
+[ "$(jq -r '.[0].usage.tertiary.usedPercent'      <<<"$out")" = "75" ]                       || fail "live monthly percent"
 
 # 2. A local auth.json credential is a safe fallback for graphical sessions.
 CLI_HOME="$TMP/cli-home"
