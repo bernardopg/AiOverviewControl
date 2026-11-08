@@ -66,22 +66,36 @@ fetch_opencode_native() {
   fi
 
   if [ "$http_status" = "200" ] && jq -e '
+    # The endpoint moved from a flat rollingUsage/resetInSec envelope to a
+    # nested usage.rolling/percent/resetsAt one; both are accepted so an older
+    # deployment keeps working.
+    def windows:
+      if (.usage | type) == "object" then .usage
+      else {rolling: .rollingUsage, weekly: .weeklyUsage, monthly: .monthlyUsage} end;
     def valid_window:
       type == "object"
-      and (.usagePercent | type == "number" and . >= 0 and . <= 100)
-      and (.resetInSec | type == "number" and . >= 0);
-    (.rollingUsage | valid_window)
-    and (.weeklyUsage | valid_window)
-    and (.monthlyUsage | valid_window)
+      and ((.percent // .usagePercent) | type == "number" and . >= 0 and . <= 100);
+    windows as $w
+    | ($w.rolling | valid_window) and ($w.weekly | valid_window) and ($w.monthly | valid_window)
   ' "$tmp_body" >/dev/null 2>&1; then
     jq -c '
+      def windows:
+        if (.usage | type) == "object" then .usage
+        else {rolling: .rollingUsage, weekly: .weeklyUsage, monthly: .monthlyUsage} end;
+      # A nested window carries an absolute resetsAt; the flat one carried a
+      # relative resetInSec.
+      def reset_at($w):
+        if ($w.resetsAt | type) == "string" and ($w.resetsAt | length) > 0 then $w.resetsAt
+        elif ($w.resetInSec | type) == "number" then ((now + $w.resetInSec) | todate)
+        else null end;
       def make_window($w; $minutes; $label): {
-        usedPercent: $w.usagePercent,
+        usedPercent: ($w.percent // $w.usagePercent),
         windowMinutes: $minutes,
-        resetsAt: ((now + $w.resetInSec) | todate),
+        resetsAt: reset_at($w),
         resetDescription: $label
       };
       . as $body |
+      windows as $w |
       {
         provider: "opencode",
         source: "opencode-usage",
@@ -89,9 +103,9 @@ fetch_opencode_native() {
           identity: {providerID: "opencode", accountEmail: "OpenCode Go account", loginMethod: "api-key"},
           accountEmail: "OpenCode Go account",
           loginMethod: "api-key",
-          primary:   make_window($body.rollingUsage; 300;   "5h"),
-          secondary: make_window($body.weeklyUsage;  10080; "weekly"),
-          tertiary:  make_window($body.monthlyUsage; 43200; "monthly"),
+          primary:   make_window($w.rolling; 300;   "5h"),
+          secondary: make_window($w.weekly;  10080; "weekly"),
+          tertiary:  make_window($w.monthly; 43200; "monthly"),
           updatedAt: (now | todate)
         },
         credits: {

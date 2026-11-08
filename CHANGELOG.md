@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- The OpenCode Go adapter accepts the endpoint's nested `usage.rolling` / `percent` / `resetsAt` envelope, so the 5-hour, weekly and monthly windows survive the API's change instead of degrading to the authenticated-only card. The older flat `rollingUsage` / `resetInSec` shape is still parsed, so an older deployment is unchanged.
+
 ## 2.2.4 - 2026-11-04
 
 A bug-fix release for Dux Shell 2.0 and 2.1, the shell formerly called DankMaterialShell. The Claude card stops polling Anthropic's usage endpoint while it is rate-limited, sharing one backoff across every bar, and the bar fades numbers that are no longer fresh. The docs and settings strings use the Dux Shell names, and the documented checkout install works again. Settings, profiles, pins and history carry over unchanged; no restart is needed.
