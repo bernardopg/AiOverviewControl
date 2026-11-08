@@ -131,6 +131,9 @@ ShellRoot {
             tertiary: null
         };
         const weeklyOnly = {primary: null, secondary: {usedPercent: 12}, tertiary: null};
+        const blocked = {primary: {usedPercent: 0, windowMinutes: 300}, secondary: {usedPercent: 100, windowMinutes: 10080}, tertiary: null};
+        const blockedTertiary = {primary: {usedPercent: 10}, secondary: {usedPercent: 90}, tertiary: {usedPercent: 100}};
+        const bothExhausted = {primary: {usedPercent: 100}, secondary: {usedPercent: 100}, tertiary: null};
         const pcts = windows => windows.map(w => w.usedPercent).join(",");
         const alias = id => ({"z.ai": "zai"})[id.toLowerCase()] || id.toLowerCase();
         const map = BarWindows.parseOverrides(
@@ -149,7 +152,20 @@ ShellRoot {
             pcts(BarWindows.windowsFor(weeklyOnly, "primary+tertiary")) === "12",
             BarWindows.windowsFor(null, "all").length === 0 && BarWindows.windowsFor({}, "all").length === 0,
             BarWindows.isMultiSlot("all") && BarWindows.isMultiSlot("primary+secondary") && !BarWindows.isMultiSlot("highest"),
-            BarWindows.maxPercent(BarWindows.windowsFor(usage, "all")) === 80 && BarWindows.maxPercent([]) === 0
+            BarWindows.maxPercent(BarWindows.windowsFor(usage, "all")) === 80 && BarWindows.maxPercent([]) === 0,
+            // No override: an exhausted later window headlines while the
+            // primary still has room; an explicit "primary" keeps the primary.
+            pcts(BarWindows.windowsFor(blocked, "")) === "100",
+            pcts(BarWindows.windowsFor(blocked, undefined)) === "100",
+            pcts(BarWindows.windowsFor(blocked, "primary")) === "0",
+            BarWindows.headlineWindow(blocked) === blocked.secondary,
+            BarWindows.headlineWindow(blockedTertiary) === blockedTertiary.tertiary,
+            BarWindows.headlineWindow(bothExhausted) === bothExhausted.primary,
+            BarWindows.headlineWindow(usage) === usage.primary,
+            BarWindows.headlineWindow(weeklyOnly) === weeklyOnly.secondary,
+            BarWindows.headlineWindow(null) === null && BarWindows.headlineWindow({}) === null,
+            BarWindows.isExhausted({usedPercent: 100}) && BarWindows.isExhausted({usedPercent: "120"})
+                && !BarWindows.isExhausted({usedPercent: 99.9}) && !BarWindows.isExhausted(null)
         ];
         const bad = checks.indexOf(false);
         if (bad >= 0) console.error("SMOKE FAIL: bar windows check " + bad);

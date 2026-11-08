@@ -235,8 +235,8 @@ that was killed outright.
 ## A quota window never alerts
 
 By default only the window the bar shows for that provider raises alerts
-(`notifyWindowScope` = `displayed`, which equals the primary window until a
-`barWindowOverrides` slot is set). To be alerted on Claude's 5 hour *and*
+(`notifyWindowScope` = `displayed`, which until a `barWindowOverrides` slot is
+set is the primary window, or a later window once that one is used up). To be alerted on Claude's 5 hour *and*
 7 day windows, or Codex's weekly alongside its session window, either show both
 in the bar (**Bar usage window** → **Primary + secondary**) or set
 **Windows that raise alerts** to `all` in Settings.

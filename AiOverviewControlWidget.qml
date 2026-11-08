@@ -1250,16 +1250,32 @@ PluginComponent {
         return usage.primary || usage.secondary || usage.tertiary || null;
     }
 
+    // The configured barWindowOverrides slot for a provider, or "" when none
+    // is set, which BarWindows reads as the headline window.
     function barWindowChoiceFor(providerId) {
         const slot = barWindowOverrideMap[notificationProviderId(providerId)];
-        return slot !== undefined ? slot : "primary";
+        return slot !== undefined ? slot : "";
+    }
+
+    // The window a card headlines: the primary window, or an exhausted later
+    // window while the primary still has room (BarWindows.headlineWindow).
+    // Display only: sorting, history, the hero and the fleet rollup keep
+    // primaryUsageWindow() so their series never change meaning.
+    function headlineUsageWindow(provider) {
+        return BarWindows.headlineWindow(provider && provider.usage ? provider.usage : null);
+    }
+
+    function headlinePercent(provider) {
+        const windowData = headlineUsageWindow(provider);
+        return windowData ? Number(windowData.usedPercent || 0) : 0;
     }
 
     // The windows the DankBar shows for this provider, in slot order: the
     // configured barWindowOverrides slot, a set of windows ("primary+secondary",
-    // "all"), or "highest" = the most-constrained window. A chosen window that
-    // is absent from the payload falls back to the primary window — an
-    // override must never blank or zero the bar.
+    // "all"), or "highest" = the most-constrained window. Without an override
+    // it is the headline window. A chosen window that is absent from the
+    // payload falls back to the primary window — an override must never blank
+    // or zero the bar.
     function pillWindowsFor(provider) {
         const usage = provider && provider.usage ? provider.usage : null;
         return BarWindows.windowsFor(usage, barWindowChoiceFor(provider ? provider.provider : ""));
