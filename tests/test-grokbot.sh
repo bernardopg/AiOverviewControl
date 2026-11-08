@@ -180,6 +180,22 @@ health="$(GROKBOT_CONFIG_DIR="$ALT_DIR" bash "$ROOT/providers/get-provider-healt
 health="$(GROKBOT_CONFIG_DIR="$TMP/missing-grokbot" bash "$ROOT/providers/get-provider-health" grok-bot)"
 [ "$(jq -r '.[0].status' <<<"$health")" = "missing" ] || fail "health missing"
 
+# 7b. Default discovery: readiness finds the XDG sign-in on its own, and with
+#     no sign-in anywhere both the adapter and readiness report it.
+health="$(env -u GROKBOT_CONFIG_DIR bash "$ROOT/providers/get-provider-health" grokbot)"
+[ "$(jq -r '.[0].status' <<<"$health")" = "ready" ] || fail "health default XDG discovery"
+EMPTY_HOME="$TMP/empty-home"
+mkdir -p "$EMPTY_HOME"
+out="$(env -u GROKBOT_CONFIG_DIR HOME="$EMPTY_HOME" XDG_CONFIG_HOME="$EMPTY_HOME/.config" GROKBOT_MODE=ok \
+  PATH="$TMP/bin:$PATH" ARGV_LOG="$ARGV_LOG" CFG_LOG="$CFG_LOG" GROKBOT_FIXTURES="$TMP/fixtures" \
+  bash "$ROOT/providers/get-provider-usage" grokbot)"
+jq -e '.[0].error.code == 2 and (.[0].error.message | test("No Grok Bot sign-in"))' <<<"$out" >/dev/null \
+  || fail "no sign-in anywhere must be reported"
+health="$(env -u GROKBOT_CONFIG_DIR HOME="$EMPTY_HOME" XDG_CONFIG_HOME="$EMPTY_HOME/.config" \
+  bash "$ROOT/providers/get-provider-health" grokbot)"
+jq -e '.[0].status == "missing" and .[0].detail == "Grok Bot desktop app sign-in"' <<<"$health" >/dev/null \
+  || fail "health without any sign-in"
+
 # 8. A session whose key lives in the desktop keyring (safeStorage v11) is
 #    never sent anywhere: the app's own persisted reading is served when there
 #    is one, otherwise the error names the --password-store=basic route, and
