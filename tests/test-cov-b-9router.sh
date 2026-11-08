@@ -38,6 +38,10 @@ if command -v sqlite3 >/dev/null 2>&1; then
     INSERT INTO usageDaily VALUES('$TODAY', '{\"requests\":7,\"cost\":3,\"promptTokens\":10,\"cachedTokens\":0,\"completionTokens\":5}');"
   out="$(fetch_9router_native)"
   jq -e '.usage.primary.displayValue=="$3.00 · 7 req" and .usage.secondary.displayValue=="$3.00 · 7 req"' <<<"$out" >/dev/null || fail "SQLite ledger: $out"
+  # The analytics entrypoint reads the same ledger before usage.json.
+  out="$(bash "$ROOT/providers/get-9router-analytics")"
+  jq -e --arg today "$TODAY" '.today.requests==7 and .today.cost==3 and (.days[]|select(.date==$today)|.completionTokens)==5' <<<"$out" >/dev/null \
+    || fail "SQLite analytics: $out"
   rm -rf "$HOME/.9router/db"
 fi
 

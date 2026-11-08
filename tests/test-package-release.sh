@@ -55,4 +55,39 @@ git -C "$repo" -c core.fileMode=true -c user.name=Fixture -c user.email=fixture@
   commit -qam 'drop the executable bit'
 refuse "$repo" 'Release archive contains a non-executable provider script: providers/get-ai21-usage'
 
+# An archive entry outside the release directory would unpack next to the
+# plugin rather than inside it. git archive never writes one, so a git shim
+# adds the same stray entry to both archives and the check must catch it.
+repo="$(fixture stray-entry)"
+mkdir -p "$TMP/shim"
+REAL_GIT="$(command -v git)"
+cat > "$TMP/shim/git" <<SH
+#!/usr/bin/env bash
+case " \$* " in
+  *" archive "*"--format=zip"*)
+    "$REAL_GIT" "\$@" || exit
+    out=""; prev=""; for a in "\$@"; do [ "\$prev" != -o ] || out="\$a"; prev="\$a"; done
+    python3 - "\$out" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], "a") as archive:
+    archive.writestr("stray.txt", "outside\n")
+PY
+    ;;
+  *" archive "*"--format=tar"*)
+    work="\$(mktemp -d)"
+    "$REAL_GIT" "\$@" > "\$work/a.tar" || exit
+    printf 'outside\n' > "\$work/stray.txt"
+    tar -rf "\$work/a.tar" -C "\$work" stray.txt
+    cat "\$work/a.tar"; rm -rf "\$work"
+    ;;
+  *) exec "$REAL_GIT" "\$@" ;;
+esac
+SH
+chmod +x "$TMP/shim/git"
+if PATH="$TMP/shim:$PATH" "$repo/scripts/package-release" "v$VERSION" "$TMP/dist" >"$TMP/out" 2>&1; then
+  fail "packaged an archive with an entry outside the release directory"
+fi
+grep -qF "Release archive contains an entry outside AiOverviewControl-v$VERSION/" "$TMP/out" \
+  || fail "stray entry message: $(tail -n 3 "$TMP/out")"
+
 echo 'OK: package-release refuses incomplete archives'

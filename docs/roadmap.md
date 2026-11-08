@@ -42,7 +42,7 @@ of its own in between.
 
 ### Quality and security
 
-- Keep total shell statement coverage at 95% or more, enforced by CI, and
+- Keep total shell statement coverage at 100%, with CI failing below 97%, and
   cover each new adapter's error paths with fixture tests.
 - Return to the packaged kcov once a release after 43 ships; CI builds a
   pinned, checksum-verified commit until then.

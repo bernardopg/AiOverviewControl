@@ -93,11 +93,6 @@ fetch_xai_native() {
       "Grok CLI billing API unavailable (${XAI_CLI_BILLING_FAILURE:-unknown error}). Retry later."
     return 0
   fi
-  if xai_grok_has_auth_file; then
-    json_error xai grok-cli-billing 2 provider \
-      "Grok login expired. Run grok login, or set XAI_API_KEY."
-    return 0
-  fi
   json_error xai xai-api 2 provider \
     "No xAI credentials found. Sign in with grok login, or set XAI_API_KEY. Remaining API credits need XAI_MANAGEMENT_KEY and XAI_TEAM_ID from console.x.ai."
 }

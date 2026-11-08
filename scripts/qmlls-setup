@@ -7,11 +7,14 @@
 set -euo pipefail
 
 # DMS 2.x extracts its shell to dms-shell/<hash>, 1.x to danklinux-shell/<hash>,
-# and an upgrade leaves the old tree behind. Take the newest one that is a real
-# shell tree, never a stale extraction.
-src=${1:-$(find /run/user/"$(id -u)"/dms-shell /run/user/"$(id -u)"/danklinux-shell \
-  -mindepth 2 -maxdepth 3 -path '*/Services/PluginService.qml' -printf '%T@ %h\n' 2>/dev/null \
-  | sort -rn | awk 'NR == 1 { sub(/\/Services$/, "", $2); print $2 }')}
+# under the session's runtime directory, and an upgrade leaves the old tree
+# behind. Take the newest one that is a real shell tree, never a stale
+# extraction.
+src=${1:-}
+if [[ -z $src ]]; then
+  runtime=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+  src=$(find "$runtime/dms-shell" "$runtime/danklinux-shell" -mindepth 2 -maxdepth 3 -path '*/Services/PluginService.qml' -printf '%T@ %h\n' 2>/dev/null | sort -rn | awk 'NR == 1 { sub(/\/Services$/, "", $2); print $2 }' || true)
+fi
 [[ -n $src && -d $src ]] || { echo "DMS shell dir not found; pass it as \$1" >&2; exit 1; }
 
 out=${XDG_CACHE_HOME:-$HOME/.cache}/dms-qmlls

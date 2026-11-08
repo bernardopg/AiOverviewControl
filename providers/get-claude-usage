@@ -67,7 +67,8 @@ done
 atomic_write() {
     local tmp
     tmp="$(mktemp "$1.XXXXXX")" || return 1
-    if cat > "$tmp" && mv -f "$tmp" "$1"; then
+    # -T: replace the file itself, never move into a directory of that name.
+    if cat > "$tmp" && mv -fT "$tmp" "$1" 2>/dev/null; then
         return 0
     fi
     rm -f "$tmp"
@@ -352,13 +353,15 @@ elif [ -f "$CREDENTIALS" ]; then
             TOKEN="$renewed"
         }
         fetch_claude_usage() {
-            usage_status=$(curl -sS --max-time 8 -o "$usage_body" -D "$usage_headers" -w '%{http_code}' \
-                --config <(curl_header_config "Authorization: Bearer ${TOKEN}") \
-                -H "Accept: application/json" \
-                -H "Content-Type: application/json" \
-                -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)" \
-                -H "anthropic-beta: oauth-2025-04-20" \
-                "https://api.anthropic.com/api/oauth/usage?cedar_ember=1" 2>/dev/null || true)
+            # Arguments in an array keep the call itself on one line, so
+            # coverage attributes it; the token stays in the --config pipe.
+            local -a request=(-sS --max-time 8 -o "$usage_body" -D "$usage_headers" -w '%{http_code}'
+                -H "Accept: application/json"
+                -H "Content-Type: application/json"
+                -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)"
+                -H "anthropic-beta: oauth-2025-04-20"
+                "https://api.anthropic.com/api/oauth/usage?cedar_ember=1")
+            usage_status=$(curl "${request[@]}" --config <(curl_header_config "Authorization: Bearer ${TOKEN}") 2>/dev/null || true)
         }
         # expiresAt is in milliseconds; renew a minute early.
         if [ -n "$TOKEN" ] && jq -e '(.claudeAiOauth.expiresAt | type) == "number"
@@ -461,12 +464,12 @@ elif [ -f "$CREDENTIALS" ]; then
         && ORG_UUID="$(claude_org_uuid "$CLAUDE_DIR")"; then
         TOKEN=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS")
         prepaid_body=$(mktemp)
-        prepaid_status=$(curl -sS --max-time 8 -o "$prepaid_body" -w '%{http_code}' \
-            --config <(curl_header_config "Authorization: Bearer ${TOKEN}") \
-            -H "Accept: application/json" \
-            -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)" \
-            -H "anthropic-beta: oauth-2025-04-20" \
-            "https://api.anthropic.com/api/oauth/organizations/${ORG_UUID}/prepaid/credits" 2>/dev/null || true)
+        declare -a prepaid_request=(-sS --max-time 8 -o "$prepaid_body" -w '%{http_code}'
+            -H "Accept: application/json"
+            -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)"
+            -H "anthropic-beta: oauth-2025-04-20"
+            "https://api.anthropic.com/api/oauth/organizations/${ORG_UUID}/prepaid/credits")
+        prepaid_status=$(curl "${prepaid_request[@]}" --config <(curl_header_config "Authorization: Bearer ${TOKEN}") 2>/dev/null || true)
         if [ "$prepaid_status" = "200" ] && jq -e 'type == "object"' "$prepaid_body" >/dev/null 2>&1; then
             jq -c '{cached_at: (now | floor), data: .}' "$prepaid_body" > "$PREPAID_CACHE" 2>/dev/null || true
         fi
@@ -513,11 +516,15 @@ if [ -d "$PROJECTS_DIR" ]; then
     # Stale = in the window but without any kept row (every parsed file leaves
     # at least a "#" sentinel row, so empty transcripts are not re-parsed).
     # Unreadable files are skipped, not cached, so they are retried later.
+    readable_transcripts() {
+        local path stamp
+        while IFS=$'\t' read -r path stamp; do
+            if [ -r "${PROJECTS_DIR}/${path}" ]; then printf '%s\t%s\n' "$path" "$stamp"; fi
+        done
+    }
     TX_STALE=$(awk -F'\t' 'NR == FNR { if (FNR > 1) kept[$1 FS $2] = 1; next }
             $1 != "" && !(($1 FS $2) in kept) { print $1 FS $2 }' "$TX_NEW" <(printf '%s\n' "$TX_CURRENT") \
-        | while IFS=$'\t' read -r path stamp; do
-            [ -r "${PROJECTS_DIR}/${path}" ] && printf '%s\t%s\n' "$path" "$stamp"
-        done || true)
+        | readable_transcripts || true)
 
     # Paths get a "./" prefix: Claude project dirs start with "-", which
     # jq would otherwise parse as options.
