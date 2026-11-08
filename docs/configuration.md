@@ -182,6 +182,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | Fireworks | `FIREWORKS_API_KEY`; optional `FIREWORKS_ACCOUNT_ID` enables quota data |
 | AI21 | `AI21_API_KEY` |
 | xAI | `grok login` (`~/.grok/auth.json` or `$GROK_HOME`) for SuperGrok usage. Keep the Grok CLI installed so the adapter can renew its short-lived OIDC access token. Optional `XAI_API_KEY` (inference auth-only). Prepaid API credits: `XAI_MANAGEMENT_KEY` or `XAI_MANAGEMENT_API_KEY`, plus `XAI_TEAM_ID`. Optional `GROK_CLI_CHAT_PROXY_BASE_URL` overrides the CLI billing host, and `XAI_REFRESH_COOLDOWN` (seconds, default `300`) how soon a failed token renewal may be retried. |
+| Grok Bot | No environment variable is normally required: sign in to the Grok Bot desktop app, and the adapter reads its session from `${XDG_CONFIG_HOME:-~/.config}/Grok Bot/sand-secrets.json`. Optional `GROKBOT_CONFIG_DIR` points at another app data directory (an empty value disables discovery); `GROKBOT_API_URL` retargets the `GetSandUsageStatus` request for diagnostics and receives the session token, so point it only at a host you trust. A session whose key lives in the desktop keyring (Electron safeStorage `v11`) cannot be read: start Grok Bot with `--password-store=basic` and sign in again, or the card shows the app's last saved reading. |
 | Kilo | `KILO_API_KEY` |
 
 ## Health indicators

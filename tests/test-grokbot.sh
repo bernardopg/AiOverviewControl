@@ -180,4 +180,34 @@ health="$(GROKBOT_CONFIG_DIR="$ALT_DIR" bash "$ROOT/providers/get-provider-healt
 health="$(GROKBOT_CONFIG_DIR="$TMP/missing-grokbot" bash "$ROOT/providers/get-provider-health" grok-bot)"
 [ "$(jq -r '.[0].status' <<<"$health")" = "missing" ] || fail "health missing"
 
-echo "OK: Grok Bot weekly quota, SafeStorage decryption, offline persistence fallback and health"
+# 8. A session whose key lives in the desktop keyring (safeStorage v11) is
+#    never sent anywhere: the app's own persisted reading is served when there
+#    is one, otherwise the error names the --password-store=basic route, and
+#    readiness says the same instead of claiming "ready".
+KEYRING_DIR="$TMP/keyring-grokbot"
+write_secrets "$KEYRING_DIR" "$(printf 'v11%s' 'opaque-keyring-ciphertext' | base64 | tr -d '\n')" ""
+: >"$ARGV_LOG"
+out="$(GROKBOT_CONFIG_DIR="$KEYRING_DIR" GROKBOT_MODE=ok run grokbot)"
+[ "$(jq -r '.[0].error.code' <<<"$out")" = "2" ] || fail "v11 session without snapshot must be a provider error"
+jq -e '.[0].error.message | test("password-store=basic")' <<<"$out" >/dev/null || fail "v11 error must name the basic store route"
+[ ! -s "$ARGV_LOG" ] || fail "a v11 session must not trigger a request"
+mkdir -p "$KEYRING_DIR/sand-client-persistence"
+printf '%s\n' '{"value":{"reading":{"readAtMs":1794000000000,"usage":{"percentUsed":31.5,"nextResetMs":4102444800000,"grokPlanLabel":"Grok Bot Plan"}}}}' \
+  > "$KEYRING_DIR/sand-client-persistence/cache.blob"
+out="$(GROKBOT_CONFIG_DIR="$KEYRING_DIR" GROKBOT_MODE=ok run grokbot)"
+[ "$(jq -r '.[0].source' <<<"$out")" = "grokbot-offline-cache" ] || fail "v11 session must serve the app's snapshot"
+[ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "31.5" ] || fail "v11 snapshot percent"
+[ ! -s "$ARGV_LOG" ] || fail "a v11 session with a snapshot must not trigger a request"
+health="$(GROKBOT_CONFIG_DIR="$KEYRING_DIR" bash "$ROOT/providers/get-provider-health" grokbot)"
+jq -e '.[0].status == "missing" and (.[0].detail | test("password-store=basic"))' <<<"$health" >/dev/null \
+  || fail "health must flag a keyring-backed session: $health"
+
+# 9. A token that is not a safeStorage blob at all is neither decrypted nor
+#    reported ready.
+write_secrets "$BAD_DIR" "$(printf 'plain-token' | base64 | tr -d '\n')" ""
+health="$(GROKBOT_CONFIG_DIR="$BAD_DIR" bash "$ROOT/providers/get-provider-health" grokbot)"
+[ "$(jq -r '.[0].status' <<<"$health")" = "missing" ] || fail "health must not accept an unknown token format"
+out="$(GROKBOT_CONFIG_DIR="$BAD_DIR" GROKBOT_MODE=ok run grokbot)"
+[ "$(jq -r '.[0].error.code' <<<"$out")" = "2" ] || fail "unknown token format must not be used"
+
+echo "OK: Grok Bot weekly quota, SafeStorage decryption, keyring-backed sessions, offline persistence fallback and health"

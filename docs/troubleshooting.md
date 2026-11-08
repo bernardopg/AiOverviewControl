@@ -105,6 +105,12 @@ For OpenRouter, Z.ai, GLM and OpenCode Go the key can stay in the desktop keyrin
 
 For Command Code specifically, `cmd login` is usually preferable: the plugin reads the CLI's protected `~/.commandcode/auth.json` credential when `COMMAND_CODE_API_KEY` is absent from Dux Shell. The helper reports credential source names only, never secret values.
 
+## Grok Bot says its session key is in the desktop keyring
+
+Grok Bot is an Electron app, and on a desktop with a Secret Service (GNOME Keyring, KWallet) Electron encrypts the session with a key kept in that keyring (safeStorage `v11`). The adapter reads only the basic text store (`v10`), so the card shows the app's last saved reading, or this message when there is none, and readiness reports it instead of **Ready**. Start Grok Bot once with Chromium's `--password-store=basic` flag (add it to the command the launcher runs, such as the `Exec` line of the app's `.desktop` file) and sign in again; the app then keeps its session in the basic store.
+
+Without a Grok Bot install the card reports **No Grok Bot sign-in**; `GROKBOT_CONFIG_DIR` points the adapter at a non-default app data directory.
+
 ## xAI / Grok shows "XAI_API_KEY is not set"
 
 You do not need an inference API key to see SuperGrok / Grok Build usage. Sign in with `grok login` so `~/.grok/auth.json` exists; the card reads that file (or `$GROK_HOME/auth.json`) the same way the CLI does. Graphical Dux Shell sessions do not inherit shell exports, so `export XAI_API_KEY=…` in a terminal will not reach the widget until you import it into the user systemd environment — `grok login` avoids that.

@@ -834,6 +834,19 @@ cards. A single subscription key preserves the legacy `kimi` behavior.
 | **Changelog** | 2026-06 Priority Processing + Files public URLs. 2026-05 **`grok-build-0.1`** coding model + Grok Build CLI + Context Compaction API + WebSocket Responses. 2026-04 `cost_in_usd_ticks` on every response. 2026-03 Grok 4.20 + Multi-agent. 2025-12 Voice Agent API GA. 2025-11 Grok 4.1 Fast + Files API GA + Remote MCP. 2025-10 agentic server-side tools GA. 2025-09 Responses API GA. 2025-07 Grok 4. **Anthropic-compat `/v1/messages` & `/v1/complete` deprecated**; `max_tokens` → `max_completion_tokens`. |
 | **Adapter** | `fetch_xai_native` — prefers Grok CLI billing, renews refreshable OIDC sessions through `grok models` (at most once per `XAI_REFRESH_COOLDOWN`), then falls back to Management API prepaid balance and `GET /v1/api-key` auth-only. It retries billing once only for `401` or `403`. |
 
+### Grok Bot (xAI agent app)
+
+| | |
+| --- | --- |
+| **API base** | `https://api2.cursor.sh/aiserver.v1.DashboardService/GetSandUsageStatus` (Connect-RPC, `POST {}`), the usage endpoint the desktop app itself calls. Override with `GROKBOT_API_URL` for diagnostics only. |
+| **Credentials** | The signed-in Grok Bot desktop app: the active account in `sand-secrets.json` under `${XDG_CONFIG_HOME:-~/.config}/Grok Bot` (Linux) or `~/Library/Application Support/Grok Bot` (macOS), or `GROKBOT_CONFIG_DIR`. Electron safeStorage encrypts the token: the basic text store (`v10`) uses Chromium's fixed key and is decrypted in memory; a keyring-backed session (`v11`) is not read, and the card says to start Grok Bot with `--password-store=basic` and sign in again. The account email comes from the encrypted profile or the app's Sentry scope file. |
+| **Auth** | `Authorization: Bearer <session token>` through a `curl --config` pipe, never argv. HTTP 401/403 is reported as an expired session, never masked by a cached reading. |
+| **Quota** | ✅ One weekly pool: `usagePercent` (0–100), `currentPeriodStart` / `nextResetTimestampUtc` (window length derived from them, 7 days by default), plan label from `grokPlanLabel` and `cursorPlanName`. Per the Cursor and xAI docs, Grok Bot usage lives on the Cursor account, and on The X Subscription the weekly pool is shared with Grok and Cursor; the endpoint reports the pool that applies to the account. |
+| **Offline** | On a transport error, 429 or 5xx, and for a keyring-backed session, the adapter serves the app's own persisted reading (`sand-client-persistence/*.blob`) labelled `grokbot-offline-cache`, keeping the time the app fetched it so the bar fades it as stale; a reading whose reset has passed reads 0% with no reset. |
+| **Dashboard** | [cursor.com/v2/billing](https://cursor.com/v2/billing?host=desktop&entrypoint=grok_bot_billing). Docs: [cursor.com/docs/grok-bot](https://cursor.com/docs/grok-bot), [docs.x.ai/grok-bot/faq](https://docs.x.ai/grok-bot/faq). |
+| **Stability** | Undocumented, versionless endpoint taken from the desktop app; a changed response shape is reported as `Grok Bot usage response schema changed.` rather than guessed. |
+| **Adapter** | `fetch_grokbot_native` (`providers/native/grokbot.bash`), alias `grok-bot`, standalone `providers/get-grokbot-usage`. |
+
 ### Kilo (kilo.ai)
 
 | | |
