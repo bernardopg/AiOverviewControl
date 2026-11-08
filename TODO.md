@@ -13,8 +13,9 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## 🚀 Next release
 
-- [ ] **Next release** — nothing is queued in `## Unreleased` yet; follow
-  `docs/release-checklist.md` once it is. `S · ★★★`
+- [ ] **Next release** — `## Unreleased` holds the Grok Bot provider, keyring
+  keys, the balance pill and the used-up window headline, so it is a minor
+  release; follow `docs/release-checklist.md`. `S · ★★★`
 
 ## 🔧 Partial — needs a follow-up
 
@@ -27,11 +28,13 @@ stay one release cycle, then move to `CHANGELOG.md`.
   accounts since 2026), but the per-model buckets of a Code Assist Standard or
   Enterprise project are only fixture-tested from the CLI's
   `RetrieveUserQuotaResponse` type. Verify with a licensed account. `S · ★★`
-- [~] **Last uncovered statements** — total statement coverage is 97.8%
-  (gate 95%). The rest are hard-to-reach paths: killing a stuck Codex
-  app-server, a 10 s exchange-rate lock timeout, curl network failures in
-  `get-claude-usage`, and Antigravity and xAI account-error branches. Cover
-  them when a test can fake the condition cheaply. `M · ★`
+- [~] **Measure the whole dispatcher** — `providers/get-provider-usage`
+  counts only 46 statements: kcov's parser loses its quote state at a
+  multi-line jq program that opens on a backslash-continued line (the first is
+  `json_note_usage`), so it treats later code as a string and stops listing
+  it. Coverage is 100% of what kcov lists. Reformat those jq calls (program on
+  the command's first line) or move them into functions, then cover what
+  becomes visible. `M · ★★`
 
 ## Providers — Data & Auth
 
@@ -117,6 +120,11 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
   refresh and Hermes cache tests (#81).
 - [x] **New providers** — Anthropic API, OpenAI API, Ollama Cloud and Vercel
   AI Gateway, plus Gemini CLI quota and the ineligible-account reason (#82).
+- [x] **Coverage to 100%** — the remaining statements covered (Codex
+  app-server that ignores SIGTERM, exchange-rate lock timeout, LiteLLM
+  pricing cache, Antigravity CLI token errors, xAI renewal rejections, a stray
+  release-archive entry), dead code removed, and multi-line commands kcov
+  could not attribute restructured; the gate rises to 97%.
 - [x] **Coverage to 97.8%** — the files below 80% (Hermes analytics and
   summary, limit resets, OpenCode, local analytics) now at 100%; CI measures
   with a kcov build that tracks multi-line SQL, and the gate rises to 95%.

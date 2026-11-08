@@ -258,6 +258,27 @@ out="$(run env -u XAI_API_KEY -u XAI_MANAGEMENT_KEY -u XAI_MANAGEMENT_API_KEY \
 echo "$(jq -r '.[0].error.message' <<<"$out")" | grep -q 'automatic renewal failed' || fail "refresh failure detail: $out"
 echo "$out" | grep -q 'secret_refresh_value' && fail "refresh token leaked"
 
+# 11b. A login the server rejects before its recorded expiry, whose renewal
+#      then fails, says the renewal failed rather than only "rejected".
+: > "$GROK_LOG"
+out="$(run env -u XAI_API_KEY -u XAI_MANAGEMENT_KEY -u XAI_MANAGEMENT_API_KEY \
+  HOME="$REJECT_HOME" GROK_HOME="$REJECT_HOME/.grok" XAI_REFRESH_COOLDOWN=0 GROK_REFRESH_MODE=fail XAI_BILLING_MODE=deny)"
+[ "$(jq -r '.[0].error.message' <<<"$out")" = "Grok login was rejected and automatic renewal failed. Run grok login." ] \
+  || fail "rejected then failed renewal: $out"
+[ "$(wc -l < "$GROK_LOG")" -eq 1 ] || fail "rejected then failed renewal refresh count: $(cat "$GROK_LOG")"
+
+# 11c. A renewal that succeeds but is still rejected stops after one retry and
+#      says so.
+write_auth "$REJECT_HOME/.grok/auth.json" "rejected_token" "2099-01-01T00:00:00Z" "refresh_test"
+: > "$GROK_LOG"
+: > "$BILLING_CALL_LOG"
+out="$(run env -u XAI_API_KEY -u XAI_MANAGEMENT_KEY -u XAI_MANAGEMENT_API_KEY \
+  HOME="$REJECT_HOME" GROK_HOME="$REJECT_HOME/.grok" XAI_REFRESH_COOLDOWN=0 \
+  GROK_REFRESH_MODE=success GROK_REFRESH_AUTH="$REFRESHED_AUTH" XAI_BILLING_MODE=deny)"
+[ "$(jq -r '.[0].error.message' <<<"$out")" = "Grok login was rejected after automatic renewal. Run grok login." ] \
+  || fail "rejected after renewal: $out"
+[ "$(wc -l < "$BILLING_CALL_LOG")" -eq 2 ] || fail "rejected after renewal billing count"
+
 # 12. A refreshable token without an installed CLI is not reported healthy.
 NO_GROK_HOME="$TMP/no-grok-home"
 NO_GROK_BIN="$TMP/no-grok-bin"

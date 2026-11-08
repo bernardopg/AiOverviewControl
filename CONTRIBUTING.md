@@ -105,7 +105,7 @@ Quickshell runtime smoke coverage, and the extracted history-writer contract.
 | Changelog notes for this branch | `scripts/check-changelog --base origin/main` |
 | DCO sign-off | `scripts/check-dco origin/main` |
 | Fixture test suites | `for test in tests/test-*.sh; do bash "$test"; done` |
-| Statement coverage (95% minimum) | `AIOC_COVERAGE_MIN=95 scripts/coverage` |
+| Statement coverage (97% minimum) | `AIOC_COVERAGE_MIN=97 scripts/coverage` |
 | Workflow lint | `actionlint` |
 | Secret scan | `gitleaks git --no-banner --redact .` |
 | Workflow security audit | `GH_TOKEN="$(gh auth token)" zizmor --min-severity=medium .github/workflows` |

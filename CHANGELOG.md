@@ -19,8 +19,11 @@
 - Antigravity reads a pool whose remaining fraction is omitted (protobuf drops a zero) as used up instead of hiding it, accepts the fraction nested under `remaining`, labels the Gemini 4 Argon pool and recognizes Chinese 5-hour and weekly window names.
 - Antigravity keeps each account's email on systems whose `base64` rejects stray padding, such as Ubuntu 26.04 with uutils coreutils; an id_token payload that needed no padding lost its email and showed "Antigravity account".
 - Antigravity account windows show the reset countdown next to a bare percentage, and keep the server's own description in used mode.
+- The Claude adapter never moves its LiteLLM pricing table into a directory that occupies the cache path, and `scripts/qmlls-setup` looks for the running shell under `XDG_RUNTIME_DIR` when it is set.
 
 ### Documentation
+
+- Statement coverage of the shell adapters and scripts is 100%, and CI fails below 97% (was 95%). `docs/development-gates.md` explains how to keep a multi-line command attributable to coverage.
 
 - The README contributor grid, in English and Portuguese, credits [@alvorithm](https://github.com/alvorithm) and [@DotRedstone](https://github.com/DotRedstone).
 

@@ -181,11 +181,14 @@ unset AIOC_VAULT_OPENROUTER
 
 # 5. A keyring that does not answer is bounded: the refresh continues without
 #    a key instead of waiting for a prompt nobody will answer.
-export AIOC_VAULT_TIMEOUT=1 AIOC_TEST_SLEEP=5
+#    The entry is reported unlocked, so the lookup really runs and is cut off.
+export AIOC_VAULT_OPENROUTER="$OPENROUTER_SPEC" AIOC_VAULT_TIMEOUT=1 AIOC_TEST_SLEEP=5
+: >"$VAULT_LOG"
 started=$SECONDS
 out="$(usage openrouter)"
 elapsed=$((SECONDS - started))
-unset AIOC_VAULT_TIMEOUT AIOC_TEST_SLEEP
+unset AIOC_VAULT_OPENROUTER AIOC_VAULT_TIMEOUT AIOC_TEST_SLEEP
+grep -qF "lookup $OPENROUTER_SPEC" "$VAULT_LOG" || fail "the bounded case never reached secret-tool"
 [ "$elapsed" -le 3 ] || fail "lookup was not bounded (${elapsed}s)"
 printf '%s' "$out" | jq -e '.[0].error.message | test("OPENROUTER_API_KEY")' >/dev/null \
   || fail "a bounded lookup must report the missing key"

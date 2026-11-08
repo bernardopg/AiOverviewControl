@@ -113,6 +113,12 @@ grep -qx 'H x-goog-api-key: fixture-key' "$TMP/log" || fail "API key header"
 out="$(run FAKE_LOAD="$FIX/gemini-load-standard.json" FAKE_QUOTA="$TMP/denied.json" FAKE_STATUS_QUOTA=403)"
 check "quota 403" '.[0].error.code == 403 and .[0].error.message == "The caller does not have permission"' "$out"
 
+# 6b. loadCodeAssist itself failing falls back to the sign-in note without
+#     asking for quota it has no project for.
+out="$(run FAKE_LOAD="$TMP/denied.json" FAKE_STATUS_LOAD=503)"
+check "loadCodeAssist 503" '.[0].source == "gemini-cli" and .[0].usage.primary.resetDescription == "Gemini CLI authenticated"' "$out"
+grep -q '^R QUOTA' "$TMP/log" && fail "quota requested after loadCodeAssist failed"
+
 # 7. A failed renewal falls back to the sign-in note instead of an error.
 creds "$past"
 out="$(run FAKE_STATUS_TOKEN=400)"

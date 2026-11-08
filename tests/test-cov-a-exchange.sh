@@ -36,4 +36,17 @@ mv "$TMP/old.json" "$cache"
 stale="$(AIOC_NO_FX=1 PATH="$TMP/bin:$PATH" bash "$ROOT/providers/get-exchange-rates" EUR)"
 jq -e '.rate == 0.92 and .stale == true' <<<"$stale" >/dev/null
 
+# Another reader holding the refresh lock past the 10 second wait: the stale
+# quote is served rather than blocking the widget or fetching twice.
+( flock -x 9; exec sleep 14 ) 9>"$cache.lock" &
+holder=$!
+sleep 1
+started=$SECONDS
+locked="$(PATH="$TMP/bin:$PATH" bash "$ROOT/providers/get-exchange-rates" EUR)"
+elapsed=$((SECONDS - started))
+kill "$holder" 2>/dev/null || true
+wait "$holder" 2>/dev/null || true
+jq -e '.rate == 0.92 and .stale == true' <<<"$locked" >/dev/null
+[ "$elapsed" -ge 9 ] && [ "$elapsed" -le 13 ]
+
 echo "exchange-rate coverage OK"

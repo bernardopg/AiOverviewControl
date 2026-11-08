@@ -209,4 +209,47 @@ for payload in '{"email":"dev@example.com"}' '{"email":"a@b.co"}' '{"email":"ab@
   [ "$got" = "$(jq -r .email <<<"$payload")" ] || fail "id_token email lost for payload $payload: '$got'"
 done
 
+# A summary whose groups hold no readable window is a schema error, not 0%.
+printf '%s\n' '{"groups":[{"displayName":"Gemini Models","buckets":[]}]}' > "$TMP/no-windows.json"
+out="$(ANTIGRAVITY_RESPONSE_FILE="$TMP/no-windows.json" run)"
+jq -e '.[0].error.code == 1 and (.[0].error.message | contains("no readable quota windows"))' <<<"$out" >/dev/null \
+  || fail "groups without windows: $out"
+
+# The agy CLI token file: a refresh it cannot complete and a loadCodeAssist it
+# cannot reach are both per-account errors; with no session anywhere the card
+# says how to sign in. No IDE state DB and an empty keyring throughout.
+CLI_HOME="$TMP/cli-home"
+mkdir -p "$CLI_HOME/.gemini/antigravity-cli" "$TMP/cli-bin"
+printf '%s\n' '{"access_token":"ya29.old","refresh_token":"1//cli-refresh-token-0123456789"}' \
+  > "$CLI_HOME/.gemini/antigravity-cli/antigravity-oauth-token"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$TMP/cli-bin/secret-tool"
+cat > "$TMP/cli-bin/curl" <<'SH'
+#!/usr/bin/env bash
+out="" url="" prev=""
+for arg in "$@"; do [ "$prev" != -o ] || out="$arg"; [[ "$arg" == http* ]] && url="$arg"; prev="$arg"; done
+case "$url" in
+  *oauth2.googleapis.com/token*)
+    if [ "${AG_CLI_MODE:-}" = refresh-fails ]; then printf '{"error":"invalid_grant","error_description":"Token has been revoked."}' > "$out"; printf 400
+    else printf '{"access_token":"ya29.new","id_token":""}' > "$out"; printf 200; fi ;;
+  *loadCodeAssist*) printf '{"error":{"message":"backend unavailable"}}' > "$out"; printf 503 ;;
+  *) printf 404 ;;
+esac
+SH
+chmod +x "$TMP/cli-bin/secret-tool" "$TMP/cli-bin/curl"
+cli_run() {
+  env -u ANTIGRAVITY_STATE_DB HOME="$CLI_HOME" XDG_CONFIG_HOME="$CLI_HOME/.config" ANTIGRAVITY_NO_LOCAL_RPC=1 \
+    PATH="$TMP/cli-bin:$PATH" "$@" bash "$ROOT/providers/get-provider-usage" antigravity ''
+}
+out="$(cli_run AG_CLI_MODE=refresh-fails)"
+jq -e '.[0].error.code == 400 and .[0].accountErrors[0].install == "CLI file" and .[0].accountErrors[0].stage == "oauth-refresh"' <<<"$out" >/dev/null \
+  || fail "CLI token refresh failure: $out"
+grep -q 'cli-refresh-token' <<<"$out" && fail "CLI refresh token leaked into output"
+out="$(cli_run AG_CLI_MODE=load-fails)"
+jq -e '.[0].error.code == 503 and .[0].accountErrors[0].email == "Antigravity CLI" and .[0].accountErrors[0].stage == "loadCodeAssist"' <<<"$out" >/dev/null \
+  || fail "CLI loadCodeAssist failure: $out"
+rm -f "$CLI_HOME/.gemini/antigravity-cli/antigravity-oauth-token"
+out="$(cli_run env)"
+jq -e '.[0].error.code == 2 and (.[0].error.message | contains("No usable Antigravity session"))' <<<"$out" >/dev/null \
+  || fail "no session anywhere: $out"
+
 echo 'OK: Antigravity fixture, transport, and token refresh coverage'
