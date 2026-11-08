@@ -23,7 +23,7 @@
 ### Thanks
 
 - Thanks to [@alvorithm](https://github.com/alvorithm) for tracking down the OpenCode Go envelope change and fixing it ([#103](https://github.com/bernardopg/AiOverviewControl/pull/103)), and for reading provider keys from the desktop keyring ([#102](https://github.com/bernardopg/AiOverviewControl/pull/102)).
-- Thanks to [@DotRedstone](https://github.com/DotRedstone) for showing a used-up quota window and prepaid balances in the bar, and for reading Antigravity's local language server ([#101](https://github.com/bernardopg/AiOverviewControl/pull/101)).
+- Thanks to [@DotRedstone](https://github.com/DotRedstone) for the Grok Bot provider, for showing a used-up quota window and prepaid balances in the bar, and for reading Antigravity's local language server ([#101](https://github.com/bernardopg/AiOverviewControl/pull/101)).
 
 ## 2.2.4 - 2026-11-04
 
