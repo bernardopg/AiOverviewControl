@@ -246,8 +246,8 @@ By default only the window the bar shows for that provider raises alerts
 (`notifyWindowScope` = `displayed`, which until a `barWindowOverrides` slot is
 set is the primary window, or a later window once that one is used up). To be alerted on Claude's 5 hour *and*
 7 day windows, or Codex's weekly alongside its session window, either show both
-in the bar (**Bar usage window** → **Primary + secondary**) or set
-**Windows that raise alerts** to `all` in Settings.
+in the bar (**Bar pill** → **Bar usage window** → **Primary + secondary**) or
+set **Notifications** → **Windows that raise alerts** to `all` in Settings.
 
 If a per-provider threshold seems ignored, check the inline validation under
 **Per-provider threshold overrides** — entries with an unknown provider ID, a
