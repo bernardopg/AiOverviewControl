@@ -4,7 +4,7 @@
 
 ### Providers
 
-- A provider key can come from the freedesktop keyring, read at the moment of use, for a session that never exported it. `AIOC_VAULT_OPENROUTER`, `AIOC_VAULT_ZAI`, and `AIOC_VAULT_OPENCODE` name the `secret-tool lookup` words for an entry, and the OpenRouter, GLM / Z.ai, and OpenCode Go adapters use that key when the environment has none. The spec is not a secret, so it can live in a display manager or user-service environment file. An exported key still wins, and `AIOC_VAULT_TIMEOUT` (default 3 s) bounds the lookup so a locked keyring cannot stall a refresh. Readiness accepts a spec without performing a lookup, so the settings page cannot raise a prompt.
+- A provider key can come from the freedesktop keyring, read at the moment of use, for a session that never exported it. `AIOC_VAULT_OPENROUTER`, `AIOC_VAULT_ZAI`, `AIOC_VAULT_GLM`, and `AIOC_VAULT_OPENCODE` name the `secret-tool lookup` attribute/value pairs for an entry, and the OpenRouter, Z.ai, GLM, and OpenCode Go adapters use that key when the environment has none. The spec is not a secret, so it can live in a display manager or user-service environment file. An exported key still wins. A background refresh never raises an unlock prompt: an entry the Secret Service reports in a locked collection is skipped, and `AIOC_VAULT_TIMEOUT` (default 3 s) bounds any other lookup. Readiness accepts a spec without asking the keyring, so the settings page cannot raise a prompt either.
 
 ### Fixes
 

@@ -17,9 +17,12 @@ expectations. To report a vulnerability, follow
    notifications, history exports or test fixtures. The keyring route is
    opt-in per provider through a lookup spec in the environment
    (`AIOC_VAULT_OPENROUTER` and its siblings), which is not a secret. The
-   lookup is bounded by `AIOC_VAULT_TIMEOUT`, and readiness never performs
-   one, so a locked keyring cannot stall a refresh or raise a prompt from the
-   settings page.
+   key reaches `curl` through a `--config` pipe, never the environment or a
+   command line. A background refresh never raises an unlock prompt: the
+   adapter first asks the Secret Service whether the entry is unlocked
+   (`SearchItems`, which does not prompt) and skips a locked one. What is left
+   is bounded by `AIOC_VAULT_TIMEOUT`, and readiness never asks the keyring,
+   so the settings page cannot raise a prompt either.
 2. **Read-only access, with one confirmed exception.** The plugin reads quota,
    billing and usage data. It never changes provider settings, buys credits or
    writes into a tool's own configuration directory. The one write is redeeming

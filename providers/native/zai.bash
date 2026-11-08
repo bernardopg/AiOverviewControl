@@ -3,7 +3,7 @@ fetch_zai_native() {
   local key="${ZAI_API_KEY:-${GLM_API_KEY:-${ZHIPU_API_KEY:-}}}"
   [ -n "$key" ] || key="$(vault_key zai)"
   if [ -z "$key" ]; then
-    json_error zai zai-api 2 provider "ZAI_API_KEY is not set and AIOC_VAULT_ZAI has no keyring entry. Get your key at z.ai/manage-apikey/apikey-list"
+    json_error zai zai-api 2 provider "ZAI_API_KEY is not set and AIOC_VAULT_ZAI found no unlocked keyring entry. Get your key at z.ai/manage-apikey/apikey-list"
     return 0
   fi
 

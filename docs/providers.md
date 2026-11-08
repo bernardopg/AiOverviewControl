@@ -151,7 +151,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>✅ per-window % + reset timestamp</td>
 <td>✅ GLM Coding Plan $18–$160/mo</td>
 <td>✅ per token</td>
-<td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code> (<code>ZHIPU_API_KEY</code> also accepted; precedence depends on the adapter — see <a href="#glm--zai-zhipu-ai">GLM / Z.ai</a>), or a keyring entry (<code>AIOC_VAULT_ZAI</code>)</td>
+<td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code> (<code>ZHIPU_API_KEY</code> also accepted; precedence depends on the adapter — see <a href="#glm--zai-zhipu-ai">GLM / Z.ai</a>), or a keyring entry (<code>AIOC_VAULT_ZAI</code> for <code>zai</code>, <code>AIOC_VAULT_GLM</code> for <code>glm</code>)</td>
 <td><a href="https://z.ai/manage-apikey/billing">z.ai/manage-apikey</a></td>
 <td><a href="https://docs.z.ai/">docs.z.ai</a> / <a href="https://open.bigmodel.cn/dev/api">open.bigmodel.cn</a></td>
 </tr>

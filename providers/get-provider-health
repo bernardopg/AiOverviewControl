@@ -163,7 +163,7 @@ status_for() {
       else
         has_opencode_credentials || has_vault_spec opencode || { status="missing"; detail="OpenCode local database, OPENCODE_API_KEY, or a keyring entry"; }
       fi ;;
-    glm|zhipu) has_any_env GLM_API_KEY ZHIPU_API_KEY || { status="missing"; detail="GLM_API_KEY or ZHIPU_API_KEY"; } ;;
+    glm|zhipu) has_any_env GLM_API_KEY ZHIPU_API_KEY || has_vault_spec glm || { status="missing"; detail="GLM_API_KEY, ZHIPU_API_KEY, or a keyring entry"; } ;;
     zai|z.ai) has_any_env ZAI_API_KEY GLM_API_KEY ZHIPU_API_KEY || has_vault_spec zai || { status="missing"; detail="ZAI_API_KEY or a keyring entry"; } ;;
     mistral) has_any_env MISTRAL_API_KEY || { status="missing"; detail="MISTRAL_API_KEY"; } ;;
     ollama) command -v ollama >/dev/null 2>&1 || { status="missing"; detail="ollama CLI"; } ;;

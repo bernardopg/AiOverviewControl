@@ -87,7 +87,7 @@ health="$(env -u XDG_DATA_HOME -u OPENROUTER_API_KEY -u DEEPSEEK_API_KEY \
   -u CURSOR_STATE_DB -u CURSOR_AUTH_FILE -u OPENCODE_DATA_DIR \
   -u OPENCODE_USAGE_SOURCE -u CLAUDE_CONFIG_DIR -u AIOC_CLAUDE_PROFILES \
   -u GROK_HOME -u XDG_DATA_HOME \
-  -u AIOC_VAULT_OPENROUTER -u AIOC_VAULT_ZAI -u AIOC_VAULT_OPENCODE \
+  -u AIOC_VAULT_OPENROUTER -u AIOC_VAULT_ZAI -u AIOC_VAULT_GLM -u AIOC_VAULT_OPENCODE \
   PATH="$TMP/no-cli" HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" \
   bash "$ROOT/providers/get-provider-health" \
   9router,openrouter,deepseek,kimi-code,kimi,minimax,opencode,glm,zai,mistral,ollama,nvidia,neuralwatt,cline,cloudflare,vertexai,byteplus,qwen,together,groq,cohere,replicate,fireworks,xai,kilo,ai21,pi,hermes,cursor,perplexity)"

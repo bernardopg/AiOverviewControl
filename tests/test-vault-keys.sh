@@ -8,8 +8,11 @@
 #
 # Covered here: the key reaches curl from the keyring, an exported key still
 # wins and skips the lookup, a readable auth.json with no key falls through to
-# the keyring, a locked keyring cannot stall the refresh, a missing secret-tool
-# degrades to "no key", and readiness accepts a spec without a lookup.
+# the keyring, an entry in a locked collection is skipped without a lookup (so
+# no unlock prompt), a keyring that does not answer cannot stall the refresh, a
+# spec is split without glob expansion and must hold attribute/value pairs, a
+# missing secret-tool degrades to "no key", and readiness accepts a spec
+# without a lookup.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,11 +27,14 @@ export AIOC_NO_LITELLM=1 AIOC_NO_DOH_FALLBACK=1 AIOC_NO_FX=1
 export VAULT_LOG="$TMP/vault.log" CFG_LOG="$TMP/config.log" ARGV_LOG="$TMP/argv.log"
 : >"$VAULT_LOG"; : >"$CFG_LOG"; : >"$ARGV_LOG"
 unset OPENROUTER_API_KEY ZAI_API_KEY GLM_API_KEY ZHIPU_API_KEY OPENCODE_API_KEY \
-  AIOC_VAULT_OPENROUTER AIOC_VAULT_ZAI AIOC_VAULT_OPENCODE AIOC_VAULT_TIMEOUT \
-  OPENCODE_USAGE_SOURCE || true
+  AIOC_VAULT_OPENROUTER AIOC_VAULT_ZAI AIOC_VAULT_GLM AIOC_VAULT_OPENCODE \
+  AIOC_VAULT_TIMEOUT OPENCODE_USAGE_SOURCE || true
+export BUSCTL_LOG="$TMP/busctl.log"
+: >"$BUSCTL_LOG"
 
 OPENROUTER_SPEC="service openrouter username quota"
 ZAI_SPEC="service zai username quota"
+GLM_SPEC="service glm username quota"
 OPENCODE_SPEC="service opencode username quota"
 
 # Fake keyring: prints a key derived from the whole lookup and records it.
@@ -40,6 +46,22 @@ printf '%s\n' "$*" >>"$VAULT_LOG"
 printf 'vaultkey-%s' "$(printf '%s' "${*:2}" | tr ' ' '-')"
 SH
 chmod +x "$TMP/bin/secret-tool"
+
+# Fake Secret Service: answers SearchItems the way `busctl --json=short`
+# prints it, with the entry unlocked unless AIOC_TEST_ITEM says otherwise
+# (locked, absent, or down for a bus that cannot be reached). It records its
+# argv so the test can check the attribute pairs it was asked about.
+cat >"$TMP/bin/busctl" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$BUSCTL_LOG"
+case "${AIOC_TEST_ITEM:-unlocked}" in
+  unlocked) printf '{"type":"aoao","data":[["/org/freedesktop/secrets/collection/login/1"],[]]}\n' ;;
+  locked)   printf '{"type":"aoao","data":[[],["/org/freedesktop/secrets/collection/login/1"]]}\n' ;;
+  absent)   printf '{"type":"aoao","data":[[],[]]}\n' ;;
+  *)        echo "Failed to connect to bus" >&2; exit 1 ;;
+esac
+SH
+chmod +x "$TMP/bin/busctl"
 
 # Fake curl: records its argv and any --config contents, answers 401 so the
 # adapter stops after the request.
@@ -75,6 +97,10 @@ if grep -qF "vaultkey-${OPENROUTER_SPEC// /-}" "$ARGV_LOG"; then
   fail "openrouter: key reached a command line"
 fi
 
+# 1b. The Secret Service is asked about exactly the spec's attribute pairs.
+grep -qF "SearchItems a{ss} 2 $OPENROUTER_SPEC" "$BUSCTL_LOG" \
+  || fail "openrouter: SearchItems did not receive the spec's attribute pairs"
+
 # 2. An exported key wins and skips the lookup entirely.
 : >"$CFG_LOG"; : >"$VAULT_LOG"
 export OPENROUTER_API_KEY=envkey-sentinel
@@ -104,6 +130,54 @@ export OPENCODE_USAGE_SOURCE=api
 usage opencode >/dev/null
 grep -qF "$(expected "$OPENCODE_SPEC")" "$CFG_LOG" || fail "opencode: keyring key did not reach the request"
 unset OPENCODE_USAGE_SOURCE
+
+# 4b. GLM reads its own spec, so one key per card stays possible.
+export AIOC_VAULT_GLM="$GLM_SPEC"
+: >"$CFG_LOG"
+usage glm >/dev/null
+grep -qF "$(expected "$GLM_SPEC")" "$CFG_LOG" || fail "glm: keyring key did not reach the request"
+bash "$ROOT/providers/get-provider-health" glm | jq -e '.[0].status == "ready"' >/dev/null \
+  || fail "health: a GLM keyring spec must count as ready"
+unset AIOC_VAULT_GLM
+
+# 4c. An entry that sits only in a locked collection is skipped: no lookup
+#     runs, so a background refresh can never raise an unlock prompt. An
+#     absent entry is skipped the same way.
+export AIOC_VAULT_OPENROUTER="$OPENROUTER_SPEC"
+for state in locked absent; do
+  : >"$VAULT_LOG"; : >"$CFG_LOG"
+  out="$(AIOC_TEST_ITEM="$state" usage openrouter)"
+  [ ! -s "$VAULT_LOG" ] || fail "openrouter: a lookup ran for a $state entry"
+  [ ! -s "$CFG_LOG" ] || fail "openrouter: a request was sent for a $state entry"
+  printf '%s' "$out" | jq -e '.[0].error.message | test("unlocked keyring entry")' >/dev/null \
+    || fail "openrouter: a $state entry must report the missing key"
+done
+
+# 4d. A bus that cannot be asked falls back to the bounded lookup.
+: >"$VAULT_LOG"; : >"$CFG_LOG"
+AIOC_TEST_ITEM=down usage openrouter >/dev/null
+grep -qF "$(expected "$OPENROUTER_SPEC")" "$CFG_LOG" || fail "openrouter: an unreachable bus must still allow the lookup"
+
+# 4e. The spec is split on whitespace but never glob-expanded, and a spec
+#     that is not attribute/value pairs is ignored without a lookup.
+mkdir -p "$TMP/globdir"
+: >"$TMP/globdir/should-not-appear"
+: >"$VAULT_LOG"
+( cd "$TMP/globdir" && AIOC_VAULT_OPENROUTER="service * username quota" \
+    bash "$ROOT/providers/get-provider-usage" openrouter "$ROOT/providers/get-copilot-usage" >/dev/null 2>&1 )
+grep -qxF "lookup service * username quota" "$VAULT_LOG" || fail "spec was glob-expanded"
+: >"$VAULT_LOG"
+AIOC_VAULT_OPENROUTER="service openrouter username" usage openrouter >/dev/null
+[ ! -s "$VAULT_LOG" ] || fail "an odd-length spec must not reach secret-tool"
+AIOC_VAULT_OPENROUTER="service openrouter username" bash "$ROOT/providers/get-provider-health" openrouter \
+  | jq -e '.[0].status == "missing"' >/dev/null || fail "health: an odd-length spec must not count as ready"
+
+# 4f. A malformed timeout falls back to the default instead of disabling the
+#     lookup.
+: >"$CFG_LOG"
+AIOC_VAULT_TIMEOUT=soon usage openrouter >/dev/null
+grep -qF "$(expected "$OPENROUTER_SPEC")" "$CFG_LOG" || fail "a malformed AIOC_VAULT_TIMEOUT must use the default"
+unset AIOC_VAULT_OPENROUTER
 
 # 5. A keyring that does not answer is bounded: the refresh continues without
 #    a key instead of waiting for a prompt nobody will answer.
@@ -136,4 +210,4 @@ unset AIOC_VAULT_OPENROUTER
 bash "$ROOT/providers/get-provider-health" openrouter | jq -e '.[0].status == "missing"' >/dev/null \
   || fail "health: missing without an exported key or a spec"
 
-echo "OK: keyring keys, exported-key precedence, keyless auth.json, bounded lookup, readiness"
+echo "OK: keyring keys, exported-key precedence, keyless auth.json, locked entries, glob-safe specs, bounded lookup, readiness"

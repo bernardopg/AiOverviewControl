@@ -3,7 +3,7 @@
 # process inherits the user manager's environment and never an interactive
 # shell's, so a key exported in ~/.bashrc never arrives. The adapter reads the
 # key at the moment of use instead, which keeps the value out of the process
-# environment, out of every child process, and out of the plugin's caches.
+# environment, off every command line, and out of the plugin's caches.
 #
 # Opt in per provider with a lookup spec: the attribute/value words
 # `secret-tool lookup` takes. The spec is not a secret, so it can live in any
@@ -11,33 +11,83 @@
 #
 #   AIOC_VAULT_OPENROUTER="service openrouter username quota"
 #   AIOC_VAULT_ZAI="service zai username quota"
+#   AIOC_VAULT_GLM="service glm username quota"
 #   AIOC_VAULT_OPENCODE="service opencode username quota"
 #
-# Unset means no lookup, and an exported key still wins. AIOC_VAULT_TIMEOUT
-# bounds the wait in seconds (default 3): a locked keyring raises a prompt and
-# waits for an answer, so a caller with no person in front of it must not
-# block its refresh.
+# The spec is split on whitespace and never glob-expanded, so it must hold an
+# even number of words and no attribute or value can contain a space.
+#
+# Unset means no lookup, and an exported key still wins. The adapters refresh
+# in the background with nobody in front of them, so a lookup must never raise
+# an unlock prompt: when the Secret Service reports the matching entry only in
+# a locked collection, no lookup runs. AIOC_VAULT_TIMEOUT bounds what is left
+# (default 3 seconds), so a keyring that does not answer delays one refresh
+# instead of blocking it.
 
 # Print the lookup spec for a provider id, or nothing.
 vault_spec() {
   local var
-  var="AIOC_VAULT_$(printf '%s' "$1" | tr 'a-z-' 'A-Z_')"
+  var="AIOC_VAULT_$(printf '%s' "$1" | tr 'a-z.-' 'A-Z__')"
   printf '%s' "${!var:-}"
+}
+
+# Print the lookup timeout in seconds: AIOC_VAULT_TIMEOUT when it is a
+# positive number, else the default.
+vault_timeout() {
+  local value="${AIOC_VAULT_TIMEOUT:-}"
+  if [[ "$value" =~ ^[0-9]+([.][0-9]+)?$ ]] && [[ "$value" =~ [1-9] ]]; then
+    printf '%s' "$value"
+  else
+    printf '3'
+  fi
+}
+
+# Split a provider's spec into the VAULT_WORDS array. Fails when the spec is
+# unset or is not a list of attribute/value pairs. `read -a` splits on
+# whitespace without pathname expansion, so a `*` in the spec stays literal.
+vault_words() {
+  local spec
+  VAULT_WORDS=()
+  spec="$(vault_spec "$1")"
+  [ -n "$spec" ] || return 1
+  read -r -a VAULT_WORDS <<<"$spec"
+  [ "${#VAULT_WORDS[@]}" -ge 2 ] && [ $(( ${#VAULT_WORDS[@]} % 2 )) -eq 0 ]
+}
+
+# Where the Secret Service holds the entry matching "$@" (attribute/value
+# pairs): "unlocked", "locked", "absent", or "unknown" when the service cannot
+# be asked. SearchItems never prompts; it only sorts the matches into unlocked
+# and locked items.
+vault_item_state() {
+  command -v busctl >/dev/null 2>&1 || { printf 'unknown'; return 0; }
+  local reply
+  reply="$(busctl --user --json=short --timeout="$(vault_timeout)" call \
+    org.freedesktop.secrets /org/freedesktop/secrets \
+    org.freedesktop.Secret.Service SearchItems 'a{ss}' $(( $# / 2 )) "$@" 2>/dev/null)" \
+    || { printf 'unknown'; return 0; }
+  printf '%s' "$reply" | jq -r '
+    if (.data | type) != "array" then "unknown"
+    elif ((.data[0] // []) | length) > 0 then "unlocked"
+    elif ((.data[1] // []) | length) > 0 then "locked"
+    else "absent" end
+  ' 2>/dev/null || printf 'unknown'
 }
 
 # Print the provider's key from the keyring, or nothing.
 vault_key() {
-  local spec
-  spec="$(vault_spec "$1")"
-  [ -n "$spec" ] || return 0
+  local -a VAULT_WORDS
+  vault_words "$1" || return 0
   command -v secret-tool >/dev/null 2>&1 || return 0
-  # shellcheck disable=SC2086 # the spec is deliberately a list of lookup words
-  timeout "${AIOC_VAULT_TIMEOUT:-3}" secret-tool lookup $spec 2>/dev/null || true
+  case "$(vault_item_state "${VAULT_WORDS[@]}")" in
+    locked|absent) return 0 ;;
+  esac
+  timeout "$(vault_timeout)" secret-tool lookup "${VAULT_WORDS[@]}" 2>/dev/null || true
 }
 
-# True when the provider has a lookup spec and the keyring tool is installed.
-# Readiness only: it never performs a lookup, so opening the settings cannot
-# raise a keyring prompt.
+# True when the provider has a well-formed lookup spec and the keyring tool is
+# installed. Readiness only: it never asks the keyring anything, so opening
+# the settings cannot raise a prompt.
 has_vault_spec() {
-  [ -n "$(vault_spec "$1")" ] && command -v secret-tool >/dev/null 2>&1
+  local -a VAULT_WORDS
+  vault_words "$1" && command -v secret-tool >/dev/null 2>&1
 }
