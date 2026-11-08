@@ -73,6 +73,14 @@ fetch_antigravity_native() {
       done
     fi
 
+    # Ask the running app's language server first, once; its answer is used
+    # only for the account whose email it reports.
+    local local_rpc_dir
+    local_rpc_dir="$(mktemp -d)"
+    antigravity_local_rpc_collect "$local_rpc_dir" "$endpoint" 2>/dev/null || true
+    # shellcheck disable=SC2034 # read by antigravity_fetch_account (get-provider-usage)
+    ANTIGRAVITY_LOCAL_RPC_DIR_ACTIVE="$local_rpc_dir"
+
     local seen_emails=" "
     if [ "${#dbs[@]}" -gt 0 ]; then
       for db in "${dbs[@]}"; do
@@ -160,6 +168,8 @@ fetch_antigravity_native() {
         fi
       fi
     fi
+    unset ANTIGRAVITY_LOCAL_RPC_DIR_ACTIVE
+    rm -rf "$local_rpc_dir"
   fi
 
   # --- No account collected: emit an isolated, honest error. ---

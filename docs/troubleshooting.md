@@ -136,6 +136,8 @@ Read the card's source and display value rather than assuming every provider has
 
 The normal Antigravity view shows separate 5-hour and weekly windows for **Gemini Models** and **Claude & OpenAI Models**. The compact percentage is the most constrained real window; expand the card to see all windows, or each account email and install when multiple sessions are present. Deployments that do not support quota-summary automatically fall back to the older family view built from available models.
 
+While the Antigravity app is open, the account it is signed in to is read from the app's own language server, which can report pools the cloud endpoint leaves out (the Gemini group, for example); that account then shows **Antigravity app (local language server)** as its sign-in method. The server is found by its executable (`…/resources/bin/language_server`), contacted only on loopback, and its answer is used only for the account whose email it reports, so another signed-in account keeps its own cloud numbers. Set `ANTIGRAVITY_NO_LOCAL_RPC=1` in the shell's environment to skip it.
+
 If the result looks inconsistent with the Antigravity Models screen, refresh the plugin and check the raw response without exposing credentials:
 
 ```bash

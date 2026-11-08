@@ -586,10 +586,35 @@ ShellRoot {
                 if (balanceText.indexOf("¥9.34") < 0) {
                     console.error("SMOKE FAIL: multi-window balance pill: " + balanceText); return;
                 }
+                // Antigravity account windows: a bare percentage gains the reset
+                // countdown, while the server's own description (which names
+                // the reset already) is kept as it was in used mode.
+                const soon = new Date(Date.now() + 3 * 3600000 + 120000).toISOString();
+                widget.showRemainingQuota = false;
+                widget.allExpanded = true;
+                widget.providers = [{provider: "antigravity", usage: {primary: {usedPercent: 60, windowMinutes: 10080, resetsAt: soon}},
+                    accounts: [
+                        {install: "AppA", email: "a@example.com", windows: [
+                            {name: "Gemini Models (Weekly)", usedPercent: 60, windowMinutes: 10080, resetsAt: soon, description: null},
+                            {name: "Claude & OpenAI Models (Weekly)", usedPercent: 10, windowMinutes: 10080, resetsAt: soon, description: "Quota resets in 3h"}]},
+                        {install: "AppB", email: "b@example.com", windows: [
+                            {name: "Gemini Models", usedPercent: 5, windowMinutes: null, resetsAt: null, description: null}]}]}];
+                root.step = 19;
+            } else if (root.step === 19) {
+                const timed = input.findChild(widget.dashboardView, "account-window-AppA-0");
+                const described = input.findChild(widget.dashboardView, "account-window-AppA-1");
+                const untimed = input.findChild(widget.dashboardView, "account-window-AppB-0");
+                const reset = widget.formatTimeUntil(widget.providers[0].accounts[0].windows[0].resetsAt);
+                if (!timed || !described || !untimed || reset.length === 0
+                    || timed.aside !== widget.quotaPercentText(60) + " · " + reset
+                    || described.aside !== "Quota resets in 3h"
+                    || untimed.aside !== widget.quotaPercentText(5)) {
+                    console.error("SMOKE FAIL: Antigravity account window aside: " + [timed, described, untimed].map(item => item ? item.aside : "none").join(" | ")); return;
+                }
                 widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");
-                root.step = 19;
+                root.step = 20;
             }
         }
     }

@@ -22,7 +22,13 @@ expectations. To report a vulnerability, follow
    adapter first asks the Secret Service whether the entry is unlocked
    (`SearchItems`, which does not prompt) and skips a locked one. What is left
    is bounded by `AIOC_VAULT_TIMEOUT`, and readiness never asks the keyring,
-   so the settings page cannot raise a prompt either.
+   so the settings page cannot raise a prompt either. The one local exception
+   to "only to its provider's API" is the running Antigravity app: its
+   language server's CSRF token is read
+   from that process's own arguments (same user, found by its executable)
+   and sent only back to that server on loopback, through a `curl --config`
+   pipe. The server's certificate is self-signed, so TLS verification is
+   skipped for that loopback call alone.
 2. **Read-only access, with one confirmed exception.** The plugin reads quota,
    billing and usage data. It never changes provider settings, buys credits or
    writes into a tool's own configuration directory. The one write is redeeming

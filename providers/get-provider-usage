@@ -327,9 +327,9 @@ antigravity_account_json() {
         elif ($raw | test("claude|openai|gpt|3p"; "i")) then "Claude & OpenAI Models"
         else $raw end;
     def group_rank($label):
-      if ($label | test("^Gemini Models|Gemini"; "i") and ($label | test("Argon"; "i") | not)) then 0
+      if ($label | test("Argon"; "i")) then 2
+      elif ($label | test("Gemini"; "i")) then 0
       elif ($label | test("Claude|OpenAI|GPT"; "i")) then 1
-      elif ($label | test("Argon"; "i")) then 2
       else 3 end;
     def window_kind:
       ((.window // .displayName // .bucketId // "") | ascii_downcase) as $raw
@@ -347,7 +347,11 @@ antigravity_account_json() {
         | $g.buckets[]?
         | (window_kind) as $kind
         | select($kind != null)
-        | (.remainingFraction | num) as $remaining
+        # Protobuf JSON omits a zero field, so a bucket that reports a reset
+        # but no remaining fraction is used up. The fraction may also sit
+        # under `remaining`.
+        | ((.remainingFraction // (.remaining | if type == "object" then .remainingFraction else null end) | num)
+           // (if (.resetTime // null) != null then 0 else null end)) as $remaining
         | select($remaining != null)
         | ($remaining | clamp) as $rem
         | ($gl + " (" + $kind.label + ")") as $name
@@ -555,43 +559,99 @@ antigravity_append_models_account() {
   printf '%s\n' "$parsed" >> "$accounts_file"
 }
 
-antigravity_try_local_rpc() {
-  local output_file="$1" endpoint="$2"
-  [ -z "${ANTIGRAVITY_RESPONSE_FILE:-}" ] || return 1
+# The running Antigravity app's language server answers the same
+# retrieveUserQuotaSummary the app renders, over loopback Connect-RPC, and it
+# can report pools the cloud endpoint leaves out (the Gemini group, for one).
+# Each server belongs to one signed-in account, so its answer is kept per
+# account email (GetUserStatus) and used only for the account with that
+# email; every other account still asks the cloud endpoint.
+#
+# Fills the directory $1 with <n>.email / <n>.json pairs, one per server that
+# answered both calls. Never fails the adapter: a server that cannot be read
+# simply contributes nothing.
+antigravity_local_rpc_collect() {
+  local out_dir="$1" endpoint="$2"
+  [ "${ANTIGRAVITY_NO_LOCAL_RPC:-0}" != "1" ] || return 0
+  [ -z "${ANTIGRAVITY_RESPONSE_FILE:-}" ] || return 0
+  # Tests pin discovery to one state DB; they opt in explicitly so a developer
+  # machine's running app never leaks into a fixture run.
   if [ -n "${ANTIGRAVITY_STATE_DB:-}" ] && [ "${ANTIGRAVITY_ALLOW_LOCAL_RPC:-0}" != "1" ]; then
-    return 1
+    return 0
   fi
-  if [ -n "$endpoint" ] && [ "$endpoint" != "https://daily-cloudcode-pa.googleapis.com" ]; then
-    return 1
-  fi
+  # A retargeted Cloud Code endpoint is a diagnostic setup: leave it alone.
+  [ "$endpoint" = "https://daily-cloudcode-pa.googleapis.com" ] || return 0
+  command -v ss >/dev/null 2>&1 || return 0
+  command -v pgrep >/dev/null 2>&1 || return 0
 
-  local proc_root="${ANTIGRAVITY_PROC_DIR:-/proc}" pid csrf ports port resp
-  pid="$(pgrep -f "resources/bin/language_server" 2>/dev/null | head -n 1)"
-  [ -n "$pid" ] || return 1
-  [ -r "$proc_root/$pid/cmdline" ] || return 1
+  local proc_root="${ANTIGRAVITY_PROC_DIR:-/proc}" pid exe csrf port address host email n=0
+  local -a ports
+  # Match the process by its executable, not its command line: `pgrep -f`
+  # would also match any process that merely mentions the path in its
+  # arguments, such as a shell or an editor.
+  for pid in $(pgrep -x language_server 2>/dev/null); do
+    [[ "$pid" =~ ^[0-9]+$ ]] || continue
+    exe="$(readlink "$proc_root/$pid/exe" 2>/dev/null || true)"
+    [ -n "$exe" ] || exe="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | head -n 1)"
+    case "$exe" in */resources/bin/language_server) ;; *) continue ;; esac
+    # The token arrives as `--csrf_token VALUE` or `--csrf_token=VALUE`.
+    csrf="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | awk '
+      found { print; exit }
+      $0 == "--csrf_token" { found = 1; next }
+      index($0, "--csrf_token=") == 1 { print substr($0, 14); exit }')"
+    [ -n "$csrf" ] || continue
+    # Only loopback listeners; the server opens a few, and only one speaks
+    # HTTPS Connect-RPC, so each is tried briefly.
+    mapfile -t ports < <(ss -Htlpn 2>/dev/null | awk -v tag="pid=${pid}," '
+      index($0, tag) && ($4 ~ /^127\.0\.0\.1:[0-9]+$/ || $4 ~ /^\[::1\]:[0-9]+$/) { print $4 }' | head -n 6)
+    for address in "${ports[@]}"; do
+      port="${address##*:}"
+      host="${address%:*}"
+      : > "$out_dir/status.json"
+      antigravity_local_rpc_call "$host" "$port" "$csrf" GetUserStatus "$out_dir/status.json" || continue
+      email="$(jq -r '.userStatus.email // empty | ascii_downcase' "$out_dir/status.json" 2>/dev/null || true)"
+      [ -n "$email" ] || continue
+      : > "$out_dir/summary.json"
+      antigravity_local_rpc_call "$host" "$port" "$csrf" RetrieveUserQuotaSummary "$out_dir/summary.json" || continue
+      jq -c '(.response // .) | select((.groups | type) == "array")' "$out_dir/summary.json" > "$out_dir/$n.json" 2>/dev/null || true
+      if [ -s "$out_dir/$n.json" ]; then
+        printf '%s' "$email" > "$out_dir/$n.email"
+        n=$((n + 1))
+        break
+      fi
+      rm -f "$out_dir/$n.json"
+    done
+  done
+  rm -f "$out_dir/status.json" "$out_dir/summary.json"
+  return 0
+}
 
-  csrf="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | grep -A 1 "^--csrf_token$" | tail -n 1)"
-  [ -n "$csrf" ] || return 1
+# One loopback Connect-RPC call. The server's certificate is self-signed, so
+# TLS verification is skipped, which is only acceptable because the host is
+# loopback. The CSRF token travels in a curl config pipe, never on argv.
+antigravity_local_rpc_call() {
+  local host="$1" port="$2" csrf="$3" method="$4" out="$5" status
+  case "$host" in 127.0.0.1|"[::1]") ;; *) return 1 ;; esac
+  status="$(curl -k -sS --proto '=https' --max-time 2 -o "$out" -w '%{http_code}' -X POST \
+    "https://${host}:${port}/exa.language_server_pb.LanguageServerService/${method}" \
+    -H "Content-Type: application/json" \
+    -H "Connect-Protocol-Version: 1" \
+    --config <(curl_header_config "x-codeium-csrf-token: ${csrf}") \
+    -d '{}' 2>/dev/null || true)"
+  [ "$status" = "200" ] && jq -e 'type == "object"' "$out" >/dev/null 2>&1
+}
 
-  command -v ss >/dev/null 2>&1 || return 1
-  ports="$(ss -Htlpn 2>/dev/null | grep "pid=$pid," | awk '{print $4}' | awk -F: '{print $NF}')"
-  [ -n "$ports" ] || return 1
-
-  for port in $ports; do
-    resp="$(curl -k -sS --max-time 2 -X POST "https://127.0.0.1:$port/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary" \
-      -H "Content-Type: application/json" \
-      -H "Connect-Protocol-Version: 1" \
-      --config <(curl_header_config "x-codeium-csrf-token: ${csrf}") \
-      -d "{}" 2>/dev/null || true)"
-    if echo "$resp" | jq -e '(.response.groups | type) == "array"' >/dev/null 2>&1; then
-      echo "$resp" | jq -c '.response' > "$output_file"
-      return 0
-    elif echo "$resp" | jq -e '(.groups | type) == "array"' >/dev/null 2>&1; then
-      echo "$resp" | jq -c '.' > "$output_file"
+# Print the local summary file collected for an account email, or nothing.
+antigravity_local_rpc_summary_for() {
+  local dir="$1" email file
+  email="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')"
+  [ -n "$dir" ] && [ -d "$dir" ] && [ -n "$email" ] || return 0
+  for file in "$dir"/*.email; do
+    [ -r "$file" ] || continue
+    if [ "$(cat "$file")" = "$email" ]; then
+      printf '%s' "${file%.email}.json"
       return 0
     fi
   done
-  return 1
 }
 
 antigravity_fetch_account() {
@@ -599,13 +659,13 @@ antigravity_fetch_account() {
   local access_token="$7" endpoint="$8" quota_body="$9" user_agent="${10}" preferred_method="${11}"
   local method status curl_status=0 message="" final_stage="$preferred_method"
 
-  # Fast path: if Antigravity language_server is running locally, retrieve full
-  # live multi-group quota directly via local Connect-RPC.
-  if antigravity_try_local_rpc "$body_file" "$endpoint" 2>/dev/null; then
-    if jq -e '(.groups | type) == "array"' "$body_file" >/dev/null 2>&1 \
-        && antigravity_append_group_account "$accounts_file" "$body_file" "$install" "$email" "$login"; then
-      return 0
-    fi
+  # The running app's own answer for this exact account, when one was
+  # collected (antigravity_local_rpc_collect); otherwise the cloud endpoint.
+  local local_summary
+  local_summary="$(antigravity_local_rpc_summary_for "${ANTIGRAVITY_LOCAL_RPC_DIR_ACTIVE:-}" "$email")"
+  if [ -n "$local_summary" ] \
+      && antigravity_append_group_account "$accounts_file" "$local_summary" "$install" "$email" "Antigravity app (local language server)"; then
+    return 0
   fi
 
   local -a methods=("$preferred_method")
