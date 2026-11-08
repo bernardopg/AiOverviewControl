@@ -9,6 +9,7 @@
 ### Providers
 
 - A provider key can come from the freedesktop keyring, read at the moment of use, for a session that never exported it. `AIOC_VAULT_OPENROUTER`, `AIOC_VAULT_ZAI`, `AIOC_VAULT_GLM`, and `AIOC_VAULT_OPENCODE` name the `secret-tool lookup` attribute/value pairs for an entry, and the OpenRouter, Z.ai, GLM, and OpenCode Go adapters use that key when the environment has none. The spec is not a secret, so it can live in a display manager or user-service environment file. An exported key still wins. A background refresh never raises an unlock prompt: an entry the Secret Service reports in a locked collection is skipped, and `AIOC_VAULT_TIMEOUT` (default 3 s) bounds any other lookup. Readiness accepts a spec without asking the keyring, so the settings page cannot raise a prompt either.
+- New **Grok Bot** (`grokbot`, alias `grok-bot`) provider: the weekly Grok Bot Plan pool and its reset time from the signed-in Grok Bot desktop app (`GetSandUsageStatus`), with the app's own saved reading when the request fails. The session token is decrypted in memory from Electron's basic text store and sent through a `curl --config` pipe. A session whose key lives in the desktop keyring is not read: the card serves the app's saved reading or says to start Grok Bot with `--password-store=basic`, and readiness reports it instead of **Ready**. `GROKBOT_CONFIG_DIR` and `GROKBOT_API_URL` are documented overrides.
 
 ### Fixes
 
@@ -22,7 +23,7 @@
 ### Thanks
 
 - Thanks to [@alvorithm](https://github.com/alvorithm) for tracking down the OpenCode Go envelope change and fixing it ([#103](https://github.com/bernardopg/AiOverviewControl/pull/103)), and for reading provider keys from the desktop keyring ([#102](https://github.com/bernardopg/AiOverviewControl/pull/102)).
-- Thanks to [@DotRedstone](https://github.com/DotRedstone) for showing a used-up quota window and prepaid balances in the bar, and for reading Antigravity's local language server ([#101](https://github.com/bernardopg/AiOverviewControl/pull/101)).
+- Thanks to [@DotRedstone](https://github.com/DotRedstone) for the Grok Bot provider, for showing a used-up quota window and prepaid balances in the bar, and for reading Antigravity's local language server ([#101](https://github.com/bernardopg/AiOverviewControl/pull/101)).
 
 ## 2.2.4 - 2026-11-04
 

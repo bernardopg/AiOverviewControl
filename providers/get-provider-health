@@ -85,6 +85,37 @@ has_cursor_session() {
   cursor_db_has_token "$HOME/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
 }
 
+# Print how the active Grok Bot account's token is stored: "basic" for the
+# text store the adapter can read (safeStorage v10, base64 "djEw"), "keyring"
+# for one encrypted with a desktop keyring key (v11, "djEx"), or nothing.
+grokbot_secrets_store() {
+  local secrets_file="$1"
+  [ -r "$secrets_file" ] || return 0
+  jq -r '
+    (.["cursor-accounts"] // empty | fromjson? // empty) as $accts
+    | ($accts.accounts[$accts.active // empty]["cursor-access-token"] // "") as $tok
+    | if ($tok | type) != "string" then empty
+      elif ($tok | startswith("djEw")) then "basic"
+      elif ($tok | startswith("djEx")) then "keyring"
+      else empty end
+  ' "$secrets_file" 2>/dev/null || true
+}
+
+grokbot_session_store() {
+  local dir store
+  if [ -n "${GROKBOT_CONFIG_DIR+x}" ]; then
+    [ -n "${GROKBOT_CONFIG_DIR}" ] && grokbot_secrets_store "${GROKBOT_CONFIG_DIR}/sand-secrets.json"
+    return 0
+  fi
+  for dir in "${XDG_CONFIG_HOME:-$HOME/.config}/Grok Bot" "$HOME/Library/Application Support/Grok Bot"; do
+    store="$(grokbot_secrets_store "$dir/sand-secrets.json")"
+    if [ -n "$store" ]; then
+      printf '%s' "$store"
+      return 0
+    fi
+  done
+}
+
 has_xai_credentials() {
   local auth_file="${GROK_HOME:-$HOME/.grok}/auth.json"
   has_any_env XAI_API_KEY XAI_MANAGEMENT_KEY XAI_MANAGEMENT_API_KEY && return 0
@@ -196,6 +227,13 @@ status_for() {
         status="missing"
         detail="Cursor IDE session or cursor-agent auth.json"
       fi
+      ;;
+    grokbot|grok-bot)
+      case "$(grokbot_session_store)" in
+        basic) status="ready"; detail="Configured" ;;
+        keyring) status="missing"; detail="Grok Bot session in the desktop keyring (start Grok Bot with --password-store=basic)" ;;
+        *) status="missing"; detail="Grok Bot desktop app sign-in" ;;
+      esac
       ;;
     perplexity|kiro|warp|amp)
       status="info"

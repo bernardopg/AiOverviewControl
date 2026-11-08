@@ -344,6 +344,7 @@
   "provider.note.ai21": "已检测配置；无文档化只读用量 API",
   "provider.note.perplexity": "无公开只读配额 API",
   "provider.note.cursor": "来自已登录 Cursor 会话的 Cursor 模型和其他模型用量",
+  "provider.note.grokbot": "来自已登录 Grok Bot 桌面客户端的每周计划配额",
   "provider.note.cline": "Cline 积分余额（个人或当前组织）、今日请求与令牌（含免费模型）及 ClinePass 套餐；使用 CLINE_API_KEY 或有效的 Cline CLI 登录",
   "provider.note.opencode": "OPENCODE_API_KEY 或 opencode auth login；Zen 5 小时/周/月配额、余额回退与模型验证",
   "provider.note.kiro": "订阅制 IDE；无公开 API",
