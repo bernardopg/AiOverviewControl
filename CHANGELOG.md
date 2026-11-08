@@ -26,6 +26,7 @@
 
 ### Documentation
 
+- The Crowdin sync workflow treats a Crowdin project already equal to the merged commit as in step instead of reporting drift, and always reads the current `crowdin.yml`.
 - Crowdin holds every translated string again, including the dash card terms (`translations/`), and a **Crowdin sync** workflow uploads the bundles on every merge and fails when Crowdin has a translation the repository lacks, so the two cannot drift apart silently.
 - Statement coverage of the shell adapters and scripts is 100%, and CI fails below 97% (was 95%). `docs/development-gates.md` explains how to keep a multi-line command attributable to coverage.
 - The README contributor grid, in English and Portuguese, credits [@alvorithm](https://github.com/alvorithm) and [@DotRedstone](https://github.com/DotRedstone).
