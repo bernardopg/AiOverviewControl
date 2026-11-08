@@ -2539,10 +2539,21 @@ PopoutComponent {
                 model: acct.windows
                 delegate: UsageBar {
                     required property var modelData
+                    required property int index
+                    objectName: "account-window-" + (acct.account && acct.account.install ? acct.account.install : "") + "-" + index
                     width: parent.width
                     label: modelData.name || modelData.resetDescription || ""
                     percent: Number(modelData.usedPercent || 0)
-                    aside: (!root.showRemainingQuota && modelData.description && String(modelData.description).length > 0) ? String(modelData.description) : root.quotaPercentText(modelData.usedPercent)
+                    // The server's own description ("Quota resets in …") already
+                    // names the reset, so it stays as it was; a bare percentage
+                    // gains the countdown.
+                    aside: {
+                        if (!root.showRemainingQuota && modelData.description && String(modelData.description).length > 0)
+                            return String(modelData.description);
+                        const percentText = root.quotaPercentText(modelData.usedPercent);
+                        const reset = root.formatTimeUntil(modelData.resetsAt || "");
+                        return reset.length > 0 ? `${percentText} · ${reset}` : percentText;
+                    }
                     accentColor: root.getUsageColor(Number(modelData.usedPercent || 0))
                 }
             }

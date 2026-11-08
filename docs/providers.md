@@ -109,7 +109,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>—</td>
 <td><code>~/.gemini/antigravity-cli/antigravity-oauth-token</code> or <code>~/.config/Antigravity IDE</code></td>
 <td>Antigravity IDE</td>
-<td><code>loadCodeAssist</code> + <code>v1internal:retrieveUserQuotaSummary</code> on <code>daily-cloudcode-pa.googleapis.com</code>; <code>fetchAvailableModels</code> compatibility fallback (multi-account)</td>
+<td>running app's local language server (<code>RetrieveUserQuotaSummary</code> over loopback Connect-RPC, matched to its account by <code>GetUserStatus</code> email); otherwise <code>loadCodeAssist</code> + <code>v1internal:retrieveUserQuotaSummary</code> on <code>daily-cloudcode-pa.googleapis.com</code>; <code>fetchAvailableModels</code> compatibility fallback (multi-account)</td>
 </tr>
 <tr>
 <td><code>gemini</code></td>
