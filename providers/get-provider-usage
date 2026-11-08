@@ -12,6 +12,8 @@ CLAUDE_SCRIPT="$SCRIPT_DIR/get-claude-usage"
 CODEX_SCRIPT="$SCRIPT_DIR/get-codex-usage"
 # shellcheck source=providers/http-common
 source "$SCRIPT_DIR/http-common"
+# shellcheck source=providers/vault-common
+source "$SCRIPT_DIR/vault-common"
 # Caches created before 2.1.0 used the default umask; tighten them once.
 AIOC_CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl"
 if [ -d "$AIOC_CACHE_ROOT" ] && [ "$(stat -c %a "$AIOC_CACHE_ROOT" 2>/dev/null)" != 700 ]; then
@@ -643,14 +645,19 @@ opencode_api_key() {
   # and key shape verified against opencode's docs and the opencode CLI
   # behavior on Linux. Honor XDG_DATA_HOME for non-default DMS sessions.
   local auth_file="${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json"
+  local key=""
   if [ -n "${OPENCODE_API_KEY:-}" ]; then
-    printf '%s' "$OPENCODE_API_KEY"
+    key="$OPENCODE_API_KEY"
   elif [ -r "$auth_file" ]; then
     # Accept either the {"opencode":{"key":...}} shape (current CLI) or a
     # legacy flat {"apiKey":...} shape so the bridge still works for users
     # who hand-edited the file before the rename.
-    jq -r '."opencode".key // ."opencode-go".key // ."opencode_go".key // .apiKey // empty' "$auth_file" 2>/dev/null || true
+    key="$(jq -r '."opencode".key // ."opencode-go".key // ."opencode_go".key // .apiKey // empty' "$auth_file" 2>/dev/null || true)"
   fi
+  # A readable file that holds no key falls through: logged out, or a legacy
+  # file the CLI stopped updating.
+  [ -n "$key" ] || key="$(vault_key opencode)"
+  printf '%s' "$key"
 }
 
 

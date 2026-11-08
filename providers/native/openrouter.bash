@@ -1,8 +1,9 @@
 # Sourced adapter; shared transport/normalization helpers live in get-provider-usage.
 fetch_openrouter_native() {
   local key="${OPENROUTER_API_KEY:-}"
+  [ -n "$key" ] || key="$(vault_key openrouter)"
   if [ -z "$key" ]; then
-    json_error openrouter openrouter-api 2 provider "OPENROUTER_API_KEY is not set and no local 9Router usage was found."
+    json_error openrouter openrouter-api 2 provider "OPENROUTER_API_KEY is not set, AIOC_VAULT_OPENROUTER has no keyring entry, and no local 9Router usage was found."
     return 0
   fi
 

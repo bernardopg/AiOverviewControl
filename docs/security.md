@@ -14,7 +14,12 @@ expectations. To report a vulnerability, follow
    (for example `~/.codex/auth.json`, `gh auth token`, `KIMI_CODING_API_KEY`).
    A credential is sent only to the API of the provider it belongs to. The
    plugin never copies credentials into its settings, caches, logs,
-   notifications, history exports or test fixtures.
+   notifications, history exports or test fixtures. The keyring route is
+   opt-in per provider through a lookup spec in the environment
+   (`AIOC_VAULT_OPENROUTER` and its siblings), which is not a secret. The
+   lookup is bounded by `AIOC_VAULT_TIMEOUT`, and readiness never performs
+   one, so a locked keyring cannot stall a refresh or raise a prompt from the
+   settings page.
 2. **Read-only access, with one confirmed exception.** The plugin reads quota,
    billing and usage data. It never changes provider settings, buys credits or
    writes into a tool's own configuration directory. The one write is redeeming

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Providers
+
+- A provider key can come from the freedesktop keyring, read at the moment of use, for a session that never exported it. `AIOC_VAULT_OPENROUTER`, `AIOC_VAULT_ZAI`, and `AIOC_VAULT_OPENCODE` name the `secret-tool lookup` words for an entry, and the OpenRouter, GLM / Z.ai, and OpenCode Go adapters use that key when the environment has none. The spec is not a secret, so it can live in a display manager or user-service environment file. An exported key still wins, and `AIOC_VAULT_TIMEOUT` (default 3 s) bounds the lookup so a locked keyring cannot stall a refresh. Readiness accepts a spec without performing a lookup, so the settings page cannot raise a prompt.
+
 ### Fixes
 
 - The OpenCode Go adapter accepts the endpoint's nested `usage.rolling` / `percent` / `resetsAt` envelope, so the 5-hour, weekly and monthly windows survive the API's change instead of degrading to the authenticated-only card. The older flat `rollingUsage` / `resetInSec` shape is still parsed, so an older deployment is unchanged.
