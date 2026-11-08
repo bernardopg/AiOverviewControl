@@ -22,10 +22,12 @@
 - Antigravity account windows show the reset countdown next to a bare percentage, and keep the server's own description in used mode.
 - The readiness detail in Settings (what a provider is missing, such as "Grok Bot desktop app sign-in") is translated in every language instead of always showing English.
 - Settings no longer truncates option labels such as "Once per window" or "2,000 snapshots", and the Brazilian Portuguese and German texts use one term each for the bar pill and for providers instead of mixing in English.
+- The Claude adapter never moves its LiteLLM pricing table into a directory that occupies the cache path, and `scripts/qmlls-setup` looks for the running shell under `XDG_RUNTIME_DIR` when it is set.
 
 ### Documentation
 
 - Crowdin holds every translated string again, including the dash card terms (`translations/`), and a **Crowdin sync** workflow uploads the bundles on every merge and fails when Crowdin has a translation the repository lacks, so the two cannot drift apart silently.
+- Statement coverage of the shell adapters and scripts is 100%, and CI fails below 97% (was 95%). `docs/development-gates.md` explains how to keep a multi-line command attributable to coverage.
 - The README contributor grid, in English and Portuguese, credits [@alvorithm](https://github.com/alvorithm) and [@DotRedstone](https://github.com/DotRedstone).
 
 ### Thanks

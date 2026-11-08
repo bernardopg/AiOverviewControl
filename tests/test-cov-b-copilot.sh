@@ -35,6 +35,7 @@ case "${API_MODE:-ok}" in
     fi ;;
   badjson) printf '{bad' > "$out"; printf 200 ;;
   auth) printf '{"message":"bad credentials"}' > "$out"; printf 401 ;;
+  garbled) printf '{"message":"proxy error"}' > "$out"; printf 'ab3' ;;
   *) printf '{"message":"server busy"}' > "$out"; printf 503 ;;
 esac
 SH
@@ -74,6 +75,10 @@ jq -e '.error.code == 3 and (.error.message | contains("invalid JSON"))' <<<"$ou
 rm -f "$XDG_CACHE_HOME/AiOverviewControl/copilot-usage.json"
 out="$(API_MODE=auth run)"
 jq -e '.error.code == 401 and .error.message == "bad credentials"' <<<"$out" >/dev/null || fail "HTTP auth failure"
+# A status that is not a number becomes code 1, keeping the error valid JSON.
+rm -f "$XDG_CACHE_HOME/AiOverviewControl/copilot-usage.json"
+out="$(API_MODE=garbled run)"
+jq -e '.error.code == 1 and .error.message == "proxy error"' <<<"$out" >/dev/null || fail "non-numeric status: $out"
 
 # Dispatcher helper success is forwarded; invalid output and an absent helper
 # produce asserted runtime errors.

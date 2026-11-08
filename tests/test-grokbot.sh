@@ -157,7 +157,11 @@ out="$(GROKBOT_CONFIG_DIR="$ALT_DIR" GROKBOT_MODE=down run grokbot)"
 [ "$(jq -r '.[0].usage.primary.usedPercent' <<<"$out")" = "0" ] || fail "expired offline window clamps to 0"
 [ "$(jq -r '.[0].usage.primary.resetsAt' <<<"$out")" = "null" ] || fail "expired offline window clears resetsAt"
 
-# 5. Structured errors without offline cache.
+# 5. Structured errors without offline cache: a persistence directory whose
+#    blobs hold no weekly reading counts as no cache.
+printf '%s\n' '{"schemaVersion":1,"value":{"kind":"other"}}' > "$ALT_DIR/sand-client-persistence/cache.blob"
+out="$(GROKBOT_CONFIG_DIR="$ALT_DIR" GROKBOT_MODE=down run grokbot)"
+[ "$(jq -r '.[0].error.code' <<<"$out")" = "503" ] || fail "a blob without a reading must not serve as cache"
 rm -rf "$ALT_DIR/sand-client-persistence"
 out="$(GROKBOT_CONFIG_DIR="$ALT_DIR" GROKBOT_MODE=malformed run grokbot)"
 [ "$(jq -r '.[0].error.code' <<<"$out")" = "1" ] || fail "malformed schema error"

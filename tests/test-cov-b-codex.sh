@@ -22,6 +22,12 @@ while IFS= read -r line; do
       else printf '{"id":2,"result":{"rateLimits":{"primary":{"usedPercent":125,"resetsAt":1790000000},"individualLimit":12},"rateLimitResetCredits":{"availableCount":"0"}}}\n'; fi ;;
   esac
 done
+# A backend that outlives stdin and ignores SIGTERM: only SIGKILL ends it.
+if [ "${CODEX_MODE:-success}" = stubborn ]; then
+  printf '%s' "$$" > "$CODEX_PID_FILE"
+  trap '' TERM
+  exec sleep 300
+fi
 SH
 chmod +x "$TMP/bin/codex"
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -43,6 +49,18 @@ jq -cn --argjson d "$out" '{cached_at:(now|floor - 901),data:$d}' > "$CACHE"
 : > "$CALLS"
 out="$(CODEX_MODE=reject run)"
 jq -e '.error.code == 3 and .error.message == "limits unavailable"' <<<"$out" >/dev/null || fail "expired cache should report backend error"
+
+# A backend that ignores SIGTERM after answering is killed, not leaked: one
+# process per poll would otherwise pile up.
+rm -f "$CACHE"; : > "$CALLS"
+export CODEX_PID_FILE="$TMP/codex.pid"
+started=$SECONDS
+out="$(CODEX_MODE=stubborn run)"
+elapsed=$((SECONDS - started))
+pid="$(cat "$CODEX_PID_FILE")"
+if kill -0 "$pid" 2>/dev/null; then kill -9 "$pid" 2>/dev/null; fail "a backend ignoring SIGTERM was left running"; fi
+[ "$elapsed" -lt 15 ] || fail "waited ${elapsed}s for a backend ignoring SIGTERM instead of killing it"
+jq -e '.provider == "codex" and .error == null' <<<"$out" >/dev/null || fail "stubborn backend result: $out"
 
 # Native adapter reports a missing executable, then forwards the helper exactly.
 json_error() { jq -cn --arg p "$1" --arg s "$2" --argjson c "$3" --arg k "$4" --arg m "$5" '{provider:$p,source:$s,error:{code:$c,kind:$k,message:$m}}'; }
