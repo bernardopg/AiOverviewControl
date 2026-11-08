@@ -1,0 +1,8 @@
+{
+  "useBalance": true,
+  "usage": {
+    "rolling": { "status": "ok", "percent": 12.5, "resetsAt": "2026-11-08T15:24:56.000Z" },
+    "weekly": { "status": "ok", "percent": 40 },
+    "monthly": { "status": "rate-limited", "percent": 100, "resetsAt": "" }
+  }
+}

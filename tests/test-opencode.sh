@@ -43,6 +43,8 @@ case "$url" in
     case "${OC_USAGE_MODE:-ok}" in
       ok)           [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-usage.json" "$out"; status=200 ;;
       live)         [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-usage-live.json" "$out"; status=200 ;;
+      live-noreset) [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-usage-live-noreset.json" "$out"; status=200 ;;
+      live-malformed) [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-usage-live-malformed.json" "$out"; status=200 ;;
       unauthorized) [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-error-401.json" "$out"; status=401 ;;
       forbidden)    [ -n "$out" ] && cp "${OC_FIXTURE_DIR}/opencode-error-403.json" "$out"; status=403 ;;
       down)         [ -n "$out" ] && printf '' > "$out"; status=500 ;;
@@ -86,6 +88,23 @@ out="$(OC_USAGE_MODE=live run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user_test
 [ "$(jq -r '.[0].usage.primary.resetsAt'          <<<"$out")" = "2026-11-08T15:24:56.000Z" ] || fail "live 5h reset"
 [ "$(jq -r '.[0].usage.secondary.usedPercent'     <<<"$out")" = "19" ]                       || fail "live weekly percent"
 [ "$(jq -r '.[0].usage.tertiary.usedPercent'      <<<"$out")" = "75" ]                       || fail "live monthly percent"
+
+# 1c. A nested window without a usable resetsAt keeps its percentage with a
+#     null reset instead of inventing one, fractional percentages survive, a
+#     window the server marks rate-limited still reports its percentage, and
+#     useBalance keeps working in the nested envelope.
+out="$(OC_USAGE_MODE=live-noreset run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user_test)"
+[ "$(jq -r '.[0].source'                          <<<"$out")" = "opencode-usage" ]            || fail "noreset source"
+[ "$(jq -r '.[0].usage.primary.usedPercent'       <<<"$out")" = "12.5" ]                     || fail "noreset fractional percent"
+[ "$(jq -r '.[0].usage.secondary.resetsAt'        <<<"$out")" = "null" ]                     || fail "missing resetsAt must be null"
+[ "$(jq -r '.[0].usage.tertiary.resetsAt'         <<<"$out")" = "null" ]                     || fail "empty resetsAt must be null"
+[ "$(jq -r '.[0].usage.tertiary.usedPercent'      <<<"$out")" = "100" ]                      || fail "rate-limited window percent"
+[ "$(jq -r '.[0].credits.remaining'               <<<"$out")" = "OpenCode Go · balance fallback enabled" ] || fail "nested useBalance"
+
+# 1d. A nested payload with an out-of-range percentage degrades to auth-only,
+#     exactly like a malformed flat payload.
+out="$(OC_USAGE_MODE=live-malformed run env -u OPENCODE_API_KEY OPENCODE_API_KEY=user_test)"
+[ "$(jq -r '.[0].source' <<<"$out")" = "opencode-models" ] || fail "nested malformed fallback"
 
 # 2. A local auth.json credential is a safe fallback for graphical sessions.
 CLI_HOME="$TMP/cli-home"
