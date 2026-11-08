@@ -120,6 +120,20 @@ Hover a button and the line under the title names its action.
 The ⚙ button opens a standalone settings window. It hosts the same page as
 **Dux Shell Settings → Plugins → AiOverviewControl**, so both write the same values.
 
+The page opens on a **Live preview** of the bar pill, drawn the way the bar
+draws it, with a vertical bar beside it and the hover tooltip under it. It
+uses sample numbers rather than your real usage and follows every bar setting
+at once: pill mode and the providers it shows, names, compact spacing,
+remaining quota, the tooltip and each provider's bar usage window.
+
+The settings sit in foldable groups: **General** (language, refresh interval),
+**Bar pill**, **Dashboard**, **Notifications**, **Providers** (with a search
+field over the 45 adapters, readiness and pinning), **Claude profiles**,
+**History and data** and **Diagnostics and tests**. A folded group shows a
+one-line summary of its state, such as `Custom · 3 in the bar`; the button
+next to the health re-check expands or collapses every group. The page
+reopens with **Bar pill** open, next to the preview.
+
 Its header adds links to upvote, the repository, the issue tracker, and an
 **About** window with the version, the developer, and ways to support the
 project.

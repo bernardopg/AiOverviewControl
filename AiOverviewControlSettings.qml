@@ -595,6 +595,209 @@ PluginSettings {
         }
     }
 
+    // ---- Page layout ---------------------------------------------------
+    // The page is a stack of foldable groups. Which ones are open lives in
+    // memory only: the page reopens with the bar group open, next to the
+    // live preview, instead of persisting UI state as a plugin setting.
+    readonly property var groupIds: ["general", "bar", "dashboard", "notifications", "providers", "profiles", "data", "diagnostics"]
+    property var expandedGroups: ({ bar: true })
+    readonly property bool allGroupsExpanded: groupIds.every(function(id) { return expandedGroups[id] === true; })
+
+    function isGroupExpanded(id) { return expandedGroups[id] === true; }
+
+    function setGroupExpanded(id, open) {
+        const next = Object.assign({}, expandedGroups);
+        next[id] = open;
+        expandedGroups = next;
+    }
+
+    function setAllGroupsExpanded(open) {
+        const next = {};
+        for (let i = 0; i < groupIds.length; i++) next[groupIds[i]] = open;
+        expandedGroups = next;
+    }
+
+    // saveValue() changes the stored data but no binding of this page; the
+    // preview and the group summaries read through live() so they follow
+    // every change at once.
+    property int previewEpoch: 0
+    onSettingChanged: previewEpoch++
+
+    function live(key, fallback) {
+        root.previewEpoch;
+        root.settingsEpoch;
+        const value = loadValue(key, fallback);
+        return value === undefined || value === null ? fallback : String(value);
+    }
+
+    // The label a dropdown shows for a stored value.
+    function optionLabel(values, labels, value) {
+        const index = values.indexOf(value);
+        return index >= 0 && index < labels.length ? labels[index] : String(value);
+    }
+
+    readonly property var languageValues: ["auto", "en_US", "pt_BR", "zh_CN", "es_ES", "de_DE"]
+    // Language names stay in their own language so anyone can find theirs.
+    readonly property var languageLabels: [t("settings.option.auto", "Auto"), "English", "Português (Brasil)", "简体中文", "Español", "Deutsch"]
+    readonly property var refreshValues: ["60000", "120000", "300000", "900000", "1800000"]
+    readonly property var refreshLabels: [1, 2, 5, 15, 30].map(n => t("settings.option.minutes", "{count} min", { count: n }))
+    readonly property var pillModeValues: ["auto", "custom", "top"]
+    readonly property var pillModeLabels: [t("settings.option.auto", "Auto"), t("settings.option.custom", "Custom"), t("settings.option.top", "Top usage")]
+    readonly property var densityValues: ["comfortable", "compact"]
+    readonly property var densityLabels: [t("settings.option.comfortable", "Comfortable"), t("settings.option.compact", "Compact")]
+    readonly property var historyValues: ["500", "2000", "10000"]
+    readonly property var historyLabels: [500, 2000, 10000].map(n => t("settings.option.snapshots", "{count} snapshots", { count: n.toLocaleString(Qt.locale(root.i18nLocale), "f", 0) }))
+    readonly property var scopeValues: ["displayed", "all", "primary"]
+    readonly property var scopeLabels: [t("settings.option.displayed", "Displayed"), t("settings.option.all", "All windows"), t("settings.option.primary", "Primary")]
+
+    // One line per group, shown under its title while it is folded.
+    function groupSummary(id) {
+        const parts = [];
+        if (id === "general") {
+            parts.push(optionLabel(languageValues, languageLabels, live("languageOverride", "auto")));
+            parts.push(t("settings.summary.every", "every {interval}", { interval: optionLabel(refreshValues, refreshLabels, live("refreshInterval", "120000")) }));
+        } else if (id === "bar") {
+            parts.push(optionLabel(pillModeValues, pillModeLabels, live("pillMode", "auto")));
+            parts.push(t("settings.summary.in_bar", "{count} in the bar", { count: previewProviders().length }));
+            if (live("showRemainingQuota", "false") === "true") parts.push(t("settings.summary.remaining", "remaining quota"));
+        } else if (id === "dashboard") {
+            parts.push(optionLabel(densityValues, densityLabels, live("densityMode", "comfortable")));
+            parts.push(live("costCurrency", "USD"));
+        } else if (id === "notifications") {
+            if (live("quotaNotifications", "true") !== "true") return t("settings.summary.off", "Off");
+            parts.push(t("settings.summary.at_percent", "At {percent}%", { percent: live("notifyThreshold", "85") }));
+            parts.push(optionLabel(scopeValues, scopeLabels, live("notifyWindowScope", "displayed")));
+        } else if (id === "providers") {
+            parts.push(t("settings.active_count", "{count} active", { count: selectedIds.length }));
+            if (readyCount > 0) parts.push(t("settings.health.ready_count", "{count} ready", { count: readyCount }));
+            if (missingCount > 0) parts.push(t("settings.health.missing_count", "{count} missing", { count: missingCount }));
+        } else if (id === "profiles") {
+            const count = Object.keys(claudeProfiles).length;
+            return count === 0 ? t("settings.summary.no_profiles", "No extra profiles") : t("settings.summary.profiles", "Profiles: {count}", { count: count });
+        } else if (id === "data") {
+            parts.push(optionLabel(historyValues, historyLabels, live("historyRetention", "2000")));
+        } else if (id === "diagnostics") {
+            return t("settings.diagnostics_desc", "Commands for validating the plugin-managed pipeline.");
+        }
+        return parts.join(" · ");
+    }
+
+    // ---- Provider filter -------------------------------------------------
+    property string providerQuery: ""
+
+    function providerMatches(provider) {
+        const query = providerQuery.trim().toLowerCase();
+        if (query.length === 0) return true;
+        return String(provider.name).toLowerCase().indexOf(query) >= 0
+            || String(provider.id).toLowerCase().indexOf(query) >= 0;
+    }
+
+    // ---- Live bar preview ------------------------------------------------
+    // The preview renders the bar pill the way the widget does, from the
+    // same settings and lib/BarWindows.js, but with sample numbers: fixed per
+    // provider so it never flickers, and never a provider's real usage, which
+    // this page does not read.
+    readonly property var previewSamples: ({
+        codex: [42, 18], claude: [67, 81], copilot: [23], openrouter: [35], antigravity: [12, 55],
+        gemini: [8], "kimi-code": [51, 30], zai: [74, 20], glm: [74, 20], minimax: [28, 61],
+        cursor: [58], grokbot: [46], opencode: [33, 12, 9], commandcode: [19, 40], xai: [27]
+    })
+    readonly property var previewBalances: ({ deepseek: "¥9.34", kimi: "¥42.00", vercel: "$95.50", cline: "$13.74" })
+
+    function previewUsage(id) {
+        if (previewBalances[id] !== undefined)
+            return { primary: { usedPercent: 0, isBalance: true, windowMinutes: null, displayValue: previewBalances[id], resetDescription: "Balance" } };
+        let sample = previewSamples[id];
+        if (!sample) {
+            let hash = 0;
+            for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 997;
+            sample = [15 + hash % 70];
+        }
+        const minutes = [300, 10080, 43200];
+        const usage = {};
+        const slots = ["primary", "secondary", "tertiary"];
+        for (let i = 0; i < sample.length && i < 3; i++)
+            usage[slots[i]] = { usedPercent: sample[i], windowMinutes: minutes[i] };
+        return usage;
+    }
+
+    function previewSlot(id) {
+        root.previewEpoch;
+        const slot = BarWindows.parseOverrides(live("barWindowOverrides", ""))[id];
+        return slot === undefined ? "" : slot;
+    }
+
+    function previewWindows(id) { return BarWindows.windowsFor(previewUsage(id), previewSlot(id)); }
+
+    function previewPercent(id) { return BarWindows.maxPercent(previewWindows(id)); }
+
+    // The providers the bar would show, in the widget's pill-mode rules.
+    function previewProviders() {
+        const mode = live("pillMode", "auto");
+        if (mode === "custom") return pillIds.filter(function(id) { return isSelected(id); });
+        if (mode === "top") {
+            let best = null;
+            for (let i = 0; i < selectedIds.length; i++) {
+                if (!best || previewPercent(selectedIds[i]) > previewPercent(best)) best = selectedIds[i];
+            }
+            return best ? [best] : [];
+        }
+        return selectedIds.slice();
+    }
+
+    function previewIsBalance(windowData) {
+        return !!windowData && windowData.isBalance === true && String(windowData.displayValue || "").length > 0;
+    }
+
+    function previewNumber(windowData) {
+        if (previewIsBalance(windowData)) return String(windowData.displayValue);
+        const used = Math.max(0, Math.min(100, Number(windowData.usedPercent) || 0));
+        return Math.round(live("showRemainingQuota", "false") === "true" ? 100 - used : used) + "%";
+    }
+
+    // The widget's usage scale.
+    function previewColor(percent) {
+        if (percent >= 80) return Theme.error;
+        if (percent >= 60) return Theme.warning;
+        return Theme.success;
+    }
+
+    function previewWindowTag(windowData) {
+        const minutes = Number(windowData && windowData.windowMinutes) || 0;
+        if (minutes > 0 && minutes % 1440 === 0) return t("time.days", "{d}d", { d: minutes / 1440 });
+        if (minutes > 0 && minutes % 60 === 0) return t("time.hours", "{h}h", { h: minutes / 60 });
+        if (minutes > 0) return t("time.minutes", "{m}m", { m: minutes });
+        return "";
+    }
+
+    function previewWindowLabel(windowData) {
+        const minutes = Number(windowData && windowData.windowMinutes) || 0;
+        if (previewIsBalance(windowData)) return t("window.balance", "Balance");
+        if (minutes > 0 && minutes <= 300) return t("window.session", "Session");
+        if (minutes > 0 && minutes <= 10080) return t("window.weekly", "Weekly");
+        if (minutes > 0) return t("window.monthly", "Monthly");
+        return "";
+    }
+
+    // The tooltip line the widget builds: provider, window and number per
+    // displayed window.
+    function previewTooltipText() {
+        const remaining = live("showRemainingQuota", "false") === "true";
+        const entries = previewProviders().map(function(id) {
+            const segment = [providerDisplayName(id)];
+            const windows = previewWindows(id);
+            for (let i = 0; i < windows.length; i++) {
+                const label = previewWindowLabel(windows[i]);
+                if (label.length > 0) segment.push(label);
+                segment.push(previewIsBalance(windows[i]) || !remaining
+                    ? previewNumber(windows[i])
+                    : t("quota.remaining", "{percent}% left", { percent: parseInt(previewNumber(windows[i]), 10) }));
+            }
+            return segment.join(" · ");
+        });
+        return entries.join("   •   ");
+    }
+
     StyledRect {
         width: parent.width
         radius: Theme.cornerRadius + 4
@@ -699,6 +902,17 @@ PluginSettings {
                 }
 
                 DActionButton {
+                    objectName: "settings-expand-all"
+                    Layout.alignment: Qt.AlignVCenter
+                    iconName: root.allGroupsExpanded ? "unfold_less" : "unfold_more"
+                    iconColor: Theme.primary
+                    backgroundColor: Theme.withAlpha(Theme.primary, 0.1)
+                    buttonSize: 36
+                    tooltipText: root.allGroupsExpanded ? t("settings.collapse_all", "Collapse all sections") : t("settings.expand_all", "Expand all sections")
+                    onClicked: root.setAllGroupsExpanded(!root.allGroupsExpanded)
+                }
+
+                DActionButton {
                     Layout.alignment: Qt.AlignVCenter
                     iconName: "refresh"
                     iconColor: Theme.primary
@@ -743,79 +957,69 @@ PluginSettings {
         }
     }
 
-    SectionHeader {
+
+    // Live preview of the bar pill: every change below shows up here before
+    // the bar picks it up on its next refresh.
+    PillPreview {
+        objectName: "settings-preview"
         width: parent.width
-        headerTitle: t("settings.section.interface", "Interface")
-        headerIcon: "tune"
     }
 
-    ValueDropdown {
-        width: parent.width
-        text: t("settings.language.label", "Language")
-        description: t("settings.language.description", "UI language for this plugin. Auto follows system locale.")
-        selected: { root.settingsEpoch; return loadValue("languageOverride", "auto"); }
-        values: ["auto", "en_US", "pt_BR", "zh_CN", "es_ES", "de_DE"]
-        // Language names stay in their own language so anyone can find theirs.
-        labels: [t("settings.option.auto", "Auto"), "English", "Português (Brasil)", "简体中文", "Español", "Deutsch"]
-        optionIcons: ["language", "translate", "translate", "translate", "translate", "translate"]
-        dropdownWidth: 220
-        onPicked: function(value) { saveValue("languageOverride", value); }
+    SettingsGroup {
+        groupId: "general"
+        groupTitle: t("settings.group.general", "General")
+        groupIcon: "tune"
+
+        ValueDropdown {
+            objectName: "setting-languageOverride"
+            width: parent.width
+            text: t("settings.language.label", "Language")
+            description: t("settings.language.description", "UI language for this plugin. Auto follows system locale.")
+            selected: { root.settingsEpoch; return loadValue("languageOverride", "auto"); }
+            values: root.languageValues
+            labels: root.languageLabels
+            optionIcons: ["language", "translate", "translate", "translate", "translate", "translate"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("languageOverride", value); }
+        }
+
+        ValueDropdown {
+            objectName: "setting-refreshInterval"
+            width: parent.width
+            text: t("settings.refresh_interval", "Refresh interval")
+            description: t("settings.refresh_description", "How often the plugin queries selected local adapters and provider APIs.")
+            selected: { root.settingsEpoch; return loadValue("refreshInterval", "120000"); }
+            values: root.refreshValues
+            labels: root.refreshLabels
+            optionIcons: ["timer", "timer", "timer", "timer", "timer"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("refreshInterval", value); }
+        }
     }
 
-    ValueDropdown {
-        width: parent.width
-        text: t("settings.density.label", "Dashboard density")
-        description: t("settings.density.description", "Comfortable keeps full previews. Compact reduces card height and visual detail.")
-        selected: { root.settingsEpoch; return loadValue("densityMode", "comfortable"); }
-        values: ["comfortable", "compact"]
-        labels: [t("settings.option.comfortable", "Comfortable"), t("settings.option.compact", "Compact")]
-        optionIcons: ["view_agenda", "density_small"]
-        dropdownWidth: 220
-        onPicked: function(value) { saveValue("densityMode", value); }
-    }
+    SettingsGroup {
+        groupId: "bar"
+        groupTitle: t("settings.group.bar", "Bar pill")
+        groupIcon: "view_week"
 
-    ValueDropdown {
-        id: pillModeDropdown
-        width: parent.width
-        text: t("settings.pill_mode.label", "Pill mode")
-        description: t("settings.pill_mode.description", "Auto shows providers with measurable usage. Custom uses the list below.")
-        selected: { root.settingsEpoch; return loadValue("pillMode", "auto"); }
-        values: ["auto", "custom", "top"]
-        labels: [t("settings.option.auto", "Auto"), t("settings.option.custom", "Custom"), t("settings.option.top", "Top usage")]
-        optionIcons: ["auto_awesome", "tune", "trending_up"]
-        dropdownWidth: 180
-        onPicked: function(value) { saveValue("pillMode", value); }
-    }
+        ValueDropdown {
+            id: pillModeDropdown
+            objectName: "setting-pillMode"
+            width: parent.width
+            text: t("settings.pill_mode.label", "Pill mode")
+            description: t("settings.pill_mode.description", "Auto shows providers with measurable usage. Custom uses the list below.")
+            selected: { root.settingsEpoch; return loadValue("pillMode", "auto"); }
+            values: root.pillModeValues
+            labels: root.pillModeLabels
+            optionIcons: ["auto_awesome", "tune", "trending_up"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("pillMode", value); }
+        }
 
-    StyledRect {
-        visible: pillModeDropdown.selected === "custom"
-        width: parent.width
-        radius: Theme.cornerRadius
-        color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
-        border.width: 1
-        border.color: Theme.withAlpha(Theme.primary, 0.18)
-        implicitHeight: pillProviderColumn.implicitHeight + Theme.spacingM * 2
-
-        Column {
-            id: pillProviderColumn
-            anchors.fill: parent
-            anchors.margins: Theme.spacingM
-            spacing: Theme.spacingS
-
-            StyledText {
-                text: t("settings.pill_providers.label", "Providers shown in the bar")
-                color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.DemiBold
-            }
-
-            StyledText {
-                width: parent.width
-                text: t("settings.pill_providers.description", "Choose a compact subset of tracked providers. This only changes the bar pill; tracking and dashboard cards remain unchanged.")
-                wrapMode: Text.WordWrap
-                color: Theme.surfaceVariantText
-                font.pixelSize: Theme.fontSizeSmall
-            }
+        SubPanel {
+            visible: pillModeDropdown.selected === "custom"
+            panelTitle: t("settings.pill_providers.label", "Providers shown in the bar")
+            panelDescription: t("settings.pill_providers.description", "Choose a compact subset of tracked providers. This only changes the bar pill; tracking and dashboard cards remain unchanged.")
 
             Flow {
                 width: parent.width
@@ -828,20 +1032,22 @@ PluginSettings {
                         id: pillProviderChip
                         required property var modelData
                         readonly property bool active: root.isPillSelected(modelData.id)
+                        objectName: "pill-provider-" + modelData.id
                         width: pillProviderRow.implicitWidth + Theme.spacingM * 2
                         height: 36
                         radius: 18
                         color: active
                             ? Theme.withAlpha(Theme.primary, 0.17)
                             : Theme.withAlpha(Theme.surfaceVariantText, pillProviderMouse.containsMouse ? 0.13 : 0.07)
-                        border.width: active ? 1 : 0
-                        border.color: Theme.withAlpha(Theme.primary, 0.48)
+                        border.width: active || activeFocus ? 1 : 0
+                        border.color: Theme.withAlpha(Theme.primary, activeFocus ? 0.9 : 0.48)
                         activeFocusOnTab: true
                         Accessible.role: Accessible.CheckBox
                         Accessible.name: modelData.name
                         Accessible.checked: active
                         Keys.onReturnPressed: root.togglePillProvider(modelData.id)
                         Keys.onSpacePressed: root.togglePillProvider(modelData.id)
+                        Behavior on color { ColorAnimation { duration: 140 } }
 
                         Row {
                             id: pillProviderRow
@@ -883,364 +1089,590 @@ PluginSettings {
                 }
             }
         }
-    }
 
-    DToggle {
-        // DToggle insets its text by spacingM; bleed out to align with the other rows.
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.pill_tooltip", "Bar pill tooltip")
-        description: t("settings.pill_tooltip_desc", "Hovering the bar pill spells out the provider, which quota window the percentage came from, and when it resets.")
-        checked: { root.settingsEpoch; return loadValue("pillTooltip", "true") === "true"; }
-        onToggled: function(checked) { saveValue("pillTooltip", checked ? "true" : "false"); }
-    }
+        // Pill footprint controls (issue #33): logo + percentage only, and a
+        // tighter gap around the separator dot for crowded bars.
+        SettingToggle {
+            settingKey: "pillShowNames"
+            defaultValue: true
+            text: t("settings.pill_show_names", "Provider names in pill")
+            description: t("settings.pill_show_names_desc", "Turn off to keep only each provider's logo and percentage. The tooltip still names them.")
+        }
 
-    DToggle {
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.show_remaining", "Show remaining quota")
-        description: t("settings.show_remaining_desc", "Show available quota instead of consumed quota in the pill and dashboard. Alert thresholds still use consumption.")
-        checked: { root.settingsEpoch; return loadValue("showRemainingQuota", "false") === "true"; }
-        onToggled: function(checked) { saveValue("showRemainingQuota", checked ? "true" : "false"); }
-    }
+        SettingToggle {
+            settingKey: "pillCompact"
+            defaultValue: false
+            text: t("settings.pill_compact", "Compact pill spacing")
+            description: t("settings.pill_compact_desc", "Tightens the gap around the dot between providers and inside each entry.")
+        }
 
-    // Pill footprint controls (issue #33): logo + percentage only, and a
-    // tighter gap around the separator dot for crowded bars.
-    DToggle {
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.pill_show_names", "Provider names in pill")
-        description: t("settings.pill_show_names_desc", "Turn off to keep only each provider's logo and percentage. The tooltip still names them.")
-        checked: { root.settingsEpoch; return loadValue("pillShowNames", "true") === "true"; }
-        onToggled: function(checked) { saveValue("pillShowNames", checked ? "true" : "false"); }
-    }
+        SettingToggle {
+            settingKey: "showRemainingQuota"
+            defaultValue: false
+            text: t("settings.show_remaining", "Show remaining quota")
+            description: t("settings.show_remaining_desc", "Show available quota instead of consumed quota in the pill and dashboard. Alert thresholds still use consumption.")
+        }
 
-    DToggle {
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.pill_compact", "Compact pill spacing")
-        description: t("settings.pill_compact_desc", "Tightens the gap around the dot between providers and inside each entry.")
-        checked: { root.settingsEpoch; return loadValue("pillCompact", "false") === "true"; }
-        onToggled: function(checked) { saveValue("pillCompact", checked ? "true" : "false"); }
-    }
+        SettingToggle {
+            settingKey: "pillTooltip"
+            defaultValue: true
+            text: t("settings.pill_tooltip", "Bar pill tooltip")
+            description: t("settings.pill_tooltip_desc", "Hovering the bar pill spells out the provider, which quota window the percentage came from, and when it resets.")
+        }
 
-    // Per-provider DankBar window selection (issue #17). The tracked-provider
-    // list is never empty (normalizeProviderSelection guarantees one entry),
-    // so the block is always rendered.
-    StyledRect {
-        width: parent.width
-        radius: Theme.cornerRadius
-        color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
-        border.width: 1
-        border.color: Theme.withAlpha(Theme.primary, 0.18)
-        implicitHeight: barWindowColumn.implicitHeight + Theme.spacingM * 2
+        // Per-provider DankBar window selection (issues #17 and #86). The
+        // tracked-provider list is never empty (normalizeProviderSelection
+        // guarantees one entry), so the panel always has a row.
+        SubPanel {
+            objectName: "setting-barWindowOverrides"
+            panelTitle: t("settings.bar_window.label", "Bar usage window")
+            panelDescription: t("settings.bar_window.short", "Which quota window each provider shows in the bar. The dashboard keeps showing every window.")
 
-        Column {
-            id: barWindowColumn
-            anchors.fill: parent
-            anchors.margins: Theme.spacingM
-            spacing: Theme.spacingS
-
-            StyledText {
-                text: t("settings.bar_window.label", "Bar usage window")
-                color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.DemiBold
-            }
-
-            StyledText {
-                width: parent.width
-                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the bar by default, or a later window once it is used up, so an account blocked by its weekly limit reads 100% instead of an idle 5 hour window. Pick Primary to always keep the primary window. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h 45% / 7d 80%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
-                wrapMode: Text.WordWrap
-                color: Theme.surfaceVariantText
-                font.pixelSize: Theme.fontSizeSmall
+            InlineHelp {
+                helpText: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the bar by default, or a later window once it is used up, so an account blocked by its weekly limit reads 100% instead of an idle 5 hour window. Pick Primary to always keep the primary window. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h 45% / 7d 80%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
             }
 
             Repeater {
                 model: root.selectedIds
 
-                ValueDropdown {
+                RowLayout {
+                    id: barWindowRow
                     required property string modelData
                     width: parent.width
-                    text: root.providerDisplayName(modelData)
-                    selected: { root.settingsEpoch; return root.barChoiceFor(modelData); }
-                    values: ["auto", "primary", "secondary", "tertiary", "highest", "primary+secondary", "all"]
-                    labels: [t("settings.option.auto_window", "Automatic"), t("settings.option.primary", "Primary"), t("settings.option.secondary", "Secondary"), t("settings.option.tertiary", "Tertiary"), t("settings.option.highest", "Highest"), t("settings.option.primary_secondary", "Primary + secondary"), t("settings.option.all_windows", "All windows")]
-                    optionIcons: ["auto_mode", "looks_one", "looks_two", "looks_3", "trending_up", "view_agenda", "view_list"]
-                    dropdownWidth: 220
-                    onPicked: function(value) { root.setBarChoice(modelData, value); }
+                    spacing: Theme.spacingS
+
+                    Rectangle {
+                        Layout.alignment: Qt.AlignVCenter
+                        width: 28
+                        height: 28
+                        radius: 14
+                        color: Theme.withAlpha(Theme.primary, 0.1)
+
+                        ProviderLogo {
+                            anchors.centerIn: parent
+                            providerId: barWindowRow.modelData
+                            logoSize: 15
+                            tintColor: root.providerLogoColor
+                        }
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: root.providerDisplayName(barWindowRow.modelData)
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeSmall
+                        font.weight: Font.Medium
+                        elide: Text.ElideRight
+                    }
+
+                    ValueDropdown {
+                        objectName: "bar-window-" + barWindowRow.modelData
+                        Layout.preferredWidth: 230
+                        selected: { root.settingsEpoch; return root.barChoiceFor(barWindowRow.modelData); }
+                        values: ["auto", "primary", "secondary", "tertiary", "highest", "primary+secondary", "all"]
+                        labels: [t("settings.option.auto_window", "Automatic"), t("settings.option.primary", "Primary"), t("settings.option.secondary", "Secondary"), t("settings.option.tertiary", "Tertiary"), t("settings.option.highest", "Highest"), t("settings.option.primary_secondary", "Primary + secondary"), t("settings.option.all_windows", "All windows")]
+                        optionIcons: ["auto_mode", "looks_one", "looks_two", "looks_3", "trending_up", "view_agenda", "view_list"]
+                        dropdownWidth: 230
+                        onPicked: function(value) { root.setBarChoice(barWindowRow.modelData, value); root.previewEpoch++; }
+                    }
                 }
             }
         }
     }
 
-    ValueDropdown {
-        width: parent.width
-        text: t("settings.refresh_interval", "Refresh interval")
-        description: t("settings.refresh_description", "How often the plugin queries selected local adapters and provider APIs.")
-        selected: { root.settingsEpoch; return loadValue("refreshInterval", "120000"); }
-        values: ["60000", "120000", "300000", "900000", "1800000"]
-        labels: [1, 2, 5, 15, 30].map(n => t("settings.option.minutes", "{count} min", { count: n }))
-        optionIcons: ["timer", "timer", "timer_off", "timer_off", "timer_off"]
-        dropdownWidth: 200
-        onPicked: function(value) { saveValue("refreshInterval", value); }
-    }
+    SettingsGroup {
+        groupId: "dashboard"
+        groupTitle: t("settings.group.dashboard", "Dashboard")
+        groupIcon: "dashboard"
 
-    DToggle {
-        // DToggle insets its text by spacingM; bleed out to align with the other rows.
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.show_errors", "Show providers with errors")
-        description: t("settings.show_errors_desc", "Keep authentication and configuration failures visible in the dashboard.")
-        checked: { root.settingsEpoch; return loadValue("showErrorProviders", "true") === "true"; }
-        onToggled: function(checked) { saveValue("showErrorProviders", checked ? "true" : "false"); }
-    }
-
-    Column {
-        width: parent.width
-        spacing: Theme.spacingXS
-
-        StyledText {
+        ValueDropdown {
+            objectName: "setting-densityMode"
             width: parent.width
-            text: t("settings.logo_color", "Provider logo color")
-            color: Theme.surfaceText
-            font.pixelSize: Theme.fontSizeSmall
-            font.weight: Font.Medium
+            text: t("settings.density.label", "Dashboard density")
+            description: t("settings.density.description", "Comfortable keeps full previews. Compact reduces card height and visual detail.")
+            selected: { root.settingsEpoch; return loadValue("densityMode", "comfortable"); }
+            values: root.densityValues
+            labels: root.densityLabels
+            optionIcons: ["view_agenda", "density_small"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("densityMode", value); }
         }
 
-        StyledText {
+        ValueDropdown {
+            objectName: "setting-costCurrency"
             width: parent.width
-            text: t("settings.logo_color_desc", "One monochrome color for every provider logo in the dashboard and desktop notifications.")
-            color: Theme.surfaceVariantText
-            font.pixelSize: Theme.fontSizeSmall - 1
-            wrapMode: Text.WordWrap
+            text: t("settings.cost_currency", "Estimated cost currency")
+            description: t("settings.cost_currency_desc", "Convert USD analytics for display using daily exchange rates. Balances and stored amounts stay unchanged; unavailable rates fall back to USD.")
+            selected: { root.settingsEpoch; return loadValue("costCurrency", "USD"); }
+            values: ["USD", "EUR", "BRL", "GBP", "CAD", "CNY", "JPY", "AUD", "CHF"]
+            labels: values
+            optionIcons: ["attach_money", "euro", "payments", "currency_pound", "payments", "currency_yuan", "currency_yen", "payments", "currency_franc"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("costCurrency", value); }
         }
 
-        Rectangle {
+        // One monochrome tint for every provider logo. Stored empty means
+        // "follow the theme accent", the same contract the widget uses.
+        RowLayout {
+            objectName: "setting-providerLogoColor"
             width: parent.width
-            height: 46
-            radius: Theme.cornerRadius
-            color: Theme.surfaceContainerHigh
+            spacing: Theme.spacingM
 
-            Row {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.spacingM
-                anchors.rightMargin: Theme.spacingM
-                spacing: Theme.spacingM
+            Column {
+                Layout.fillWidth: true
+                spacing: 2
 
-                Rectangle {
-                    width: 28
-                    height: 28
-                    radius: width / 2
-                    color: root.providerLogoColor
-                    border.color: Theme.outline
-                    border.width: 1
-                    anchors.verticalCenter: parent.verticalCenter
+                StyledText {
+                    width: parent.width
+                    text: t("settings.logo_color", "Provider logo color")
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Medium
                 }
 
                 StyledText {
-                    text: root.providerLogoColor.toString()
-                    color: Theme.surfaceText
-                    font.pixelSize: Theme.fontSizeSmall
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Item { width: 1; height: 1; Layout.fillWidth: true }
-
-                DIcon {
-                    name: "edit"
-                    size: Theme.iconSizeSmall
+                    width: parent.width
+                    text: t("settings.logo_color_desc", "One monochrome color for every provider logo in the dashboard and desktop notifications.")
                     color: Theme.surfaceVariantText
-                    anchors.verticalCenter: parent.verticalCenter
+                    font.pixelSize: Theme.fontSizeSmall
+                    wrapMode: Text.WordWrap
                 }
             }
 
-            StateLayer {
-                stateColor: Theme.surfaceText
-                onClicked: root.openProviderLogoColorPicker()
+            DActionButton {
+                objectName: "logo-color-theme"
+                Layout.alignment: Qt.AlignVCenter
+                visible: { root.previewEpoch; return String(loadValue("providerLogoColor", "") || "").length > 0; }
+                buttonSize: 32
+                iconName: "format_color_reset"
+                iconColor: Theme.surfaceVariantText
+                backgroundColor: "transparent"
+                tooltipText: t("settings.logo_color_theme", "Follow the theme accent")
+                onClicked: {
+                    saveValue("providerLogoColor", "");
+                    root.providerLogoColor = Theme.primary;
+                }
+            }
+
+            Rectangle {
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: swatchRow.implicitWidth + Theme.spacingM * 2
+                implicitHeight: 40
+                radius: 20
+                color: swatchMouse.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainerHigh
+                border.width: 1
+                border.color: Theme.withAlpha(Theme.outline, 0.4)
+                Behavior on color { ColorAnimation { duration: 140 } }
+
+                Row {
+                    id: swatchRow
+                    anchors.centerIn: parent
+                    spacing: Theme.spacingS
+
+                    Rectangle {
+                        width: 22
+                        height: 22
+                        radius: 11
+                        color: root.providerLogoColor
+                        border.color: Theme.withAlpha(Theme.surfaceText, 0.3)
+                        border.width: 1
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    ProviderLogo {
+                        providerId: "claude"
+                        logoSize: 16
+                        tintColor: root.providerLogoColor
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    DIcon {
+                        name: "colorize"
+                        size: 15
+                        color: Theme.surfaceVariantText
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                MouseArea {
+                    id: swatchMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.openProviderLogoColorPicker()
+                }
             }
         }
-    }
 
-    ValueDropdown {
-        width: parent.width
-        text: t("settings.cost_currency", "Estimated cost currency")
-        description: t("settings.cost_currency_desc", "Convert USD analytics for display using daily exchange rates. Balances and stored amounts stay unchanged; unavailable rates fall back to USD.")
-        selected: { root.settingsEpoch; return loadValue("costCurrency", "USD"); }
-        values: ["USD", "EUR", "BRL", "GBP", "CAD", "CNY", "JPY", "AUD", "CHF"]
-        labels: values
-        onPicked: function(value) { saveValue("costCurrency", value); }
-    }
-
-    DToggle {
-        // DToggle insets its text by spacingM; bleed out to align with the other rows.
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.show_projects", "Show Claude projects")
-        description: t("settings.show_projects_desc", "List the week's top projects inside the Claude card.")
-        checked: { root.settingsEpoch; return loadValue("showClaudeProjects", "true") === "true"; }
-        onToggled: function(checked) { saveValue("showClaudeProjects", checked ? "true" : "false"); }
-    }
-
-    DToggle {
-        // DToggle insets its text by spacingM; bleed out to align with the other rows.
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.antigravity_model_details", "Show individual Antigravity models")
-        description: t("settings.antigravity_model_details_desc", "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.")
-        checked: { root.settingsEpoch; return loadValue("showAntigravityModelDetails", "false") === "true"; }
-        onToggled: function(checked) { saveValue("showAntigravityModelDetails", checked ? "true" : "false"); }
-    }
-
-    DToggle {
-        id: notifyToggle
-        // DToggle insets its text by spacingM; bleed out to align with the other rows.
-        x: -Theme.spacingM
-        width: parent.width + Theme.spacingM * 2
-        text: t("settings.notify.label", "Quota notifications")
-        description: t("settings.notify.description", "Alert once when a provider crosses the threshold, then update the same notification if its quota is exhausted.")
-        checked: { root.settingsEpoch; return loadValue("quotaNotifications", "true") === "true"; }
-        onToggled: function(checked) { saveValue("quotaNotifications", checked ? "true" : "false"); }
-    }
-
-    ValueDropdown {
-        visible: notifyToggle.checked
-        width: parent.width
-        text: t("settings.notify.threshold", "Notification threshold")
-        description: t("settings.notify.threshold_desc", "Usage percent that triggers a notification.")
-        selected: { root.settingsEpoch; return loadValue("notifyThreshold", "85"); }
-        values: ["75", "85", "95"]
-        labels: ["75%", "85%", "95%"]
-        optionIcons: ["notifications", "notifications_active", "notification_important"]
-        dropdownWidth: 160
-        onPicked: function(value) { saveValue("notifyThreshold", value); }
-    }
-
-    ValueDropdown {
-        visible: notifyToggle.checked
-        width: parent.width
-        text: t("settings.notify.window_scope", "Windows that raise alerts")
-        description: t("settings.notify.window_scope_desc", "“Displayed” alerts on whatever windows the bar shows for each provider — identical to “Primary” until you override a provider above. “All windows” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
-        selected: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
-        values: ["displayed", "all", "primary"]
-        labels: [t("settings.option.displayed", "Displayed"), t("settings.option.all", "All windows"), t("settings.option.primary", "Primary")]
-        optionIcons: ["align_horizontal_left", "select_all", "looks_one"]
-        dropdownWidth: 200
-        onPicked: function(value) { saveValue("notifyWindowScope", value); }
-    }
-
-    ValueDropdown {
-        visible: notifyToggle.checked
-        width: parent.width
-        text: t("settings.notify.cooldown", "Re-alert interval")
-        description: t("settings.notify.cooldown_desc", "0 alerts once per quota window. Other values update the same notification after that many minutes while usage stays high.")
-        selected: { root.settingsEpoch; return loadValue("notifyCooldownMinutes", "0"); }
-        values: ["0", "60", "360", "1440"]
-        labels: [t("settings.option.once", "Once per window")].concat([1, 6, 24].map(n => t("settings.option.hours", "{count} h", { count: n })))
-        optionIcons: ["notifications_off", "schedule", "schedule", "schedule"]
-        dropdownWidth: 160
-        onPicked: function(value) { saveValue("notifyCooldownMinutes", value); }
-    }
-
-    Column {
-        visible: notifyToggle.checked
-        width: parent.width
-        spacing: Theme.spacingXS
-
-        StyledText {
-            width: parent.width
-            text: t("settings.notify.overrides", "Per-provider threshold overrides")
-            color: Theme.surfaceText
-            font.pixelSize: Theme.fontSizeSmall
-            font.weight: Font.Medium
+        SettingToggle {
+            settingKey: "showErrorProviders"
+            defaultValue: true
+            text: t("settings.show_errors", "Show providers with errors")
+            description: t("settings.show_errors_desc", "Keep authentication and configuration failures visible in the dashboard.")
         }
 
-        StyledText {
-            width: parent.width
-            text: t("settings.notify.overrides_desc", "Comma-separated provider:percent pairs that beat the global threshold.")
-            wrapMode: Text.WordWrap
-            color: Theme.surfaceVariantText
-            font.pixelSize: Theme.fontSizeSmall - 1
+        SettingToggle {
+            settingKey: "showClaudeProjects"
+            defaultValue: true
+            text: t("settings.show_projects", "Show Claude projects")
+            description: t("settings.show_projects_desc", "List the week's top projects inside the Claude card.")
         }
 
-        DTextField {
-            id: thresholdOverridesField
-            width: parent.width
-            placeholderText: "claude:90,codex:75"
-            text: { root.settingsEpoch; return loadValue("notifyThresholds", ""); }
-            onEditingFinished: saveValue("notifyThresholds", text.trim())
+        SettingToggle {
+            settingKey: "showAntigravityModelDetails"
+            defaultValue: false
+            text: t("settings.antigravity_model_details", "Show individual Antigravity models")
+            description: t("settings.antigravity_model_details_desc", "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.")
+        }
+    }
+
+    SettingsGroup {
+        groupId: "notifications"
+        groupTitle: t("settings.group.notifications", "Notifications")
+        groupIcon: "notifications"
+
+        SettingToggle {
+            id: notifyToggle
+            settingKey: "quotaNotifications"
+            defaultValue: true
+            text: t("settings.notify.label", "Quota notifications")
+            description: t("settings.notify.description", "Alert once when a provider crosses the threshold, then update the same notification if its quota is exhausted.")
         }
 
-        // Live — bound to the field rather than to the saved value, so a typo
-        // is flagged while typing instead of after the entry is dropped.
-        Repeater {
-            model: root.notifyThresholdIssues(thresholdOverridesField.text)
+        // Everything below only applies while alerts are on, so it folds
+        // under the switch instead of sitting greyed out.
+        SubPanel {
+            visible: notifyToggle.checked
 
-            Row {
-                required property string modelData
+            ValueDropdown {
+                objectName: "setting-notifyThreshold"
+                width: parent.width
+                text: t("settings.notify.threshold", "Notification threshold")
+                description: t("settings.notify.threshold_desc", "Usage percent that triggers a notification.")
+                selected: { root.settingsEpoch; return loadValue("notifyThreshold", "85"); }
+                values: ["75", "85", "95"]
+                labels: ["75%", "85%", "95%"]
+                optionIcons: ["notifications", "notifications_active", "notification_important"]
+                dropdownWidth: 230
+                onPicked: function(value) { saveValue("notifyThreshold", value); }
+            }
+
+            ValueDropdown {
+                objectName: "setting-notifyWindowScope"
+                width: parent.width
+                text: t("settings.notify.window_scope", "Windows that raise alerts")
+                description: t("settings.notify.window_scope_desc", "“Displayed” alerts on whatever windows the bar shows for each provider — identical to “Primary” until you override a provider above. “All windows” also alerts on Claude's 7 day, Codex's weekly, and every other secondary window.")
+                selected: { root.settingsEpoch; return loadValue("notifyWindowScope", "displayed"); }
+                values: root.scopeValues
+                labels: root.scopeLabels
+                optionIcons: ["align_horizontal_left", "select_all", "looks_one"]
+                dropdownWidth: 230
+                onPicked: function(value) { saveValue("notifyWindowScope", value); }
+            }
+
+            ValueDropdown {
+                objectName: "setting-notifyCooldownMinutes"
+                width: parent.width
+                text: t("settings.notify.cooldown", "Re-alert interval")
+                description: t("settings.notify.cooldown_desc", "0 alerts once per quota window. Other values update the same notification after that many minutes while usage stays high.")
+                selected: { root.settingsEpoch; return loadValue("notifyCooldownMinutes", "0"); }
+                values: ["0", "60", "360", "1440"]
+                labels: [t("settings.option.once", "Once per window")].concat([1, 6, 24].map(n => t("settings.option.hours", "{count} h", { count: n })))
+                optionIcons: ["notifications_off", "schedule", "schedule", "schedule"]
+                dropdownWidth: 230
+                onPicked: function(value) { saveValue("notifyCooldownMinutes", value); }
+            }
+
+            Column {
                 width: parent.width
                 spacing: Theme.spacingXS
 
-                DIcon {
-                    name: "error_outline"
-                    size: 14
-                    color: Theme.error
-                    anchors.verticalCenter: parent.verticalCenter
+                StyledText {
+                    width: parent.width
+                    text: t("settings.notify.overrides", "Per-provider threshold overrides")
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Medium
                 }
 
                 StyledText {
-                    width: parent.width - 14 - Theme.spacingXS
-                    text: parent.modelData
+                    width: parent.width
+                    text: t("settings.notify.overrides_desc", "Comma-separated provider:percent pairs that beat the global threshold.")
                     wrapMode: Text.WordWrap
-                    color: Theme.error
-                    font.pixelSize: Theme.fontSizeSmall - 1
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+
+                DTextField {
+                    id: thresholdOverridesField
+                    objectName: "setting-notifyThresholds"
+                    width: parent.width
+                    placeholderText: "claude:90,codex:75"
+                    isError: root.notifyThresholdIssues(text).length > 0
+                    text: { root.settingsEpoch; return loadValue("notifyThresholds", ""); }
+                    onEditingFinished: saveValue("notifyThresholds", text.trim())
+                }
+
+                // Live — bound to the field rather than to the saved value, so a typo
+                // is flagged while typing instead of after the entry is dropped.
+                Repeater {
+                    model: root.notifyThresholdIssues(thresholdOverridesField.text)
+
+                    Row {
+                        required property string modelData
+                        width: parent.width
+                        spacing: Theme.spacingXS
+
+                        DIcon {
+                            name: "error_outline"
+                            size: 14
+                            color: Theme.error
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            width: parent.width - 14 - Theme.spacingXS
+                            text: parent.modelData
+                            wrapMode: Text.WordWrap
+                            color: Theme.error
+                            font.pixelSize: Theme.fontSizeSmall - 1
+                        }
+                    }
                 }
             }
         }
     }
 
-    ValueDropdown {
-        width: parent.width
-        text: t("settings.history_retention", "Usage history retention")
-        description: t("settings.history_retention_desc", "Snapshots kept per trim of the local usage history (sparklines and trends).") + "\n" + t("settings.history_count", "{count} snapshots stored · last trim removed {trimmed}", { count: root.historySnapshotCount, trimmed: root.historyLastTrimmed })
-        selected: { root.settingsEpoch; return loadValue("historyRetention", "2000"); }
-        values: ["500", "2000", "10000"]
-        labels: [500, 2000, 10000].map(n => t("settings.option.snapshots", "{count} snapshots", { count: n.toLocaleString(Qt.locale(root.i18nLocale), "f", 0) }))
-        optionIcons: ["history", "history", "history"]
-        dropdownWidth: 160
-        onPicked: function(value) { saveValue("historyRetention", value); }
+    SettingsGroup {
+        groupId: "providers"
+        groupTitle: t("settings.group.providers", "Providers")
+        groupIcon: "hub"
+
+        DSearchField {
+            id: providerSearch
+            objectName: "provider-search"
+            width: parent.width
+            placeholderText: t("settings.providers.search", "Search providers")
+            text: root.providerQuery
+            onTextChanged: root.providerQuery = text
+        }
+
+        StyledText {
+            width: parent.width
+            visible: root.providerQuery.trim().length > 0
+                && root.allProviders.filter(function(provider) { return root.providerMatches(provider); }).length === 0
+            text: t("settings.providers.no_match", "No provider matches “{query}”.", { query: root.providerQuery.trim() })
+            color: Theme.surfaceVariantText
+            font.pixelSize: Theme.fontSizeSmall
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        ProviderSection {
+            width: parent.width
+            title: t("settings.telemetry_providers", "Telemetry providers")
+            description: t("settings.telemetry_providers_desc", "Adapters backed by official CLIs, documented APIs, or local usage stores.")
+            providers: root.telemetryProviders
+            sectionIcon: "monitoring"
+        }
+
+        ProviderSection {
+            width: parent.width
+            title: t("settings.informational_providers", "Informational providers")
+            description: t("settings.informational_providers_desc", "These providers expose no public read-only quota API. Their cards link the user to the official usage surface.")
+            providers: root.informationalProviders
+            sectionIcon: "info"
+        }
+
+        // The same selection as a comma-separated list, for pasting a set of
+        // providers in one go.
+        InlineHelp {
+            helpLabel: t("settings.providers.edit_text", "Edit the list as text")
+            helpIcon: "edit_note"
+
+            DTextField {
+                objectName: "setting-providerSelection"
+                width: parent.width
+                text: { root.settingsEpoch; return root.selectedIds.join(","); }
+                placeholderText: "codex,claude,copilot,openrouter"
+                onEditingFinished: {
+                    const normalized = root.normalizeProviderSelection(text);
+                    root.selectedIds = normalized;
+                    const nextPillIds = root.pillIds.filter(function(providerId) {
+                        return normalized.indexOf(providerId) >= 0;
+                    });
+                    if (nextPillIds.length === 0) nextPillIds.push(normalized[0]);
+                    root.pillIds = nextPillIds;
+                    root.saveValue("providerSelection", normalized.join(","));
+                    root.saveValue("pillProviders", nextPillIds.join(","));
+                    root.runHealth();
+                }
+            }
+        }
     }
 
-    // Usage history export. The store is an append-only JSONL cache the plugin
-    // trims on its own, so a copy is the only way to keep long-term data.
-    StyledRect {
-        width: parent.width
-        radius: Theme.cornerRadius
-        color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
-        border.width: 1
-        border.color: Theme.withAlpha(Theme.primary, 0.18)
-        implicitHeight: exportColumn.implicitHeight + Theme.spacingM * 2
+    SettingsGroup {
+        groupId: "profiles"
+        groupTitle: t("settings.claude_profiles", "Claude profiles")
+        groupIcon: "manage_accounts"
 
-        Column {
-            id: exportColumn
-            anchors.fill: parent
-            anchors.margins: Theme.spacingM
-            spacing: Theme.spacingS
+        StyledText {
+            width: parent.width
+            text: t("settings.claude_profiles_desc", "Track separate Claude accounts. Each profile reads only its own CLAUDE_CONFIG_DIR; sign in with Claude before adding it.")
+            wrapMode: Text.WordWrap
+            color: Theme.surfaceVariantText
+            font.pixelSize: Theme.fontSizeSmall
+        }
 
-            StyledText {
-                text: t("settings.history_export", "Export usage history")
-                color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.DemiBold
+        Repeater {
+            model: Object.keys(root.claudeProfiles)
+
+            StyledRect {
+                id: profileCard
+                required property string modelData
+                width: parent.width
+                radius: Theme.cornerRadius
+                color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.72)
+                border.width: 1
+                border.color: Theme.withAlpha(Theme.primary, 0.14)
+                implicitHeight: profileRow.implicitHeight + Theme.spacingS * 2
+
+                RowLayout {
+                    id: profileRow
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingS
+                    spacing: Theme.spacingS
+
+                    Rectangle {
+                        Layout.alignment: Qt.AlignVCenter
+                        width: 32
+                        height: 32
+                        radius: 16
+                        color: Theme.withAlpha(Theme.primary, 0.12)
+
+                        ProviderLogo {
+                            anchors.centerIn: parent
+                            providerId: "claude"
+                            logoSize: 17
+                            tintColor: root.providerLogoColor
+                        }
+                    }
+
+                    Column {
+                        Layout.fillWidth: true
+                        spacing: 1
+
+                        StyledText {
+                            width: parent.width
+                            text: root.claudeProfiles[profileCard.modelData].name + "  ·  " + profileCard.modelData
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Medium
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            width: parent.width
+                            text: root.claudeProfiles[profileCard.modelData].configDir
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall - 1
+                            font.family: "monospace"
+                            elide: Text.ElideMiddle
+                        }
+                    }
+
+                    DActionButton {
+                        objectName: "claude-profile-remove-" + profileCard.modelData
+                        Layout.alignment: Qt.AlignVCenter
+                        buttonSize: 30
+                        iconName: "delete"
+                        iconColor: Theme.error
+                        backgroundColor: "transparent"
+                        tooltipText: t("settings.claude_profile_remove", "Remove")
+                        onClicked: root.removeClaudeProfile(profileCard.modelData)
+                    }
+                }
+            }
+        }
+
+        SubPanel {
+            panelTitle: t("settings.claude_profile_new", "Add a profile")
+
+            GridLayout {
+                width: parent.width
+                columns: width > 560 ? 2 : 1
+                columnSpacing: Theme.spacingS
+                rowSpacing: Theme.spacingS
+
+                DTextField {
+                    id: claudeProfileId
+                    objectName: "claude-profile-id"
+                    Layout.fillWidth: true
+                    placeholderText: t("settings.claude_profile_id", "Provider ID, e.g. claude-work")
+                }
+
+                DTextField {
+                    id: claudeProfileName
+                    objectName: "claude-profile-name"
+                    Layout.fillWidth: true
+                    placeholderText: t("settings.claude_profile_name", "Display name, e.g. Claude Work")
+                }
+
+                DTextField {
+                    id: claudeProfileDir
+                    objectName: "claude-profile-dir"
+                    Layout.fillWidth: true
+                    Layout.columnSpan: parent.columns
+                    placeholderText: t("settings.claude_profile_dir", "Absolute CLAUDE_CONFIG_DIR path")
+                }
+            }
+
+            DButton {
+                objectName: "claude-profile-add"
+                text: t("settings.claude_profile_add", "Add Claude profile")
+                iconName: "person_add"
+                onClicked: {
+                    if (root.addClaudeProfile(claudeProfileId.text, claudeProfileName.text, claudeProfileDir.text)) {
+                        claudeProfileId.text = "";
+                        claudeProfileName.text = "";
+                        claudeProfileDir.text = "";
+                    }
+                }
             }
 
             StyledText {
                 width: parent.width
-                text: t("settings.history_export_desc", "Writes every recorded snapshot to your downloads folder. CSV opens in a spreadsheet; JSONL is the raw store.")
+                visible: root.claudeProfileError.length > 0
+                text: root.claudeProfileError
                 wrapMode: Text.WordWrap
-                color: Theme.surfaceVariantText
+                color: Theme.error
                 font.pixelSize: Theme.fontSizeSmall
             }
+        }
+    }
+
+    SettingsGroup {
+        groupId: "data"
+        groupTitle: t("settings.group.data", "History and data")
+        groupIcon: "history"
+
+        ValueDropdown {
+            objectName: "setting-historyRetention"
+            width: parent.width
+            text: t("settings.history_retention", "Usage history retention")
+            description: t("settings.history_retention_desc", "Snapshots kept per trim of the local usage history (sparklines and trends).") + "\n" + t("settings.history_count", "{count} snapshots stored · last trim removed {trimmed}", { count: root.historySnapshotCount, trimmed: root.historyLastTrimmed })
+            selected: { root.settingsEpoch; return loadValue("historyRetention", "2000"); }
+            values: root.historyValues
+            labels: root.historyLabels
+            optionIcons: ["history", "history", "history"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("historyRetention", value); }
+        }
+
+        // Usage history export. The store is an append-only JSONL cache the plugin
+        // trims on its own, so a copy is the only way to keep long-term data.
+        SubPanel {
+            panelTitle: t("settings.history_export", "Export usage history")
+            panelDescription: t("settings.history_export_desc", "Writes every recorded snapshot to your downloads folder. CSV opens in a spreadsheet; JSONL is the raw store.")
 
             Row {
                 spacing: Theme.spacingS
@@ -1282,132 +1714,10 @@ PluginSettings {
         }
     }
 
-    Column {
-        width: parent.width
-        spacing: Theme.spacingS
-        SectionHeader {
-            headerTitle: t("settings.claude_profiles", "Claude profiles")
-            headerIcon: "manage_accounts"
-        }
-        StyledText {
-            width: parent.width
-            text: t("settings.claude_profiles_desc", "Track separate Claude accounts. Each profile reads only its own CLAUDE_CONFIG_DIR; sign in with Claude before adding it.")
-            wrapMode: Text.WordWrap
-            color: Theme.surfaceVariantText
-            font.pixelSize: Theme.fontSizeSmall
-        }
-        DTextField {
-            id: claudeProfileId
-            objectName: "claude-profile-id"
-            width: parent.width
-            placeholderText: t("settings.claude_profile_id", "Provider ID, e.g. claude-work")
-        }
-        DTextField {
-            id: claudeProfileName
-            objectName: "claude-profile-name"
-            width: parent.width
-            placeholderText: t("settings.claude_profile_name", "Display name, e.g. Claude Work")
-        }
-        DTextField {
-            id: claudeProfileDir
-            objectName: "claude-profile-dir"
-            width: parent.width
-            placeholderText: t("settings.claude_profile_dir", "Absolute CLAUDE_CONFIG_DIR path")
-        }
-        DButton {
-            objectName: "claude-profile-add"
-            text: t("settings.claude_profile_add", "Add Claude profile")
-            onClicked: {
-                if (root.addClaudeProfile(claudeProfileId.text, claudeProfileName.text, claudeProfileDir.text)) {
-                    claudeProfileId.text = "";
-                    claudeProfileName.text = "";
-                    claudeProfileDir.text = "";
-                }
-            }
-        }
-        StyledText {
-            width: parent.width
-            visible: root.claudeProfileError.length > 0
-            text: root.claudeProfileError
-            wrapMode: Text.WordWrap
-            color: Theme.error
-            font.pixelSize: Theme.fontSizeSmall
-        }
-        Repeater {
-            model: Object.keys(root.claudeProfiles)
-            RowLayout {
-                required property string modelData
-                width: parent.width
-                StyledText {
-                    Layout.fillWidth: true
-                    text: root.claudeProfiles[parent.modelData].name + " · " + parent.modelData + "\n" + root.claudeProfiles[parent.modelData].configDir
-                    wrapMode: Text.WrapAnywhere
-                    color: Theme.surfaceText
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-                DButton {
-                    text: t("settings.claude_profile_remove", "Remove")
-                    onClicked: root.removeClaudeProfile(parent.modelData)
-                }
-            }
-        }
-    }
-
-    ProviderSection {
-        width: parent.width
-        title: t("settings.telemetry_providers", "Telemetry providers")
-        description: t("settings.telemetry_providers_desc", "Adapters backed by official CLIs, documented APIs, or local usage stores.")
-        providers: root.telemetryProviders
-        sectionIcon: "monitoring"
-    }
-
-    ProviderSection {
-        width: parent.width
-        title: t("settings.informational_providers", "Informational providers")
-        description: t("settings.informational_providers_desc", "These providers expose no public read-only quota API. Their cards link the user to the official usage surface.")
-        providers: root.informationalProviders
-        sectionIcon: "info"
-    }
-
-    StyledRect {
-        width: parent.width
-        radius: Theme.cornerRadius
-        color: Theme.withAlpha(Theme.primary, 0.06)
-        border.width: 1
-        border.color: Theme.withAlpha(Theme.primary, 0.16)
-        implicitHeight: selectionColumn.implicitHeight + Theme.spacingM * 2
-
-        Column {
-            id: selectionColumn
-            anchors.fill: parent
-            anchors.margins: Theme.spacingM
-            spacing: Theme.spacingS
-            StyledText { text:t("settings.current_selection", "Current selection"); color:Theme.primary; font.weight:Font.DemiBold; font.pixelSize:Theme.fontSizeSmall }
-            StyledText { width:parent.width; text:root.selectedIds.join(", "); wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall }
-            DTextField {
-                width: parent.width
-                text: { root.settingsEpoch; return loadValue("providerSelection", "codex,claude,copilot"); }
-                placeholderText: "codex,claude,copilot,openrouter"
-                onEditingFinished: {
-                    const normalized = root.normalizeProviderSelection(text);
-                    root.selectedIds = normalized;
-                    const nextPillIds = root.pillIds.filter(function(providerId) {
-                        return normalized.indexOf(providerId) >= 0;
-                    });
-                    if (nextPillIds.length === 0) nextPillIds.push(normalized[0]);
-                    root.pillIds = nextPillIds;
-                    root.saveValue("providerSelection", normalized.join(","));
-                    root.saveValue("pillProviders", nextPillIds.join(","));
-                    root.runHealth();
-                }
-            }
-        }
-    }
-
-    CollapsibleSection {
-        width: parent.width
-        sectionTitle: t("settings.diagnostics", "Diagnostics and tests")
-        sectionDesc: t("settings.diagnostics_desc", "Commands for validating the plugin-managed pipeline.")
+    SettingsGroup {
+        groupId: "diagnostics"
+        groupTitle: t("settings.diagnostics", "Diagnostics and tests")
+        groupIcon: "terminal"
 
         Column {
             width: parent.width
@@ -1620,43 +1930,6 @@ PluginSettings {
         }
     }
 
-    component SectionHeader: Column {
-        id: sectionHeader
-
-        required property string headerTitle
-        property string headerIcon: ""
-
-        width: parent ? parent.width : 0
-        spacing: Theme.spacingXS
-
-        Row {
-            spacing: Theme.spacingS
-
-            DIcon {
-                visible: sectionHeader.headerIcon.length > 0
-                name: sectionHeader.headerIcon
-                size: 15
-                color: Theme.primary
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            StyledText {
-                text: sectionHeader.headerTitle.toUpperCase()
-                font.pixelSize: Theme.fontSizeSmall - 1
-                font.weight: Font.DemiBold
-                font.letterSpacing: 1.0
-                color: Theme.surfaceVariantText
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
-
-        Rectangle {
-            width: parent.width
-            height: 1
-            color: Theme.withAlpha(Theme.surfaceText, 0.07)
-        }
-    }
-
     component ProviderSection: Column {
         id: providerSection
         required property string title
@@ -1664,6 +1937,8 @@ PluginSettings {
         required property var providers
         property string sectionIcon: ""
         spacing: Theme.spacingS
+        // A search that matches nothing here hides the whole section.
+        visible: providers.some(function(p) { return root.providerMatches(p); })
 
         Row {
             spacing: Theme.spacingS
@@ -1703,7 +1978,7 @@ PluginSettings {
             readonly property real cellWidth: (width - spacing * (columns - 1)) / columns
 
             Repeater {
-                model: providerSection.providers
+                model: providerSection.providers.filter(function(p) { return root.providerMatches(p); })
                 delegate: Rectangle {
                     id: providerChip
                     required property var modelData
@@ -1805,7 +2080,7 @@ PluginSettings {
             width: parent.width
             spacing: Theme.spacingXS
             Repeater {
-                model: providerSection.providers.filter(function(p) { return root.isSelected(p.id); })
+                model: providerSection.providers.filter(function(p) { return root.isSelected(p.id) && root.providerMatches(p); })
                 delegate: StyledRect {
                     id: providerDetailRow
                     required property var modelData
@@ -1876,45 +2151,547 @@ PluginSettings {
         }
     }
 
-    component CollapsibleSection: Item {
-        id: section
-        property string sectionTitle: ""
-        property string sectionDesc: ""
-        property bool expanded: false
-        default property alias sectionContent: body.data
+
+    // A foldable group of settings: an icon, a title, and while folded a
+    // one-line summary of what it holds. The body animates open.
+    component SettingsGroup: StyledRect {
+        id: group
+        required property string groupId
+        property string groupTitle: ""
+        property string groupIcon: ""
+        readonly property bool expanded: root.isGroupExpanded(groupId)
+        default property alias groupContent: groupBody.data
+
+        objectName: "settings-group-" + groupId
         width: parent ? parent.width : 0
-        height: header.height + (expanded ? Theme.spacingS + body.implicitHeight : 0)
+        radius: Theme.cornerRadius + 2
+        // Opaque on purpose: the window behind the page can be translucent.
+        color: groupHeaderMouse.containsMouse && !expanded ? Theme.surfaceContainerHighest : Theme.surfaceContainerHigh
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, groupHeader.activeFocus ? 0.8 : (expanded ? 0.18 : 0.1))
+        implicitHeight: groupHeader.height + (expanded ? groupBody.implicitHeight + Theme.spacingM : 0)
+        clip: true
+        Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on color { ColorAnimation { duration: 140 } }
 
-        Rectangle {
-            id: header
+        Item {
+            id: groupHeader
             width: parent.width
-            height: headerColumn.implicitHeight + Theme.spacingS * 2
-            radius: Theme.cornerRadius
-            color: Theme.surfaceContainerHigh
-            border.width: 1
-            border.color: Theme.withAlpha(Theme.primary, section.activeFocus ? 0.8 : 0.18)
+            height: groupHeaderRow.implicitHeight + Theme.spacingM * 2
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: group.groupTitle
+            Keys.onReturnPressed: root.setGroupExpanded(group.groupId, !group.expanded)
+            Keys.onSpacePressed: root.setGroupExpanded(group.groupId, !group.expanded)
 
-            Column {
-                id: headerColumn
+            RowLayout {
+                id: groupHeaderRow
                 anchors.left: parent.left
-                anchors.right: chevron.left
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.margins: Theme.spacingM
-                spacing: 2
-                StyledText { width:parent.width; text:section.sectionTitle; color:Theme.surfaceText; font.pixelSize:Theme.fontSizeMedium; font.weight:Font.DemiBold }
-                StyledText { visible:!section.expanded; width:parent.width; text:section.sectionDesc; wrapMode:Text.WordWrap; color:Theme.surfaceVariantText; font.pixelSize:Theme.fontSizeSmall }
+                anchors.leftMargin: Theme.spacingM
+                anchors.rightMargin: Theme.spacingM
+                spacing: Theme.spacingM
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    width: 34
+                    height: 34
+                    radius: 17
+                    color: Theme.withAlpha(Theme.primary, group.expanded ? 0.18 : 0.11)
+                    Behavior on color { ColorAnimation { duration: 140 } }
+
+                    DIcon {
+                        anchors.centerIn: parent
+                        name: group.groupIcon
+                        size: 18
+                        color: Theme.primary
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 1
+
+                    StyledText {
+                        width: parent.width
+                        text: group.groupTitle
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeMedium
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+
+                    StyledText {
+                        objectName: "settings-group-summary-" + group.groupId
+                        width: parent.width
+                        visible: !group.expanded && text.length > 0
+                        text: root.groupSummary(group.groupId)
+                        color: Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall
+                        elide: Text.ElideRight
+                    }
+                }
+
+                DIcon {
+                    Layout.alignment: Qt.AlignVCenter
+                    name: "expand_more"
+                    size: 20
+                    color: group.expanded ? Theme.primary : Theme.surfaceVariantText
+                    rotation: group.expanded ? 180 : 0
+                    Behavior on rotation { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                }
             }
-            DIcon { id:chevron; anchors.right:parent.right; anchors.rightMargin:Theme.spacingM; anchors.verticalCenter:parent.verticalCenter; name:"expand_more"; size:18; color:Theme.primary; rotation:section.expanded ? 180 : 0 }
-            MouseArea { anchors.fill:parent; cursorShape:Qt.PointingHandCursor; onClicked:section.expanded = !section.expanded }
+
+            MouseArea {
+                id: groupHeaderMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.setGroupExpanded(group.groupId, !group.expanded)
+            }
         }
 
         Column {
-            id: body
-            visible: section.expanded
-            anchors.top: header.bottom
-            anchors.topMargin: Theme.spacingS
-            width: parent.width
+            id: groupBody
+            anchors.top: groupHeader.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.spacingM
+            anchors.rightMargin: Theme.spacingM
             spacing: Theme.spacingM
+            visible: group.expanded || group.height > groupHeader.height + 1
+            opacity: group.expanded ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 140 } }
+        }
+    }
+
+    // A tinted panel that groups related controls inside a settings group.
+    component SubPanel: StyledRect {
+        id: panel
+        property string panelTitle: ""
+        property string panelDescription: ""
+        default property alias panelContent: panelBody.data
+
+        width: parent ? parent.width : 0
+        radius: Theme.cornerRadius
+        color: Theme.withAlpha(Theme.surfaceContainer, 0.6)
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, 0.12)
+        implicitHeight: panelColumn.implicitHeight + Theme.spacingM * 2
+
+        Column {
+            id: panelColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingM
+            spacing: Theme.spacingS
+
+            StyledText {
+                width: parent.width
+                visible: panel.panelTitle.length > 0
+                text: panel.panelTitle
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+            }
+
+            StyledText {
+                width: parent.width
+                visible: panel.panelDescription.length > 0
+                text: panel.panelDescription
+                wrapMode: Text.WordWrap
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall
+            }
+
+            Column {
+                id: panelBody
+                width: parent.width
+                spacing: Theme.spacingS
+            }
+        }
+    }
+
+    // A boolean setting stored as "true"/"false", like every other key.
+    component SettingToggle: DToggle {
+        id: settingToggle
+        required property string settingKey
+        property bool defaultValue: false
+
+        objectName: "setting-" + settingKey
+        // DToggle insets its text by spacingM; bleed out to align with the other rows.
+        x: -Theme.spacingM
+        width: (parent ? parent.width : 0) + Theme.spacingM * 2
+        checked: { root.settingsEpoch; return loadValue(settingKey, defaultValue ? "true" : "false") === "true"; }
+        onToggled: function(checked) { saveValue(settingKey, checked ? "true" : "false"); }
+    }
+
+    // A "How it works" disclosure: long explanations stay one click away
+    // instead of pushing the controls down. Extra children render under the
+    // text when it is open.
+    component InlineHelp: Column {
+        id: help
+        property string helpLabel: t("settings.how_it_works", "How it works")
+        property string helpIcon: "help_outline"
+        property string helpText: ""
+        property bool open: false
+        default property alias helpContent: helpBody.data
+
+        width: parent ? parent.width : 0
+        spacing: Theme.spacingXS
+
+        Rectangle {
+            implicitWidth: helpRow.implicitWidth + Theme.spacingM * 2
+            implicitHeight: 30
+            radius: 15
+            color: Theme.withAlpha(Theme.primary, helpMouse.containsMouse ? 0.14 : 0.07)
+            Behavior on color { ColorAnimation { duration: 140 } }
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: help.helpLabel
+            Keys.onReturnPressed: help.open = !help.open
+            Keys.onSpacePressed: help.open = !help.open
+
+            Row {
+                id: helpRow
+                anchors.centerIn: parent
+                spacing: Theme.spacingXS
+
+                DIcon {
+                    name: help.helpIcon
+                    size: 14
+                    color: Theme.primary
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                StyledText {
+                    text: help.helpLabel
+                    color: Theme.primary
+                    font.pixelSize: Theme.fontSizeSmall - 1
+                    font.weight: Font.Medium
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                DIcon {
+                    name: "expand_more"
+                    size: 14
+                    color: Theme.primary
+                    rotation: help.open ? 180 : 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    Behavior on rotation { NumberAnimation { duration: 160 } }
+                }
+            }
+
+            MouseArea {
+                id: helpMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: help.open = !help.open
+            }
+        }
+
+        StyledText {
+            width: parent.width
+            visible: help.open && help.helpText.length > 0
+            text: help.helpText
+            wrapMode: Text.WordWrap
+            color: Theme.surfaceVariantText
+            font.pixelSize: Theme.fontSizeSmall
+        }
+
+        Column {
+            id: helpBody
+            width: parent.width
+            visible: help.open
+            spacing: Theme.spacingS
+        }
+    }
+
+    // The bar pill as the widget draws it, on a strip that stands in for the
+    // bar, with a vertical bar beside it and the hover tooltip under it.
+    component PillPreview: StyledRect {
+        id: preview
+        readonly property var entries: root.previewProviders()
+        readonly property bool compact: root.live("pillCompact", "false") === "true"
+        readonly property bool names: root.live("pillShowNames", "true") === "true"
+        readonly property bool tooltip: root.live("pillTooltip", "true") === "true"
+
+        radius: Theme.cornerRadius + 2
+        color: Theme.surfaceContainerHigh
+        border.width: 1
+        border.color: Theme.withAlpha(Theme.primary, 0.14)
+        implicitHeight: previewColumn.implicitHeight + Theme.spacingM * 2
+
+        Column {
+            id: previewColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingM
+            spacing: Theme.spacingS
+
+            RowLayout {
+                width: parent.width
+                spacing: Theme.spacingS
+
+                DIcon {
+                    name: "visibility"
+                    size: 16
+                    color: Theme.primary
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
+                StyledText {
+                    text: t("settings.preview.title", "Live preview")
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.DemiBold
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    horizontalAlignment: Text.AlignRight
+                    text: t("settings.preview.sample", "Sample numbers")
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall - 1
+                    elide: Text.ElideRight
+                }
+            }
+
+            RowLayout {
+                width: parent.width
+                spacing: Theme.spacingM
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    spacing: Theme.spacingS
+
+                    // Horizontal bar.
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignTop
+                        implicitHeight: 46
+                        radius: Theme.cornerRadius
+                        color: Theme.withAlpha(Theme.surfaceContainer, 0.9)
+                        border.width: 1
+                        border.color: Theme.withAlpha(Theme.surfaceText, 0.06)
+                        clip: true
+
+                        Row {
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.spacingXS
+
+                            // Neighbouring bar widgets, for scale.
+                            Repeater {
+                                model: ["apps", "wifi"]
+                                Rectangle {
+                                    required property string modelData
+                                    width: 30
+                                    height: 30
+                                    radius: 15
+                                    color: Theme.withAlpha(Theme.surfaceText, 0.05)
+                                    DIcon { anchors.centerIn: parent; name: parent.modelData; size: 15; color: Theme.withAlpha(Theme.surfaceText, 0.35) }
+                                }
+                            }
+
+                            Rectangle {
+                                objectName: "preview-pill"
+                                height: 30
+                                width: Math.max(30, horizontalPill.implicitWidth + 20)
+                                radius: 15
+                                color: Theme.widgetBaseBackgroundColor
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                Row {
+                                    id: horizontalPill
+                                    anchors.centerIn: parent
+                                    spacing: 0
+
+                                    Repeater {
+                                        model: preview.entries
+
+                                        Row {
+                                            id: previewEntry
+                                            required property string modelData
+                                            required property int index
+                                            readonly property var windows: root.previewWindows(modelData)
+                                            objectName: "preview-entry-" + modelData
+                                            spacing: preview.compact ? 2 : 4
+
+                                            StyledText {
+                                                visible: previewEntry.index > 0
+                                                text: preview.compact ? "·" : " · "
+                                                leftPadding: preview.compact ? 2 : 0
+                                                color: Theme.withAlpha(Theme.surfaceText, 0.3)
+                                                font.pixelSize: Theme.fontSizeSmall
+                                                font.weight: Font.DemiBold
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+
+                                            ProviderLogo {
+                                                providerId: previewEntry.modelData
+                                                logoSize: 14
+                                                tintColor: root.providerLogoColor
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+
+                                            StyledText {
+                                                visible: preview.names
+                                                text: root.providerDisplayName(previewEntry.modelData)
+                                                color: Theme.surfaceText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                                font.weight: Font.DemiBold
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+
+                                            Repeater {
+                                                model: previewEntry.windows
+
+                                                Row {
+                                                    id: previewWindow
+                                                    required property var modelData
+                                                    required property int index
+                                                    spacing: preview.compact ? 2 : 3
+                                                    anchors.verticalCenter: parent.verticalCenter
+
+                                                    StyledText {
+                                                        visible: previewWindow.index > 0
+                                                        text: "/"
+                                                        color: Theme.withAlpha(Theme.surfaceText, 0.3)
+                                                        font.pixelSize: Theme.fontSizeSmall
+                                                        font.weight: Font.DemiBold
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                    }
+
+                                                    StyledText {
+                                                        visible: previewEntry.windows.length > 1
+                                                        text: root.previewWindowTag(previewWindow.modelData)
+                                                        color: Theme.surfaceVariantText
+                                                        font.pixelSize: Theme.fontSizeSmall
+                                                        font.weight: Font.DemiBold
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                    }
+
+                                                    StyledText {
+                                                        objectName: "preview-number"
+                                                        text: root.previewNumber(previewWindow.modelData)
+                                                        color: root.previewColor(Number(previewWindow.modelData.usedPercent || 0))
+                                                        font.pixelSize: Theme.fontSizeSmall
+                                                        font.weight: Font.Bold
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    StyledText {
+                                        visible: preview.entries.length === 0
+                                        text: t("pill.no_data", "N/A")
+                                        color: Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+              // The tooltip shown on hover, when it is enabled.
+              Rectangle {
+                  objectName: "preview-tooltip"
+                  visible: preview.tooltip && preview.entries.length > 0
+                  Layout.maximumWidth: parent.width
+                  Layout.preferredWidth: tooltipText.implicitWidth + 13 + Theme.spacingS + Theme.spacingM * 2
+                  Layout.preferredHeight: tooltipText.implicitHeight + Theme.spacingS * 2
+                  radius: Theme.cornerRadius
+                  color: Theme.surfaceContainerHighest
+                  border.width: 1
+                  border.color: Theme.withAlpha(Theme.outline, 0.25)
+
+                  Row {
+                      anchors.fill: parent
+                      anchors.margins: Theme.spacingS
+                      anchors.leftMargin: Theme.spacingM
+                      spacing: Theme.spacingS
+
+                      DIcon {
+                          id: tooltipIcon
+                          name: "mouse"
+                          size: 13
+                          color: Theme.surfaceVariantText
+                          anchors.verticalCenter: parent.verticalCenter
+                      }
+
+                      StyledText {
+                          id: tooltipText
+                          width: parent.width - tooltipIcon.width - Theme.spacingS
+                          text: root.previewTooltipText()
+                          color: Theme.surfaceText
+                          font.pixelSize: Theme.fontSizeSmall - 1
+                          elide: Text.ElideRight
+                          anchors.verticalCenter: parent.verticalCenter
+                      }
+                  }
+              }
+                }
+
+                // Vertical bar: logo over number, one block per provider.
+                Rectangle {
+                    Layout.alignment: Qt.AlignTop
+                    implicitWidth: 46
+                    implicitHeight: Math.max(46, verticalPill.implicitHeight + 16)
+                    radius: Theme.cornerRadius
+                    color: Theme.withAlpha(Theme.surfaceContainer, 0.9)
+                    border.width: 1
+                    border.color: Theme.withAlpha(Theme.surfaceText, 0.06)
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 30
+                        height: verticalPill.implicitHeight + 12
+                        radius: 15
+                        color: Theme.widgetBaseBackgroundColor
+
+                        Column {
+                            id: verticalPill
+                            anchors.centerIn: parent
+                            spacing: preview.compact ? 2 : Theme.spacingXS
+
+                            Repeater {
+                                model: preview.entries.slice(0, 4)
+
+                                Column {
+                                    id: verticalEntry
+                                    required property string modelData
+                                    readonly property var windows: root.previewWindows(modelData)
+                                    spacing: 1
+
+                                    ProviderLogo {
+                                        providerId: verticalEntry.modelData
+                                        logoSize: 13
+                                        tintColor: root.providerLogoColor
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                    }
+
+                                    StyledText {
+                                        text: root.previewNumber(verticalEntry.windows[0] || {})
+                                        color: root.previewColor(BarWindows.maxPercent(verticalEntry.windows))
+                                        font.pixelSize: Theme.fontSizeSmall - 3
+                                        font.weight: Font.Bold
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
