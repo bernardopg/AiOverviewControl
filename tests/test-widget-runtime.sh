@@ -406,6 +406,17 @@ ShellRoot {
                 if (settings.loadValue("barWindowOverrides", "") !== "claude-work:all") {
                     console.error("SMOKE FAIL: settings did not store the canonical multi-window slot"); return;
                 }
+                // "Primary" is an explicit choice now that the default promotes
+                // an exhausted window; "Automatic" removes the pair.
+                settings.setBarChoice("claude-work", "primary");
+                if (settings.loadValue("barWindowOverrides", "") !== "claude-work:primary" || settings.barChoiceFor("claude-work") !== "primary") {
+                    console.error("SMOKE FAIL: settings must store an explicit primary slot"); return;
+                }
+                settings.setBarChoice("claude-work", "auto");
+                if (settings.loadValue("barWindowOverrides", "") !== "" || settings.barChoiceFor("claude-work") !== "auto") {
+                    console.error("SMOKE FAIL: settings automatic slot must remove the pair"); return;
+                }
+                settings.setBarChoice("claude-work", "all");
                 settings.selectedIds = ["claude-work"];
                 settings.pinnedIds = ["claude-work"];
                 settings.pillIds = ["claude-work"];
@@ -525,10 +536,34 @@ ShellRoot {
                     || widget.providerBackoffText({usage: {retryAt: retry, retryReason: "server_error"}}) !== "Endpoint failing · next try " + time) {
                     console.error("SMOKE FAIL: stale pill or backoff notice: " + tooltip + " / " + (backoff ? backoff.text : "none")); return;
                 }
+                // A weekly window that ran out headlines the bar and the card
+                // while the idle 5 hour window still has room; the primary
+                // window keeps driving sorting and history.
+                widget.providers = [{provider: "codex", usage: {
+                    primary: {usedPercent: 0, windowMinutes: 300},
+                    secondary: {usedPercent: 100, windowMinutes: 10080}}}];
+                root.step = 17;
+            } else if (root.step === 17) {
+                const blocked = widget.providers[0];
+                const pillText = input.findChild(hPill.item, "pill-percent-codex");
+                const header = input.findChild(widget.dashboardView, "provider-percent-codex");
+                const headerText = header ? header.children.filter(item => item.visible && item.text !== undefined).map(item => item.text).join("") : "";
+                if (widget.pillPercentFor(blocked) !== 100 || widget.headlinePercent(blocked) !== 100
+                    || widget.providerPercent(blocked) !== 0 || widget.primaryUsageWindow(blocked) !== blocked.usage.primary
+                    || !pillText || pillText.text !== `${Math.round(widget.quotaDisplayPercent(100))}%`
+                    || headerText !== widget.quotaPercentText(100)
+                    || widget.notifyWindowsFor(blocked).length !== 1 || widget.notifyWindowsFor(blocked)[0] !== blocked.usage.secondary) {
+                    console.error("SMOKE FAIL: exhausted window headline: " + (pillText ? pillText.text : "none") + " / " + headerText); return;
+                }
+                widget.barWindowOverrides = "codex:primary";
+                if (widget.pillPercentFor(blocked) !== 0 || widget.headlinePercent(blocked) !== 100) {
+                    console.error("SMOKE FAIL: explicit primary override must keep the primary window"); return;
+                }
+                widget.barWindowOverrides = "";
                 widget.allExpanded = false;
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25}}}];
                 console.warn("FULL_UI_SMOKE_OK");
-                root.step = 17;
+                root.step = 18;
             }
         }
     }

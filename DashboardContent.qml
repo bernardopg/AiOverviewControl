@@ -2753,9 +2753,9 @@ PopoutComponent {
                     ProgressRing {
                         anchors.fill: parent
                         visible: card.hasUsage
-                        percent: root.quotaDisplayPercent(root.providerPercent(card.provider))
+                        percent: root.quotaDisplayPercent(root.headlinePercent(card.provider))
                         thickness: 2.5
-                        accentColor: root.getUsageColor(root.providerPercent(card.provider))
+                        accentColor: root.getUsageColor(root.headlinePercent(card.provider))
                         trackColor: Theme.withAlpha(card.accentColor, 0.14)
                     }
 
@@ -2865,8 +2865,8 @@ PopoutComponent {
                     }
 
                     StyledText {
-                        text: card.provider.error ? t("status.error", "Error") : root.quotaPercentText(root.providerPercent(card.provider))
-                        color: card.provider.error ? Theme.error : root.getUsageColor(root.providerPercent(card.provider))
+                        text: card.provider.error ? t("status.error", "Error") : root.quotaPercentText(root.headlinePercent(card.provider))
+                        color: card.provider.error ? Theme.error : root.getUsageColor(root.headlinePercent(card.provider))
                         font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                         font.weight: Font.Bold
                         anchors.verticalCenter: parent.verticalCenter

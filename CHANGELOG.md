@@ -9,6 +9,7 @@
 ### Fixes
 
 - The OpenCode Go adapter accepts the endpoint's nested `usage.rolling` / `percent` / `resetsAt` envelope, so the 5-hour, weekly and monthly windows survive the API's change instead of degrading to the authenticated-only card. The older flat `rollingUsage` / `resetInSec` shape is still parsed, so an older deployment is unchanged.
+- A provider whose later quota window is used up while its primary window still has room now shows that window in the bar pill and the card header, so a Codex or Claude account blocked by its weekly limit reads 100% instead of the idle 5 hour window's 0% (or 100% left in green). The new **Automatic** bar window (the default) does this; picking **Primary** keeps the primary window as before. Sorting, the hero, the fleet rollup and history still follow the primary window, and with the default `notifyWindowScope` (`displayed`) the alert follows the window the bar shows.
 
 ### Thanks
 

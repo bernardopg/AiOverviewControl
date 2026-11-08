@@ -109,23 +109,25 @@ PluginSettings {
     }
 
     // Per-provider DankBar window overrides (issues #17 and #86). lib/BarWindows.js
-    // is the widget's parser too, so both read the same slot vocabulary. Only
-    // entries that differ from "primary" are persisted, so restoring the
-    // default removes the pair and the CSV stays small.
+    // is the widget's parser too, so both read the same slot vocabulary. The
+    // default ("auto": the primary window, or a later one once it is used up)
+    // is the absence of a pair, so restoring it removes the pair and the CSV
+    // stays small; an explicit "primary" is stored and keeps the primary
+    // window even when another one is exhausted.
     function barWindowOverrideMap() {
         return BarWindows.parseOverrides(loadValue("barWindowOverrides", ""));
     }
 
     function barChoiceFor(id) {
         const slot = barWindowOverrideMap()[id];
-        return slot !== undefined ? slot : "primary";
+        return slot !== undefined ? slot : "auto";
     }
 
     function setBarChoice(id, slot) {
         if (!isSelected(id)) return;
         const map = barWindowOverrideMap();
         const canonical = BarWindows.normalizeSlot(slot);
-        if (canonical === "primary" || canonical === "") delete map[id];
+        if (canonical === "") delete map[id];
         else map[id] = canonical;
         const pairs = [];
         for (const key in map) pairs.push(key + ":" + map[key]);
@@ -937,7 +939,7 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the bar by default. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h 45% / 7d 80%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
+                text: t("settings.bar_window.description", "Providers with more than one quota window (e.g. Claude's 5 hour and 7 day) show the primary window in the bar by default, or a later window once it is used up, so an account blocked by its weekly limit reads 100% instead of an idle 5 hour window. Pick Primary to always keep the primary window. Choose another window per provider, or several at once: each is then tagged with its length, as in 5h 45% / 7d 80%. The dashboard keeps showing every window. \"Highest\" follows the most-constrained window; providers without the chosen window fall back to the primary.")
                 wrapMode: Text.WordWrap
                 color: Theme.surfaceVariantText
                 font.pixelSize: Theme.fontSizeSmall
@@ -951,9 +953,9 @@ PluginSettings {
                     width: parent.width
                     text: root.providerDisplayName(modelData)
                     selected: { root.settingsEpoch; return root.barChoiceFor(modelData); }
-                    values: ["primary", "secondary", "tertiary", "highest", "primary+secondary", "all"]
-                    labels: [t("settings.option.primary", "Primary"), t("settings.option.secondary", "Secondary"), t("settings.option.tertiary", "Tertiary"), t("settings.option.highest", "Highest"), t("settings.option.primary_secondary", "Primary + secondary"), t("settings.option.all_windows", "All windows")]
-                    optionIcons: ["looks_one", "looks_two", "looks_3", "trending_up", "view_agenda", "view_list"]
+                    values: ["auto", "primary", "secondary", "tertiary", "highest", "primary+secondary", "all"]
+                    labels: [t("settings.option.auto_window", "Automatic"), t("settings.option.primary", "Primary"), t("settings.option.secondary", "Secondary"), t("settings.option.tertiary", "Tertiary"), t("settings.option.highest", "Highest"), t("settings.option.primary_secondary", "Primary + secondary"), t("settings.option.all_windows", "All windows")]
+                    optionIcons: ["auto_mode", "looks_one", "looks_two", "looks_3", "trending_up", "view_agenda", "view_list"]
                     dropdownWidth: 220
                     onPicked: function(value) { root.setBarChoice(modelData, value); }
                 }

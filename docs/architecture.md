@@ -159,7 +159,7 @@ All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode,
 | `showErrorProviders` | `true` | Keep provider failures visible. |
 | `pillMode` | `auto` | Automatic, custom, or highest-usage (`top`) bar provider list. |
 | `pillProviders` | selection | Strict custom bar provider subset; independent from the tracked provider list. |
-| `barWindowOverrides` | empty | Per-provider bar usage window (`provider:slot`, e.g. `claude:secondary`); slot is `primary`/`secondary`/`tertiary`/`highest`/`all` or a `+`-joined set such as `primary+secondary`, parsed by `BarWindows.js` for both the widget and settings. Absent windows are skipped, with fallback to the primary window when none of the chosen ones exists. Cards, hero, and history keep the primary window; notifications follow it by default through `notifyWindowScope`. |
+| `barWindowOverrides` | empty | Per-provider bar usage window (`provider:slot`, e.g. `claude:secondary`); slot is `primary`/`secondary`/`tertiary`/`highest`/`all` or a `+`-joined set such as `primary+secondary`, parsed by `BarWindows.js` for both the widget and settings. Absent windows are skipped, with fallback to the primary window when none of the chosen ones exists. Without a pair the bar shows `BarWindows.headlineWindow()`: the primary window, or a later one once it is used up; the card header and ring use the same window. Sorting, hero, fleet rollup and history keep `primaryUsageWindow()`; notifications follow the displayed window by default through `notifyWindowScope`. |
 | `densityMode` | `comfortable` | Comfortable or compact card layout. |
 | `languageOverride` | `auto` | Plugin locale override. |
 | `quotaNotifications` | `true` | Enable desktop quota notifications. |
@@ -192,7 +192,7 @@ Legacy settings unknown to the current code are ignored.
 
 ## UI structure
 
-- Bar pill: selected measurable providers. Per provider, `barWindowOverrides` selects which usage windows the pill displays (`primary` by default, or `secondary`/`tertiary`/`highest`, or several at once such as `primary+secondary`/`all`, each tagged with its length); the ranking used by `top` and `auto` pill modes follows the highest displayed number.
+- Bar pill: selected measurable providers. Per provider, `barWindowOverrides` selects which usage windows the pill displays (the automatic headline window by default — primary, or a later window once it is used up — or `primary`, `secondary`/`tertiary`/`highest`, or several at once such as `primary+secondary`/`all`, each tagged with its length); the ranking used by `top` and `auto` pill modes follows the highest displayed number.
 - Overview: active/error counts and local backend status.
 - Provider manager: add and remove providers without editing settings files.
 - Filter: shown when more than five cards are visible. Status chips (All / Live / Issues, with counts) appear whenever any provider is configured.
