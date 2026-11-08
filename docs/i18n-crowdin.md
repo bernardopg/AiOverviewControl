@@ -44,7 +44,7 @@ Project URL: https://pt.crowdin.com/project/aioverviewcontrol
 
 Translations are reviewed in pull requests, so the repository is the source of truth for what ships, and Crowdin is where translators propose changes. The **Crowdin sync** workflow (`.github/workflows/crowdin.yml`) keeps both sides equal:
 
-- On every push to `main` that touches `i18n/`, `translations/` or `.github/crowdin.yml`, it first downloads Crowdin's translations and compares them with the commit before the push (`scripts/crowdin-drift`). If they match, it uploads the sources and the repository's translations, approving them. If they do not, someone changed a translation in Crowdin that never reached the repository: the workflow uploads nothing, so that work is not overwritten, and fails with the list of differences.
+- On every push to `main` that touches `i18n/`, `translations/`, `.github/crowdin.yml` or the workflow, it downloads Crowdin's translations with the current `crowdin.yml` and compares them (`scripts/crowdin-drift`) with the new commit and with the one before the push. Equal to the new commit means Crowdin already holds the change, so nothing is uploaded. Equal to the previous commit means this push brings the change, so it uploads the sources and the repository's translations, approving them. Equal to neither means someone changed a translation in Crowdin that never reached the repository: the workflow uploads nothing, so that work is not overwritten, and fails with the list of differences.
 - Every Monday it runs the same comparison against `main`, so a translation approved in Crowdin surfaces as a failed run.
 
 To bring Crowdin's changes into the repository:

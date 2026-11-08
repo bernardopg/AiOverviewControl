@@ -4,11 +4,13 @@ name: Crowdin sync
 # Translations are reviewed in pull requests, so the repository is the source
 # of truth for what ships; Crowdin is where translators propose changes.
 #
-# - A push to main that touches a bundle first checks that Crowdin still
-#   matches the previous commit. When it does, sources and translations are
-#   uploaded, with the repository's translations approved. When it does not,
-#   a translator changed something in Crowdin that never reached the
-#   repository: nothing is overwritten and the job fails with the list.
+# - A push to main that touches a bundle downloads Crowdin's translations and
+#   compares them with the new commit and with the one before the push. Equal
+#   to the new commit: Crowdin already holds this change, nothing to upload.
+#   Equal to the previous commit: sources and translations are uploaded, with
+#   the repository's translations approved. Neither: a translator changed
+#   something in Crowdin that never reached the repository, so nothing is
+#   overwritten and the job fails with the list.
 # - Every week the same comparison runs against main, so an edit made in
 #   Crowdin shows up as a failed run until `crowdin download` brings it in.
 
@@ -19,6 +21,7 @@ on:
       - "i18n/**"
       - "translations/**"
       - ".github/crowdin.yml"
+      - ".github/workflows/crowdin.yml"
   schedule:
     - cron: "41 5 * * 1"
   workflow_dispatch:
@@ -68,43 +71,55 @@ jobs:
           python3 -c 'import json, os; print(json.dumps({"api_token": os.environ["CROWDIN_API_TOKEN"]}))' \
             > /tmp/crowdin-identity.yml
 
-      # The reference is what Crowdin should already hold: the commit before
-      # this push, or main itself for the weekly check.
+      # Crowdin is in step when it matches the new commit (already synced, for
+      # example by hand or by an earlier run) or the commit before the push
+      # (this push brings the change). The download always uses the current
+      # crowdin.yml, so a newly mapped file is exported too.
       - name: Compare Crowdin with the repository
+        id: compare
         env:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE_SHA: ${{ github.event.before }}
         run: |
-          reference=HEAD
-          if [ "$EVENT_NAME" = push ] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
-            reference="$BEFORE_SHA"
-          fi
-          mkdir -p /tmp/reference /tmp/export
-          git archive "$reference" i18n translations .github/crowdin.yml | tar -x -C /tmp/reference
-          cp -r /tmp/reference/. /tmp/export/
-          rm -f /tmp/export/i18n/[a-z][a-z]_[A-Z][A-Z].json /tmp/export/translations/[a-z][a-z].json
+          mkdir -p /tmp/export/i18n /tmp/export/translations /tmp/export/.github
+          cp .github/crowdin.yml /tmp/export/.github/crowdin.yml
           cp i18n/en.json /tmp/export/i18n/en.json
           cp translations/en.json /tmp/export/translations/en.json
           (cd /tmp/export && /tmp/crowdin download --config .github/crowdin.yml \
             --identity /tmp/crowdin-identity.yml --no-progress --no-colors)
-          set +e
-          scripts/crowdin-drift /tmp/export /tmp/reference > /tmp/drift.txt
-          status=$?
-          set -e
-          {
-            echo "## Crowdin compared with \`$reference\`"
-            echo '```'
-            cat /tmp/drift.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$status" -ne 0 ]; then
-            while IFS= read -r line; do echo "::warning::$line"; done < /tmp/drift.txt
-            echo "::error::Crowdin holds translations the repository does not. Run 'crowdin download --config .github/crowdin.yml', review the diff in a pull request, then re-run this workflow."
-            exit 1
+
+          mkdir -p /tmp/current
+          git archive HEAD i18n translations | tar -x -C /tmp/current
+          if scripts/crowdin-drift /tmp/export /tmp/current > /tmp/drift-current.txt; then
+            echo "Crowdin already matches $(git rev-parse --short HEAD); nothing to upload." >> "$GITHUB_STEP_SUMMARY"
+            echo "upload=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          reference=""
+          if [ "$EVENT_NAME" = push ] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            reference="$BEFORE_SHA"
+            mkdir -p /tmp/previous
+            git archive "$reference" i18n translations | tar -x -C /tmp/previous
+            if scripts/crowdin-drift /tmp/export /tmp/previous > /tmp/drift-previous.txt; then
+              echo "Crowdin matches the commit before the push; uploading." >> "$GITHUB_STEP_SUMMARY"
+              echo "upload=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          {
+            echo "## Crowdin differs from \`$(git rev-parse --short HEAD)\`"
+            echo '```'
+            cat /tmp/drift-current.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          while IFS= read -r line; do echo "::warning::$line"; done < /tmp/drift-current.txt
+          echo "::error::Crowdin holds translations the repository does not. Run 'crowdin download --config .github/crowdin.yml', review the diff in a pull request, then re-run this workflow."
+          exit 1
+
       - name: Upload sources and translations
-        if: github.event_name != 'schedule'
+        if: steps.compare.outputs.upload == 'true'
         run: |
           /tmp/crowdin upload sources --config .github/crowdin.yml \
             --identity /tmp/crowdin-identity.yml --no-progress --no-colors
