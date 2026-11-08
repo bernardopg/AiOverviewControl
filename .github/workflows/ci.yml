@@ -765,6 +765,9 @@ jobs:
         run: tests/test-hot-upgrade-layout.sh
       - name: Integration test — locale lookup and interpolation coverage
         run: tests/test-i18n.sh
+
+      - name: Crowdin export comparison
+        run: tests/test-crowdin-drift.sh
       - name: Integration test — native adapter module contracts
         run: tests/test-native-adapters.sh
       - name: Integration test — currency cache and fallback

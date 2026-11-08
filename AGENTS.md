@@ -58,7 +58,7 @@ scripts/                      check-metadata, check-changelog, check-dco, covera
                               qmlls-setup, reload-plugin, render-contributors
 tests/test-*.sh               Fixture-backed suites; every one must be run by ci.yml
 i18n/*.json                   en (source) + pt_BR, zh_CN, es_ES, de_DE (exact parity)
-translations/*.json           DMS-format pt, zh, es, de for plugin.json dash strings (I18n.trFor)
+translations/*.json           DMS-format en (Crowdin source) + pt, zh, es, de for plugin.json dash strings (I18n.trFor)
 docs/                         User/operator docs; docs/releases/<version>.md per release
 ```
 
@@ -101,7 +101,12 @@ docs/                         User/operator docs; docs/releases/<version>.md per
 - UI strings use `t("key", "English fallback")`, and the key must still exist
   in all five bundles with matching placeholders.
 - Dux Shell renders the `plugin.json` dash title and option strings itself; translate
-  each one in every `translations/*.json` (the English term is its own bucket).
+  each one in every `translations/*.json`; `translations/en.json` maps each
+  term to itself and is the Crowdin source for them.
+- Crowdin mirrors `i18n/` and `translations/` (`.github/crowdin.yml`); the
+  **Crowdin sync** workflow uploads them on every push to `main` and fails
+  when Crowdin holds a translation the repository lacks. Bring such a change
+  in with `crowdin download`, never by hand-editing around it.
 - A Repeater delegate that is a custom component needs
   `required property var modelData`.
 - Shared widgets come from `qs.DCommon.Widgets` with their Dux Shell 2.0 names

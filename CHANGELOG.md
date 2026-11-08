@@ -19,9 +19,11 @@
 - Antigravity reads a pool whose remaining fraction is omitted (protobuf drops a zero) as used up instead of hiding it, accepts the fraction nested under `remaining`, labels the Gemini 4 Argon pool and recognizes Chinese 5-hour and weekly window names.
 - Antigravity keeps each account's email on systems whose `base64` rejects stray padding, such as Ubuntu 26.04 with uutils coreutils; an id_token payload that needed no padding lost its email and showed "Antigravity account".
 - Antigravity account windows show the reset countdown next to a bare percentage, and keep the server's own description in used mode.
+- The readiness detail in Settings (what a provider is missing, such as "Grok Bot desktop app sign-in") is translated in every language instead of always showing English.
 
 ### Documentation
 
+- Crowdin holds every translated string again, including the dash card terms (`translations/`), and a **Crowdin sync** workflow uploads the bundles on every merge and fails when Crowdin has a translation the repository lacks, so the two cannot drift apart silently.
 - The README contributor grid, in English and Portuguese, credits [@alvorithm](https://github.com/alvorithm) and [@DotRedstone](https://github.com/DotRedstone).
 
 ### Thanks

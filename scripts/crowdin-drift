@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""Compare Crowdin's exported translations with the repository's.
+
+Usage: scripts/crowdin-drift EXPORTED_ROOT [REFERENCE_ROOT]
+
+EXPORTED_ROOT holds a `crowdin download` of the project; REFERENCE_ROOT
+(default: the repository) holds the files to compare against. Every
+translated bundle under i18n/ and translations/ is compared key by key; the
+English sources are not. Prints one line per difference and exits 1 when
+there is any, so a translation approved in Crowdin but never brought into the
+repository, or one changed in the repository but not in Crowdin, is reported
+instead of being overwritten by the next sync.
+"""
+import json
+import sys
+from pathlib import Path
+
+SOURCES = {"i18n/en.json", "translations/en.json"}
+
+
+def bundles(root):
+    found = {}
+    for folder in ("i18n", "translations"):
+        for path in sorted((root / folder).glob("*.json")):
+            relative = f"{folder}/{path.name}"
+            if relative not in SOURCES:
+                found[relative] = path
+    return found
+
+
+def flatten(value, prefix=""):
+    if isinstance(value, dict):
+        flat = {}
+        for key, item in value.items():
+            flat.update(flatten(item, f"{prefix}{key}\x1f"))
+        return flat
+    return {prefix.rstrip("\x1f").replace("\x1f", " › "): value}
+
+
+def main(argv):
+    if len(argv) not in (2, 3):
+        print(__doc__.strip().splitlines()[2], file=sys.stderr)
+        return 2
+    exported = Path(argv[1])
+    reference = Path(argv[2]) if len(argv) == 3 else Path(__file__).resolve().parent.parent
+    ours, theirs = bundles(reference), bundles(exported)
+    problems = []
+    for name in sorted(set(ours) | set(theirs)):
+        if name not in theirs:
+            problems.append(f"{name}: not in the Crowdin export")
+            continue
+        if name not in ours:
+            problems.append(f"{name}: exported by Crowdin but not in the repository")
+            continue
+        mine = flatten(json.loads(ours[name].read_text(encoding="utf-8")))
+        crowdin = flatten(json.loads(theirs[name].read_text(encoding="utf-8")))
+        for key in sorted(set(mine) | set(crowdin)):
+            if mine.get(key) != crowdin.get(key):
+                problems.append(f"{name}: {key}: repository {mine.get(key)!r}, Crowdin {crowdin.get(key)!r}")
+    for line in problems:
+        print(line)
+    if problems:
+        print(f"{len(problems)} difference(s) between Crowdin and the repository", file=sys.stderr)
+        return 1
+    print(f"Crowdin matches the repository ({len(ours)} translated bundles)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

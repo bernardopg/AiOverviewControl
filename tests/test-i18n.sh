@@ -16,6 +16,19 @@ settings = Path('AiOverviewControlSettings.qml').read_text()
 for provider in re.findall(r'\{ id:"([^"]+)".*?note:', settings):
     if f'provider.note.{provider}' not in base:
         errors.append(f'Provider note not localized: {provider}')
+# Readiness details come from the health helper in English; every prose one
+# needs a health.detail.<slug> key, built the way healthDetailText() builds it.
+def health_slug(text):
+    slug = re.sub(r'^_|_$', '', re.sub(r'[^a-z0-9]+', '_', text.lower()))
+    return slug[:60].rstrip('_')
+health = Path('providers/get-provider-health').read_text()
+for detail in sorted(set(re.findall(r'detail="([^"]*)"', health))):
+    if re.fullmatch(r'[A-Z0-9_]+', detail) or detail in ('Configured', 'sqlite3'):
+        continue
+    if f'health.detail.{health_slug(detail)}' not in base:
+        errors.append(f'Readiness detail not localized: {detail!r} (health.detail.{health_slug(detail)})')
+    elif base[f'health.detail.{health_slug(detail)}'] != detail:
+        errors.append(f'Readiness detail key holds different English text: {detail!r}')
 for file in Path('i18n').glob('*.json'):
     bundle = json.loads(file.read_text())
     if set(bundle) != set(base):
@@ -41,7 +54,9 @@ for option in dash.get('options', []):
     for choice in option.get('choices', []):
         terms.add(choice.get('text', choice['value']))
 terms = {term for term in terms if not term.isdigit()}
-languages = {file.stem.split('_')[0] for file in Path('i18n').glob('*.json')} - {'en'}
+# translations/en.json is the Crowdin source for those terms: each maps to
+# itself, so Dux Shell shows the English term unchanged.
+languages = {file.stem.split('_')[0] for file in Path('i18n').glob('*.json')}
 shipped = {file.stem for file in Path('translations').glob('*.json')}
 if shipped != languages:
     errors.append(f'translations/: expected {sorted(languages)}, found {sorted(shipped)}')
@@ -52,7 +67,10 @@ for file in sorted(Path('translations').glob('*.json')):
     for term in terms & set(table):
         bucket = table[term]
         text = bucket.get(term) if isinstance(bucket, dict) else None
-        if not isinstance(text, str) or not text.strip() or text == term:
+        if file.stem == 'en':
+            if text != term:
+                errors.append(f'{file}: source term {term!r} must map to itself')
+        elif not isinstance(text, str) or not text.strip() or text == term:
             errors.append(f'{file}: untranslated manifest term {term!r}')
 if errors:
     raise SystemExit('\n'.join(errors))

@@ -134,6 +134,16 @@ PluginSettings {
         saveValue("barWindowOverrides", pairs.join(","));
     }
 
+    // providers/get-provider-health reports what a provider is missing in
+    // English. Prose details are localized through health.detail.<slug>
+    // (tests/test-i18n.sh keeps every one of them in the bundles); a bare
+    // variable name such as DEEPSEEK_API_KEY has no key and shows as is.
+    function healthDetailText(detail) {
+        const raw = String(detail || "");
+        const slug = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 60).replace(/_+$/, "");
+        return slug.length > 0 ? t("health.detail." + slug, raw) : raw;
+    }
+
     function providerDisplayName(id) {
         for (let i = 0; i < allProviders.length; i++) {
             if (allProviders[i].id === id) return allProviders[i].name;
@@ -1854,7 +1864,7 @@ PluginSettings {
                             StyledText {
                                 id: healthLabel
                                 anchors.centerIn: parent
-                                text: providerDetailRow.health.status === "ready" ? t("settings.health.ready", "Ready") : providerDetailRow.health.detail
+                                text: providerDetailRow.health.status === "ready" ? t("settings.health.ready", "Ready") : root.healthDetailText(providerDetailRow.health.detail)
                                 color: providerDetailRow.healthColor
                                 font.pixelSize: Theme.fontSizeSmall - 1
                                 font.weight: Font.DemiBold
