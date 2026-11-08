@@ -197,36 +197,6 @@ source "$SCRIPT_DIR/native/cursor.bash"
 # ~/.hermes/auth.json.
 
 
-extract_antigravity_keyring_token() {
-  jq -r '
-    def token_string:
-      if type == "object" then
-        .access_token // .accessToken // .token // .Token // empty
-      elif type == "string" and test("^ya29\\.") then
-        .
-      else
-        empty
-      end;
-    if type == "object" then
-      (.token | token_string)
-      // token_string
-      // empty
-    else
-      token_string
-    end
-  ' 2>/dev/null || true
-}
-
-extract_antigravity_keyring_account() {
-  jq -r '
-    if type == "object" then
-      .email // .account_email // (.token.email // .token.account_email // empty) // "Antigravity CLI"
-    else
-      "Antigravity CLI"
-    end
-  ' 2>/dev/null || printf 'Antigravity CLI'
-}
-
 # A Google refresh token in a keyring oauth2.Token JSON payload (stdin).
 extract_antigravity_keyring_refresh() {
   jq -r '
@@ -516,10 +486,7 @@ antigravity_quota_request_body() {
     printf '%s\t%s\n' "${http_status:-1}" "$message" >&2
     return 1
   fi
-  project="$(jq -r '
-    (.cloudaicompanionProject // empty)
-    | if type == "string" then . elif type == "object" then (.id // empty) else empty end
-  ' "$tmp_body" 2>/dev/null || true)"
+  project="$(jq -r '.cloudaicompanionProject // empty | if type == "string" then . elif type == "object" then (.id // empty) else empty end' "$tmp_body" 2>/dev/null || true)"
   rm -f "$tmp_body"
 
   if [ -n "${project:-}" ] && [ "$project" != "null" ]; then
@@ -599,10 +566,7 @@ antigravity_local_rpc_collect() {
     [ -n "$exe" ] || exe="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | head -n 1)"
     case "$exe" in */resources/bin/language_server) ;; *) continue ;; esac
     # The token arrives as `--csrf_token VALUE` or `--csrf_token=VALUE`.
-    csrf="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | awk '
-      found { print; exit }
-      $0 == "--csrf_token" { found = 1; next }
-      index($0, "--csrf_token=") == 1 { print substr($0, 14); exit }')"
+    csrf="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | awk 'found { print; exit } $0 == "--csrf_token" { found = 1; next } index($0, "--csrf_token=") == 1 { print substr($0, 14); exit }')"
     [ -n "$csrf" ] || continue
     # Only loopback listeners; the server opens a few, and only one speaks
     # HTTPS Connect-RPC, so each is tried briefly.
@@ -910,14 +874,6 @@ xai_refresh_grok_auth() {
   xai_clear_refresh_attempt
 }
 
-xai_grok_has_auth_file() {
-  local auth_file
-  auth_file="$(xai_grok_home)/auth.json"
-  [ -r "$auth_file" ] \
-    && jq -e 'to_entries | any((.value.key | type) == "string" and (.value.key | length) > 0)' \
-      "$auth_file" >/dev/null 2>&1
-}
-
 xai_management_key() {
   if [ -n "${XAI_MANAGEMENT_KEY:-}" ]; then
     printf '%s' "$XAI_MANAGEMENT_KEY"
@@ -1049,6 +1005,44 @@ fetch_xai_cli_billing() {
 # Documented Management API prepaid ledger. Inference keys never work here.
 # Remaining dollars = negated total.val (USD cents). Returns 0 if JSON was
 # printed, 1 to try the next source.
+# The Management API's prepaid balance (body file $2, team $1) as a usage
+# payload, or nothing when the body has no usable total.
+xai_management_balance_json() {
+  jq -c --arg team "$1" '
+    def absn($n): if $n < 0 then -$n else $n end;
+    def money_cents($cents):
+      (absn($cents | floor) as $abs | (($abs / 100) | floor) as $d | ($abs % 100) as $f
+       | "$" + ($d | tostring) + "." + (if $f < 10 then "0" else "" end) + ($f | tostring));
+    (.total.val | tonumber? // null) as $raw |
+    if $raw == null then empty
+    else
+      (-$raw) as $remaining_cents |
+      (if $remaining_cents < 0 then 0 else $remaining_cents end) as $clamped |
+      {
+        provider: "xai",
+        source: "xai-management",
+        usage: {
+          identity: {providerID: "xai", accountEmail: ("xAI team " + $team), loginMethod: "management-key"},
+          accountEmail: ("xAI team " + $team),
+          loginMethod: "management-key",
+          primary: {
+            usedPercent: 0,
+            windowMinutes: null,
+            resetsAt: null,
+            resetDescription: "Prepaid credits",
+            isBalance: true,
+            displayValue: money_cents($clamped)
+          },
+          secondary: null,
+          tertiary: null,
+          updatedAt: (now | todateiso8601)
+        },
+        credits: {remaining: money_cents($clamped)}
+      }
+    end
+  ' "$2" 2>/dev/null || true
+}
+
 fetch_xai_management_balance() {
   local grok_auth="${1:-}"
   local key team
@@ -1084,39 +1078,7 @@ fetch_xai_management_balance() {
   fi
 
   local out
-  out="$(jq -c --arg team "$team" '
-    def absn($n): if $n < 0 then -$n else $n end;
-    def money_cents($cents):
-      (absn($cents | floor) as $abs | (($abs / 100) | floor) as $d | ($abs % 100) as $f
-       | "$" + ($d | tostring) + "." + (if $f < 10 then "0" else "" end) + ($f | tostring));
-    (.total.val | tonumber? // null) as $raw |
-    if $raw == null then empty
-    else
-      (-$raw) as $remaining_cents |
-      (if $remaining_cents < 0 then 0 else $remaining_cents end) as $clamped |
-      {
-        provider: "xai",
-        source: "xai-management",
-        usage: {
-          identity: {providerID: "xai", accountEmail: ("xAI team " + $team), loginMethod: "management-key"},
-          accountEmail: ("xAI team " + $team),
-          loginMethod: "management-key",
-          primary: {
-            usedPercent: 0,
-            windowMinutes: null,
-            resetsAt: null,
-            resetDescription: "Prepaid credits",
-            isBalance: true,
-            displayValue: money_cents($clamped)
-          },
-          secondary: null,
-          tertiary: null,
-          updatedAt: (now | todateiso8601)
-        },
-        credits: {remaining: money_cents($clamped)}
-      }
-    end
-  ' "$tmp_body" 2>/dev/null || true)"
+  out="$(xai_management_balance_json "$team" "$tmp_body")"
   rm -f "$tmp_body"
   [ -n "$out" ] || return 1
   printf '%s' "$out"

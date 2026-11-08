@@ -86,6 +86,10 @@ for provider in cloudflare deepseek fireworks replicate gemini kilo together coh
 done
 export COV_STATUS=500 COV_BODY='{"message":"offline"}'
 result="$(run deepseek)"; jq -e '.[0].error.code == 500' <<<"$result" >/dev/null
+# A status that is not a number (a broken proxy, a curl that printed nothing
+# useful) is reported as code 1 instead of breaking the JSON error itself.
+export COV_STATUS=ab3 COV_BODY='{"message":"proxy error"}'
+result="$(run deepseek)"; jq -e '.[0].error.code == 1 and .[0].error.message == "proxy error"' <<<"$result" >/dev/null
 # Vertex AI without a gcloud sign-in says how to sign in.
 mkdir -p "$TMP/gcloud-out"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$TMP/gcloud-out/gcloud"

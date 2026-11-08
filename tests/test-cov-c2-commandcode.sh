@@ -12,11 +12,13 @@ case "$CASE:$url" in
   auth:*) printf '%s' '{}' >"$out"; printf 401;;
   fallback:*credits) printf '%s' '{broken' >"$out"; printf 200;;
   fallback:*) printf '%s' '{"data":[]}' >"$out"; printf 200;;
+  down:*) printf '%s' '{}' >"$out"; printf 503;;
 esac
 STUB
 chmod +x "$TMP/bin/curl"; fail(){ echo "FAIL: $1" >&2; exit 1; }; run(){ CASE="$1" PATH="$TMP/bin:$PATH" COMMAND_CODE_API_KEY=sk-test "$ROOT/providers/get-provider-usage" cmd 2>/dev/null; }
 out="$(run success)"; jq -e '.[0].usage.accountEmail == "Ada (ada@example.test)" and .[0].usage.primary.usedPercent == 100 and .[0].credits.remaining == "$20"' <<<"$out" >/dev/null || fail success
 out="$(run auth)"; jq -e '.[0].error.code == 401' <<<"$out" >/dev/null || fail auth
 out="$(run fallback)"; jq -e '.[0].source == "commandcode-models"' <<<"$out" >/dev/null || fail fallback
+out="$(run down)"; jq -e '.[0].source == "commandcode-api" and (.[0].usage.primary.resetDescription | contains("unreachable"))' <<<"$out" >/dev/null || fail "both endpoints down: $out"
 out="$(env -u COMMAND_CODE_API_KEY PATH="$TMP/bin:$PATH" "$ROOT/providers/get-provider-usage" commandcode 2>/dev/null)"; jq -e '.[0].error' <<<"$out" >/dev/null || fail missing-key
 echo 'OK: test-cov-c2-commandcode'
