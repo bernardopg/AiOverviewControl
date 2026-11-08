@@ -236,6 +236,8 @@ Found a bug or have an idea? [Open an issue](https://github.com/bernardopg/AiOve
 <a href="https://github.com/UN-9BOT" title="UN-9BOT"><img src="https://avatars.githubusercontent.com/u/111110804?v=4&s=112" width="56" height="56" alt="UN-9BOT" /></a>
 <a href="https://github.com/SkippySteve" title="SkippySteve"><img src="https://avatars.githubusercontent.com/u/69158610?v=4&s=112" width="56" height="56" alt="SkippySteve" /></a>
 <a href="https://github.com/ianptkcs" title="ianptkcs"><img src="https://avatars.githubusercontent.com/u/162713721?v=4&s=112" width="56" height="56" alt="ianptkcs" /></a>
+<a href="https://github.com/alvorithm" title="alvorithm"><img src="https://avatars.githubusercontent.com/u/807608?v=4&s=112" width="56" height="56" alt="alvorithm" /></a>
+<a href="https://github.com/DotRedstone" title="DotRedstone"><img src="https://avatars.githubusercontent.com/u/77906069?v=4&s=112" width="56" height="56" alt="DotRedstone" /></a>
 
 <!-- CONTRIBUTORS:END -->
 
