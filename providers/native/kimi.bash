@@ -72,6 +72,7 @@ fetch_kimi_native() {
             windowMinutes: null,
             resetsAt: null,
             resetDescription: ("Available balance (" + $currency + ")"),
+            isBalance: true,
             displayValue: ($symbol + ($d.available_balance | tostring))
           },
           secondary: {

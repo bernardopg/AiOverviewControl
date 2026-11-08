@@ -93,6 +93,7 @@ usage.primary / secondary / tertiary
   resetsAt
   resetDescription
   displayValue (optional)
+  isBalance (optional; true when displayValue is a prepaid balance amount)
 usage.updatedAt
 usage.retryAt / retryReason (optional; set while an adapter backs off a failing endpoint)
 accounts[] (optional; local multi-account providers)
@@ -100,6 +101,8 @@ accounts[] (optional; local multi-account providers)
   modelWindows (optional advanced detail)
 credits.remaining
 ```
+
+A window marked `isBalance: true` is a prepaid balance: `displayValue` holds the formatted amount (`$95.50`, `¥9.34`) and `usedPercent` only says whether it is used up (0 or 100). The bar pill, its tooltip and the card header show that amount instead of a percentage; any other window, including an informational `displayValue` such as `Unlimited`, keeps its percentage in the bar.
 
 Errors return:
 

@@ -146,6 +146,7 @@ fetch_cline_native() {
             windowMinutes: null,
             resetsAt: null,
             resetDescription: (if $org != "" then "Credits · " + ([$user.organizations[]? | select(.active == true) | .name][0] // "Organization") else "Credits" end),
+            isBalance: ($usd != null),
             displayValue: (if $usd == null then "Balance unavailable" else "$" + ($usd | fix2) end)
           },
           secondary: {

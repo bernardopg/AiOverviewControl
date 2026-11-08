@@ -990,6 +990,7 @@ fetch_xai_management_balance() {
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Prepaid credits",
+            isBalance: true,
             displayValue: money_cents($clamped)
           },
           secondary: null,

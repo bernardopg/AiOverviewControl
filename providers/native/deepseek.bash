@@ -20,11 +20,17 @@ fetch_deepseek_native() {
   fi
   jq -c '
     def num($v): ($v // 0 | tonumber? // 0);
+    # The API reports CNY or USD; other codes keep their ISO prefix.
+    def money($code; $v):
+      ({"CNY": "¥", "USD": "$"}[$code] // ($code + " "))
+      + ((($v * 100) | round) / 100 | tostring
+         | if test("\\.") then (if test("\\.[0-9]$") then . + "0" else . end) else . + ".00" end);
     (.balance_infos // []) as $infos
     | ($infos[0] // {}) as $b
     | num($b.total_balance) as $total
     | num($b.granted_balance) as $granted
     | num($b.topped_up_balance) as $topped_up
+    | ($b.currency // "CNY") as $currency
     # The balance API reports remaining funds, not consumption — there is no
     # original total to derive a usage percent from. Mirror the Kimi pattern:
     # full bar only when the balance is depleted.
@@ -41,26 +47,29 @@ fetch_deepseek_native() {
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Balance",
-            displayValue: (($b.currency // "CNY") + " " + ($total | tostring))
+            isBalance: true,
+            displayValue: money($currency; $total)
           },
           secondary: {
             usedPercent: 0,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Granted credits",
-            displayValue: (($b.currency // "CNY") + " " + ($granted | tostring))
+            isBalance: true,
+            displayValue: money($currency; $granted)
           },
           tertiary: {
             usedPercent: 0,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Paid balance",
-            displayValue: (($b.currency // "CNY") + " " + ($topped_up | tostring))
+            isBalance: true,
+            displayValue: money($currency; $topped_up)
           },
           updatedAt: (now | todateiso8601)
         },
         credits: {
-          remaining: (($b.currency // "CNY") + " " + ($total | tostring))
+          remaining: money($currency; $total)
         }
       }
   ' "$tmp_body"

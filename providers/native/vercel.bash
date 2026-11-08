@@ -52,6 +52,7 @@ fetch_vercel_native() {
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Balance",
+            isBalance: true,
             displayValue: ($balance | usd)
           },
           secondary: {
