@@ -26,17 +26,20 @@ if [[ "$plugin" == aiOverviewControl ]]; then
     fi
   done < <(awk '$NF ~ /\.qml$/ { print $NF }' "$ROOT/qmldir")
   shopt -s nullglob
-  sources=("$ROOT"/*.qml "$ROOT"/*.js "$ROOT"/lib/*.js)
+  sources=("$ROOT"/*.qml "$ROOT"/*.js "$ROOT"/lib/*.js "$ROOT"/detect/*.qml "$ROOT"/detect/*.js)
   if grep -lE '^(<<<<<<< |>>>>>>> |\|\|\|\|\|\|\| |=======$)' "${sources[@]}" >&2; then
     echo 'Refusing reload: unresolved conflicts in runtime source' >&2
     exit 1
   fi
+  # An import resolves against the importing file's directory (detect/ imports
+  # its own module).
   while IFS= read -r module; do
-    if [[ ! -r "$ROOT/$module" ]]; then
-      printf 'Refusing reload: missing JavaScript module: %s\n' "$module" >&2
+    if [[ ! -r "$module" ]]; then
+      printf 'Refusing reload: missing JavaScript module: %s\n' "${module#"$ROOT"/}" >&2
       exit 1
     fi
-  done < <(awk '$1 == "import" && $2 ~ /^".*\.js"$/ { gsub(/"/, "", $2); print $2 }' "${sources[@]}")
+  done < <(awk '$1 == "import" && $2 ~ /^".*\.js"$/ {
+    gsub(/"/, "", $2); dir = FILENAME; sub(/[^\/]*$/, "", dir); print dir $2 }' "${sources[@]}")
 fi
 found=0
 while IFS= read -r instance; do

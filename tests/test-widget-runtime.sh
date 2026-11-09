@@ -31,7 +31,7 @@ pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/plugin/providers" "$TMP/home" "$TMP/bin"
 cp "$ROOT"/*.qml "$ROOT"/*.js "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
-cp -r "$ROOT/lib" "$TMP/plugin/"
+cp -r "$ROOT/lib" "$ROOT/detect" "$TMP/plugin/"
 cp -r "$ROOT/i18n" "$ROOT/assets" "$TMP/plugin/"
 for name in get-provider-usage get-provider-health get-local-analytics get-claude-usage get-9router-analytics get-pi-analytics get-hermes-analytics get-usage-history get-history-stats get-exchange-rates record-usage-history; do
     printf '#!/bin/bash\nprintf '\''{"providers":[],"error":"fixture"}\\n'\''\n' > "$TMP/plugin/providers/$name"
@@ -74,9 +74,16 @@ printf '{"provider":"%s","result":"reset","resetsLeft":1,"message":"fixture"}\n'
 SH
 chmod +x "$TMP/plugin/providers/reset-provider-limits"
 # Ready for whichever provider is checked first, so the settings health status
-# can be asserted after a selection change.
+# can be asserted after a selection change. A catalog-wide check is provider
+# detection: Codex signed in, a DeepSeek key, a bare gcloud CLI, Mistral
+# without a key.
 cat > "$TMP/plugin/providers/get-provider-health" <<'SH'
 #!/usr/bin/env bash
+commas="${1//[^,]/}"
+if (( ${#commas} > 20 )); then
+    printf '%s\n' '[{"provider":"codex","status":"ready","detail":"Configured","evidence":{"kind":"login","label":"~/.codex/auth.json"}},{"provider":"deepseek","status":"ready","detail":"Configured","evidence":{"kind":"key","label":"DEEPSEEK_API_KEY"}},{"provider":"vertexai","status":"ready","detail":"Configured","evidence":{"kind":"cli","label":"gcloud"}},{"provider":"mistral","status":"missing","detail":"MISTRAL_API_KEY","evidence":null},{"provider":"perplexity","status":"info","detail":"No public read-only quota API","evidence":null}]'
+    exit
+fi
 printf '[{"provider":"%s","status":"ready","detail":"Ready"}]\n' "${1%%,*}"
 SH
 chmod +x "$TMP/plugin/providers/get-provider-health"
@@ -746,8 +753,48 @@ ShellRoot {
                     console.error("SMOKE FAIL: group summaries or provider search: " + (summary ? summary.text : "none") + " / " + matches); return;
                 }
                 settings.resetToDefaults();
-                console.warn("FULL_UI_SMOKE_OK");
+                // Provider detection, from the header magnifier and from the
+                // settings Providers group.
+                widget.detectProvidersOpen = true;
+                input.findChild(settings, "settings-detect-panel").scan();
                 root.step = 22;
+            } else if (root.step === 22) {
+                const dialog = input.findChild(widget.dashboardView, "detect-providers-dialog");
+                const panel = input.findChild(widget.dashboardView, "dashboard-detect-panel");
+                const header = input.findChild(widget.dashboardView, "header-detect-providers");
+                const own = input.findChild(settings, "settings-detect-panel");
+                const ids = rows => rows.map(row => row.id).join(",");
+                if (!dialog || !dialog.visible || !header || !header.active || !panel || panel.phase !== "results"
+                    || panel.picked.indexOf("deepseek") < 0 || panel.picked.indexOf("vertexai") >= 0
+                    || ids(panel.result.possible) !== "vertexai"
+                    || !input.findChild(dialog, "detect-row-deepseek") || !input.findChild(dialog, "detect-row-vertexai")
+                    || panel.evidenceText(panel.result.possible[0]).indexOf("gcloud") !== 0
+                    || !own || own.phase !== "results" || own.picked.join(",") !== "deepseek" || ids(own.result.tracked) !== "codex") {
+                    console.error("SMOKE FAIL: provider detection results: " + (panel ? panel.phase + " " + panel.picked : "none")
+                        + " / " + (own ? own.phase + " " + own.picked : "none")); return;
+                }
+                panel.apply();
+                own.toggle("vertexai");
+                own.apply();
+                root.step = 23;
+            } else if (root.step === 23) {
+                // Two ticks after tracking: the selection is saved and the sheet,
+                // which closes itself shortly after tracking, is gone.
+                root.step = 24;
+            } else if (root.step === 24 && !widget.isLoading) {
+                const panel = input.findChild(widget.dashboardView, "dashboard-detect-panel");
+                if (widget.selectedProviders.indexOf("deepseek") < 0 || panel.phase !== "applied" || widget.detectProvidersOpen
+                    || settings.selectedIds.join(",") !== "codex,claude,copilot,deepseek,vertexai"
+                    || service.data.providerSelection.split(",").indexOf("vertexai") < 0) {
+                    console.error("SMOKE FAIL: detected providers were not tracked: " + widget.selectedProviders + " / "
+                        + settings.selectedIds + " / open " + widget.detectProvidersOpen); return;
+                }
+                // Tracking refreshed with the fixture's profile environment gone;
+                // put a Codex card back for the IPC focus check below.
+                widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25, windowMinutes: 300}}}];
+                settings.resetToDefaults();
+                console.warn("FULL_UI_SMOKE_OK");
+                root.step = 25;
             }
         }
     }
@@ -759,9 +806,9 @@ env -i HOME="$TMP/home" PATH="$TMP/bin:$PATH" LANG=en_US.UTF-8 AIOC_TEST_PLUGIN_
     XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
     WAYLAND_DISPLAY="$WAYLAND_DISPLAY" QT_QPA_PLATFORM=wayland \
     QML_XHR_ALLOW_FILE_READ=1 QML_IMPORT_PATH="$IMPORTS" \
-    timeout 36 qs --no-color -p "$TMP/shell.qml" > "$TMP/log" 2>&1 &
+    timeout 50 qs --no-color -p "$TMP/shell.qml" > "$TMP/log" 2>&1 &
 pid=$!
-for _ in {1..290}; do
+for _ in {1..430}; do
     grep -q 'FULL_UI_SMOKE_OK' "$TMP/log" && break
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.1

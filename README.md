@@ -58,7 +58,9 @@ invented percentages.
 
 **📊 One dashboard, 40+ providers**<br />
 Quota, balance, analytics, and auth status side by side, with a fleet overview
-of average load, hottest provider, and next reset.
+of average load, hottest provider, and next reset. 🔍 **Detect providers** finds
+the tools, sign-ins and API keys already on your computer and tracks them in
+one click.
 
 </td>
 <td width="50%" valign="top">
@@ -144,8 +146,10 @@ command -v bash jq curl codex claude gh
 codex login && claude auth status && gh auth status
 ```
 
-Open the ⚙ settings window to enable more providers — each one shows whether
-its CLI or credential is ready.
+Click 🔍 **Detect providers** in the dashboard header to find and track every
+provider already set up on this computer in one step, or open the ⚙ settings
+window to enable more by hand — each one shows whether its CLI or credential
+is ready.
 
 > [!TIP]
 > Bind the dashboard to a shortcut: `dms ipc call aiOverviewControl toggle`.

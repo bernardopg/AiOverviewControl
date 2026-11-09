@@ -6,7 +6,7 @@ command -v qs >/dev/null || { echo 'QML smoke requires Quickshell (qs)' >&2; exi
 TMP="$(mktemp -d)"
 pid=""
 trap 'if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$TMP"' EXIT
-cp "$ROOT/LocalAnalyticsReader.qml" "$ROOT/lib/BarWindows.js" "$ROOT/ClaudeProfiles.js" "$TMP/"
+cp "$ROOT/LocalAnalyticsReader.qml" "$ROOT/lib/BarWindows.js" "$ROOT/ClaudeProfiles.js" "$ROOT/detect/ProviderDetect.js" "$TMP/"
 python3 - "$ROOT/AiOverviewControlWidget.qml" "$TMP/ProviderOrder.js" <<'PY'
 import re, sys
 from pathlib import Path
@@ -32,6 +32,7 @@ import Quickshell
 import "ProviderOrder.js" as ProviderOrder
 import "BarWindows.js" as BarWindows
 import "ClaudeProfiles.js" as ClaudeProfiles
+import "ProviderDetect.js" as ProviderDetect
 ShellRoot {
     id: root
     FloatingWindow { visible: true; implicitWidth: 1; implicitHeight: 1 }
@@ -219,8 +220,52 @@ ShellRoot {
         if (bad >= 0) console.error("SMOKE FAIL: pace check " + bad);
         return bad < 0;
     }
+    // Provider detection: strong evidence is offered ticked, weak evidence
+    // unticked, tracked and non-ready providers are not offered, and only
+    // catalog IDs count.
+    function detectOk() {
+        const catalog = [
+            {id: "codex", name: "Codex"}, {id: "deepseek", name: "DeepSeek"},
+            {id: "vertexai", name: "Vertex AI"}, {id: "claude", name: "Claude"},
+            {id: "mistral", name: "Mistral"}, {id: "perplexity", name: "Perplexity"},
+            {id: "antigravity"}, {id: "pi", name: "pi"}, {id: "absent", name: "Absent"}
+        ];
+        const items = [
+            {provider: "codex", status: "ready", evidence: {kind: "login", label: "~/.codex/auth.json"}},
+            {provider: "deepseek", status: "ready", evidence: {kind: "key", label: "DEEPSEEK_API_KEY"}},
+            {provider: "vertexai", status: "ready", evidence: {kind: "cli", label: "gcloud"}},
+            {provider: "claude", status: "ready", evidence: {kind: "local", label: "~/.claude"}},
+            {provider: "mistral", status: "missing", detail: "MISTRAL_API_KEY", evidence: null},
+            {provider: "perplexity", status: "info", evidence: null},
+            {provider: "antigravity", status: "ready", evidence: {kind: "keyring", label: "secret-tool"}},
+            {provider: "pi", status: "ready"},
+            {provider: "claude-work", status: "ready", evidence: {kind: "login", label: "x"}},
+            null, {status: "ready"}
+        ];
+        const result = ProviderDetect.classify(items, catalog, ["claude"]);
+        const ids = rows => rows.map(row => row.id).join(",");
+        const checks = [
+            ids(result.found) === "codex,deepseek",
+            ids(result.possible) === "vertexai,antigravity,pi",
+            ids(result.tracked) === "claude",
+            result.scanned === 8,
+            result.found[1].kind === "key" && result.found[1].label === "DEEPSEEK_API_KEY",
+            result.possible[1].name === "antigravity" && result.possible[2].kind === "" && result.possible[2].label === "",
+            ProviderDetect.defaultPicks(result).join(",") === "codex,deepseek",
+            ProviderDetect.defaultPicks(null).length === 0,
+            ProviderDetect.isStrong({kind: "vault"}) && !ProviderDetect.isStrong({kind: "cli"}) && !ProviderDetect.isStrong(null),
+            ProviderDetect.classify(null, null, null).scanned === 0,
+            ProviderDetect.merge(["codex", "claude"], ["Claude", " deepseek ", "", "deepseek"]).join(",") === "codex,claude,deepseek",
+            ProviderDetect.merge(null, ["groq"]).join(",") === "groq",
+            ProviderDetect.toggled(["a", "b"], "a").join(",") === "b",
+            ProviderDetect.toggled(null, "a").join(",") === "a"
+        ];
+        const bad = checks.indexOf(false);
+        if (bad >= 0) console.error("SMOKE FAIL: provider detection check " + bad);
+        return bad < 0;
+    }
     Component.onCompleted: {
-        if (!claudeDetailsOk() || !barWindowsOk() || !paceOk()) return;
+        if (!claudeDetailsOk() || !barWindowsOk() || !paceOk() || !detectOk()) return;
         const pins = ["codex", "claude", "kimi-code"];
         if (ProviderOrder.reorderedPins(pins, "kimi-code", "codex").join(",") !== "kimi-code,codex,claude"
             || ProviderOrder.reorderedPins(pins, "codex", "kimi-code").join(",") !== "claude,codex,kimi-code"
@@ -244,4 +289,4 @@ for _ in {1..100}; do
 done
 grep -q 'QML_SMOKE_OK' "$TMP/log" || { printf '%s\n' "$(<"$TMP/log")" >&2; exit 1; }
 if grep -Ei 'SMOKE FAIL|ReferenceError|TypeError|binding loop|Failed to load configuration' "$TMP/log"; then exit 1; fi
-echo 'OK: Claude details view model, quota window pace, QML JSON parsing, failure retention, timeout, retry, empty arguments and refresh deduplication'
+echo 'OK: Claude details view model, quota window pace, provider detection, QML JSON parsing, failure retention, timeout, retry, empty arguments and refresh deduplication'

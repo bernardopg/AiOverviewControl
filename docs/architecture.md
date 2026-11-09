@@ -17,11 +17,13 @@ HeaderAction.qml                  Icon-only capsule button shared by the popout,
 AiOverviewSettingsWindow.qml      Standalone settings window and About window (hosts the settings page)
 AiOverviewDashCard.qml            Dashboard "AI quotas" card; reads dash-snapshot.json, never queries providers
 lib/BarWindows.js                 bar window selection: barWindowOverrides parsing and the windows the pill shows
+detect/DetectProvidersPanel.qml   Provider detection panel, shared by the dashboard sheet and the settings Providers group
+detect/ProviderDetect.js          Provider detection: sorts health evidence into ready / unverified / already tracked
 ClaudeProfiles.js                 Claude profile parsing and the per-profile details view model
 providers/get-provider-usage      Multi-provider dispatcher and normalization
 providers/native/*.bash          Native provider fetch implementations
 providers/get-exchange-rates     Validated/cache-backed daily USD rate quotes
-providers/get-provider-health     Prerequisite checks for settings
+providers/get-provider-health     Prerequisite checks for settings and provider detection, with the evidence found
 providers/get-usage-history       Local usage history reader
 providers/record-usage-history    Serialized usage-history append and retention trim
 providers/get-history-stats       Snapshot count and last trim, shown next to the retention setting
@@ -198,6 +200,7 @@ Legacy settings unknown to the current code are ignored.
 - Bar pill: selected measurable providers. Per provider, `barWindowOverrides` selects which usage windows the pill displays (the automatic headline window by default — primary, or a later window once it is used up — or `primary`, `secondary`/`tertiary`/`highest`, or several at once such as `primary+secondary`/`all`, each tagged with its length); the ranking used by `top` and `auto` pill modes follows the highest displayed number.
 - Overview: active/error counts and local backend status.
 - Provider manager: add and remove providers without editing settings files.
+- Detect providers: the header magnifier (and the empty state) opens a sheet over the dashboard; the settings Providers group embeds the same `detect/DetectProvidersPanel.qml`. It runs `get-provider-health` over the whole catalog except Claude profiles. Each ready item carries `evidence: {kind, label}` (`key` variable name, `login` sign-in file, `local` data store, `vault` configured keyring spec, `cli` command on `PATH`, `keyring` the bare `secret-tool`; labels are names or `~` paths, never values). `ProviderDetect.classify()` ticks `key`/`login`/`local`/`vault`, leaves `cli`/`keyring` unticked as sign-in not verified, and lists already tracked providers separately; the host saves the merged selection once.
 - Filter: shown when more than five cards are visible. Status chips (All / Live / Issues, with counts) appear whenever any provider is configured.
 - Cards: collapsed preview, expanded windows, identity, credits, source, and timestamps.
 - Pace: `BarWindows.pace(window, nowMs)` (in `lib/BarWindows.js`) returns the even-use share elapsed (`expected`), the minutes to the reset, and whether the window `runsOut` before it (past 15% of the window and 5 points over even use), or null for a balance, an `Unlimited` allowance, a window without `windowMinutes` or `resetsAt`, or a reset outside the window. `UsageBar` draws the tick and the flame from it and shows the numbers on hover; the widget's `paceFor()` re-evaluates with the stale clock and reads a cached module without `pace()` (a shell running since before the update) as no pace.
@@ -213,7 +216,7 @@ for test in tests/*.sh; do bash -n "$test"; done
 bash -n scripts/package-release
 find providers -type f -print0 | xargs -0 shellcheck -S warning
 shellcheck -S warning tests/*.sh scripts/package-release
-QT_FORCE_STDERR_LOGGING=1 qmllint *.qml
+QT_FORCE_STDERR_LOGGING=1 qmllint *.qml detect/*.qml
 ./providers/get-provider-health "codex,claude,copilot,pi" | jq .
 ./providers/get-provider-usage "codex,claude,copilot,pi" ./providers/get-copilot-usage | jq .
 ./providers/get-pi-analytics | jq .

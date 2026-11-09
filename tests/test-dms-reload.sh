@@ -6,7 +6,7 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/bin" "$TMP/plugin/scripts"
 cp "$ROOT/scripts/reload-plugin" "$TMP/plugin/scripts/"
 cp "$ROOT"/*.qml "$ROOT"/*.js "$ROOT/plugin.json" "$ROOT/qmldir" "$TMP/plugin/"
-cp -r "$ROOT/lib" "$TMP/plugin/"
+cp -r "$ROOT/lib" "$ROOT/detect" "$TMP/plugin/"
 cp -r "$ROOT/i18n" "$TMP/plugin/"
 RELOAD="$TMP/plugin/scripts/reload-plugin"
 export QS_CALLS="$TMP/qs-calls"

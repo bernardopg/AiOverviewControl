@@ -7,7 +7,7 @@ import json, re
 from pathlib import Path
 base = json.loads(Path('i18n/en.json').read_text())
 errors = []
-for file in Path('.').glob('*.qml'):
+for file in sorted(Path('.').glob('*.qml')) + sorted(Path('detect').glob('*.qml')):
     source = file.read_text()
     for match in re.finditer(r'\bt\("([^"\n]+)"\s*[,)]', source):
         if match.group(1) not in base:

@@ -53,7 +53,7 @@ if checkout:
     globs_js = re.search(r'(?<!\w)\*\.js(?!\w)', command) is not None
     for name in sorted(p.name for p in Path('.').glob('*.js')):
         require(globs_js or name in command, f'checkout install omits {name}')
-    for directory in ('lib', 'providers', 'assets', 'i18n'):
+    for directory in ('lib', 'detect', 'providers', 'assets', 'i18n'):
         require(re.search(rf'(?<![\w/.-]){directory}(?![\w-])', command) is not None,
                 f'checkout install omits {directory}/')
     require(re.search(r'(?<![\w/])translations(?!\w)', command) is not None,

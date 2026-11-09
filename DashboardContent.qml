@@ -9,6 +9,7 @@ import qs.Services
 import qs.Widgets
 import qs.DCommon.Widgets
 import qs.Modules.Plugins
+import "detect"
 
 PopoutComponent {
             id: popout
@@ -248,7 +249,17 @@ PopoutComponent {
                         spacing: 2
 
                         HeaderAction {
+                            objectName: "header-detect-providers"
                             position: "first"
+                            iconName: "travel_explore"
+                            hoverRotation: -12
+                            active: root.detectProvidersOpen
+                            label: t("header.detect", "Detect providers set up on this computer")
+                            onHoveredChanged: popout.hoveredAction = hovered ? label : ""
+                            onTriggered: root.detectProvidersOpen = !root.detectProvidersOpen
+                        }
+
+                        HeaderAction {
                             iconName: "favorite"
                             accent: Theme.error
                             label: t("header.upvote", "Upvote on the Dux Shell plugin registry")
@@ -313,6 +324,11 @@ PopoutComponent {
                 ResetConfirmOverlay {
                     anchors.fill: parent
                     z: 100
+                }
+
+                DetectProvidersOverlay {
+                    anchors.fill: parent
+                    z: 101
                 }
 
                 Flickable {
@@ -442,6 +458,12 @@ PopoutComponent {
                                 radius: width / 2
                                 y: -height * 0.55
                                 color: Theme.withAlpha(root.heroAccent, 0.09)
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    blurEnabled: true
+                                    blur: 1.0
+                                    blurMax: 64
+                                }
                                 Behavior on color {
                                     ColorAnimation {
                                         duration: 600
@@ -651,6 +673,7 @@ PopoutComponent {
                                             }
 
                                             BadgePill {
+                                                visible: root.hasError || root.providerStatus(root.providerData) !== "active"
                                                 label: root.hasError && !root.hasProviderData ? t("status.setup_required", "Setup required") : root.hasError ? t("status.needs_attention", "Needs attention") : root.providerStatusLabel(root.providerData)
                                                 iconName: root.hasError ? "warning" : "check_circle"
                                                 accentColor: root.hasError ? Theme.warning : root.getUsageColor(root.primaryPercent)
@@ -767,21 +790,37 @@ PopoutComponent {
 
                                 // One stat strip for the whole fleet. Fleet-wide figures only appear
                                 // with 2+ live providers; the focused reset covers the single case.
+                                // An even grid (six tiles become 3 × 2 when they do not fit in one
+                                // row) so no tile is left alone on a line. The last sync time lives
+                                // in the popout header.
                                 StyledRect {
+                                    id: statStrip
                                     width: parent.width
                                     radius: Theme.cornerRadius + 2
                                     color: Theme.withAlpha(Theme.surfaceText, 0.035)
                                     border.width: 1
                                     border.color: Theme.withAlpha(Theme.surfaceText, 0.07)
-                                    implicitHeight: statFlow.implicitHeight + Theme.spacingM * 2
+                                    implicitHeight: statGrid.implicitHeight + Theme.spacingM * 2
 
-                                    Flow {
-                                        id: statFlow
-                                        anchors.fill: parent
+                                    readonly property int shown: {
+                                        const fleet = root.fleetRollup.count >= 2;
+                                        const reset = fleet ? root.fleetRollup.nextResetMs > 0 : !!(root.primaryWindow && root.primaryWindow.resetsAt);
+                                        return 2 + (fleet ? 3 : 0) + (reset ? 1 : 0);
+                                    }
+
+                                    GridLayout {
+                                        id: statGrid
+                                        objectName: "hero-stat-grid"
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
                                         anchors.margins: Theme.spacingM
-                                        spacing: Theme.spacingL
+                                        columns: width / Math.max(1, statStrip.shown) >= 132 ? statStrip.shown : Math.ceil(statStrip.shown / 2)
+                                        columnSpacing: Theme.spacingM
+                                        rowSpacing: Theme.spacingM
 
                                         HeroStat {
+                                            Layout.fillWidth: true
                                             visible: root.fleetRollup.count >= 2
                                             ringPercent: root.fleetRollup.avg
                                             statIcon: "speed"
@@ -792,9 +831,10 @@ PopoutComponent {
 
                                         // Peak provider is a jump link: click to expand + scroll to its card.
                                         HeroStat {
+                                            Layout.fillWidth: true
                                             visible: root.fleetRollup.count >= 2
                                             statIcon: "local_fire_department"
-                                            statLabel: root.fleetRollup.peakName.length > 0 ? root.fleetRollup.peakName : t("rollup.peak", "Peak")
+                                            statLabel: root.fleetRollup.peakName.length > 0 ? t("rollup.peak_named", "Peak · {name}", {name: root.fleetRollup.peakName}) : t("rollup.peak", "Peak")
                                             statValue: `${Math.round(root.fleetRollup.peak)}%`
                                             statAccent: root.getUsageColor(root.fleetRollup.peak)
                                             clickable: root.fleetRollup.peakId.length > 0
@@ -802,6 +842,7 @@ PopoutComponent {
                                         }
 
                                         HeroStat {
+                                            Layout.fillWidth: true
                                             statIcon: "check_circle"
                                             statLabel: t("card.active", "Active")
                                             statValue: String(root.successfulProviders.length)
@@ -809,6 +850,7 @@ PopoutComponent {
                                         }
 
                                         HeroStat {
+                                            Layout.fillWidth: true
                                             statIcon: "error"
                                             statLabel: t("card.attention", "Attention")
                                             statValue: String(root.errorProviders.length)
@@ -816,6 +858,7 @@ PopoutComponent {
                                         }
 
                                         HeroStat {
+                                            Layout.fillWidth: true
                                             visible: root.fleetRollup.count >= 2
                                             statIcon: "warning"
                                             statLabel: t("rollup.at_risk", "At risk")
@@ -824,19 +867,13 @@ PopoutComponent {
                                         }
 
                                         HeroStat {
+                                            Layout.fillWidth: true
                                             readonly property bool fleet: root.fleetRollup.count >= 2
                                             visible: fleet ? root.fleetRollup.nextResetMs > 0 : !!(root.primaryWindow && root.primaryWindow.resetsAt)
                                             statIcon: "schedule"
                                             statLabel: fleet ? t("rollup.next_reset", "Next reset") : t("card.resets_in", "Resets in")
                                             statValue: fleet ? root.fleetNextResetLabel : (root.primaryWindow ? root.formatTimeUntil(root.primaryWindow.resetsAt) : "—")
                                             statAccent: root.heroAccent
-                                        }
-
-                                        HeroStat {
-                                            statIcon: "history"
-                                            statLabel: t("popout.last_sync", "Last sync")
-                                            statValue: root.lastUpdated.length > 0 ? root.lastUpdated : "—"
-                                            statAccent: root.isDataStale ? Theme.warning : Theme.primary
                                         }
                                     }
                                 }
@@ -996,6 +1033,17 @@ PopoutComponent {
                                         accentColor: Theme.primary
                                         emphasized: true
                                         onTapped: root.refresh()
+                                    }
+
+                                    // First-run path: find what is already set up
+                                    // instead of guessing provider IDs.
+                                    BadgePill {
+                                        objectName: "empty-detect-providers"
+                                        label: t("detect.title", "Detect providers")
+                                        iconName: "travel_explore"
+                                        accentColor: Theme.primary
+                                        emphasized: true
+                                        onTapped: root.detectProvidersOpen = true
                                     }
 
                                     BadgePill {
@@ -1564,6 +1612,95 @@ PopoutComponent {
     // Confirmation for a consumable limit reset, drawn over the dashboard.
     // It stays open through the request and shows the outcome, so a reset is
     // never used without the user seeing what happened.
+    // Sheet over the dashboard for "Detect providers" (header magnifier and
+    // the empty state). The panel scans on open; tracking closes the sheet
+    // shortly after the confirmation so the new cards come into view.
+    component DetectProvidersOverlay: Item {
+        id: detectOverlay
+
+        function close() {
+            root.detectProvidersOpen = false;
+        }
+
+        visible: root.detectProvidersOpen
+        onVisibleChanged: {
+            closeAfterApply.stop();
+            if (visible) {
+                detectPanel.reset();
+                detectPanel.scan();
+                forceActiveFocus();
+            }
+        }
+        Keys.onEscapePressed: close()
+
+        Timer {
+            id: closeAfterApply
+            interval: 1600
+            onTriggered: detectOverlay.close()
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.cornerRadius + 4
+            color: Theme.withAlpha(Theme.surface, 0.72)
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: detectOverlay.close()
+                onWheel: wheel => wheel.accepted = true
+            }
+        }
+
+        StyledRect {
+            id: detectDialog
+            objectName: "detect-providers-dialog"
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Theme.spacingL
+            width: Math.min(parent.width - Theme.spacingL * 2, 520)
+            height: Math.min(parent.height - Theme.spacingL * 2, detectPanel.implicitHeight + Theme.spacingL * 2)
+            radius: Theme.cornerRadius + 4
+            color: Theme.surfaceContainerHigh
+            border.width: 1
+            border.color: Theme.withAlpha(Theme.primary, 0.3)
+            clip: true
+
+            // Swallow clicks so they do not reach the scrim.
+            MouseArea {
+                anchors.fill: parent
+                onWheel: wheel => wheel.accepted = true
+            }
+
+            // Fills the sheet up to its height; past that the results scroll
+            // and the title and the actions stay in view.
+            DetectProvidersPanel {
+                id: detectPanel
+                objectName: "dashboard-detect-panel"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.spacingL
+                maxHeight: detectOverlay.height - Theme.spacingL * 4
+                closable: true
+                healthScript: root.providerHealthScript
+                catalog: root.detectCatalog
+                trackedIds: root.selectedProviders
+                translate: root.t
+                locale: root.i18nLocale
+                logoColor: root.providerLogoColor
+                onCloseRequested: detectOverlay.close()
+                // "Scan again" right after tracking keeps the sheet open.
+                onPhaseChanged: if (phase !== "applied")
+                    closeAfterApply.stop()
+                onApplyRequested: ids => {
+                    root.addProviders(ids);
+                    closeAfterApply.restart();
+                }
+            }
+        }
+    }
+
     component ResetConfirmOverlay: Item {
         id: overlay
 
@@ -2182,10 +2319,13 @@ PopoutComponent {
                 }
 
                 StyledText {
+                    // In a narrow grid cell the label elides instead of overflowing.
+                    width: Math.min(implicitWidth, Math.max(0, heroStat.width - 34 - Theme.spacingS))
                     text: heroStat.statLabel
                     color: heroStat.clickable && statMouse.containsMouse ? heroStat.statAccent : Theme.surfaceVariantText
                     font.pixelSize: Theme.fontSizeSmall - 1
                     font.underline: heroStat.clickable && statMouse.containsMouse
+                    elide: Text.ElideRight
                 }
             }
         }
