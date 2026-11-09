@@ -347,7 +347,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>deepseek</code></td>
 <td>Balance</td>
 <td>balance endpoint</td>
-<td>✅ account + granted balance</td>
+<td>✅ account + granted balance (first funded currency when the account holds USD and CNY)</td>
 <td>—</td>
 <td>✅ per token</td>
 <td><code>DEEPSEEK_API_KEY</code></td>
