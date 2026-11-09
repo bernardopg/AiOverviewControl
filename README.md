@@ -181,10 +181,12 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 
 ## 📚 Documentation
 
-New in 2.3: the Grok Bot provider, API keys from the desktop keyring, a used-up
-weekly window and prepaid balances shown as they are in the bar, and a settings
-page with foldable groups and a live preview — see the
-[2.3.0 notes](./docs/releases/2.3.0.md). Spend providers and Gemini CLI quota
+New in 2.4: 🔍 **Detect providers** tracks everything already set up on your
+computer in one click, every quota bar shows its pace, and an optional Claude Code
+status line bridge keeps the Claude cards current while you work — see the
+[2.4.0 notes](./docs/releases/2.4.0.md). The Grok Bot provider, API keys from
+the desktop keyring and the settings page with a live preview came in
+[2.3.0](./docs/releases/2.3.0.md). Spend providers and Gemini CLI quota
 arrived in [2.2.0](./docs/releases/2.2.0.md), and since
 [2.2.1](./docs/releases/2.2.1.md) the bar can show several quota windows of
 one provider at once (`Claude 5h 45% / 7d 80%`). Credits,
@@ -250,6 +252,7 @@ Found a bug or have an idea? [Open an issue](https://github.com/bernardopg/AiOve
 <a href="https://github.com/ianptkcs" title="ianptkcs"><img src="https://avatars.githubusercontent.com/u/162713721?v=4&s=112" width="56" height="56" alt="ianptkcs" /></a>
 <a href="https://github.com/alvorithm" title="alvorithm"><img src="https://avatars.githubusercontent.com/u/807608?v=4&s=112" width="56" height="56" alt="alvorithm" /></a>
 <a href="https://github.com/DotRedstone" title="DotRedstone"><img src="https://avatars.githubusercontent.com/u/77906069?v=4&s=112" width="56" height="56" alt="DotRedstone" /></a>
+<a href="https://github.com/cauliyang" title="cauliyang"><img src="https://avatars.githubusercontent.com/u/38903141?v=4&s=112" width="56" height="56" alt="cauliyang" /></a>
 
 <!-- CONTRIBUTORS:END -->
 

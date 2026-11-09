@@ -13,12 +13,9 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## 🚀 Next release
 
-- [ ] **2.4.0** — `## Unreleased` holds three features (pace for every quota
-  window, Detect providers, the Claude Code status line bridge), the hero
-  polish and the DeepSeek multi-currency balance fix (#117), so the next
-  release is a minor one. Ship it with
-  `docs/release-checklist.md`; the release notes must say that a shell running
-  since before the update needs `dms restart` for the pace bars. `S · ★★★`
+- [x] **2.4.0** — released 2026-11-09: Detect providers, pace for every quota
+  window, the Claude Code status line bridge, hero polish and the DeepSeek
+  multi-currency fix. `S · ★★★`
 
 ## 🔧 Partial — needs a follow-up
 
