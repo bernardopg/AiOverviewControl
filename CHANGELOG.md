@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- DeepSeek accounts carry one `balance_infos` entry per currency (USD and CNY); the adapter read only the first, so a CNY-funded account showed `$0.00` at 100% used. The funded entry (largest `total_balance`) is now reported, and `is_available` is read from the response root where the live API places it.
+
 ## 2.3.0 - 2026-11-08
 
 A feature release for Dux Shell 2.0 and 2.1. A new **Grok Bot** provider reads the weekly Grok Bot Plan pool, API keys for OpenRouter, Z.ai, GLM and OpenCode Go can stay in the desktop keyring, and the bar stops hiding a used-up weekly limit behind an idle 5 hour window or a prepaid balance behind a percentage. The settings page is reorganised into foldable groups under a live preview of the bar pill. OpenCode Go reads the endpoint's new usage envelope, the Antigravity app's local language server answers for its own account, readiness details are translated, and shell statement coverage reaches 100%. Settings, profiles, pins and history carry over unchanged.

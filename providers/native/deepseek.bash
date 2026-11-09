@@ -25,16 +25,19 @@ fetch_deepseek_native() {
       ({"CNY": "¥", "USD": "$"}[$code] // ($code + " "))
       + ((($v * 100) | round) / 100 | tostring
          | if test("\\.") then (if test("\\.[0-9]$") then . + "0" else . end) else . + ".00" end);
+    # Accounts carry one entry per currency (USD and CNY). Report the one
+    # that holds funds; with several funded, the largest.
     (.balance_infos // []) as $infos
-    | ($infos[0] // {}) as $b
+    | (($infos | map(select(num(.total_balance) > 0)) | max_by(num(.total_balance))) // $infos[0] // {}) as $b
     | num($b.total_balance) as $total
     | num($b.granted_balance) as $granted
     | num($b.topped_up_balance) as $topped_up
     | ($b.currency // "CNY") as $currency
     # The balance API reports remaining funds, not consumption — there is no
     # original total to derive a usage percent from. Mirror the Kimi pattern:
-    # full bar only when the balance is depleted.
-    | (if ($b.is_available // ($total > 0)) then 0 else 100 end) as $used_pct
+    # full bar only when the balance is depleted. `is_available` is top-level
+    # in the live response; older fixtures carry it per entry.
+    | (if (.is_available // $b.is_available // ($total > 0)) then 0 else 100 end) as $used_pct
     | {
         provider: "deepseek",
         source: "deepseek-api",
