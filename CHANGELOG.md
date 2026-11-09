@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- DeepSeek accounts carry one `balance_infos` entry per currency (USD and CNY); the adapter read only the first, so a CNY-funded account showed `$0.00` at 100% used. The funded entry (largest `total_balance`) is now reported, and `is_available` is read from the response root where the live API places it.
+- DeepSeek accounts carry one `balance_infos` entry per currency (USD and CNY); the adapter read only the first, so a CNY-funded account showed `$0.00` at 100% used. The first entry that holds funds is now reported (amounts in different currencies are not compared), and `is_available` is read from the response root where the API places it, so `false` marks the balance depleted even when a total is positive.
 
 ## 2.3.0 - 2026-11-08
 

@@ -25,19 +25,27 @@ fetch_deepseek_native() {
       ({"CNY": "¥", "USD": "$"}[$code] // ($code + " "))
       + ((($v * 100) | round) / 100 | tostring
          | if test("\\.") then (if test("\\.[0-9]$") then . + "0" else . end) else . + ".00" end);
-    # Accounts carry one entry per currency (USD and CNY). Report the one
-    # that holds funds; with several funded, the largest.
-    (.balance_infos // []) as $infos
-    | (($infos | map(select(num(.total_balance) > 0)) | max_by(num(.total_balance))) // $infos[0] // {}) as $b
+    # Accounts carry one entry per currency (USD and CNY). Report the first
+    # entry that holds funds, in API order: amounts in different currencies
+    # are not comparable without an exchange rate, so "largest" would be
+    # nominal. Non-object entries are skipped so one bad entry cannot hide a
+    # funded one.
+    (.balance_infos | if type == "array" then map(objects) else [] end) as $infos
+    | (first($infos[] | select(num(.total_balance) > 0)) // $infos[0] // {}) as $b
     | num($b.total_balance) as $total
     | num($b.granted_balance) as $granted
     | num($b.topped_up_balance) as $topped_up
     | ($b.currency // "CNY") as $currency
     # The balance API reports remaining funds, not consumption — there is no
     # original total to derive a usage percent from. Mirror the Kimi pattern:
-    # full bar only when the balance is depleted. `is_available` is top-level
-    # in the live response; older fixtures carry it per entry.
-    | (if (.is_available // $b.is_available // ($total > 0)) then 0 else 100 end) as $used_pct
+    # full bar only when the balance is depleted. `is_available` sits at the
+    # response root (documented and live); a per-entry flag is still honoured
+    # as a fallback. Test the type rather than using `//`, which treats
+    # `false` as missing and would let a positive total override it.
+    | (if (.is_available | type) == "boolean" then .is_available
+       elif ($b.is_available | type) == "boolean" then $b.is_available
+       else $total > 0 end) as $available
+    | (if $available then 0 else 100 end) as $used_pct
     | {
         provider: "deepseek",
         source: "deepseek-api",

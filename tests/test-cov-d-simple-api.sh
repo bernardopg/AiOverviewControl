@@ -66,7 +66,7 @@ for provider in cloudflare deepseek fireworks replicate gemini kilo together coh
   set_credential "$provider"
   case "$provider" in
     cloudflare) export COV_BODY='{"success":true}' ;;
-    deepseek) export COV_BODY='{"balance_infos":[{"currency":"USD","total_balance":"12.5","granted_balance":"5","topped_up_balance":"7.5","is_available":true}]}' ;;
+    deepseek) export COV_BODY='{"is_available":true,"balance_infos":[{"currency":"USD","total_balance":"12.5","granted_balance":"5","topped_up_balance":"7.5"}]}' ;;
     fireworks) export COV_BODY='{"quotas":[{"name":"/model/day","usage":25,"value":100,"maxValue":200}]}' ;;
     replicate) export COV_BODY='{"username":"test-user","github_url":"https://github.com/test-user"}' ;;
     gemini|kilo|together|cohere|byteplus|ai21|qwen|mistral) export COV_BODY='{}' ;;
@@ -76,7 +76,7 @@ for provider in cloudflare deepseek fireworks replicate gemini kilo together coh
   jq -e --arg p "$provider" '.[0].provider == $p' <<<"$result" >/dev/null
 done
 set_credential deepseek
-export COV_BODY='{"balance_infos":[{"currency":"USD","total_balance":"12.5","granted_balance":"5","topped_up_balance":"7.5","is_available":true}]}'
+export COV_BODY='{"is_available":true,"balance_infos":[{"currency":"USD","total_balance":"12.5","granted_balance":"5","topped_up_balance":"7.5"}]}'
 jq -e '.[0].usage.primary.displayValue == "$12.50" and .[0].usage.secondary.displayValue == "$5.00" and .[0].usage.tertiary.displayValue == "$7.50" and .[0].credits.remaining == "$12.50"' <<<"$(run deepseek)" >/dev/null
 export COV_STATUS=401 COV_BODY='{"message":"denied"}'
 for provider in cloudflare deepseek fireworks replicate gemini kilo together cohere byteplus ai21 qwen mistral; do
