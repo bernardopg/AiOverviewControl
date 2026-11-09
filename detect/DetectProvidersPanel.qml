@@ -485,7 +485,12 @@ Column {
             DButton {
                 objectName: "detect-scan"
                 visible: panel.phase !== "scanning"
-                variant: panel.phase === "idle" || panel.phase === "failed" ? "filled" : "text"
+                // Filled while it is the only action, a text button next to the
+                // results. Colours rather than DButton's newer `variant`, which
+                // Dux Shell 2.1 lacks.
+                readonly property bool filled: panel.phase === "idle" || panel.phase === "failed"
+                backgroundColor: filled ? Theme.primary : "transparent"
+                textColor: filled ? Theme.primaryText : Theme.primary
                 iconName: panel.phase === "idle" ? "travel_explore" : "refresh"
                 text: panel.phase === "idle"
                     ? panel.t("detect.scan", "Scan this computer")
@@ -496,7 +501,8 @@ Column {
             DButton {
                 objectName: "detect-select-all"
                 visible: panel.phase === "results" && panel.newCount > 1
-                variant: "text"
+                backgroundColor: "transparent"
+                textColor: Theme.primary
                 iconName: panel.picked.length === panel.newCount ? "remove_done" : "done_all"
                 text: panel.picked.length === panel.newCount
                     ? panel.t("detect.select_none", "Select none")
