@@ -6,6 +6,10 @@
 
 - DeepSeek accounts carry one `balance_infos` entry per currency (USD and CNY); the adapter read only the first, so a CNY-funded account showed `$0.00` at 100% used. The first entry that holds funds is now reported (amounts in different currencies are not compared), and `is_available` is read from the response root where the API places it, so `false` marks the balance depleted even when a total is positive.
 
+### Project
+
+- `TODO.md` gains a backlog of features (pace for every quota window, forecast alerts, IPC `refresh`/`status`, a quota burndown chart, an activity heatmap), provider work (a Claude Code status line bridge, Codex profiles, status page incidents), polish (first-run state, loading placeholders, screen reader names) and integrations, checked against similar quota trackers and the roadmap's non-goals.
+
 ## 2.3.0 - 2026-11-08
 
 A feature release for Dux Shell 2.0 and 2.1. A new **Grok Bot** provider reads the weekly Grok Bot Plan pool, API keys for OpenRouter, Z.ai, GLM and OpenCode Go can stay in the desktop keyring, and the bar stops hiding a used-up weekly limit behind an idle 5 hour window or a prepaid balance behind a percentage. The settings page is reorganised into foldable groups under a live preview of the bar pill. OpenCode Go reads the endpoint's new usage envelope, the Antigravity app's local language server answers for its own account, readiness details are translated, and shell statement coverage reaches 100%. Settings, profiles, pins and history carry over unchanged.
