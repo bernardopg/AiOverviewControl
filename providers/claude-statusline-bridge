@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Claude Code status line bridge (optional).
+#
+# Claude Code passes its account's rate limits to the statusLine command on
+# stdin (`rate_limits.five_hour` / `seven_day`: `used_percentage`, `resets_at`
+# in epoch seconds) after each response. Put this script first in that
+# command, followed by the status line you already use:
+#
+#   "statusLine": {"type": "command",
+#     "command": "/path/to/providers/claude-statusline-bridge bash ~/.claude/statusline.sh"}
+#
+# It keeps the two windows, and nothing else from the input, in the plugin
+# cache of the account (the same CLAUDE_CONFIG_DIR hash get-claude-usage
+# uses), then runs the command that follows with the same stdin, so the status
+# line looks as before. get-claude-usage prefers a fresh reading over the OAuth
+# usage endpoint and asks that endpoint less often while one arrives (#96).
+#
+# Recording never breaks the status line: any failure is silent, and the exit
+# status is the chained command's. Nothing is written into ~/.claude.
+set -uo pipefail
+umask 077
+
+input="$(cat)"
+
+record() {
+  command -v jq >/dev/null 2>&1 || return 0
+  local claude_dir account reading now
+  claude_dir="$(realpath -m -- "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")"
+  account="${XDG_CACHE_HOME:-$HOME/.cache}/AiOverviewControl/claude-profiles/$(printf '%s' "$claude_dir" | sha256sum | cut -d ' ' -f 1)"
+  reading="$account/claude-statusline.json"
+  now="$(date +%s)"
+  mkdir -p "$account" 2>/dev/null || return 0
+  # Several sessions of one account update their status lines at once; the
+  # merge below reads the stored reading, so writers take turns. Never the
+  # account lock: the adapter holds it across network requests.
+  exec 9>"$account/statusline.lock" || return 0
+  flock -w 2 9 || return 0
+  local stored merged tmp
+  stored="$(cat "$reading" 2>/dev/null || true)"
+  # A window from this input replaces the stored one only when it carries
+  # newer data: a later window (its reset moved on by more than ten minutes)
+  # or more of the same window used. An idle session re-running its status
+  # line repeats the numbers of its last response, so a lower or equal value
+  # never overwrites, and only real progress moves `at` (when the reading was
+  # last confirmed). A reading that stops moving expires in the adapter and
+  # the endpoint takes over again.
+  merged="$(jq -c --argjson now "$now" --arg stored "$stored" '
+    def window: if type == "object" and (.used_percentage | type) == "number"
+        and (.resets_at | type) == "number"
+      then {usedPercent: .used_percentage, resetsAt: (.resets_at | floor)} else null end;
+    def pick($old; $new):
+      if $new == null then {w: $old, moved: false}
+      elif $old == null or $new.resetsAt > $old.resetsAt + 600 then {w: $new, moved: true}
+      elif $new.resetsAt < $old.resetsAt - 600 then {w: $old, moved: false}
+      elif $new.usedPercent > $old.usedPercent then {w: $new, moved: true}
+      else {w: $old, moved: false} end;
+    (try ($stored | fromjson) catch null) as $s
+    | (if ($s | type) == "object" then $s else {} end) as $s
+    | (.rate_limits // {}) as $r
+    | pick($s.five_hour; ($r.five_hour | window)) as $five
+    | pick($s.seven_day; ($r.seven_day | window)) as $week
+    | select($five.moved or $week.moved)
+    | {at: $now, five_hour: $five.w, seven_day: $week.w}
+  ' <<<"$input" 2>/dev/null)" || return 0
+  [ -n "$merged" ] || return 0
+  tmp="$(mktemp "$reading.XXXXXX" 2>/dev/null)" || return 0
+  { printf '%s\n' "$merged" > "$tmp" && mv -f "$tmp" "$reading"; } || rm -f "$tmp"
+}
+
+record || true
+exec 9>&-
+
+if [ "$#" -gt 0 ]; then
+  exec "$@" <<<"$input"
+fi

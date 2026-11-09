@@ -13,9 +13,10 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## 🚀 Next release
 
-- [ ] **2.4.0** — `## Unreleased` holds two features (pace for every quota
-  window, Detect providers), the hero polish and the DeepSeek multi-currency
-  balance fix (#117), so the next release is a minor one. Ship it with
+- [ ] **2.4.0** — `## Unreleased` holds three features (pace for every quota
+  window, Detect providers, the Claude Code status line bridge), the hero
+  polish and the DeepSeek multi-currency balance fix (#117), so the next
+  release is a minor one. Ship it with
   `docs/release-checklist.md`; the release notes must say that a shell running
   since before the update needs `dms restart` for the pace bars. `S · ★★★`
 
@@ -106,16 +107,12 @@ ccusage, Claude-Code-Usage-Monitor, tokscale) and against the non-goals in
 
 ### Improvements to existing providers
 
-- [ ] **Claude Code status line bridge** — Claude Code (2.1.80+) passes
-  `rate_limits.five_hour` / `seven_day` (`used_percentage`, `resets_at`) to a
-  `statusLine` command. Ship an optional `providers/claude-statusline-bridge`
-  that the user chains into their status line: it writes the reading,
-  owner-only, under `~/.cache/AiOverviewControl/`, and the Claude adapter
-  prefers a fresh reading (per `CLAUDE_CONFIG_DIR`, so profiles keep their own)
-  over the OAuth usage endpoint. Fewer requests while Claude Code is in use,
-  so less 429 pressure (#96). The field is absent before the first response
-  and was missing in some releases (anthropics/claude-code#45133), so the
-  endpoint stays the fallback. `M · ★★★`
+- [x] **Claude Code status line bridge** — `providers/claude-statusline-bridge`,
+  chained first into Claude Code's `statusLine`, keeps `rate_limits.five_hour`
+  / `seven_day` per `CLAUDE_CONFIG_DIR`; the adapter prefers a reading under
+  10 minutes old, asks the endpoint every 15 minutes instead of 2, and falls
+  back to the reading on a 429 without a snapshot (#96). Settings show the
+  command with a copy button. Ships in 2.4.0. `M · ★★★`
 - [ ] **Codex profiles** — several Codex accounts side by side, each from its
   own `CODEX_HOME`, mirroring Claude profiles (`codex-<id>` provider IDs,
   same settings editor and 16-profile cap). `M · ★★★`

@@ -81,7 +81,9 @@ Claude, Codex, OpenCode, 9Router, pi, and Hermes add token, cost, model, and pro
 analytics with a seven-day chart — read from data already on your disk. Track
 several Claude accounts side by side, each from its own `CLAUDE_CONFIG_DIR`.
 Claude and Codex also show credits, extra usage and limit resets, and can
-redeem a held reset after a confirmation.
+redeem a held reset after a confirmation. An optional
+[status line bridge](./docs/configuration.md#claude-code-status-line-bridge)
+lets Claude Code hand over its own 5 hour and weekly usage as you work.
 
 </td>
 <td valign="top">

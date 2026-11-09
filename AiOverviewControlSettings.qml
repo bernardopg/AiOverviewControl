@@ -549,6 +549,10 @@ PluginSettings {
     }
 
     property string exportScript: ""
+    // The statusLine command for providers/claude-statusline-bridge, quoted
+    // for the shell Claude Code runs it in.
+    readonly property string statuslineCommand: _pluginDir.length > 0
+        ? "'" + _pluginDir.replace(/'/g, "'\\''") + "/providers/claude-statusline-bridge'" : ""
     property string exportBuffer: ""
     property string exportErrorBuffer: ""
     property string exportResultPath: ""
@@ -1688,6 +1692,73 @@ PluginSettings {
                 wrapMode: Text.WordWrap
                 color: Theme.error
                 font.pixelSize: Theme.fontSizeSmall
+            }
+        }
+
+        // providers/claude-statusline-bridge: the plugin never edits
+        // ~/.claude/settings.json itself, so the page hands over the command.
+        SubPanel {
+            objectName: "claude-statusline-panel"
+            panelTitle: t("settings.statusline.title", "Claude Code status line")
+            panelDescription: t("settings.statusline.desc", "Optional, for Claude Pro and Max: Claude Code passes its own 5 hour and weekly usage to its status line after each response. Put this command first in the statusLine command of each Claude config directory, followed by the status line you already use, and the Claude cards read those numbers instead of asking Anthropic every two minutes. The card source then reads claude-statusline.")
+
+            RowLayout {
+                width: parent.width
+                spacing: Theme.spacingS
+
+                StyledRect {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    implicitHeight: 36
+                    radius: Theme.cornerRadius
+                    color: Theme.withAlpha(Theme.surfaceText, 0.05)
+                    border.width: 1
+                    border.color: Theme.withAlpha(Theme.surfaceText, 0.1)
+
+                    StyledText {
+                        objectName: "claude-statusline-command"
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacingM
+                        anchors.rightMargin: Theme.spacingM
+                        verticalAlignment: Text.AlignVCenter
+                        text: root.statuslineCommand
+                        color: Theme.surfaceText
+                        font.family: "monospace"
+                        font.pixelSize: Theme.fontSizeSmall
+                        elide: Text.ElideMiddle
+                    }
+                }
+
+                DActionButton {
+                    id: statuslineCopy
+                    objectName: "claude-statusline-copy"
+                    property bool copied: false
+                    Layout.alignment: Qt.AlignVCenter
+                    buttonSize: 36
+                    iconName: copied ? "check" : "content_copy"
+                    iconColor: copied ? Theme.success : Theme.primary
+                    backgroundColor: Theme.withAlpha(copied ? Theme.success : Theme.primary, 0.1)
+                    tooltipText: copied ? t("settings.statusline.copied", "Copied") : t("settings.statusline.copy", "Copy command")
+                    onClicked: {
+                        Quickshell.clipboardText = root.statuslineCommand;
+                        copied = true;
+                        statuslineCopied.restart();
+                    }
+
+                    Timer {
+                        id: statuslineCopied
+                        interval: 1600
+                        onTriggered: statuslineCopy.copied = false
+                    }
+                }
+            }
+
+            StyledText {
+                width: parent.width
+                text: t("settings.statusline.example", "Example for ~/.claude/settings.json: \"statusLine\": {\"type\": \"command\", \"command\": \"<this command> bash ~/.claude/statusline.sh\"}")
+                color: Theme.surfaceVariantText
+                font.pixelSize: Theme.fontSizeSmall - 1
+                wrapMode: Text.WrapAnywhere
             }
         }
     }

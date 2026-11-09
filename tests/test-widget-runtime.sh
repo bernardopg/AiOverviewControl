@@ -789,6 +789,12 @@ ShellRoot {
                     console.error("SMOKE FAIL: detected providers were not tracked: " + widget.selectedProviders + " / "
                         + settings.selectedIds + " / open " + widget.detectProvidersOpen); return;
                 }
+                // The status line bridge command points at this install, quoted.
+                const bridge = input.findChild(settings, "claude-statusline-command");
+                if (!bridge || bridge.text !== "'" + Quickshell.env("AIOC_TEST_PLUGIN_DIR") + "/providers/claude-statusline-bridge'"
+                    || !input.findChild(settings, "claude-statusline-copy")) {
+                    console.error("SMOKE FAIL: status line bridge command: " + (bridge ? bridge.text : "none")); return;
+                }
                 // Tracking refreshed with the fixture's profile environment gone;
                 // put a Codex card back for the IPC focus check below.
                 widget.providers = [{provider: "codex", usage: {primary: {usedPercent: 25, windowMinutes: 300}}}];

@@ -82,7 +82,9 @@ Claude, Codex, OpenCode, 9Router, pi e Hermes mostram tokens, custo, modelos e p
 com gráfico de sete dias — lidos de dados que já estão no seu disco. Acompanhe
 várias contas Claude lado a lado, cada uma com seu próprio `CLAUDE_CONFIG_DIR`.
 Claude e Codex também mostram créditos, uso extra e resets de limite, e podem
-usar um reset disponível após confirmação.
+usar um reset disponível após confirmação. Uma
+[ponte opcional com a status line](./configuration.md#claude-code-status-line-bridge)
+deixa o próprio Claude Code repassar o uso de 5 horas e semanal enquanto você trabalha.
 
 </td>
 <td valign="top">

@@ -489,5 +489,10 @@
   "detect.evidence.cli": "{label} instalado · sesión no verificada",
   "detect.evidence.keyring": "Llavero del escritorio disponible · sesión no verificada",
   "detect.evidence.ready": "Listo",
-  "rollup.peak_named": "Pico · {name}"
+  "rollup.peak_named": "Pico · {name}",
+  "settings.statusline.title": "Línea de estado de Claude Code",
+  "settings.statusline.desc": "Opcional, para Claude Pro y Max: Claude Code pasa su propio uso de 5 horas y semanal a su línea de estado después de cada respuesta. Pon este comando al principio del comando statusLine de cada directorio de configuración de Claude, seguido de la línea de estado que ya usas, y las tarjetas de Claude leerán esos números en lugar de consultar a Anthropic cada dos minutos. El origen de la tarjeta mostrará entonces claude-statusline.",
+  "settings.statusline.copy": "Copiar comando",
+  "settings.statusline.copied": "Copiado",
+  "settings.statusline.example": "Ejemplo para ~/.claude/settings.json: \"statusLine\": {\"type\": \"command\", \"command\": \"<este comando> bash ~/.claude/statusline.sh\"}"
 }

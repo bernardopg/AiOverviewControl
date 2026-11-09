@@ -55,6 +55,7 @@ providers/get-provider-usage  Dispatcher; sources providers/native/*.bash explic
 providers/get-*               Per-provider and analytics entrypoints (must be executable)
 providers/local-cost-common   Shared Hermes cost SQL + LiteLLM per-model pricing (sourced)
 providers/send-quota-alert    Deduplicated notifications + click waiter
+providers/claude-statusline-bridge  Optional Claude Code statusLine wrapper; get-claude-usage prefers its fresh readings
 scripts/                      check-metadata, check-changelog, check-dco, coverage, package-release,
                               qmlls-setup, reload-plugin, render-contributors
 tests/test-*.sh               Fixture-backed suites; every one must be run by ci.yml

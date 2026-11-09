@@ -51,7 +51,9 @@ expectations. To report a vulnerability, follow
 5. **Local data stays local.** Caches, usage history and notification state
    live under `${XDG_CACHE_HOME:-~/.cache}/AiOverviewControl/` in your home
    directory. They hold usage numbers, never credentials. History retention is
-   bounded (`AIOC_HISTORY_MAX`).
+   bounded (`AIOC_HISTORY_MAX`). The optional Claude Code status line bridge
+   keeps only the two rate-limit percentages and reset times from its input,
+   not the paths, session or model it also receives.
 6. **Untrusted input is validated.** Provider responses, local databases and
    transcript files are treated as untrusted and parsed with `jq` or bounded
    readers; malformed data yields an error card, not a crash or a command.

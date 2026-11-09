@@ -757,6 +757,9 @@ jobs:
       - name: Provider detection evidence
         run: tests/test-provider-detect.sh
 
+      - name: Claude Code status line bridge
+        run: tests/test-claude-statusline.sh
+
       - name: Append-only contributor grid
         run: tests/test-render-contributors.sh
 
