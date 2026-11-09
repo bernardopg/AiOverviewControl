@@ -92,6 +92,7 @@ ShellRoot {
     property int step: 0
     property bool pointerTest: Quickshell.env("AIOC_TEST_POINTER") === "1"
     property real dragScrollY: 0
+    property var paceHoverBars: null
     property real pillWidth: 0
     property real pillHeight: 0
     // Positioners lay out on polish, which never runs in the hidden scene.
@@ -167,11 +168,16 @@ ShellRoot {
                 widget.providers = [];
                 root.step = 1;
             } else if (root.step === 1 && widget.formatCost(2).indexOf("BRL 10") === 0) {
+                // Pace: 2 h into a 5 h window, 25% used is under the 40%
+                // even line (tick, no flame); a 60% tertiary window is
+                // heading for exhaustion before its reset (tick and flame).
+                const inThreeHours = new Date(Date.now() + 180 * 60000).toISOString();
                 widget.providers = [{provider: "codex", name: "Codex", usage: {
                     provider: "codex",
                     identity: {providerID: "codex"},
-                    primary: {usedPercent: 25, windowMinutes: 300},
-                    secondary: {usedPercent: 15, windowMinutes: 10080}
+                    primary: {usedPercent: 25, windowMinutes: 300, resetsAt: inThreeHours},
+                    secondary: {usedPercent: 15, windowMinutes: 10080},
+                    tertiary: {usedPercent: 60, windowMinutes: 300, resetsAt: inThreeHours}
                 }}];
                 settings.resetToDefaults();
                 if (settings.loadValue("costCurrency", "BRL") !== "USD") {
@@ -201,6 +207,51 @@ ShellRoot {
                     || widget.formatUsageLine({usedPercent: 25}).indexOf(widget.quotaPercentText(25)) !== 0
                     || widget.pillTooltipText().indexOf(widget.quotaPercentText(25)) < 0) {
                     console.error("SMOKE FAIL: remaining quota pill, dashboard or tooltip"); return;
+                }
+                // The hero and the expanded card both pace the two timed
+                // windows: a tick on each, a flame on the tertiary only, and
+                // the numbers only on hover.
+                const visibleNamed = (item, name, out) => {
+                    if (item.objectName === name && item.visible) out.push(item);
+                    for (let i = 0; i < item.children.length; i++) visibleNamed(item.children[i], name, out);
+                    return out;
+                };
+                const usage = widget.providers[0].usage;
+                const hot = widget.paceFor(usage.tertiary);
+                const ticks = visibleNamed(widget.dashboardView, "pace-tick", []);
+                const flames = visibleNamed(widget.dashboardView, "pace-flame", []);
+                if (ticks.length !== 4 || flames.length !== 2 || !hot || !hot.runsOut
+                    || widget.paceFor(usage.secondary) !== null || widget.paceFor(usage.primary).runsOut
+                    || widget.paceTooltipText(hot).split("\n").length !== 2
+                    || widget.paceTooltipText(widget.paceFor(usage.primary)).split("\n").length !== 2
+                    || widget.paceTooltipText(null) !== ""
+                    || widget.pillTooltipText().indexOf(widget.t("pace.pill_runs_out", "", {time: ""}).trim()) >= 0) {
+                    console.error("SMOKE FAIL: quota window pace ticks " + ticks.length + ", flames " + flames.length); return;
+                }
+                // Pointer pass: every paced bar shows its numbers on hover,
+                // the hero's included (its jump link must not swallow the
+                // hover), and a click on the hero bars still opens the card.
+                if (root.pointerTest && root.paceHoverBars === null) {
+                    scene.visible = true;
+                    root.paceHoverBars = ticks.map(tick => tick.parent.parent);
+                    input.mouseMove(root.paceHoverBars[0], 4, 4);
+                    return;
+                }
+                if (root.pointerTest && root.paceHoverBars.length > 0) {
+                    const bar = root.paceHoverBars.shift();
+                    if (!bar.paceHovered || bar.paceText.length === 0) {
+                        console.error("SMOKE FAIL: paced bar ignores hover"); return;
+                    }
+                    if (root.paceHoverBars.length > 0) {
+                        input.mouseMove(root.paceHoverBars[0], 4, 4);
+                        return;
+                    }
+                    widget.focusedProviderId = "";
+                    input.mouseClick(ticks[0].parent.parent, 4, 4); // ticks[0] is the hero's first bar
+                    if (widget.focusedProviderId !== "codex") {
+                        console.error("SMOKE FAIL: hero bars no longer open the card"); return;
+                    }
+                    scene.visible = false;
                 }
                 settings.resetToDefaults();
                 widget.pluginData = service.data;

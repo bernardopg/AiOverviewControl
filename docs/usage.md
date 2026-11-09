@@ -34,6 +34,8 @@ AiOverviewControl is installed. For the setting keys themselves see
   window. **Primary + secondary** and **All windows** show several windows at
   once, each tagged with its length: `Claude 5h 45% / 7d 80%`.
 - Hover the pill to see which window each number comes from and when it resets.
+  A window heading for exhaustion before its reset (see [Pace](#pace)) adds
+  **used up in 2h 10m at this pace**; a window on pace adds nothing.
 - Crowded bar? In **Settings → Interface**, turn off **Provider names in pill**
   to keep only the logo and percentage, and turn on **Compact pill spacing** to
   tighten the gap around the `·` between providers. Hovering still names each
@@ -100,6 +102,9 @@ Hover a button and the line under the title names its action.
   offer a provider-specific retry.
 - Expanded cards show the available windows, credits, source, identity, and
   update time. Fields a provider does not report are left out, never invented.
+- Quota bars carry their [pace](#pace): a tick where an even spend would be,
+  and a 🔥 flame next to the number when the window is heading for exhaustion
+  before its reset.
 - Claude (and each Claude profile) and Codex cards add a **Credits & limit
   resets** panel when expanded: extra usage on or off, the monthly spend limit
   and what was spent, usage credits (promotional credits with their expiry;
@@ -114,6 +119,27 @@ Hover a button and the line under the title names its action.
   refuses it and nothing is used. The plugin never redeems a reset on its own.
 - Local-telemetry providers (Claude, 9Router, pi, Hermes) add a seven-day bar
   chart. Hover a bar to see that day's tokens and cost.
+
+## Pace
+
+Every quota bar with a known window length and reset (the card bars, the hero
+bars and the Claude details panel) is paced: it compares what you used with
+spending the quota evenly over the window.
+
+- A thin **tick** on the bar marks where an even spend would be by now. Two
+  hours into a 5 hour window it sits at 40%; with **Show remaining quota** it
+  sits at the matching remaining share (60% left). A fill past the tick (short
+  of it, in remaining mode) means you are spending faster than even.
+- A **flame** appears next to the number only when, at the average rate so
+  far, the window runs out before it resets. It needs 15% of the window to
+  have passed and the use to be 5 points or more over the even line, so one
+  early burst or a window a hair ahead stays quiet.
+- Hover a paced bar for the numbers: **Even pace: 40% by now**, then either
+  **At this pace: used up in 51m · resets in 3h** or **At this pace it lasts
+  until the reset**.
+- The projection is linear and labelled as such. Prepaid balances,
+  **Unlimited** allowances and windows without a length or a reset are not
+  paced; a used-up window keeps its tick but never shows a flame.
 
 ## Settings window
 

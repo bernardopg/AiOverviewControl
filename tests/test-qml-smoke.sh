@@ -99,7 +99,7 @@ ShellRoot {
             extraUsage: {enabled: false}
         };
         const usage = {
-            primary: {usedPercent: 30, resetsAt: "2026-10-10T15:00:00Z"},
+            primary: {usedPercent: 30, resetsAt: "2026-10-10T15:00:00Z", windowMinutes: 300},
             secondary: {usedPercent: 60, resetsAt: "2026-10-12T00:00:00Z"},
             tertiary: {usedPercent: 40, resetsAt: "2026-10-12T00:00:00Z"}
         };
@@ -115,7 +115,10 @@ ShellRoot {
             d && d.dailyTokens.length === 7 && d.dailyTokens[2] === 3 && d.dailyTokens[6] === 0,
             d && d.dailyCosts.length === 7 && d.dailyCosts[6] === 0.7,
             d && d.session.percent === 30 && d.weekly.percent === 60,
-            d && d.scoped && d.scoped.model === "Fable" && d.scoped.percent === 40,
+            // The window length travels with each details window, so the
+            // panel paces it like any other quota window; none reads null.
+            d && d.session.windowMinutes === 300 && d.weekly.windowMinutes === null,
+            d && d.scoped && d.scoped.model === "Fable" && d.scoped.percent === 40 && d.scoped.windowMinutes === null,
             d && Math.abs(d.monthProjection - 31) < 1e-9,
             failed !== null && failed.session === null && failed.weekly === null && failed.weekTokens === 1000
         ];
@@ -171,8 +174,53 @@ ShellRoot {
         if (bad >= 0) console.error("SMOKE FAIL: bar windows check " + bad);
         return bad < 0;
     }
+    // Pace of a quota window: the even-use share elapsed, and a projection
+    // that only speaks past 15% of the window and 5 points over even use.
+    function paceOk() {
+        const now = Date.parse("2026-10-10T12:00:00Z");
+        const at = minutes => new Date(now + minutes * 60000).toISOString();
+        // 5 h window, 2 h in (40% elapsed), reset in 3 h.
+        const win = used => ({usedPercent: used, windowMinutes: 300, resetsAt: at(180)});
+        const hot = BarWindows.pace(win(70), now);
+        const even = BarWindows.pace(win(44), now);
+        const calm = BarWindows.pace(win(20), now);
+        const idle = BarWindows.pace(win(0), now);
+        const full = BarWindows.pace(win(100), now);
+        // 7 d window, 10 h in: under 15% elapsed, too early to project.
+        const early = BarWindows.pace({usedPercent: 90, windowMinutes: 10080, resetsAt: at(9480)}, now);
+        const near = (a, b) => Math.abs(a - b) < 1e-6;
+        const checks = [
+            hot !== null && near(hot.expected, 40) && near(hot.resetMinutes, 180),
+            // 70% in 120 min: the remaining 30% lasts 51.43 min, before the 3 h reset.
+            hot.projects && hot.runsOut && near(hot.exhaustMinutes, 30 * 120 / 70),
+            even.projects && !even.runsOut && even.exhaustMinutes === null,
+            calm.projects && !calm.runsOut,
+            !idle.projects && !idle.runsOut && near(idle.expected, 40),
+            !full.projects && !full.runsOut,
+            early !== null && !early.projects && !early.runsOut && near(early.expected, 600 / 10080 * 100),
+            // Nothing to pace: no window, a balance, no length, a bad
+            // percentage, no or an unreadable reset, a reset already past
+            // or further away than the window is long.
+            BarWindows.pace(null, now) === null,
+            BarWindows.pace({usedPercent: 0, isBalance: true, windowMinutes: 300, resetsAt: at(60)}, now) === null,
+            BarWindows.pace({usedPercent: 0, displayValue: "Unlimited", windowMinutes: 43200, resetsAt: at(600)}, now) === null,
+            BarWindows.pace({usedPercent: 0, displayValue: "300 / 300 remaining", windowMinutes: 43200, resetsAt: at(600)}, now) !== null,
+            BarWindows.pace({usedPercent: 10, resetsAt: at(60)}, now) === null,
+            BarWindows.pace({usedPercent: 10, windowMinutes: 0, resetsAt: at(60)}, now) === null,
+            BarWindows.pace({usedPercent: "n/a", windowMinutes: 300, resetsAt: at(60)}, now) === null,
+            BarWindows.pace({usedPercent: 10, windowMinutes: 300}, now) === null,
+            BarWindows.pace({usedPercent: 10, windowMinutes: 300, resetsAt: "soon"}, now) === null,
+            BarWindows.pace({usedPercent: 10, windowMinutes: 300, resetsAt: at(-1)}, now) === null,
+            BarWindows.pace({usedPercent: 10, windowMinutes: 300, resetsAt: at(0)}, now) === null,
+            BarWindows.pace({usedPercent: 10, windowMinutes: 300, resetsAt: at(300)}, now) === null,
+            BarWindows.pace({usedPercent: "12", windowMinutes: "300", resetsAt: at(150)}, now).expected === 50
+        ];
+        const bad = checks.indexOf(false);
+        if (bad >= 0) console.error("SMOKE FAIL: pace check " + bad);
+        return bad < 0;
+    }
     Component.onCompleted: {
-        if (!claudeDetailsOk() || !barWindowsOk()) return;
+        if (!claudeDetailsOk() || !barWindowsOk() || !paceOk()) return;
         const pins = ["codex", "claude", "kimi-code"];
         if (ProviderOrder.reorderedPins(pins, "kimi-code", "codex").join(",") !== "kimi-code,codex,claude"
             || ProviderOrder.reorderedPins(pins, "codex", "kimi-code").join(",") !== "claude,codex,kimi-code"
@@ -196,4 +244,4 @@ for _ in {1..100}; do
 done
 grep -q 'QML_SMOKE_OK' "$TMP/log" || { printf '%s\n' "$(<"$TMP/log")" >&2; exit 1; }
 if grep -Ei 'SMOKE FAIL|ReferenceError|TypeError|binding loop|Failed to load configuration' "$TMP/log"; then exit 1; fi
-echo 'OK: Claude details view model, QML JSON parsing, failure retention, timeout, retry, empty arguments and refresh deduplication'
+echo 'OK: Claude details view model, quota window pace, QML JSON parsing, failure retention, timeout, retry, empty arguments and refresh deduplication'
