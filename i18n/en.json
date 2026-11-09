@@ -489,5 +489,10 @@
   "detect.evidence.cli": "{label} installed · sign-in not verified",
   "detect.evidence.keyring": "Desktop keyring available · sign-in not verified",
   "detect.evidence.ready": "Ready",
-  "rollup.peak_named": "Peak · {name}"
+  "rollup.peak_named": "Peak · {name}",
+  "settings.statusline.title": "Claude Code status line",
+  "settings.statusline.desc": "Optional, for Claude Pro and Max: Claude Code passes its own 5 hour and weekly usage to its status line after each response. Put this command first in the statusLine command of each Claude config directory, followed by the status line you already use, and the Claude cards read those numbers instead of asking Anthropic every two minutes. The card source then reads claude-statusline.",
+  "settings.statusline.copy": "Copy command",
+  "settings.statusline.copied": "Copied",
+  "settings.statusline.example": "Example for ~/.claude/settings.json: \"statusLine\": {\"type\": \"command\", \"command\": \"<this command> bash ~/.claude/statusline.sh\"}"
 }

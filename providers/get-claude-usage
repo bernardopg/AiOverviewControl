@@ -29,6 +29,14 @@ USAGE_BACKOFF="${ACCOUNT_CACHE}/claude-usage-backoff.json"
 USAGE_BACKOFF_MAX=1800  # seconds: cap of the doubling
 USAGE_RETRY_AFTER_MAX=3600  # seconds: the longest Retry-After honoured
 PREPAID_CACHE_TTL=600  # seconds: the credit balance moves with spend, not per poll
+# Rate limits Claude Code passed to providers/claude-statusline-bridge. A
+# reading confirmed within STATUSLINE_MAX_AGE replaces the endpoint's session
+# and weekly numbers when it is newer, and stretches the endpoint's cache to
+# STATUSLINE_USAGE_TTL: the endpoint is then only asked for what the status
+# line does not carry (the model-scoped week, extra usage, limit resets).
+STATUSLINE_READING="${ACCOUNT_CACHE}/claude-statusline.json"
+STATUSLINE_MAX_AGE=600  # seconds
+STATUSLINE_USAGE_TTL=900  # seconds
 # A usage snapshot is valid with the canonical `limits[]` array (Claude 5) or
 # the older flat five_hour object; either one feeds the parser below.
 USAGE_VALID='(.limits | type == "array" and length > 0) or (.five_hour | type == "object")'
@@ -297,6 +305,22 @@ use_usage_fallback() {
     fi
 }
 
+# Claude Code cancels a status line command when the next update starts, so
+# a bridge can die between its temporary file and the rename; sweep leftovers
+# old enough that no bridge is still writing them.
+find "$ACCOUNT_CACHE" -maxdepth 1 -name 'claude-statusline.json.??????' -mmin +1 -delete 2>/dev/null || true
+# Epoch second of a fresh status line reading, or empty.
+STATUSLINE_AT=""
+USAGE_SOURCE="endpoint"
+if [ -f "$STATUSLINE_READING" ]; then
+    STATUSLINE_AT=$(jq -r --argjson now "$(date +%s)" --argjson max "$STATUSLINE_MAX_AGE" '
+        select((.at | type) == "number" and ($now - .at) >= -60 and ($now - .at) < $max
+            and ((.five_hour | type) == "object" or (.seven_day | type) == "object"))
+        | .at | floor' "$STATUSLINE_READING" 2>/dev/null || true)
+fi
+usage_ttl="$USAGE_CACHE_TTL"
+[ -z "$STATUSLINE_AT" ] || usage_ttl="$STATUSLINE_USAGE_TTL"
+
 # --- Subscription & API Usage (with a short cache to avoid rate limits) ---
 # A truncated or hand-edited credentials file must not take the local
 # analytics down with it (jq would exit non-zero under set -e).
@@ -313,7 +337,7 @@ elif [ -f "$CREDENTIALS" ]; then
         cache_ts=$(jq -r '.cached_at // 0' "$USAGE_CACHE" 2>/dev/null || echo 0)
         now_ts=$(date +%s)
         age=$(( now_ts - cache_ts ))
-        if [ "$age" -ge 0 ] && [ "$age" -lt "$USAGE_CACHE_TTL" ] \
+        if [ "$age" -ge 0 ] && [ "$age" -lt "$usage_ttl" ] \
             && jq -e ".data | ${USAGE_VALID}" "$USAGE_CACHE" >/dev/null 2>&1; then
             USE_CACHE=true
         fi
@@ -408,6 +432,25 @@ elif [ -f "$CREDENTIALS" ]; then
     FIVE_HOUR_RESET=$(echo "$API_RESPONSE" | jq -r '([.limits[]? | select(.kind == "session")] | .[0].resets_at) // .five_hour.resets_at // ""')
     SEVEN_DAY_UTIL=$(echo "$API_RESPONSE" | jq -r '([.limits[]? | select(.kind == "weekly_all")] | .[0].percent) // .seven_day.utilization // 0')
     SEVEN_DAY_RESET=$(echo "$API_RESPONSE" | jq -r '([.limits[]? | select(.kind == "weekly_all")] | .[0].resets_at) // .seven_day.resets_at // ""')
+
+    # A status line reading newer than the snapshot wins for the windows it
+    # carries. It also stands in when the endpoint failed with no snapshot to
+    # fall back on (a rate limit, a network error), but never for rejected
+    # credentials.
+    if [ -n "$STATUSLINE_AT" ] && [ "$USAGE_ERROR_KIND" != "authentication" ] \
+        && { [ -z "$USAGE_UPDATED_AT" ] || [ "$STATUSLINE_AT" -gt "$USAGE_UPDATED_AT" ]; }; then
+        while IFS=$'\t' read -r slot pct reset; do
+            case "$slot" in
+                five_hour) FIVE_HOUR_UTIL="$pct"; FIVE_HOUR_RESET="$reset" ;;
+                seven_day) SEVEN_DAY_UTIL="$pct"; SEVEN_DAY_RESET="$reset" ;;
+            esac
+        done < <(jq -r '["five_hour", "seven_day"][] as $k | .[$k] | objects
+            | [$k, .usedPercent, (.resetsAt | todate)] | @tsv' "$STATUSLINE_READING" 2>/dev/null || true)
+        USAGE_UPDATED_AT="$STATUSLINE_AT"
+        USAGE_SOURCE="statusline"
+        USAGE_ERROR_KIND=""
+        USAGE_ERROR_MESSAGE=""
+    fi
 
     # Model-scoped weekly window (e.g. weekly Fable allowance on Pro/Max).
     # Active scopes sort first so the binding limit wins when several exist.
@@ -712,6 +755,7 @@ echo "CLAUDE_SPEND=${CLAUDE_SPEND}"
 echo "CLAUDE_PREPAID=${CLAUDE_PREPAID}"
 echo "CLAUDE_RESETS=${CLAUDE_RESETS}"
 echo "USAGE_UPDATED_AT=${USAGE_UPDATED_AT}"
+echo "USAGE_SOURCE=${USAGE_SOURCE}"
 echo "USAGE_RETRY_AT=${USAGE_RETRY_AT}"
 echo "USAGE_RETRY_REASON=${USAGE_RETRY_REASON}"
 echo "USAGE_ERROR_KIND=${USAGE_ERROR_KIND}"

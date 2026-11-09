@@ -101,6 +101,56 @@ AIOC_CLAUDE_PROFILES='{"claude-work":{"name":"Claude Work","configDir":"/home/us
 Credentials stay in their own directory and are sent only to Anthropic's OAuth
 usage API. No token is stored in plugin settings.
 
+## Claude Code status line bridge
+
+On Claude Pro and Max, Claude Code hands its own 5 hour and weekly usage to
+its status line command after each response. `providers/claude-statusline-bridge`
+keeps those two numbers for the plugin, so the Claude card stays current while
+you work and the plugin asks Anthropic's usage endpoint far less often, which
+also keeps clear of its rate limit
+([#96](https://github.com/bernardopg/AiOverviewControl/issues/96)). It is
+optional; without it nothing changes.
+
+Settings → **Claude profiles** → **Claude Code status line** shows the command
+for this install with a copy button. Put it first in the `statusLine` command
+of `~/.claude/settings.json`, followed by the status line you already use,
+which keeps working unchanged (it receives the same input, and its output and
+exit status pass through):
+
+```json
+"statusLine": {
+  "type": "command",
+  "command": "'/path/to/AiOverviewControl/providers/claude-statusline-bridge' bash ~/.claude/statusline.sh"
+}
+```
+
+Without a status line of your own, use the bridge alone: it prints nothing.
+A command with pipes or `&&` goes in as `sh -c '…'` after the bridge. For a
+Claude profile, set the same command in that profile's
+`CLAUDE_CONFIG_DIR/settings.json`; each directory keeps its own reading.
+
+How the numbers are used:
+
+- The bridge stores only `rate_limits.five_hour` and `seven_day` (percentage
+  and reset time), owner-only, in the account's
+  `claude-profiles/<sha256>/claude-statusline.json`. Nothing else from the
+  status line input is kept, and nothing is written into `~/.claude`.
+- A reading moves only when there is new data: more of the same window used,
+  or a new window. An idle session that re-runs its status line repeats its
+  last numbers and changes nothing, so a quiet reading expires.
+- While a reading is less than 10 minutes old, its numbers replace the usage
+  endpoint's when they are newer, the card's source reads `claude-statusline`,
+  and the endpoint is asked every 15 minutes instead of every 2 for what the
+  status line does not carry: the model-scoped weekly window, extra usage and
+  limit resets.
+- When the endpoint is rate limited or unreachable and there is no earlier
+  snapshot, the reading fills the card instead of an error. Rejected
+  credentials are still reported.
+- Using a limit reset drops the reading, so the refilled limits show at once.
+
+Claude Code sends no rate limits on API-key sign-ins or before the first
+response of a session; the plugin then uses the endpoint as before.
+
 ## Antigravity display
 
 The preferred `retrieveUserQuotaSummary` presentation mirrors Antigravity's quota screen: **Gemini Models** and **Claude & OpenAI Models**, each with separate 5-hour and weekly windows. The compact card uses the most constrained reported window, while the expanded card keeps all four truthful windows. If that endpoint is unavailable, the adapter falls back to `fetchAvailableModels`; that compatibility view groups models by family and uses the least remaining model in each family. Internal placeholder entries are never displayed.

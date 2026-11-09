@@ -489,5 +489,10 @@
   "detect.evidence.cli": "{label} installiert · Anmeldung nicht geprüft",
   "detect.evidence.keyring": "Schlüsselbund verfügbar · Anmeldung nicht geprüft",
   "detect.evidence.ready": "Bereit",
-  "rollup.peak_named": "Spitze · {name}"
+  "rollup.peak_named": "Spitze · {name}",
+  "settings.statusline.title": "Claude-Code-Statuszeile",
+  "settings.statusline.desc": "Optional, für Claude Pro und Max: Claude Code übergibt seiner Statuszeile nach jeder Antwort die eigene 5-Stunden- und Wochennutzung. Setze diesen Befehl an den Anfang des statusLine-Befehls jedes Claude-Konfigurationsverzeichnisses, gefolgt von deiner bisherigen Statuszeile, dann lesen die Claude-Karten diese Werte, statt Anthropic alle zwei Minuten abzufragen. Als Quelle zeigt die Karte dann claude-statusline.",
+  "settings.statusline.copy": "Befehl kopieren",
+  "settings.statusline.copied": "Kopiert",
+  "settings.statusline.example": "Beispiel für ~/.claude/settings.json: \"statusLine\": {\"type\": \"command\", \"command\": \"<dieser Befehl> bash ~/.claude/statusline.sh\"}"
 }

@@ -91,7 +91,9 @@ fetch_claude_native() {
     | (($d.USAGE_RETRY_AT // "") | tonumber? // null) as $retry
     | {
       provider:"claude",
-      source:"claude-local",
+      # The session and weekly numbers came from the Claude Code status line
+      # (providers/claude-statusline-bridge) rather than the usage endpoint.
+      source:(if ($d.USAGE_SOURCE // "") == "statusline" then "claude-statusline" else "claude-local" end),
       usage:{
         identity:{
           providerID:"claude",

@@ -93,8 +93,10 @@ reset_claude() {
   esac
   case "$result" in
     reset)
-      # Drop the cached usage so the next refresh shows the refilled limits.
-      rm -f "$CACHE_DIR/claude-profiles/$(printf '%s' "$dir" | sha256sum | cut -d ' ' -f 1)/claude-usage-cache.json"
+      # Drop the cached usage, and the status line reading that would
+      # outrank it, so the next refresh shows the refilled limits.
+      account="$CACHE_DIR/claude-profiles/$(printf '%s' "$dir" | sha256sum | cut -d ' ' -f 1)"
+      rm -f "$account/claude-usage-cache.json" "$account/claude-statusline.json"
       emit reset "Claude limits reset." "$left" ;;
     not_limited) emit not_limited "No Claude limit needs a reset right now. Nothing was used." "$left" ;;
     already_used) emit unavailable "This Claude reset was already used." "$left" ;;

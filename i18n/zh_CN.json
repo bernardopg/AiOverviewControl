@@ -489,5 +489,10 @@
   "detect.evidence.cli": "已安装 {label} · 未验证登录",
   "detect.evidence.keyring": "桌面密钥环可用 · 未验证登录",
   "detect.evidence.ready": "就绪",
-  "rollup.peak_named": "峰值 · {name}"
+  "rollup.peak_named": "峰值 · {name}",
+  "settings.statusline.title": "Claude Code 状态栏",
+  "settings.statusline.desc": "可选，适用于 Claude Pro 和 Max：Claude Code 在每次响应后会把自身的 5 小时和每周用量传给状态栏。将此命令放在每个 Claude 配置目录的 statusLine 命令最前面，后接你现有的状态栏命令，Claude 卡片就会读取这些数值，而不必每两分钟查询一次 Anthropic。此时卡片来源显示为 claude-statusline。",
+  "settings.statusline.copy": "复制命令",
+  "settings.statusline.copied": "已复制",
+  "settings.statusline.example": "~/.claude/settings.json 示例：\"statusLine\": {\"type\": \"command\", \"command\": \"<此命令> bash ~/.claude/statusline.sh\"}"
 }
