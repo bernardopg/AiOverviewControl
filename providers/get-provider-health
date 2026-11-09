@@ -8,12 +8,43 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/claude-profile-common"
 # shellcheck source=providers/vault-common
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/vault-common"
 
+# What made a provider ready, for the settings readiness row and for provider
+# detection: a kind (key, login, local, vault, cli or keyring) and a label (a
+# variable name, a command or a path under ~). Never a secret value. The first
+# check that succeeds records it; status_for() drops it when the provider ends
+# up not ready.
+EVIDENCE_KIND=""
+EVIDENCE_LABEL=""
+
+found() {
+  EVIDENCE_KIND="$1"
+  EVIDENCE_LABEL="$2"
+  if [ -n "${HOME:-}" ] && [[ "$EVIDENCE_LABEL" == "$HOME"/* ]]; then
+    EVIDENCE_LABEL="~${EVIDENCE_LABEL#"$HOME"}"
+  fi
+  return 0
+}
+
 has_any_env() {
   local name
   for name in "$@"; do
-    [ -n "${!name:-}" ] && return 0
+    [ -n "${!name:-}" ] && found key "$name" && return 0
   done
   return 1
+}
+
+# An executable on PATH: the tool is installed, but its sign-in is unverified.
+has_cmd() {
+  command -v "$1" >/dev/null 2>&1 && found cli "$1"
+}
+
+# `has_path <kind> <test operator> <path>`, e.g. has_path local -f "$db".
+has_path() {
+  test "$2" "$3" && found "$1" "$3"
+}
+
+has_vault() {
+  has_vault_spec "$1" && found vault "$1"
 }
 
 has_cline_cli_login() {
@@ -21,14 +52,16 @@ has_cline_cli_login() {
   [ -r "$providers_file" ] \
     && jq -e --argjson now "$(date +%s)" '.providers.cline.settings.auth
       | (.accessToken | type) == "string" and ((.expiresAt // 0) | tonumber? // 0) > ($now * 1000)' \
-      "$providers_file" >/dev/null 2>&1
+      "$providers_file" >/dev/null 2>&1 \
+    && found login "$providers_file"
 }
 
 has_commandcode_credentials() {
   local auth_file="${HOME}/.commandcode/auth.json"
   has_any_env COMMAND_CODE_API_KEY && return 0
   [ -r "$auth_file" ] \
-    && jq -e '(.apiKey | type) == "string" and (.apiKey | length) > 0' "$auth_file" >/dev/null 2>&1
+    && jq -e '(.apiKey | type) == "string" and (.apiKey | length) > 0' "$auth_file" >/dev/null 2>&1 \
+    && found login "$auth_file"
 }
 
 has_antigravity_file_credentials() {
@@ -38,7 +71,7 @@ has_antigravity_file_credentials() {
       "${XDG_CONFIG_HOME:-$HOME/.config}/antigravity-cli/antigravity-oauth-token"; do
     [ -r "$token_file" ] || continue
     jq -e '(.token.refresh_token | type) == "string" and (.token.refresh_token | length) > 0' \
-      "$token_file" >/dev/null 2>&1 && return 0
+      "$token_file" >/dev/null 2>&1 && found login "$token_file" && return 0
   done
   return 1
 }
@@ -48,7 +81,8 @@ has_opencode_credentials() {
   local auth_file="${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json"
   has_any_env OPENCODE_API_KEY && return 0
   [ -r "$auth_file" ] \
-    && jq -e '((."opencode".key // ."opencode-go".key // ."opencode_go".key // .apiKey) | type) == "string" and (length > 0)' "$auth_file" >/dev/null 2>&1
+    && jq -e '((."opencode".key // ."opencode-go".key // ."opencode_go".key // .apiKey) | type) == "string" and (length > 0)' "$auth_file" >/dev/null 2>&1 \
+    && found login "$auth_file"
 }
 
 has_grok_cli() {
@@ -63,14 +97,16 @@ has_grok_cli() {
 cursor_auth_has_token() {
   local auth_file="$1"
   [ -r "$auth_file" ] || return 1
-  jq -e '(.accessToken | type) == "string" and (.accessToken | length) > 0' "$auth_file" >/dev/null 2>&1
+  jq -e '(.accessToken | type) == "string" and (.accessToken | length) > 0' "$auth_file" >/dev/null 2>&1 \
+    && found login "$auth_file"
 }
 
 cursor_db_has_token() {
   local db="$1"
   [ -r "$db" ] || return 1
   command -v sqlite3 >/dev/null 2>&1 || return 1
-  [ -n "$(sqlite3 "file:${db}?mode=ro" "SELECT value FROM ItemTable WHERE key='cursorAuth/accessToken' LIMIT 1;" 2>/dev/null || true)" ]
+  [ -n "$(sqlite3 "file:${db}?mode=ro" "SELECT value FROM ItemTable WHERE key='cursorAuth/accessToken' LIMIT 1;" 2>/dev/null || true)" ] \
+    && found login "$db"
 }
 
 has_cursor_session() {
@@ -134,6 +170,7 @@ has_xai_credentials() {
           | $expiry == "" or (parse_ts($expiry) as $ts | $ts == 0 or $ts > now))
       )
     ' "$auth_file" >/dev/null 2>&1; then
+    found login "$auth_file"
     return 0
   fi
 
@@ -141,17 +178,27 @@ has_xai_credentials() {
     && jq -e 'to_entries | any(
       (.value.key | type) == "string" and (.value.key | length) > 0
       and (.value.refresh_token | type) == "string" and (.value.refresh_token | length) > 0
-    )' "$auth_file" >/dev/null 2>&1
+    )' "$auth_file" >/dev/null 2>&1 \
+    && found login "$auth_file"
 }
 
 status_for() {
   local provider="$1"
   local status="ready"
   local detail="Configured"
+  EVIDENCE_KIND=""
+  EVIDENCE_LABEL=""
 
   case "$provider" in
-    codex) command -v codex >/dev/null 2>&1 || { status="missing"; detail="codex CLI"; } ;;
-    claude) command -v claude >/dev/null 2>&1 || [ -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" ] || { status="missing"; detail="claude CLI, ~/.claude or CLAUDE_CONFIG_DIR"; } ;;
+    # The adapter needs the CLI; a saved sign-in only makes the evidence stronger.
+    codex)
+      if has_cmd codex; then
+        has_path login -r "${CODEX_HOME:-$HOME/.codex}/auth.json" || true
+      else
+        status="missing"; detail="codex CLI"
+      fi
+      ;;
+    claude) has_path login -r "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.credentials.json" || has_cmd claude || has_path local -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" || { status="missing"; detail="claude CLI, ~/.claude or CLAUDE_CONFIG_DIR"; } ;;
     claude-*)
       local config_dir
       if ! config_dir="$(claude_profile_dir "$provider")"; then
@@ -160,16 +207,33 @@ status_for() {
         status="missing"; detail="Claude profile credentials"
       fi
       ;;
-    copilot) command -v gh >/dev/null 2>&1 || has_any_env COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN || { status="missing"; detail="gh CLI or GitHub token"; } ;;
-    gemini) command -v gemini >/dev/null 2>&1 || has_any_env GEMINI_API_KEY GOOGLE_API_KEY GOOGLE_GENERATIVE_AI_API_KEY || { status="missing"; detail="gemini CLI or API key"; } ;;
+    copilot)
+      if has_any_env COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN; then
+        :
+      elif has_cmd gh; then
+        has_path login -r "${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}/hosts.yml" || true
+      else
+        status="missing"; detail="gh CLI or GitHub token"
+      fi
+      ;;
+    gemini)
+      if has_any_env GEMINI_API_KEY GOOGLE_API_KEY GOOGLE_GENERATIVE_AI_API_KEY; then
+        :
+      elif has_cmd gemini; then
+        has_path login -r "$HOME/.gemini/oauth_creds.json" || true
+      else
+        status="missing"; detail="gemini CLI or API key"
+      fi
+      ;;
     antigravity|agy)
+      # A bare secret-tool cannot tell whether the keyring holds an
+      # Antigravity sign-in without a lookup that may raise an unlock prompt,
+      # so it stays the weakest evidence.
       if has_antigravity_file_credentials \
-        || command -v secret-tool >/dev/null 2>&1; then
-        status="ready"
-        detail="Configured"
-      elif { [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity IDE/User/globalStorage/state.vscdb" ] \
-          || [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity/User/globalStorage/state.vscdb" ]; } \
-          && command -v sqlite3 >/dev/null 2>&1; then
+        || { { has_path local -r "${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity IDE/User/globalStorage/state.vscdb" \
+            || has_path local -r "${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity/User/globalStorage/state.vscdb"; } \
+          && command -v sqlite3 >/dev/null 2>&1; } \
+        || { has_cmd secret-tool && found keyring secret-tool; }; then
         status="ready"
         detail="Configured"
       else
@@ -177,11 +241,15 @@ status_for() {
         detail="CLI keyring, valid token file, or IDE state with sqlite3"
       fi
       ;;
-    9router) [ -f "$HOME/.9router/db/data.sqlite" ] || [ -f "$HOME/.9router/usage.json" ] || { status="missing"; detail="9Router usage database"; } ;;
-    openrouter) has_any_env OPENROUTER_API_KEY || has_vault_spec openrouter || [ -f "$HOME/.9router/db/data.sqlite" ] || { status="missing"; detail="OPENROUTER_API_KEY, a keyring entry, or 9Router data"; } ;;
+    9router) has_path local -f "$HOME/.9router/db/data.sqlite" || has_path local -f "$HOME/.9router/usage.json" || { status="missing"; detail="9Router usage database"; } ;;
+    openrouter) has_any_env OPENROUTER_API_KEY || has_vault openrouter || has_path local -f "$HOME/.9router/db/data.sqlite" || { status="missing"; detail="OPENROUTER_API_KEY, a keyring entry, or 9Router data"; } ;;
     deepseek) has_any_env DEEPSEEK_API_KEY || { status="missing"; detail="DEEPSEEK_API_KEY"; } ;;
     kimi-code)
-      if ! has_any_env KIMI_CODING_API_KEY && [[ "${MOONSHOT_API_KEY:-${KIMI_API_KEY:-}}" != sk-kimi-* ]]; then
+      if has_any_env KIMI_CODING_API_KEY; then
+        :
+      elif [[ "${MOONSHOT_API_KEY:-${KIMI_API_KEY:-}}" == sk-kimi-* ]]; then
+        if [ -n "${MOONSHOT_API_KEY:-}" ]; then found key MOONSHOT_API_KEY; else found key KIMI_API_KEY; fi
+      else
         status="missing"; detail="KIMI_CODING_API_KEY or sk-kimi- key"
       fi
       ;;
@@ -189,15 +257,15 @@ status_for() {
     minimax) has_any_env MINIMAX_API_KEY MINIMAX_TOKEN_PLAN_KEY || { status="missing"; detail="MINIMAX_API_KEY or MINIMAX_TOKEN_PLAN_KEY"; } ;;
     commandcode|cmd|cmdcode) has_commandcode_credentials || { status="missing"; detail="COMMAND_CODE_API_KEY or ~/.commandcode/auth.json"; } ;;
     opencode)
-      if [ -f "${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db" ] && [ "${OPENCODE_USAGE_SOURCE:-local}" != api ]; then
+      if has_path local -f "${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/opencode.db" && [ "${OPENCODE_USAGE_SOURCE:-local}" != api ]; then
         command -v sqlite3 >/dev/null || { status="missing"; detail="sqlite3"; }
       else
-        has_opencode_credentials || has_vault_spec opencode || { status="missing"; detail="OpenCode local database, OPENCODE_API_KEY, or a keyring entry"; }
+        has_opencode_credentials || has_vault opencode || { status="missing"; detail="OpenCode local database, OPENCODE_API_KEY, or a keyring entry"; }
       fi ;;
-    glm|zhipu) has_any_env GLM_API_KEY ZHIPU_API_KEY || has_vault_spec glm || { status="missing"; detail="GLM_API_KEY, ZHIPU_API_KEY, or a keyring entry"; } ;;
-    zai|z.ai) has_any_env ZAI_API_KEY GLM_API_KEY ZHIPU_API_KEY || has_vault_spec zai || { status="missing"; detail="ZAI_API_KEY or a keyring entry"; } ;;
+    glm|zhipu) has_any_env GLM_API_KEY ZHIPU_API_KEY || has_vault glm || { status="missing"; detail="GLM_API_KEY, ZHIPU_API_KEY, or a keyring entry"; } ;;
+    zai|z.ai) has_any_env ZAI_API_KEY GLM_API_KEY ZHIPU_API_KEY || has_vault zai || { status="missing"; detail="ZAI_API_KEY or a keyring entry"; } ;;
     mistral) has_any_env MISTRAL_API_KEY || { status="missing"; detail="MISTRAL_API_KEY"; } ;;
-    ollama) command -v ollama >/dev/null 2>&1 || { status="missing"; detail="ollama CLI"; } ;;
+    ollama) has_cmd ollama || { status="missing"; detail="ollama CLI"; } ;;
     nvidia|nim) has_any_env NVIDIA_API_KEY || { status="missing"; detail="NVIDIA_API_KEY"; } ;;
     neuralwatt) has_any_env NEURALWATT_API_KEY || { status="missing"; detail="NEURALWATT_API_KEY"; } ;;
     ollama-cloud) has_any_env OLLAMA_API_KEY || { status="missing"; detail="OLLAMA_API_KEY"; } ;;
@@ -206,7 +274,7 @@ status_for() {
     vercel|ai-gateway) has_any_env AI_GATEWAY_API_KEY || { status="missing"; detail="AI_GATEWAY_API_KEY"; } ;;
     cline) has_any_env CLINE_API_KEY || has_cline_cli_login || { status="missing"; detail="CLINE_API_KEY or an unexpired Cline CLI sign-in"; } ;;
     cloudflare) has_any_env CLOUDFLARE_AI_TOKEN CLOUDFLARE_API_TOKEN || { status="missing"; detail="Cloudflare API token"; } ;;
-    vertexai|vertex) command -v gcloud >/dev/null 2>&1 || { status="missing"; detail="gcloud CLI"; } ;;
+    vertexai|vertex) has_cmd gcloud || { status="missing"; detail="gcloud CLI"; } ;;
     byteplus|ark|modelark) has_any_env BYTEPLUS_API_KEY ARK_API_KEY || { status="missing"; detail="BYTEPLUS_API_KEY or ARK_API_KEY"; } ;;
     qwen|dashscope|alibaba) has_any_env DASHSCOPE_API_KEY QWEN_API_KEY || { status="missing"; detail="DASHSCOPE_API_KEY or QWEN_API_KEY"; } ;;
     together) has_any_env TOGETHER_API_KEY || { status="missing"; detail="TOGETHER_API_KEY"; } ;;
@@ -217,8 +285,8 @@ status_for() {
     xai|grok) has_xai_credentials || { status="missing"; detail="grok login, XAI_API_KEY, or XAI_MANAGEMENT_KEY"; } ;;
     kilo) has_any_env KILO_API_KEY || { status="missing"; detail="KILO_API_KEY"; } ;;
     ai21) has_any_env AI21_API_KEY || { status="missing"; detail="AI21_API_KEY"; } ;;
-    pi) command -v pi >/dev/null 2>&1 || [ -d "$HOME/.pi/agent/sessions" ] || { status="missing"; detail="pi CLI or ~/.pi/agent/sessions"; } ;;
-    hermes) [ -f "${HERMES_HOME:-$HOME/.hermes}/state.db" ] || command -v hermes >/dev/null 2>&1 || { status="missing"; detail="hermes CLI or ~/.hermes/state.db"; } ;;
+    pi) has_path local -d "$HOME/.pi/agent/sessions" || has_cmd pi || { status="missing"; detail="pi CLI or ~/.pi/agent/sessions"; } ;;
+    hermes) has_path local -f "${HERMES_HOME:-$HOME/.hermes}/state.db" || has_cmd hermes || { status="missing"; detail="hermes CLI or ~/.hermes/state.db"; } ;;
     cursor)
       if has_cursor_session; then
         status="ready"
@@ -230,7 +298,7 @@ status_for() {
       ;;
     grokbot|grok-bot)
       case "$(grokbot_session_store)" in
-        basic) status="ready"; detail="Configured" ;;
+        basic) status="ready"; detail="Configured"; found login "Grok Bot" ;;
         keyring) status="missing"; detail="Grok Bot session in the desktop keyring (start Grok Bot with --password-store=basic)" ;;
         *) status="missing"; detail="Grok Bot desktop app sign-in" ;;
       esac
@@ -242,19 +310,22 @@ status_for() {
     *) status="unknown"; detail="Unknown provider" ;;
   esac
 
-  jq -cn --arg provider "$provider" --arg status "$status" --arg detail "$detail" \
-    '{provider:$provider,status:$status,detail:$detail}'
+  if [ "$status" != ready ]; then
+    EVIDENCE_KIND=""
+    EVIDENCE_LABEL=""
+  fi
+  # One tab-separated record per provider; a single jq below turns them into
+  # JSON, so checking the whole catalog (provider detection) stays fast.
+  printf '%s\t%s\t%s\t%s\t%s\n' "$provider" "$status" "$detail" "$EVIDENCE_KIND" "${EVIDENCE_LABEL//$'\t'/ }"
 }
 
 providers="${1:-codex,claude,copilot}"
 IFS=',' read -r -a list <<< "$providers"
-printf '['
-first=1
 for provider in "${list[@]}"; do
-  provider="$(printf '%s' "$provider" | xargs | tr '[:upper:]' '[:lower:]')"
+  provider="${provider#"${provider%%[![:space:]]*}"}"
+  provider="${provider%"${provider##*[![:space:]]}"}"
+  provider="${provider,,}"
   [ -n "$provider" ] || continue
-  [ "$first" -eq 1 ] || printf ','
-  first=0
   status_for "$provider"
-done
-printf ']'
+done | jq -cRn '[inputs | split("\t") | {provider: .[0], status: .[1], detail: .[2],
+  evidence: (if .[3] == "" then null else {kind: .[3], label: .[4]} end)}]'

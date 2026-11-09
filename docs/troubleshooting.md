@@ -94,6 +94,8 @@ The adapter uses the GitHub-authenticated Copilot quota snapshot. If the regiona
 
 ## Environment variable is present in a terminal but missing in settings
 
+The same applies to **Detect providers**, which reads the shell's environment: a provider whose key only a terminal exports is not offered.
+
 Dux Shell may have been started before the variable was exported. A shell-only export — including one in `~/.zshenv` — is not inherited by an existing systemd-managed graphical session. Import it from a terminal where it is already set, restart Dux Shell, and run the health helper again:
 
 ```bash

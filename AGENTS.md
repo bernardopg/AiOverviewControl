@@ -50,6 +50,7 @@ HeaderAction.qml              Shared header button
 AiOverviewDashCard.qml        Dashboard "AI quotas" card; reads dash-snapshot.json only
 ClaudeProfiles.js             Claude profile catalog validation + details view model
 lib/BarWindows.js             Bar window selection (barWindowOverrides); new modules go in new dirs
+detect/                       Provider detection: DetectProvidersPanel.qml (dashboard sheet + settings) and ProviderDetect.js
 providers/get-provider-usage  Dispatcher; sources providers/native/*.bash explicitly
 providers/get-*               Per-provider and analytics entrypoints (must be executable)
 providers/local-cost-common   Shared Hermes cost SQL + LiteLLM per-model pricing (sourced)
@@ -134,7 +135,7 @@ shellcheck -S warning tests/*.sh scripts/package-release scripts/render-contribu
   scripts/reload-plugin .githooks/pre-push
 for test in tests/test-*.sh; do bash "$test"; done
 AIOC_COVERAGE_MIN=97 scripts/coverage   # kcov statement coverage (CI: Statement coverage)
-QT_FORCE_STDERR_LOGGING=1 qmllint *.qml   # exit code is the signal; without a TTY
+QT_FORCE_STDERR_LOGGING=1 qmllint *.qml detect/*.qml   # exit code is the signal; without a TTY
                                           # messages go to journald, not stderr
 actionlint
 git diff --check
@@ -167,7 +168,8 @@ Users update the plugin while the shell runs, and the engine caches each
 directory's file list the first time it loads the plugin: a QML/JS file added
 to an existing runtime directory fails with `File name case mismatch` until a
 restart (issue #92). Put a new module in a new directory, never next to the
-existing ones; `tests/test-hot-upgrade-layout.sh` freezes the root and `lib/`.
+existing ones; `tests/test-hot-upgrade-layout.sh` freezes the root, `lib/` and
+`detect/`.
 
 ## Release
 

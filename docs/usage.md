@@ -66,6 +66,7 @@ overview, hover the page icon, click the pencil, then **Add widget**.
 
 | Button | Action |
 | --- | --- |
+| 🔍 | [Detect providers](#detect-providers) already set up on this computer. |
 | ❤ | Upvote the plugin on the Dux Shell plugin registry. |
 | `<>` | Open the GitHub repository. |
 | ⟳ | Refresh every provider now. Spins while a refresh runs. |
@@ -74,13 +75,54 @@ overview, hover the page icon, click the pencil, then **Add widget**.
 
 Hover a button and the line under the title names its action.
 
+### Detect providers
+
+The 🔍 button checks every provider the plugin supports against this computer
+and offers the ones that are already set up, so a new install does not start
+from guessing provider IDs. The same check sits at the top of the
+**Providers** group in settings, and the empty dashboard offers it too.
+
+It looks for installed commands, sign-in files, local usage data and the
+*names* of API-key variables. It sends no request, never reads a key's value
+into the result, and never unlocks the desktop keyring. Each provider it finds
+says why:
+
+| Found | Example | Ticked |
+| --- | --- | --- |
+| An API key variable | `DEEPSEEK_API_KEY is set` | yes |
+| A saved sign-in | `Signed in · ~/.codex/auth.json` | yes |
+| The tool's local data | `Local data · ~/.9router/db/data.sqlite` | yes |
+| A keyring entry you configured | `Keyring entry configured` | yes |
+| Only the command | `gcloud installed · sign-in not verified` | no |
+| Only the keyring tool | `Desktop keyring available · sign-in not verified` | no |
+
+Providers with a key, a sign-in or local data are listed under **Ready to
+track** and ticked. Providers whose tool is installed but whose sign-in cannot
+be confirmed without asking the provider are listed under **Installed,
+sign-in not verified** and left unticked, because tracking an account that is
+not signed in only adds an error card. **Track selected**, full width under
+**Scan again** and **Select all**, adds the ticked providers to the dashboard
+and the bar in one step and refreshes. In the dashboard the list scrolls under
+a fixed title and fixed actions; providers
+you already track are named, not offered again. Claude profiles are not
+detected: add them in **Claude profiles** with their directory.
+
+The check sees the shell's environment, not a terminal's. A key exported only
+in `~/.zshrc` is not found; see
+[Environment variable is present in a terminal but missing in settings](troubleshooting.md#environment-variable-is-present-in-a-terminal-but-missing-in-settings).
+
 ### Hero
 
 - The focused provider (pinned first, otherwise the busiest) with its logo inside
-  a ring that shows the primary-window usage, plus its quota bars.
-- One stat strip for the fleet: average load, the hottest provider, active and
-  failing providers, how many sit at or above 80%, the next reset, and the last
-  sync. Fleet-wide figures appear only when two or more providers are live.
+  a ring that shows the primary-window usage, plus its quota bars. The line above
+  its name gives its status; a status pill only appears when something needs
+  attention.
+- One stat grid for the fleet: average load, the hottest provider
+  (**Peak · Copilot**), active and failing providers, how many sit at or above
+  80%, and the next reset. The tiles share even columns, two rows of three when
+  six do not fit on one line, so none is left alone on a row. Fleet-wide
+  figures appear only when two or more providers are live. The last sync time
+  is in the header line under the title.
 - Balance, analytics, local-runtime, and informational cards are excluded from
   the average, so their truthful `0%` placeholders never dilute real quota
   pressure. Peak, at-risk count, and reset still scan every live card.
@@ -154,7 +196,8 @@ remaining quota, the tooltip and each provider's bar usage window.
 
 The settings sit in foldable groups: **General** (language, refresh interval),
 **Bar pill**, **Dashboard**, **Notifications**, **Providers** (with a search
-field over the 45 adapters, readiness and pinning), **Claude profiles**,
+field over the 45 adapters, readiness, pinning and
+[Detect providers](#detect-providers)), **Claude profiles**,
 **History and data** and **Diagnostics and tests**. A folded group shows a
 one-line summary of its state, such as `Custom · 3 in the bar`; the button
 next to the health re-check expands or collapses every group. The page

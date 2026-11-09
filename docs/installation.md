@@ -27,7 +27,7 @@ without `scripts/` it loads but local analytics fail at runtime.
 ```bash
 PLUGIN="$HOME/.config/dms/plugins/AiOverviewControl"
 mkdir -p "$PLUGIN"
-cp -a ./*.qml ./*.js plugin.json qmldir lib providers scripts assets \
+cp -a ./*.qml ./*.js plugin.json qmldir lib detect providers scripts assets \
   README.md CHANGELOG.md LICENSE docs i18n translations screenshot.png \
   "$PLUGIN"/
 chmod +x "$PLUGIN"/providers/get-*

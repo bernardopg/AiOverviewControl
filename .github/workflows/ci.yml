@@ -754,6 +754,9 @@ jobs:
       - name: Provider keys from the keyring
         run: tests/test-vault-keys.sh
 
+      - name: Provider detection evidence
+        run: tests/test-provider-detect.sh
+
       - name: Append-only contributor grid
         run: tests/test-render-contributors.sh
 
@@ -959,7 +962,7 @@ jobs:
         env:
           QMLLINT_BIN: ${{ steps.qmllint.outputs.bin }}
         run: |
-          "$QMLLINT_BIN" ./*.qml
+          "$QMLLINT_BIN" ./*.qml ./detect/*.qml
 
       - name: No hardcoded install path in QML
         run: |

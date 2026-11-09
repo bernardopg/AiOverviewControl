@@ -10,6 +10,8 @@ import qs.DCommon.Widgets
 import qs.Modules.Plugins
 import "lib/BarWindows.js" as BarWindows
 import "ClaudeProfiles.js" as ClaudeProfiles
+import "detect"
+import "detect/ProviderDetect.js" as ProviderDetect
 
 PluginSettings {
     id: root
@@ -375,6 +377,20 @@ PluginSettings {
         selectedIds = result;
         saveValue("providerSelection", result.join(","));
     }
+
+    // Tracks the providers picked in "Detect providers" in one save.
+    function addProviders(ids) {
+        const result = ProviderDetect.merge(selectedIds, ids);
+        if (result.length === selectedIds.length) return;
+        selectedIds = result;
+        saveValue("providerSelection", result.join(","));
+    }
+
+    // Detection scans the built-in catalog; Claude profiles need a directory
+    // and are added below instead.
+    readonly property var detectCatalog: baseProviders.map(function(provider) {
+        return { id: provider.id, name: provider.name };
+    })
 
     function addClaudeProfile(id, name, configDir) {
         id = String(id).trim().toLowerCase();
@@ -1447,6 +1463,32 @@ PluginSettings {
         groupId: "providers"
         groupTitle: t("settings.group.providers", "Providers")
         groupIcon: "hub"
+
+        StyledRect {
+            objectName: "settings-detect-providers"
+            width: parent.width
+            radius: Theme.cornerRadius + 2
+            color: Theme.withAlpha(Theme.primary, 0.06)
+            border.width: 1
+            border.color: Theme.withAlpha(Theme.primary, 0.18)
+            implicitHeight: settingsDetectPanel.implicitHeight + Theme.spacingM * 2
+
+            DetectProvidersPanel {
+                id: settingsDetectPanel
+                objectName: "settings-detect-panel"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.spacingM
+                healthScript: root.healthScript
+                catalog: root.detectCatalog
+                trackedIds: root.selectedIds
+                translate: root.t
+                locale: root.i18nLocale
+                logoColor: root.providerLogoColor
+                onApplyRequested: ids => root.addProviders(ids)
+            }
+        }
 
         DSearchField {
             id: providerSearch

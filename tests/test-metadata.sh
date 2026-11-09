@@ -47,8 +47,13 @@ mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
 # lib/BarWindows.js is imported by the widget and the settings body: a
 # checkout install without lib/ cannot load the plugin.
 cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
-sed -i 's| lib providers | providers |' "$TMP/docs/installation.md"
+sed -i 's| lib detect providers | detect providers |' "$TMP/docs/installation.md"
 reject 'checkout install missing lib directory'
+mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
+# Both also import detect/ (provider detection).
+cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
+sed -i 's| lib detect providers | lib providers |' "$TMP/docs/installation.md"
+reject 'checkout install missing detect directory'
 mv "$TMP/docs/installation.backup" "$TMP/docs/installation.md"
 cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
 sed -i 's| \./\*\.js | |' "$TMP/docs/installation.md"

@@ -58,7 +58,9 @@ painéis. Nada de porcentagens inventadas.
 
 **📊 Um painel, 40+ provedores**<br />
 Cota, saldo, analytics e autenticação lado a lado, com visão geral da frota:
-carga média, provedor mais usado e próximo reset.
+carga média, provedor mais usado e próximo reset. 🔍 **Detectar provedores**
+encontra as ferramentas, logins e chaves de API já presentes no computador e
+passa a acompanhá-los com um clique.
 
 </td>
 <td width="50%" valign="top">
@@ -145,7 +147,9 @@ command -v bash jq curl codex claude gh
 codex login && claude auth status && gh auth status
 ```
 
-Abra a janela de configurações ⚙ para ativar mais provedores — cada um mostra
+Clique em 🔍 **Detectar provedores** no cabeçalho do painel para encontrar e
+acompanhar de uma vez todos os provedores já configurados neste computador, ou
+abra a janela de configurações ⚙ para ativar mais manualmente — cada um mostra
 se a CLI ou a credencial está pronta.
 
 > [!TIP]

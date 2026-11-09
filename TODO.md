@@ -53,10 +53,12 @@ ccusage, Claude-Code-Usage-Monitor, tokscale) and against the non-goals in
   the provider shown in `top` mode (or the window of a single-provider pill);
   middle-click refreshes. Idea from ai-usagebar's scroll-to-cycle. Keep the
   choice in memory only, so it never rewrites `pillMode`. `S · ★★`
-- [ ] **Detect providers** — a settings button that enables every provider
-  whose readiness is already **Ready** (credential or CLI found), with a
-  confirmation listing them. Readiness exists; this is the one-click onboarding
-  ai-usagebar ships as `detect`. Never raises a keyring prompt. `S · ★★`
+- [x] **Detect providers** — 🔍 in the dashboard header, the empty dashboard
+  and the settings Providers group: scans the catalog with the readiness
+  helper, which now reports the evidence it found, ticks providers with a key,
+  sign-in, local data or keyring entry, offers CLI-only ones unticked, and
+  tracks the selection in one save. `detect/` module. Ships in the next
+  release. `S · ★★`
 - [x] **Pace for every window** — even-use tick on every quota bar with a
   window length and reset, a flame when the window runs out before its reset,
   numbers on hover and in the pill tooltip; the Claude panel uses the same

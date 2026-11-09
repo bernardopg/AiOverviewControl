@@ -53,6 +53,8 @@ PluginComponent {
     property var lastResetResult: null
     // Provider whose reset confirmation is open in the dashboard, or "".
     property string confirmResetProviderId: ""
+    // The dashboard's "Detect providers" sheet (detect/DetectProvidersPanel.qml).
+    property bool detectProvidersOpen: false
     // In-process dispatch bookkeeping. The helper owns the durable state so
     // this remains only a cheap guard between refreshes in this instance.
     property var notifiedMap: ({})
@@ -162,6 +164,7 @@ PluginComponent {
     property string usageHistoryScript: _pluginDir + "/providers/get-usage-history"
     property string notifyAlertScript: _pluginDir + "/providers/send-quota-alert"
     property string resetLimitsScript: _pluginDir + "/providers/reset-provider-limits"
+    property string providerHealthScript: _pluginDir + "/providers/get-provider-health"
     property string nineRouterAnalyticsScript: _pluginDir + "/providers/get-9router-analytics"
     readonly property var codexStats: codexReader.snapshot
     readonly property var opencodeStats: opencodeReader.snapshot
@@ -785,6 +788,27 @@ PluginComponent {
             focusedProviderId = provider;
         }
     }
+
+    // Tracks every provider of `providerIds` at once (provider detection), so
+    // the selection is saved and refreshed once instead of per provider.
+    function addProviders(providerIds) {
+        const next = selectedProviders.slice();
+        for (let i = 0; i < (providerIds || []).length; i++) {
+            const provider = normalizeProviderId(providerIds[i]);
+            if (provider.length > 0 && next.indexOf(provider) < 0)
+                next.push(provider);
+        }
+        if (next.length !== selectedProviders.length)
+            saveProviderSelection(next.join(","));
+    }
+
+    // What provider detection scans: every catalog provider except Claude
+    // profiles, which are added with their own directory in settings.
+    readonly property var detectCatalog: availableProviderOptions.filter(function (id) {
+        return !/^claude-/.test(id);
+    }).map(function (id) {
+        return {id: id, name: providerName(id)};
+    })
 
     function removeProvider(providerId) {
         const provider = normalizeProviderId(providerId);

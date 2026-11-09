@@ -27,6 +27,10 @@ LocalAnalyticsReader.qml
 ProviderLogo.qml
 qmldir'
 lib_expected='BarWindows.js'
+# Provider detection (2.4.0) arrived as a new directory, listed fresh by a
+# running shell on first use.
+detect_expected='DetectProvidersPanel.qml
+ProviderDetect.js'
 
 list() { git -C "$ROOT" ls-files -- "$@" | sed 's|.*/||' | LC_ALL=C sort; }
 root_actual="$(git -C "$ROOT" ls-files -- '*.qml' '*.js' qmldir | grep -v / | LC_ALL=C sort)"
@@ -38,19 +42,27 @@ lib_actual="$(list 'lib/*')"
   || fail "lib/ runtime files changed; put a new module in a new directory:
 $(diff <(printf '%s\n' "$lib_expected") <(printf '%s\n' "$lib_actual") || true)"
 
-# Every QML/JavaScript directory the plugin loads from is one of the two above.
+detect_actual="$(list 'detect/*')"
+[ "$detect_actual" = "$detect_expected" ] \
+  || fail "detect/ runtime files changed; put a new module in a new directory:
+$(diff <(printf '%s\n' "$detect_expected") <(printf '%s\n' "$detect_actual") || true)"
+
+# Every QML/JavaScript directory the plugin loads from is one of those above.
 dirs="$(git -C "$ROOT" ls-files -- '*.qml' '*.js' | grep -vE '^(tests|scripts|docs|\.github)/' \
   | sed -n 's|/[^/]*$||p' | LC_ALL=C sort -u)"
-[ "$dirs" = "lib" ] || fail "unexpected runtime directories: $dirs"
+[ "$dirs" = "$(printf 'detect\nlib')" ] || fail "unexpected runtime directories: $dirs"
 
 # Every relative import names a file that exists with that exact spelling.
 while IFS= read -r line; do
   file="${line%%:*}"
   target="$(sed -E 's/^[^"]*"([^"]+)".*/\1/' <<<"${line#*:}")"
   [ -f "$ROOT/$(dirname "$file")/$target" ] || fail "$file imports missing $target"
-done < <(cd "$ROOT" && grep -HE '^import "[^"]+\.(js|qml)"' -- *.qml lib/*.js 2>/dev/null || true)
+done < <(cd "$ROOT" && grep -HE '^import "[^"]+\.(js|qml)"' -- *.qml lib/*.js detect/*.qml 2>/dev/null || true)
 grep -q '^import "lib/BarWindows.js" as BarWindows$' "$ROOT/AiOverviewControlWidget.qml" \
   || fail "widget does not import lib/BarWindows.js"
 grep -q '^import "lib/BarWindows.js" as BarWindows$' "$ROOT/AiOverviewControlSettings.qml" \
   || fail "settings do not import lib/BarWindows.js"
+for host in DashboardContent.qml AiOverviewControlSettings.qml; do
+  grep -q '^import "detect"$' "$ROOT/$host" || fail "$host does not import detect/"
+done
 echo 'OK: runtime files stay loadable by a running shell after an update'
