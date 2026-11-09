@@ -1,4 +1,5 @@
 {
   "providers": 44,
-  "languages": 5
+  "languages": 5,
+  "coverage": 100
 }

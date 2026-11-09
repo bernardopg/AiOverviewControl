@@ -71,6 +71,14 @@ for path in sorted(Path('tests').glob('test-*.sh')):
     require(path.as_posix() in registered, f'Integration test absent from ci.yml run steps: {path}')
 for path in sorted(registered):
     require(Path(path).is_file(), f'CI references missing test: {path}')
+# Compiled Python never belongs in the repository: a stray __pycache__ is a
+# binary artifact that OpenSSF Scorecard flags and that ships in the release
+# archive. Checked only inside a git checkout.
+import subprocess
+tracked = subprocess.run(['git', 'ls-files', '-z'], capture_output=True, text=True)
+if tracked.returncode == 0:
+    for name in tracked.stdout.split('\0'):
+        require(not re.search(r'(^|/)__pycache__/|\.py[cod]$', name), f'Compiled Python is tracked: {name}')
 if errors:
     sys.exit('\n'.join(errors))
 print(f'Metadata OK: {version}, {len(base)} locale keys, {len(registered)} tests')

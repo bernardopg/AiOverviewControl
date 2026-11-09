@@ -16,6 +16,16 @@ printf 'jobs:\n  integration:\n    steps:\n      - run: tests/test-example.sh\n'
 check() { bash "$TMP/scripts/check-metadata" >/dev/null 2>&1; }
 reject() { if check; then echo "FAIL: accepted $1" >&2; exit 1; fi; }
 check
+# Compiled Python committed by accident is rejected inside a git checkout.
+git -C "$TMP" init -q
+git -C "$TMP" add -A
+check || { echo "FAIL: a clean git checkout was rejected" >&2; exit 1; }
+mkdir -p "$TMP/scripts/__pycache__"
+printf 'bytecode' > "$TMP/scripts/__pycache__/coverage-report.cpython-314.pyc"
+git -C "$TMP" add -f scripts/__pycache__
+reject 'tracked compiled Python'
+git -C "$TMP" rm -q --cached -r scripts/__pycache__
+rm -rf "$TMP/scripts/__pycache__" "$TMP/.git"
 cp "$TMP/docs/installation.md" "$TMP/docs/installation.backup"
 python3 - "$TMP/docs/installation.md" <<'PY'
 import sys

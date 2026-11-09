@@ -217,6 +217,12 @@ statement coverage of `providers/` and `scripts/`, with a per-file table in
 does. Coverage is at 100%; the gate leaves room for a hard-to-fake branch, but
 a new adapter or script ships with tests for every statement.
 
+The README coverage badge reads `coverage` from `docs/badges.json`: the whole
+percentage, rounded down, so it never states more than was measured. CI runs
+with `AIOC_COVERAGE_BADGE=check` and fails, naming the measured number, when
+the file is stale. `AIOC_COVERAGE_BADGE=write scripts/coverage` updates it; build
+the pinned kcov first (below), since another kcov build can count differently.
+
 kcov's own percentage counts every physical line, including the body of a
 multi-line jq or awk program, a heredoc body and a backslash-continued line.
 Those lines belong to the statement that starts above them and are never

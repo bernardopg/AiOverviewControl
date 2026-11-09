@@ -50,6 +50,12 @@ def main():
     stale = []
 
     badges = ROOT / 'docs/badges.json'
+    # Coverage comes from a kcov run, not from the code: keep the number
+    # scripts/coverage-report stored.
+    if badges.exists():
+        stored = json.loads(badges.read_text()).get('coverage')
+        if stored is not None:
+            data['coverage'] = stored
     rendered = json.dumps(data, indent=2) + '\n'
     if not badges.exists() or badges.read_text() != rendered:
         stale.append('docs/badges.json')
