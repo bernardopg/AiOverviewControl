@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.4.0 - 2026-11-09
+
+A feature release for Dux Shell 2.0 and 2.1. **Detect providers** finds the AI tools, sign-ins and API keys already set up on this computer and tracks them in one click, from a 🔍 button in the dashboard header or the settings. Every quota bar now shows its **pace**: an even-use tick, and a flame when the window runs out before it resets. An optional **Claude Code status line bridge** lets Claude Code hand over its own 5 hour and weekly usage, so the Claude cards stay current while you work and Anthropic's usage endpoint is asked far less often. The dashboard hero is tidier, and DeepSeek reads the right currency of a multi-currency balance. Settings, profiles, pins and history carry over unchanged; run `dms restart` once after updating.
+
+Long-form notes: [docs/releases/2.4.0.md](docs/releases/2.4.0.md).
+
 ### Features
 
 - **Detect providers** finds the providers already set up on this computer and tracks them in one step. A 🔍 button next to ❤ in the dashboard header (and on the empty dashboard) opens it as a sheet, and the top of the **Providers** settings group embeds the same panel. It checks every supported provider for an API-key variable, a saved sign-in, the tool's local data or a configured keyring entry, and names what it found (`DEEPSEEK_API_KEY is set`, `Signed in · ~/.codex/auth.json`); those are ticked. A provider whose command is installed but whose sign-in cannot be confirmed without asking the provider (`gcloud installed · sign-in not verified`) is offered unticked, and providers already tracked are named, not offered. **Track selected** saves the selection once and refreshes. The check runs locally, sends no request, reads no key value and never unlocks the desktop keyring. The readiness helper now reports this evidence for every ready provider. See [Detect providers](docs/usage.md#detect-providers).

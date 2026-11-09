@@ -182,10 +182,12 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-Novo na 2.3: o provedor Grok Bot, chaves de API no chaveiro do desktop, a janela
-semanal esgotada e os saldos pré-pagos exibidos como são na barra, e uma página
-de configurações com grupos recolhíveis e prévia ao vivo — veja as
-[notas da 2.3.0](./releases/2.3.0.md) (em inglês). Provedores de gastos e a
+Novo na 2.4: 🔍 **Detectar provedores** acompanha com um clique tudo o que já
+está configurado no seu computador, cada barra de cota mostra seu ritmo, e uma
+ponte opcional com a status line do Claude Code mantém os cartões do Claude
+atualizados enquanto você trabalha — veja as [notas da 2.4.0](./releases/2.4.0.md)
+(em inglês). O provedor Grok Bot, chaves de API no chaveiro do desktop e a
+página de configurações com prévia ao vivo chegaram na [2.3.0](./releases/2.3.0.md). Provedores de gastos e a
 cota do Gemini CLI chegaram na [2.2.0](./releases/2.2.0.md), e desde a
 [2.2.1](./releases/2.2.1.md) (em inglês) a barra mostra várias janelas de cota
 de um provedor ao mesmo tempo (`Claude 5h 45% / 7d 80%`). Créditos,
@@ -254,6 +256,7 @@ Achou um bug ou tem uma ideia? [Abra uma issue](https://github.com/bernardopg/Ai
 <a href="https://github.com/ianptkcs" title="ianptkcs"><img src="https://avatars.githubusercontent.com/u/162713721?v=4&s=112" width="56" height="56" alt="ianptkcs" /></a>
 <a href="https://github.com/alvorithm" title="alvorithm"><img src="https://avatars.githubusercontent.com/u/807608?v=4&s=112" width="56" height="56" alt="alvorithm" /></a>
 <a href="https://github.com/DotRedstone" title="DotRedstone"><img src="https://avatars.githubusercontent.com/u/77906069?v=4&s=112" width="56" height="56" alt="DotRedstone" /></a>
+<a href="https://github.com/cauliyang" title="cauliyang"><img src="https://avatars.githubusercontent.com/u/38903141?v=4&s=112" width="56" height="56" alt="cauliyang" /></a>
 
 <!-- CONTRIBUTORS:END -->
 
