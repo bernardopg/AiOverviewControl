@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.3.0 - 2026-11-08
+
+A feature release for Dux Shell 2.0 and 2.1. A new **Grok Bot** provider reads the weekly Grok Bot Plan pool, API keys for OpenRouter, Z.ai, GLM and OpenCode Go can stay in the desktop keyring, and the bar stops hiding a used-up weekly limit behind an idle 5 hour window or a prepaid balance behind a percentage. The settings page is reorganised into foldable groups under a live preview of the bar pill. OpenCode Go reads the endpoint's new usage envelope, the Antigravity app's local language server answers for its own account, readiness details are translated, and shell statement coverage reaches 100%. Settings, profiles, pins and history carry over unchanged.
+
+Long-form notes: [docs/releases/2.3.0.md](docs/releases/2.3.0.md).
+
 ### Features
 
 - The settings page is reorganised into foldable groups (General, Bar pill, Dashboard, Notifications, Providers, Claude profiles, History and data, Diagnostics), each summarising its state while folded, with a button to expand or collapse them all. A **Live preview** at the top draws the bar pill, a vertical bar and the hover tooltip with sample numbers and follows every bar setting as you change it. The provider grid gains a search field, the bar usage window list shows each provider's logo with its long explanation behind **How it works**, Claude profiles become cards with a remove button, and the provider logo color can return to the theme accent. Every setting the plugin stores is still on the page.
@@ -30,6 +36,11 @@
 - Crowdin holds every translated string again, including the dash card terms (`translations/`), and a **Crowdin sync** workflow uploads the bundles on every merge and fails when Crowdin has a translation the repository lacks, so the two cannot drift apart silently.
 - Statement coverage of the shell adapters and scripts is 100%, and CI fails below 97% (was 95%). `docs/development-gates.md` explains how to keep a multi-line command attributable to coverage.
 - The README contributor grid, in English and Portuguese, credits [@alvorithm](https://github.com/alvorithm) and [@DotRedstone](https://github.com/DotRedstone).
+- The README shows a test **coverage** badge, read from `docs/badges.json`; the Statement coverage CI job fails when that number no longer matches the measurement. The README and its Portuguese copy describe the 2.3 features.
+
+### Project
+
+- A compiled Python file that slipped into the repository with the coverage work is removed, `__pycache__/` and `*.pyc` are ignored, and `scripts/check-metadata` rejects tracked bytecode. OpenSSF Scorecard had flagged it as a binary artifact.
 
 ### Thanks
 

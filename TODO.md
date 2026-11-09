@@ -13,9 +13,8 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## 🚀 Next release
 
-- [ ] **Next release** — `## Unreleased` holds the Grok Bot provider, keyring
-  keys, the balance pill and the used-up window headline, so it is a minor
-  release; follow `docs/release-checklist.md`. `S · ★★★`
+- [ ] **Next release** — nothing is queued in `## Unreleased` after 2.3.0;
+  follow `docs/release-checklist.md` once it is. `S · ★★★`
 
 ## 🔧 Partial — needs a follow-up
 
@@ -92,49 +91,26 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 - [ ] **Second maintainer** — grant the maintain role to a second trusted
   contributor, then require one approving review on `main`. `L · ★★`
 
-## ✅ Shipped in 2.2.3 (removed after the next release)
+## ✅ Shipped in 2.3.0 (removed after the next release)
 
-- [x] **Hot upgrade** — `BarWindows.js` moved to `lib/` so an in-session update
-  loads without `dms restart`; the runtime layout is frozen by a test (#92, #93).
-- [x] **Release 2.2.3** — [docs/releases/2.2.3.md](docs/releases/2.2.3.md).
-
-## ✅ Shipped in 2.2.2 (removed after the next release)
-
-- [x] **Claude stale fallback** — a usage snapshot reused after a 429 keeps its
-  fetch time and reads as stale; windows past their reset read 0% (#89, #90).
-- [x] **Release 2.2.2** — [docs/releases/2.2.2.md](docs/releases/2.2.2.md).
-
-## ✅ Shipped in 2.2.1 (removed after the next release)
-
-- [x] **Several bar windows per provider** — `primary+secondary` and `all` in
-  `barWindowOverrides`, each window tagged with its length (#86, #87).
-- [x] **Release 2.2.1** — [docs/releases/2.2.1.md](docs/releases/2.2.1.md).
-
-## ✅ Shipped in 2.2.0 (removed after the next release)
-
-- [x] **Backlog refresh** — only open work, dated upstream checks (#79).
-- [x] **2.1 documentation** — Dashboard card and limit resets in architecture
-  and troubleshooting; NVIDIA credits note (#80).
-- [x] **Coverage** — 85.61% → 90.13%: multi-line statements measured on the
-  line kcov records, new health-check, Copilot helper, Antigravity token
-  refresh and Hermes cache tests (#81).
-- [x] **New providers** — Anthropic API, OpenAI API, Ollama Cloud and Vercel
-  AI Gateway, plus Gemini CLI quota and the ineligible-account reason (#82).
+- [x] **Grok Bot provider** — weekly Grok Bot Plan pool with the app's saved
+  reading offline; keyring-backed sessions reported, not guessed (#109).
+- [x] **Keyring keys** — `AIOC_VAULT_*` for OpenRouter, Z.ai, GLM and OpenCode
+  Go, never prompting from a background refresh (#105).
+- [x] **Honest bar pill** — a used-up window takes over the bar, prepaid
+  balances read as amounts (#106, #107).
+- [x] **Settings page** — foldable groups, live bar preview, provider search
+  (#113).
+- [x] **Provider fixes** — OpenCode Go nested envelope (#104), Antigravity local
+  language server per account (#108).
+- [x] **Translations and Crowdin** — readiness details translated, Crowdin
+  resynced with a sync workflow (#112, #114).
 - [x] **Coverage to 100%** — the remaining statements covered (Codex
   app-server that ignores SIGTERM, exchange-rate lock timeout, LiteLLM
   pricing cache, Antigravity CLI token errors, xAI renewal rejections, a stray
   release-archive entry), dead code removed, and multi-line commands kcov
   could not attribute restructured; the gate rises to 97%.
-- [x] **Coverage to 97.8%** — the files below 80% (Hermes analytics and
-  summary, limit resets, OpenCode, local analytics) now at 100%; CI measures
-  with a kcov build that tracks multi-line SQL, and the gate rises to 95%.
-- [x] **README refresh** — "40+ providers" prose, provider examples matching
-  the coverage matrix, 2.1 notes and the development gates.
-- [x] **Registry entry** — `requires_dms: ">=2.0.0"`, the `dash-card`
-  capability and a "40+ AI providers" description, merged in
-  [duxlabs-dev/dux-plugin-registry#1095](https://github.com/duxlabs-dev/dux-plugin-registry/pull/1095).
-- [x] **Release 2.2.0** — [docs/releases/2.2.0.md](docs/releases/2.2.0.md).
-- [x] **Dash plugin surface** — `AiOverviewDashCard.qml`, shipped in 2.1.0.
+- [x] **Release 2.3.0** — [docs/releases/2.3.0.md](docs/releases/2.3.0.md).
 
 ## Decided against
 
@@ -152,4 +128,4 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
 
 ---
 
-Shipped work before 2.2.0 is in `CHANGELOG.md`.
+Shipped work before 2.3.0 is in `CHANGELOG.md`.

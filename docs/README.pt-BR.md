@@ -16,6 +16,7 @@ e sem nenhum serviço externo.
 [![Security](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml/badge.svg)](https://github.com/bernardopg/AiOverviewControl/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bernardopg/AiOverviewControl/badge)](https://scorecard.dev/viewer/?uri=github.com/bernardopg/AiOverviewControl)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15913/badge)](https://www.bestpractices.dev/projects/15913)
+[![cobertura](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fdocs%2Fbadges.json&query=%24.coverage&label=cobertura&suffix=%25&color=22C55E)](./development-gates.md#statement-coverage)
 [![provedores](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fdocs%2Fbadges.json&query=%24.providers&label=provedores&color=8B5CF6)](./providers.md)
 [![idiomas](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbernardopg%2FAiOverviewControl%2Fmain%2Fdocs%2Fbadges.json&query=%24.languages&label=idiomas&color=00BFA5)](./i18n-crowdin.md)
 [![Downloads](https://img.shields.io/github/downloads/bernardopg/AiOverviewControl/total?color=0EA5E9&label=downloads)](https://github.com/bernardopg/AiOverviewControl/releases)
@@ -64,8 +65,10 @@ carga média, provedor mais usado e próximo reset.
 
 **🎯 Uma pílula que diz a verdade**<br />
 Escolha qual janela de cota cada provedor mostra na barra, ou siga a mais
-apertada, como cota usada ou restante. Passe o mouse para ver a janela e o
-reset. Barra lotada? Esconda os nomes e compacte o espaçamento.
+apertada, como cota usada ou restante. Um limite semanal esgotado assume a
+barra, e saldos pré-pagos aparecem como valores (`¥9.34`). As configurações
+mostram cada mudança numa prévia ao vivo; passe o mouse na barra para ver cada
+janela e o reset.
 
 </td>
 </tr>
@@ -93,8 +96,9 @@ Dashboard mantém os provedores mais usados na visão geral.
 <td valign="top">
 
 **🛡️ Privado e resiliente**<br />
-Segredos nunca aparecem. Um provedor com falha nunca esconde os saudáveis.
-Nenhum endpoint pago é chamado só para testar uma chave.
+Segredos nunca aparecem, e as chaves de API podem ficar no chaveiro do desktop.
+Um provedor com falha nunca esconde os saudáveis. Nenhum endpoint pago é
+chamado só para testar uma chave.
 
 </td>
 <td valign="top">
@@ -154,7 +158,7 @@ Prefere um arquivo de release ou um checkout do git? Veja [Instalação](./insta
 
 | Cobertura | O que você recebe | Exemplos |
 | --- | --- | --- |
-| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Cursor, Antigravity, OpenRouter, Z.ai, xAI, Gemini CLI |
+| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Cursor, Antigravity, Grok Bot, OpenCode Go, Z.ai, xAI |
 | **Saldo** | Crédito pré-pago restante | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
 | **Analytics** | Tokens, custo e modelos a partir de dados locais ou relatórios de gasto | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API |
 | **Autenticação** | Checagem de credencial, sem números de uso | Mistral, Qwen, Groq, Cohere, NVIDIA |
@@ -172,9 +176,12 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-Novo na 2.2: Anthropic API, OpenAI API, Ollama Cloud e Vercel AI Gateway, e a
-cota do Gemini CLI — veja as [notas da 2.2.0](./releases/2.2.0.md). Desde a
-[2.2.1](./releases/2.2.1.md) (em inglês), a barra mostra várias janelas de cota
+Novo na 2.3: o provedor Grok Bot, chaves de API no chaveiro do desktop, a janela
+semanal esgotada e os saldos pré-pagos exibidos como são na barra, e uma página
+de configurações com grupos recolhíveis e prévia ao vivo — veja as
+[notas da 2.3.0](./releases/2.3.0.md) (em inglês). Provedores de gastos e a
+cota do Gemini CLI chegaram na [2.2.0](./releases/2.2.0.md), e desde a
+[2.2.1](./releases/2.2.1.md) (em inglês) a barra mostra várias janelas de cota
 de um provedor ao mesmo tempo (`Claude 5h 45% / 7d 80%`). Créditos,
 resets de limite e o card do Dashboard chegaram na [2.1.0](./releases/2.1.0.md).
 Vindo do DMS 1.6? Leia o [guia de atualização 2.0.0](./releases/2.0.0.md) (em inglês).
