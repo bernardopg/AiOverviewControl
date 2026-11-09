@@ -200,6 +200,7 @@ Legacy settings unknown to the current code are ignored.
 - Provider manager: add and remove providers without editing settings files.
 - Filter: shown when more than five cards are visible. Status chips (All / Live / Issues, with counts) appear whenever any provider is configured.
 - Cards: collapsed preview, expanded windows, identity, credits, source, and timestamps.
+- Pace: `BarWindows.pace(window, nowMs)` (in `lib/BarWindows.js`) returns the even-use share elapsed (`expected`), the minutes to the reset, and whether the window `runsOut` before it (past 15% of the window and 5 points over even use), or null for a balance, an `Unlimited` allowance, a window without `windowMinutes` or `resetsAt`, or a reset outside the window. `UsageBar` draws the tick and the flame from it and shows the numbers on hover; the widget's `paceFor()` re-evaluates with the stale clock and reads a cached module without `pace()` (a shell running since before the update) as no pace.
 - Claude details: one panel per Claude provider (the default account and every profile) with token/cost history, model and project distribution.
 - pi details: token/cost history, 7-day chart, top models, top projects (same expanded-card slot pattern as 9Router).
 - Hermes details: identity pills (default model, billing provider, session/message/API-call counters, version), token/cost tiles, 7-day cost (or token) chart, top models, top projects, and session-source badges.

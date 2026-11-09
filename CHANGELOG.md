@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- Every quota bar with a known window length and reset is paced, not only the Claude details panel: a thin tick marks where an even spend would be by now, and a flame appears next to the number only when the window, at its average rate so far, runs out before it resets. Hovering the bar shows the numbers (**Even pace: 40% by now · At this pace: used up in 51m · resets in 3h**), and the bar pill tooltip adds **used up in … at this pace** for such a window. The projection waits for 15% of the window and needs 5 points over even use, so an early burst stays quiet; balances, **Unlimited** allowances and windows without a reset are not paced. It follows **Show remaining quota**. The Claude details panel uses the same bars instead of its own forecast lines. A shell that was running before the update shows the pace after `dms restart`; until then the bars look as before. See [Pace](docs/usage.md#pace).
+
 ### Fixes
 
 - DeepSeek accounts carry one `balance_infos` entry per currency (USD and CNY); the adapter read only the first, so a CNY-funded account showed `$0.00` at 100% used. The first entry that holds funds is now reported (amounts in different currencies are not compared), and `is_available` is read from the response root where the API places it, so `false` marks the balance depleted even when a total is positive.

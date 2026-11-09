@@ -1375,6 +1375,13 @@ PluginComponent {
                 if (label && String(label).length > 0)
                     segment.push(label);
                 segment.push(isBalanceWindow(windowData) ? String(windowData.displayValue) : quotaPercentText(windowData.usedPercent));
+                // Only a window heading for exhaustion before its reset adds
+                // a word; one on pace keeps the tooltip as it was.
+                const pace = paceFor(windowData);
+                if (pace && pace.runsOut)
+                    segment.push(t("pace.pill_runs_out", "used up in {time} at this pace", {
+                        time: formatMinutes(pace.exhaustMinutes)
+                    }));
                 if (withReset) {
                     const reset = formatTimeUntil(windowData.resetsAt);
                     if (reset.length > 0)
@@ -1608,34 +1615,34 @@ PluginComponent {
         return t("time.days_hours", "{d}d {h}h", { d: Math.floor(hours / 24), h: hours % 24 });
     }
 
-    // Burn-rate forecast for a rolling window: utilization so far divided by
-    // elapsed window time, extrapolated to 100%.
-    function windowBurnForecast(util, resetIso, windowMinutes) {
-        if (!resetIso || util <= 0)
-            return null;
-        const resetMs = new Date(resetIso).getTime();
-        if (!Number.isFinite(resetMs))
-            return null;
-        const remainMin = Math.max(0, (resetMs - Date.now()) / 60000);
-        if (remainMin <= 0 || remainMin >= windowMinutes)
-            return null;
-        const elapsedMin = Math.max(1, windowMinutes - remainMin);
-        const rate = util / elapsedMin;
-        if (rate <= 0)
-            return null;
-        const minTo100 = (100 - util) / rate;
-        if (minTo100 <= remainMin) {
-            return {
-                exceed: true,
-                text: t("claude.burn_pace_exceed", "At this pace: 100% in {time}", {
-                    time: formatMinutes(minTo100)
-                })
-            };
-        }
-        return {
-            exceed: false,
-            text: t("claude.burn_pace_ok", "Usage on pace for this window")
-        };
+    // Pace of a quota window (BarWindows.pace) at the current time, or null
+    // when the window cannot be paced. staleTickMs re-evaluates callers as
+    // time passes, so the even-use tick keeps moving between refreshes.
+    // A shell that loaded the plugin before an update keeps its compiled
+    // BarWindows.js until `dms restart` (the engine caches script imports
+    // per URL, unlike the widget's own reloaded file), so a module without
+    // pace() reads as "no pace" instead of throwing on every binding.
+    function paceFor(windowData) {
+        staleTickMs;
+        return typeof BarWindows.pace === "function" ? BarWindows.pace(windowData, Date.now()) : null;
+    }
+
+    // Hover text of a paced quota bar: where an even spend would be by now,
+    // then the projection once the window is far enough in to make one.
+    function paceTooltipText(pace) {
+        if (!pace)
+            return "";
+        const lines = [t("pace.even", "Even pace: {percent} by now", {
+                percent: quotaPercentText(pace.expected)
+            })];
+        if (pace.runsOut)
+            lines.push(t("pace.runs_out", "At this pace: used up in {time} · resets in {reset}", {
+                time: formatMinutes(pace.exhaustMinutes),
+                reset: formatMinutes(pace.resetMinutes)
+            }));
+        else if (pace.projects)
+            lines.push(t("pace.lasts", "At this pace it lasts until the reset"));
+        return lines.join("\n");
     }
 
     // Each Claude provider's details panel is built from its own dispatcher

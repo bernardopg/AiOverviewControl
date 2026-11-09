@@ -46,7 +46,8 @@ function details(provider, profiles, now) {
     }
     function rate(window) {
         if (!window || typeof window !== "object") return null;
-        return {percent: num(window.usedPercent), resetsAt: window.resetsAt || null};
+        return {percent: num(window.usedPercent), resetsAt: window.resetsAt || null,
+            windowMinutes: num(window.windowMinutes) || null};
     }
     function pairs(text) {
         const result = [];
@@ -75,7 +76,8 @@ function details(provider, profiles, now) {
 
     const scopedWindow = usage ? rate(usage.tertiary) : null;
     const scoped = scopedWindow && analytics.scopedModel && scopedWindow.percent > 0
-        ? {model: String(analytics.scopedModel), percent: scopedWindow.percent, resetsAt: scopedWindow.resetsAt}
+        ? {model: String(analytics.scopedModel), percent: scopedWindow.percent, resetsAt: scopedWindow.resetsAt,
+            windowMinutes: scopedWindow.windowMinutes}
         : null;
 
     const monthCost = num(analytics.monthCost);

@@ -57,13 +57,10 @@ ccusage, Claude-Code-Usage-Monitor, tokscale) and against the non-goals in
   whose readiness is already **Ready** (credential or CLI found), with a
   confirmation listing them. Readiness exists; this is the one-click onboarding
   ai-usagebar ships as `detect`. Never raises a keyring prompt. `S · ★★`
-- [ ] **Pace for every window** — `windowBurnForecast()` only runs in the
-  Claude details panel. Move it next to `BarWindows.js` (in `lib/`, see
-  #92), and show it for every rolling window that reports `resetsAt` and a
-  window length: "on pace", "ahead by 12%" or "runs out in 2h 10m, resets in
-  3h". Add an even-use tick on each quota bar at the elapsed fraction of the
-  window (CodexBar's even-use guide). Label it as a projection; skip balance,
-  informational and analytics-only windows. `M · ★★★`
+- [x] **Pace for every window** — even-use tick on every quota bar with a
+  window length and reset, a flame when the window runs out before its reset,
+  numbers on hover and in the pill tooltip; the Claude panel uses the same
+  bars. `BarWindows.pace()` in `lib/`. Ships in the next release. `M · ★★★`
 - [ ] **Forecast alert** — opt-in `notifyForecast`: alert once per window
   when the pace above projects exhaustion before the reset, before the
   threshold is crossed. Reuses the dedupe key and cooldown of quota alerts;

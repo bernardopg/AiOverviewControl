@@ -677,7 +677,7 @@ PopoutComponent {
                                             id: heroBarsCol
                                             width: parent.width
                                             spacing: Theme.spacingM
-                                            opacity: heroBarsJump.containsMouse ? 0.82 : 1
+                                            opacity: heroBarsJump.hovered ? 0.82 : 1
                                             Behavior on opacity {
                                                 NumberAnimation {
                                                     duration: 120
@@ -694,16 +694,19 @@ PopoutComponent {
                                                     percent: Number(modelData.data.usedPercent || 0)
                                                     aside: root.formatUsageLine(modelData.data)
                                                     accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                                                    pace: root.paceFor(modelData.data)
                                                 }
                                             }
                                         }
 
-                                        MouseArea {
+                                        // Handlers rather than a MouseArea on top, so each bar
+                                        // still receives the hover that shows its pace.
+                                        HoverHandler {
                                             id: heroBarsJump
-                                            anchors.fill: parent
-                                            hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.focusProvider(root.providerData ? root.providerData.provider : "")
+                                        }
+                                        TapHandler {
+                                            onTapped: root.focusProvider(root.providerData ? root.providerData.provider : "")
                                         }
                                     }
 
@@ -2205,16 +2208,32 @@ PopoutComponent {
         property bool quota: true
         readonly property real displayPercent: quota ? root.quotaDisplayPercent(percent) : percent
         property color accentColor: root.getUsageColor(percent)
+        // Pace of the window this bar draws (controller.paceFor), or null.
+        // It adds no text to the bar: a tick marks where an even spend would
+        // be by now, a flame appears only when the window is heading for
+        // exhaustion before its reset, and the numbers wait behind hover.
+        property var pace: null
+        readonly property bool paceWarn: !!pace && pace.runsOut
+        readonly property string paceText: root.paceTooltipText(pace)
+        readonly property bool paceHovered: paceHover.hovered
 
         width: parent ? parent.width : implicitWidth
         spacing: 6
+
+        HoverHandler {
+            id: paceHover
+            enabled: usageBar.paceText.length > 0
+        }
+        ToolTip.visible: usageBar.paceHovered && usageBar.paceText.length > 0
+        ToolTip.delay: 400
+        ToolTip.text: usageBar.paceText
 
         Row {
             width: parent.width
             spacing: Theme.spacingS
 
             StyledText {
-                width: parent.width - valueText.implicitWidth - Theme.spacingS
+                width: parent.width - valueRow.implicitWidth - Theme.spacingS
                 text: usageBar.label
                 color: Theme.surfaceText
                 font.pixelSize: Theme.fontSizeSmall + 1
@@ -2222,50 +2241,101 @@ PopoutComponent {
                 elide: Text.ElideRight
             }
 
-            StyledText {
-                id: valueText
-                text: usageBar.aside.length > 0 ? usageBar.aside : (usageBar.quota ? root.quotaPercentText(usageBar.percent) : `${Math.round(usageBar.percent)}%`)
-                wrapMode: Text.NoWrap
-                color: usageBar.accentColor
-                Behavior on color {
-                    ColorAnimation {
-                        duration: 300
-                    }
+            Row {
+                id: valueRow
+                spacing: Theme.spacingXS
+
+                DIcon {
+                    objectName: "pace-flame"
+                    visible: usageBar.paceWarn
+                    name: "local_fire_department"
+                    filled: true
+                    size: Theme.fontSizeSmall + 2
+                    color: Theme.warning
+                    anchors.verticalCenter: parent.verticalCenter
                 }
-                font.pixelSize: Theme.fontSizeSmall + 1
-                font.weight: Font.DemiBold
+
+                StyledText {
+                    id: valueText
+                    text: usageBar.aside.length > 0 ? usageBar.aside : (usageBar.quota ? root.quotaPercentText(usageBar.percent) : `${Math.round(usageBar.percent)}%`)
+                    wrapMode: Text.NoWrap
+                    color: usageBar.accentColor
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 300
+                        }
+                    }
+                    font.pixelSize: Theme.fontSizeSmall + 1
+                    font.weight: Font.DemiBold
+                }
             }
         }
 
-        Rectangle {
+        Item {
             width: parent.width
             height: 8
-            radius: 4
-            color: Theme.withAlpha(Theme.surfaceText, 0.075)
-            border.width: 1
-            border.color: Theme.withAlpha(Theme.surfaceText, 0.045)
-            clip: true
 
             Rectangle {
-                id: usageFill
-                property bool grown: false
-                width: grown ? Math.max(3, Math.min(1, usageBar.displayPercent / 100) * parent.width) : 0
-                height: parent.height
-                radius: parent.radius
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop {
-                        position: 0.0
-                        color: Theme.withAlpha(usageBar.accentColor, 0.7)
+                anchors.fill: parent
+                radius: 4
+                color: Theme.withAlpha(Theme.surfaceText, 0.075)
+                border.width: 1
+                border.color: Theme.withAlpha(Theme.surfaceText, 0.045)
+                clip: true
+
+                Rectangle {
+                    id: usageFill
+                    property bool grown: false
+                    width: grown ? Math.max(3, Math.min(1, usageBar.displayPercent / 100) * parent.width) : 0
+                    height: parent.height
+                    radius: parent.radius
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop {
+                            position: 0.0
+                            color: Theme.withAlpha(usageBar.accentColor, 0.7)
+                        }
+                        GradientStop {
+                            position: 1.0
+                            color: usageBar.accentColor
+                        }
                     }
-                    GradientStop {
-                        position: 1.0
-                        color: usageBar.accentColor
+                    Component.onCompleted: Qt.callLater(() => usageFill.grown = true)
+
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: 520
+                            easing.type: Easing.OutCubic
+                        }
                     }
                 }
-                Component.onCompleted: Qt.callLater(() => usageFill.grown = true)
+            }
 
-                Behavior on width {
+            // Even-use tick: where the fill would stop if the quota were
+            // spent evenly over the window. It overhangs the track by 2 px
+            // on each side and carries a hairline outline, so it stays
+            // readable over the empty track and over any fill colour. In
+            // remaining-quota mode it sits at the remaining share instead.
+            Rectangle {
+                objectName: "pace-tick"
+                visible: !!usageBar.pace
+                readonly property real at: usageBar.pace ? root.quotaDisplayPercent(usageBar.pace.expected) / 100 : 0
+                x: Math.max(0, Math.min(parent.width - width, at * parent.width - width / 2))
+                y: -2
+                width: 3
+                height: parent.height + 4
+                radius: 1.5
+                color: Theme.withAlpha(Theme.surfaceText, 0.72)
+                border.width: 1
+                border.color: Theme.withAlpha(Theme.surfaceContainerHigh, 0.85)
+                opacity: usageFill.grown ? 1 : 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 320
+                    }
+                }
+                Behavior on x {
                     NumberAnimation {
                         duration: 520
                         easing.type: Easing.OutCubic
@@ -2555,6 +2625,7 @@ PopoutComponent {
                         return reset.length > 0 ? `${percentText} · ${reset}` : percentText;
                     }
                     accentColor: root.getUsageColor(Number(modelData.usedPercent || 0))
+                    pace: root.paceFor(modelData)
                 }
             }
         }
@@ -2992,6 +3063,7 @@ PopoutComponent {
                 percent: root.providerPercent(card.provider)
                 aside: card.windows.length > 0 ? root.formatUsageLine(card.windows[0].data) : root.quotaPercentText(root.providerPercent(card.provider))
                 accentColor: root.getUsageColor(root.providerPercent(card.provider))
+                pace: card.windows.length > 0 ? root.paceFor(card.windows[0].data) : null
             }
 
             Column {
@@ -3030,6 +3102,7 @@ PopoutComponent {
                         percent: Number(modelData.data.usedPercent || 0)
                         aside: root.formatUsageLine(modelData.data)
                         accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                        pace: root.paceFor(modelData.data)
                     }
                 }
 
@@ -3119,13 +3192,13 @@ PopoutComponent {
                     // Bindings below still evaluate while hidden; read through
                     // an empty shape instead of guarding every access.
                     readonly property var view: details || ({session: null, weekly: null, scoped: null, extraUsage: null, dailyTokens: [], dailyCosts: [], models: [], projects: []})
-                    readonly property var sessionForecast: {
-                        root.staleTickMs;
-                        return view.session ? root.windowBurnForecast(view.session.percent, view.session.resetsAt, 300) : null;
-                    }
-                    readonly property var weekForecast: {
-                        root.staleTickMs;
-                        return view.weekly ? root.windowBurnForecast(view.weekly.percent, view.weekly.resetsAt, 10080) : null;
+                    // Pace of a details window, read like any other quota window.
+                    function paceOf(window) {
+                        return window ? root.paceFor({
+                            usedPercent: window.percent,
+                            resetsAt: window.resetsAt,
+                            windowMinutes: window.windowMinutes
+                        }) : null;
                     }
                     visible: details !== null
                     width: parent.width
@@ -3174,6 +3247,7 @@ PopoutComponent {
                                 return reset.length > 0 ? `${root.quotaPercentText(window.percent)} · ${reset}` : root.quotaPercentText(window.percent);
                             }
                             accentColor: root.getUsageColor(window ? window.percent : 0)
+                            pace: claudePanel.paceOf(window)
                         }
 
                         UsageBar {
@@ -3189,26 +3263,7 @@ PopoutComponent {
                                 return reset.length > 0 ? `${root.quotaPercentText(window.percent)} · ${reset}` : root.quotaPercentText(window.percent);
                             }
                             accentColor: root.getUsageColor(window ? window.percent : 0)
-                        }
-
-                        Row {
-                            visible: !!claudePanel.weekForecast && claudePanel.weekForecast.exceed
-                            spacing: Theme.spacingXS
-
-                            DIcon {
-                                name: "local_fire_department"
-                                size: 14
-                                color: Theme.error
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            StyledText {
-                                text: claudePanel.weekForecast ? claudePanel.weekForecast.text : ""
-                                color: Theme.error
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.weight: Font.DemiBold
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
+                            pace: claudePanel.paceOf(window)
                         }
 
                         UsageBar {
@@ -3224,26 +3279,7 @@ PopoutComponent {
                                 return reset.length > 0 ? `${root.quotaPercentText(window.percent)} · ${reset}` : root.quotaPercentText(window.percent);
                             }
                             accentColor: root.getUsageColor(window ? window.percent : 0)
-                        }
-
-                        Row {
-                            visible: !!claudePanel.sessionForecast
-                            spacing: Theme.spacingXS
-
-                            DIcon {
-                                name: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? "local_fire_department" : "check_circle"
-                                size: 14
-                                color: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? Theme.error : Theme.success
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            StyledText {
-                                text: claudePanel.sessionForecast ? claudePanel.sessionForecast.text : ""
-                                color: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? Theme.error : Theme.surfaceVariantText
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.weight: claudePanel.sessionForecast && claudePanel.sessionForecast.exceed ? Font.DemiBold : Font.Normal
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
+                            pace: claudePanel.paceOf(window)
                         }
 
                         GridLayout {
