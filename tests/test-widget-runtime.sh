@@ -92,7 +92,7 @@ ShellRoot {
     property int step: 0
     property bool pointerTest: Quickshell.env("AIOC_TEST_POINTER") === "1"
     property real dragScrollY: 0
-    property var paceHoverBars: null
+    property bool paceHeroShown: false
     property real pillWidth: 0
     property real pillHeight: 0
     // Positioners lay out on polish, which never runs in the hidden scene.
@@ -228,26 +228,43 @@ ShellRoot {
                     || widget.pillTooltipText().indexOf(widget.t("pace.pill_runs_out", "", {time: ""}).trim()) >= 0) {
                     console.error("SMOKE FAIL: quota window pace ticks " + ticks.length + ", flames " + flames.length); return;
                 }
-                // Pointer pass: every paced bar shows its numbers on hover,
-                // the hero's included (its jump link must not swallow the
-                // hover), and a click on the hero bars still opens the card.
-                if (root.pointerTest && root.paceHoverBars === null) {
+                // Every paced bar must be able to show its numbers on hover:
+                // no hover-enabled MouseArea may sit above it (the hero's jump
+                // link once did). Checked from the item tree, since a headless
+                // compositor without input devices delivers no synthetic hover.
+                const covers = (above, bar) => {
+                    const centre = bar.mapToItem(above, bar.width / 2, bar.height / 2);
+                    return centre.x >= 0 && centre.x <= above.width && centre.y >= 0 && centre.y <= above.height;
+                };
+                const hoverBlocked = bar => {
+                    for (let item = bar; item.parent; item = item.parent) {
+                        const siblings = Array.from(item.parent.children);
+                        const own = siblings.indexOf(item);
+                        for (let i = 0; i < siblings.length; i++) {
+                            const other = siblings[i];
+                            const onTop = other.z > item.z || (other.z === item.z && i > own);
+                            if (other !== item && onTop && other.visible && other.enabled && other.hoverEnabled === true
+                                && String(other).indexOf("MouseArea") >= 0 && covers(other, bar))
+                                return true;
+                        }
+                    }
+                    return false;
+                };
+                const pacedBars = ticks.map(tick => tick.parent.parent);
+                if (pacedBars.some(hoverBlocked) || pacedBars.some(bar => bar.paceText.length === 0)) {
+                    console.error("SMOKE FAIL: a paced bar cannot receive hover"); return;
+                }
+                // Pointer pass: a click on the hero bars still opens the card.
+                // The scene is shown one tick before the click, as the drag
+                // pass does, so a headless compositor has exposed it.
+                if (root.pointerTest && !root.paceHeroShown) {
                     scene.visible = true;
-                    root.paceHoverBars = ticks.map(tick => tick.parent.parent);
-                    input.mouseMove(root.paceHoverBars[0], 4, 4);
+                    root.paceHeroShown = true;
                     return;
                 }
-                if (root.pointerTest && root.paceHoverBars.length > 0) {
-                    const bar = root.paceHoverBars.shift();
-                    if (!bar.paceHovered || bar.paceText.length === 0) {
-                        console.error("SMOKE FAIL: paced bar ignores hover"); return;
-                    }
-                    if (root.paceHoverBars.length > 0) {
-                        input.mouseMove(root.paceHoverBars[0], 4, 4);
-                        return;
-                    }
+                if (root.pointerTest) {
                     widget.focusedProviderId = "";
-                    input.mouseClick(ticks[0].parent.parent, 4, 4); // ticks[0] is the hero's first bar
+                    input.mouseClick(pacedBars[0], 4, 4); // the hero's first bar
                     if (widget.focusedProviderId !== "codex") {
                         console.error("SMOKE FAIL: hero bars no longer open the card"); return;
                     }
