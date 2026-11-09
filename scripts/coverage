@@ -39,6 +39,13 @@ kcov --merge "$OUT/merged" "$OUT"/runs/test-*/ >/dev/null
 [[ ! -e "$OUT/failed" ]] || exit 1
 # kcov's raw percentage counts the bodies of embedded jq/awk programs and
 # heredocs as unexecuted statements; coverage-report counts statements only.
+# AIOC_COVERAGE_BADGE=check (CI) or write keeps docs/badges.json's coverage,
+# which the README badge reads, equal to this measurement.
+badge=()
+case "${AIOC_COVERAGE_BADGE:-}" in
+    check) badge=(--badge-check "$ROOT/docs/badges.json") ;;
+    write) badge=(--badge-write "$ROOT/docs/badges.json") ;;
+esac
 "$ROOT/scripts/coverage-report" "$OUT/merged/kcov-merged/codecov.json" "$ROOT" \
-    --min "$MIN" --files "$OUT/files.tsv"
+    --min "$MIN" --files "$OUT/files.tsv" "${badge[@]}"
 echo "Per file: $OUT/files.tsv"

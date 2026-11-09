@@ -26,3 +26,5 @@ GEMINI.md
 opencode.jsonc
 .qmlls.ini
 coverage/
+__pycache__/
+*.py[cod]

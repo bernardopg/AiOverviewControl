@@ -14,7 +14,13 @@ Bash never traces a line that runs no command: an empty case branch
 redirects a block. kcov still lists those lines, so they are grouped with the
 statement above them too.
 
+The README coverage badge reads `coverage` from docs/badges.json: the whole
+percentage, rounded down, so it never claims more than was measured.
+--badge-check fails when that number differs from the measurement, and
+--badge-write sets it.
+
 Usage: scripts/coverage-report CODECOV_JSON ROOT [--min PERCENT] [--files TSV]
+                               [--badge-check JSON | --badge-write JSON]
 """
 import argparse
 import json
@@ -111,6 +117,9 @@ def main():
     parser.add_argument("root")
     parser.add_argument("--min", type=float, default=0.0)
     parser.add_argument("--files", help="write per-file coverage as TSV")
+    badge = parser.add_mutually_exclusive_group()
+    badge.add_argument("--badge-check", metavar="JSON", help="fail unless JSON's coverage matches")
+    badge.add_argument("--badge-write", metavar="JSON", help="store the coverage in JSON")
     args = parser.parse_args()
     root = Path(args.root).resolve()
     coverage = json.loads(Path(args.codecov).read_text())["coverage"]
@@ -145,6 +154,20 @@ def main():
     if percent < args.min:
         print(f"Coverage {percent:.2f}% is below the {args.min:g}% minimum", file=sys.stderr)
         return 1
+    badge_value = int(percent)
+    if args.badge_write:
+        path = Path(args.badge_write)
+        data = json.loads(path.read_text()) if path.exists() else {}
+        data["coverage"] = badge_value
+        path.write_text(json.dumps(data, indent=2) + "\n")
+        print(f"Badge coverage set to {badge_value}% in {path}")
+    if args.badge_check:
+        path = Path(args.badge_check)
+        stored = json.loads(path.read_text()).get("coverage") if path.exists() else None
+        if stored != badge_value:
+            print(f"{path} says coverage {stored}, measured {badge_value}: set \"coverage\": {badge_value}"
+                  f" (scripts/coverage-report ... --badge-write {path})", file=sys.stderr)
+            return 1
     return 0
 
 

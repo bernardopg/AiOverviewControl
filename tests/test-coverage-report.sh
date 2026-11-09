@@ -56,4 +56,15 @@ fi
 grep -q 'below the 90% minimum' "$TMP/err" || fail "no minimum message"
 "$ROOT/scripts/coverage-report" "$TMP/codecov.json" "$TMP" --min 80 >/dev/null || fail "rejected coverage above --min"
 
-echo "OK: coverage-report statement counting and minimum gate"
+# The README badge number: whole percent rounded down, written and checked.
+printf '{\n  "providers": 3\n}\n' > "$TMP/badges.json"
+"$ROOT/scripts/coverage-report" "$TMP/codecov.json" "$TMP" --badge-write "$TMP/badges.json" >/dev/null || fail "badge write"
+jq -e '.coverage == 85 and .providers == 3' "$TMP/badges.json" >/dev/null || fail "badge write content: $(cat "$TMP/badges.json")"
+"$ROOT/scripts/coverage-report" "$TMP/codecov.json" "$TMP" --badge-check "$TMP/badges.json" >/dev/null || fail "matching badge rejected"
+jq '.coverage = 86' "$TMP/badges.json" > "$TMP/stale.json"
+if "$ROOT/scripts/coverage-report" "$TMP/codecov.json" "$TMP" --badge-check "$TMP/stale.json" >/dev/null 2>"$TMP/err"; then
+  fail "stale badge accepted"
+fi
+grep -q 'says coverage 86, measured 85' "$TMP/err" || fail "stale badge message: $(cat "$TMP/err")"
+
+echo "OK: coverage-report statement counting, minimum gate and badge"
