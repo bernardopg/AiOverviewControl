@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.4.1 - 2026-11-11
+
+A bug-fix release for Dux Shell 2.0 and 2.1. On a Claude Team plan, a member's sign-in cannot read the organization's usage credits, and the plugin asked for them again on every refresh until Anthropic rate limited the usage endpoint behind the Claude card. A refusal is now remembered for a day per organization, a rate limit on the credits endpoint pauses both requests, and the card names the next try. Only the Claude adapter changed: update through **Settings → Plugins → Check for updates**, no restart needed. Settings, profiles, pins and history carry over unchanged.
+
+Long-form notes: [docs/releases/2.4.1.md](docs/releases/2.4.1.md).
+
 ### Fixes
 
 - Claude accounts whose sign-in cannot read the organization's usage credits (a Team plan member gets HTTP 403 from `prepaid/credits`) no longer ask for them on every refresh. Nothing was recorded for a refusal, so each widget instance and each refresh asked again, and the account was soon rate limited (HTTP 429) on the usage endpoint that feeds the Claude card. A 403 or 404 is now remembered for 24 hours per organization and shows no credits, a 429 there pauses the usage endpoint as well and the card names the next try, credits are not asked while that pause holds, and switching organization re-checks at once instead of reusing the other organization's balance. The record is replaced atomically, so a refresh killed mid-write keeps the last balance, and a record written by 2.4.0, which names no organization, is checked again once (#123).
