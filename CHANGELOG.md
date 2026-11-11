@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- Claude accounts whose sign-in cannot read the organization's usage credits (a Team plan member gets HTTP 403 from `prepaid/credits`) no longer ask for them on every refresh. Nothing was recorded for a refusal, so each widget instance and each refresh asked again, and the account was soon rate limited (HTTP 429) on the usage endpoint that feeds the Claude card. A 403 or 404 is now remembered for 24 hours per organization and shows no credits, a 429 there pauses the usage endpoint as well, credits are not asked while that pause holds, and switching organization re-checks at once instead of reusing the other organization's balance (#123).
+- Claude accounts whose sign-in cannot read the organization's usage credits (a Team plan member gets HTTP 403 from `prepaid/credits`) no longer ask for them on every refresh. Nothing was recorded for a refusal, so each widget instance and each refresh asked again, and the account was soon rate limited (HTTP 429) on the usage endpoint that feeds the Claude card. A 403 or 404 is now remembered for 24 hours per organization and shows no credits, a 429 there pauses the usage endpoint as well and the card names the next try, credits are not asked while that pause holds, and switching organization re-checks at once instead of reusing the other organization's balance. The record is replaced atomically, so a refresh killed mid-write keeps the last balance, and a record written by 2.4.0, which names no organization, is checked again once (#123).
 
 ### Thanks
 
