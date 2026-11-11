@@ -6,6 +6,8 @@
 #  - reset-provider-limits redeems one reset per call with an idempotency id,
 #    never POSTs without a usable grant, maps every refusal to a result that
 #    says nothing was used, and drops the cached usage after a reset
+#  - a refused credits read (403/404) is recorded for a day per organization,
+#    and a 429 there pauses the usage endpoint too (issue #123)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
@@ -29,10 +31,11 @@ cat > "$TMP/bin/curl" <<'SH'
 #!/usr/bin/env bash
 # Adapters pass secret headers through --config files; expand them back to -H.
 _cfg=(); while [ $# -gt 0 ]; do if [ "$1" = --config ] || [ "$1" = -K ]; then while IFS= read -r _l; do case "$_l" in 'header = "'*) _v="${_l#header = \"}"; _cfg+=(-H "${_v%\"}") ;; esac; done < "$2"; shift 2; else _cfg+=("$1"); shift; fi; done; set -- "${_cfg[@]}"
-out=""; prev=""; url=""; method=GET; body=""
+out=""; prev=""; url=""; method=GET; body=""; HEADERS_OUT=/dev/null
 for arg in "$@"; do
   [ "$prev" != -o ] || out="$arg"
   [ "$prev" != -X ] || method="$arg"
+  [ "$prev" != -D ] || HEADERS_OUT="$arg"
   case "$arg" in https://*) url="$arg" ;; esac
   prev="$arg"
 done
@@ -51,6 +54,12 @@ case "$url" in
       \"spend\":{\"enabled\":true,\"used\":{\"amount_minor\":1250,\"currency\":\"BRL\",\"exponent\":2},\"limit\":{\"amount_minor\":2500,\"currency\":\"BRL\",\"exponent\":2},\"percent\":50},
       \"cedar_ember\":$grants}" > "$out"; printf 200 ;;
   *"/prepaid/credits")
+    if [ "${PREPAID_STATUS:-}" = 200html ]; then printf '<html>maintenance</html>' > "$out"; printf 200; exit 0; fi
+    if [ -n "${PREPAID_STATUS:-}" ]; then
+      printf '{"error":{"type":"permission_error"}}' > "$out"
+      [ "$PREPAID_STATUS" != 429 ] || printf 'HTTP/2 429\r\nretry-after: 900\r\n\r\n' > "$HEADERS_OUT"
+      printf '%s' "$PREPAID_STATUS"; exit 0
+    fi
     printf '%s' '{"amount":5500,"currency":"BRL","balance":{"money":{"amount_minor":5500,"currency":"BRL","exponent":2}},"promo_tranches":[{"remaining_amount_minor_units":5500}],"next_expires_at":"2027-10-22T00:00:00Z"}' > "$out"; printf 200 ;;
   *"/reset_rate_limits")
     case "${CLAIM:-reset}" in
@@ -144,6 +153,96 @@ out="$(AIOC_CLAUDE_PROFILES='{"claude-rel":{"configDir":"relative/dir"}}' bash "
 jq -e '.result == "error" and (.message | test("absolute"))' <<<"$out" >/dev/null || fail "relative profile dir: $out"
 out="$(bash "$ROOT/providers/reset-provider-limits" gemini)"
 jq -e '.result == "error"' <<<"$out" >/dev/null || fail "unsupported provider accepted"
+
+# --- Claude: a refused credits read is not asked again on every run (#123) ---
+# A Team member gets 403 from prepaid/credits. Without a recorded refusal every
+# run (one per monitor, every manual refresh) asked again and the account was
+# soon rate limited on the usage endpoint.
+team="$TMP/team"
+mkdir -p "$team/projects"
+cp "$CLAUDE_CONFIG_DIR/.credentials.json" "$CLAUDE_CONFIG_DIR/.claude.json" "$team/"
+team_cache="$XDG_CACHE_HOME/AiOverviewControl/claude-profiles/$(printf '%s' "$team" | sha256sum | cut -d ' ' -f 1)"
+prepaid_cache="$team_cache/claude-prepaid-cache.json"
+team_run() { CLAUDE_CONFIG_DIR="$team" bash "$ROOT/providers/get-claude-usage"; }
+prepaid_calls() { grep -c '/prepaid/credits' "$CURL_LOG" || true; }
+# Moves the last credits answer $1 seconds into the past.
+age_prepaid() { jq -c --argjson s "$1" '.checked_at -= $s' "$prepaid_cache" > "$prepaid_cache.new" && mv "$prepaid_cache.new" "$prepaid_cache"; }
+# A first-ever refusal records itself, with no balance to keep.
+PREPAID_STATUS=403 team_run >/dev/null
+jq -e '.status == "403" and .data == null' "$prepaid_cache" >/dev/null || fail "first 403 not recorded"
+rm -f "$prepaid_cache"
+team_run >/dev/null
+jq -e '.data.balance.money.amount_minor == 5500 and .status == "200"' "$prepaid_cache" >/dev/null || fail "team: first balance not cached"
+# A cache written before #123 ({cached_at, data}) is still honoured.
+cp "$prepaid_cache" "$TMP/prepaid-current.json"
+jq -c '{cached_at: .checked_at, data}' "$TMP/prepaid-current.json" > "$prepaid_cache"
+: > "$CURL_LOG"
+grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$(team_run)" || fail "pre-#123 cache not read"
+[ "$(prepaid_calls)" -eq 0 ] || fail "pre-#123 fresh cache asked again"
+cp "$TMP/prepaid-current.json" "$prepaid_cache"
+age_prepaid 601
+: > "$CURL_LOG"
+out="$(PREPAID_STATUS=403 team_run)"
+grep -q '^CLAUDE_PREPAID=$' <<<"$out" || fail "403 kept showing a balance the account cannot read: $(grep PREPAID <<<"$out")"
+grep -q '^FIVE_HOUR_UTIL=91$' <<<"$out" || fail "403 on credits broke the usage card"
+jq -e '.status == "403" and .data == null' "$prepaid_cache" >/dev/null || fail "403 not recorded: $(cat "$prepaid_cache")"
+for _ in 1 2 3; do PREPAID_STATUS=403 team_run >/dev/null; done
+rm -f "$team_cache/claude-usage-cache.json"
+PREPAID_STATUS=403 team_run >/dev/null
+[ "$(prepaid_calls)" -eq 1 ] || fail "403 asked again within a day: $(prepaid_calls) requests"
+age_prepaid 3600
+PREPAID_STATUS=403 team_run >/dev/null
+[ "$(prepaid_calls)" -eq 1 ] || fail "403 asked again after an hour"
+age_prepaid 86400
+PREPAID_STATUS=404 team_run >/dev/null
+[ "$(prepaid_calls)" -eq 2 ] || fail "refusal not re-checked after a day"
+jq -e '.status == "404"' "$prepaid_cache" >/dev/null || fail "404 not recorded"
+# Another organization's refusal is not honoured after a switch.
+jq -n '{oauthAccount:{organizationUuid:"11111111-2222-4333-8444-555566667777"}}' > "$team/.claude.json"
+: > "$CURL_LOG"
+out="$(team_run)"
+[ "$(prepaid_calls)" -eq 1 ] || fail "organization switch did not re-check credits"
+grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$out" || fail "new organization balance: $(grep PREPAID <<<"$out")"
+jq -e '.org == "11111111-2222-4333-8444-555566667777"' "$prepaid_cache" >/dev/null || fail "cache not scoped to the organization"
+# A transient failure keeps the last good balance and is retried after 10 minutes.
+age_prepaid 601
+: > "$CURL_LOG"
+out="$(PREPAID_STATUS=500 team_run)"
+grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$out" || fail "500 dropped the last good balance"
+PREPAID_STATUS=500 team_run >/dev/null
+[ "$(prepaid_calls)" -eq 1 ] || fail "500 asked again within 10 minutes"
+# A 200 whose body is not a credits object is a failure, not a balance.
+age_prepaid 601
+out="$(PREPAID_STATUS=200html team_run)"
+grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$out" || fail "HTML 200 replaced the balance"
+jq -e '.status == "000"' "$prepaid_cache" >/dev/null || fail "HTML 200 recorded as success: $(cat "$prepaid_cache")"
+# A corrupt or empty record, or one stamped in the future (the clock moved
+# back), is not trusted: credits are asked again at once.
+for bad in 'not json' '' '{"checked_at":"soon","status":"403","data":null}'; do
+  printf '%s' "$bad" > "$prepaid_cache"
+  : > "$CURL_LOG"
+  grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$(team_run)" || fail "record '$bad' not replaced by a fresh read"
+  [ "$(prepaid_calls)" -eq 1 ] || fail "record '$bad' did not re-check credits"
+done
+printf '' > "$prepaid_cache"
+PREPAID_STATUS=500 team_run >/dev/null
+jq -e '.status == "500" and .data == null' "$prepaid_cache" >/dev/null || fail "500 over an empty record: $(cat "$prepaid_cache")"
+jq -c '.checked_at += 7200 | .status = "403"' "$prepaid_cache" > "$prepaid_cache.new" && mv "$prepaid_cache.new" "$prepaid_cache"
+: > "$CURL_LOG"
+team_run >/dev/null
+[ "$(prepaid_calls)" -eq 1 ] || fail "a refusal stamped in the future was honoured"
+# A 429 on credits pauses the usage endpoint too: they share one rate limit.
+age_prepaid 601
+rm -f "$team_cache/claude-usage-cache.json"
+: > "$CURL_LOG"
+PREPAID_STATUS=429 team_run >/dev/null
+jq -e '.status == "429" and .until > now + 800' "$team_cache/claude-usage-backoff.json" >/dev/null \
+  || fail "429 on credits did not record the shared backoff"
+rm -f "$team_cache/claude-usage-cache.json"
+out="$(team_run)"
+[ "$(grep -c '/api/oauth/usage' "$CURL_LOG")" -eq 1 ] || fail "usage asked again during the credits backoff"
+[ "$(prepaid_calls)" -eq 1 ] || fail "credits asked again during the backoff"
+grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$out" || fail "backoff dropped the last good balance"
 
 # --- Codex: credits, spend control and reset credits ---
 item="$(bash "$ROOT/providers/get-codex-usage")"

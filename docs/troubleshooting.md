@@ -82,6 +82,8 @@ If the Claude card shows **Stale** and an older **Updated** time than the last r
 
 After a 429 or 5xx the adapter stops asking until a backoff ends (120 s, doubling per consecutive failure up to 30 minutes, or the server's `Retry-After` when longer), and the card's **Updated** line shows **Rate limited · next try HH:MM**. A manual refresh honours that backoff too, since asking again only extends the limit. The limit is per account and shared with Claude Code and with any other tool polling the same endpoint (another quota widget, a status line script): if the backoff keeps returning, raise **Refresh interval** and stop the other pollers. `./providers/get-claude-usage | grep -E '^USAGE_RETRY_(AT|REASON)='` shows the current backoff, and `claude-usage-backoff.json` under `~/.cache/AiOverviewControl/claude-profiles/<hash>/` holds it; deleting that file ends it early.
 
+Usage credits come from a separate organization endpoint that shares the same rate limit. A Team plan member, or a plan without usage credits, gets HTTP 403 there; the card then shows no credits and the adapter does not ask again for 24 hours (`claude-prepaid-cache.json` in the same folder records the answer; deleting it re-checks at the next refresh). A 429 on that endpoint starts the same backoff as the usage endpoint.
+
 ## Copilot
 
 ```bash
