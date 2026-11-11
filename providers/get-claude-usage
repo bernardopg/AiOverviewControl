@@ -29,6 +29,10 @@ USAGE_BACKOFF="${ACCOUNT_CACHE}/claude-usage-backoff.json"
 USAGE_BACKOFF_MAX=1800  # seconds: cap of the doubling
 USAGE_RETRY_AFTER_MAX=3600  # seconds: the longest Retry-After honoured
 PREPAID_CACHE_TTL=600  # seconds: the credit balance moves with spend, not per poll
+# A 403 or 404 means the organization's credits cannot be read with this
+# sign-in (a Team member, a plan without usage credits). That answer does not
+# change per poll, so it is not asked again for a day (issue #123).
+PREPAID_UNAVAILABLE_TTL=86400  # seconds
 # Rate limits Claude Code passed to providers/claude-statusline-bridge. A
 # reading confirmed within STATUSLINE_MAX_AGE replaces the endpoint's session
 # and weekly numbers when it is newer, and stretches the endpoint's cache to
@@ -495,28 +499,55 @@ elif [ -f "$CREDENTIALS" ]; then
         | .usableNow = any(.items[]; .usableNow and (.paused | not) and .resetsLeft > 0)' 2>/dev/null || true)
 
     # Usage credits (prepaid and promotional) live on an organization
-    # endpoint. A failed read keeps the last good balance.
+    # endpoint. Every answer is recorded with the organization it is for, so
+    # each widget instance and refresh asks at most once per TTL: a refusal
+    # (403, 404) for PREPAID_UNAVAILABLE_TTL and shows no balance, any other
+    # failure for PREPAID_CACHE_TTL and keeps the last good balance.
+    ORG_UUID="$(claude_org_uuid "$CLAUDE_DIR" || true)"
+    if [ -f "$PREPAID_CACHE" ] && [ -n "$ORG_UUID" ] && ! jq -e --arg org "$ORG_UUID" \
+            '(.org // $org) == $org' "$PREPAID_CACHE" >/dev/null 2>&1; then
+        # Another organization's balance or refusal: never show or honour it.
+        rm -f "$PREPAID_CACHE"
+    fi
     PREPAID_FRESH=false
     if [ -f "$PREPAID_CACHE" ]; then
-        prepaid_ts=$(jq -r '.cached_at // 0' "$PREPAID_CACHE" 2>/dev/null || echo 0)
+        IFS=$'\t' read -r prepaid_ts prepaid_last < <(jq -r '
+            [((.checked_at // .cached_at) | numbers | floor) // 0,
+             ((.status | strings | select(test("^[0-9]{3}$"))) // "200")] | @tsv' \
+            "$PREPAID_CACHE" 2>/dev/null) || true
+        case "${prepaid_ts:-}" in '' | *[!0-9]*) prepaid_ts=0 ;; esac
+        prepaid_ttl="$PREPAID_CACHE_TTL"
+        case "${prepaid_last:-}" in 403 | 404) prepaid_ttl="$PREPAID_UNAVAILABLE_TTL" ;; esac
         prepaid_age=$(( $(date +%s) - prepaid_ts ))
-        [ "$prepaid_age" -lt 0 ] || [ "$prepaid_age" -ge "$PREPAID_CACHE_TTL" ] || PREPAID_FRESH=true
+        [ "$prepaid_age" -lt 0 ] || [ "$prepaid_age" -ge "$prepaid_ttl" ] || PREPAID_FRESH=true
     fi
     # A backoff covers this endpoint too: it shares the account's rate limit.
     if [ "$PREPAID_FRESH" != true ] && [ -z "$USAGE_ERROR_KIND" ] && [ -z "$USAGE_RETRY_AT" ] \
-        && ORG_UUID="$(claude_org_uuid "$CLAUDE_DIR")"; then
+        && ! usage_backoff_active && [ -n "$ORG_UUID" ]; then
         TOKEN=$(jq -r '(.claudeAiOauth.accessToken | strings | select(test("^[^\\s]+$"))) // ""' "$CREDENTIALS")
         prepaid_body=$(mktemp)
-        declare -a prepaid_request=(-sS --max-time 8 -o "$prepaid_body" -w '%{http_code}'
+        prepaid_headers=$(mktemp)
+        declare -a prepaid_request=(-sS --max-time 8 -o "$prepaid_body" -D "$prepaid_headers" -w '%{http_code}'
             -H "Accept: application/json"
             -H "User-Agent: claude-cli/${CLAUDE_VERSION} (external, cli)"
             -H "anthropic-beta: oauth-2025-04-20"
             "https://api.anthropic.com/api/oauth/organizations/${ORG_UUID}/prepaid/credits")
         prepaid_status=$(curl "${prepaid_request[@]}" --config <(curl_header_config "Authorization: Bearer ${TOKEN}") 2>/dev/null || true)
+        case "$prepaid_status" in [0-9][0-9][0-9]) ;; *) prepaid_status="000" ;; esac
+        # The answer and its time, with the balance to show until the next one.
+        prepaid_data="null"
         if [ "$prepaid_status" = "200" ] && jq -e 'type == "object"' "$prepaid_body" >/dev/null 2>&1; then
-            jq -c '{cached_at: (now | floor), data: .}' "$prepaid_body" > "$PREPAID_CACHE" 2>/dev/null || true
+            prepaid_data="$(jq -c . "$prepaid_body")"
+        else
+            [ "$prepaid_status" != "200" ] || prepaid_status="000"
+            # The usage endpoint shares this rate limit: a 429 here pauses both.
+            [ "$prepaid_status" != "429" ] || record_usage_backoff "$prepaid_status" "$prepaid_headers"
+            # A refusal shows no balance; any other failure keeps the last one.
+            case "$prepaid_status" in 403 | 404) ;; *) prepaid_data="$(jq -c '.data // null' "$PREPAID_CACHE" 2>/dev/null || echo null)" ;; esac
         fi
-        rm -f "$prepaid_body"
+        [ -n "$prepaid_data" ] || prepaid_data="null"
+        jq -cn --arg org "$ORG_UUID" --arg status "$prepaid_status" --argjson data "$prepaid_data" '{checked_at: (now | floor), status: $status, org: $org, data: $data}' > "$PREPAID_CACHE" 2>/dev/null || true
+        rm -f "$prepaid_body" "$prepaid_headers"
     fi
     if [ -f "$PREPAID_CACHE" ]; then
         CLAUDE_PREPAID=$(jq -c '

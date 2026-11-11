@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixes
+
+- Claude accounts whose sign-in cannot read the organization's usage credits (a Team plan member gets HTTP 403 from `prepaid/credits`) no longer ask for them on every refresh. Nothing was recorded for a refusal, so each widget instance and each refresh asked again, and the account was soon rate limited (HTTP 429) on the usage endpoint that feeds the Claude card. A 403 or 404 is now remembered for 24 hours per organization and shows no credits, a 429 there pauses the usage endpoint as well, credits are not asked while that pause holds, and switching organization re-checks at once instead of reusing the other organization's balance (#123).
+
+### Thanks
+
+- Thanks to [@guidi-injenia](https://github.com/guidi-injenia) for the report and for logging every request, which showed the refused credits call repeating while the usage request was still served from its cache.
+
 ## 2.4.0 - 2026-11-09
 
 A feature release for Dux Shell 2.0 and 2.1. **Detect providers** finds the AI tools, sign-ins and API keys already set up on this computer and tracks them in one click, from a 🔍 button in the dashboard header or the settings. Every quota bar now shows its **pace**: an even-use tick, and a flame when the window runs out before it resets. An optional **Claude Code status line bridge** lets Claude Code hand over its own 5 hour and weekly usage, so the Claude cards stay current while you work and Anthropic's usage endpoint is asked far less often. The dashboard hero is tidier, and DeepSeek reads the right currency of a multi-currency balance. Settings, profiles, pins and history carry over unchanged; run `dms restart` once after updating.
