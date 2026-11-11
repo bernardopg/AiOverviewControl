@@ -7,7 +7,8 @@
 #    never POSTs without a usable grant, maps every refusal to a result that
 #    says nothing was used, and drops the cached usage after a reset
 #  - a refused credits read (403/404) is recorded for a day per organization,
-#    and a 429 there pauses the usage endpoint too (issue #123)
+#    and a 429 there pauses the usage endpoint too and names the next try
+#    (issue #123); the record is replaced atomically
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
@@ -173,12 +174,31 @@ jq -e '.status == "403" and .data == null' "$prepaid_cache" >/dev/null || fail "
 rm -f "$prepaid_cache"
 team_run >/dev/null
 jq -e '.data.balance.money.amount_minor == 5500 and .status == "200"' "$prepaid_cache" >/dev/null || fail "team: first balance not cached"
-# A cache written before #123 ({cached_at, data}) is still honoured.
-cp "$prepaid_cache" "$TMP/prepaid-current.json"
-jq -c '{cached_at: .checked_at, data}' "$TMP/prepaid-current.json" > "$prepaid_cache"
+# A 2.4.0 record ({cached_at, data}) names no organization, so it may hold
+# another one's balance: it is re-checked at once and never shown.
+jq -c '{cached_at: .checked_at, data: (.data | .balance.money.amount_minor = 99900)}' "$prepaid_cache" > "$TMP/legacy.json"
+cp "$TMP/legacy.json" "$prepaid_cache"
 : > "$CURL_LOG"
-grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$(team_run)" || fail "pre-#123 cache not read"
-[ "$(prepaid_calls)" -eq 0 ] || fail "pre-#123 fresh cache asked again"
+out="$(PREPAID_STATUS=403 team_run)"
+[ "$(prepaid_calls)" -eq 1 ] || fail "2.4.0 record not re-checked"
+grep -q '^CLAUDE_PREPAID=$' <<<"$out" || fail "2.4.0 record of an unknown organization shown: $(grep PREPAID <<<"$out")"
+cp "$TMP/legacy.json" "$prepaid_cache"
+grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$(team_run)" || fail "2.4.0 record not replaced by a fresh read"
+jq -e '.org == "0b8d1d7e-1111-4222-8333-444455556666"' "$prepaid_cache" >/dev/null || fail "fresh read not scoped"
+# A killed write leaves its temporary file behind and the last record whole:
+# the next run under the lock sweeps the leftover.
+cp "$prepaid_cache" "$TMP/prepaid-current.json"
+printf '{"partial' > "$prepaid_cache.Ab12Cd"
+age_prepaid 601
+REAL_MV="$(command -v mv)"
+printf '#!/usr/bin/env bash\ncase "${*: -1}" in *claude-prepaid-cache.json) exit 1 ;; esac\nexec %q "$@"\n' "$REAL_MV" > "$TMP/bin/mv"
+chmod +x "$TMP/bin/mv"
+cp "$prepaid_cache" "$TMP/prepaid-aged.json"
+out="$(PREPAID_STATUS=500 team_run)"
+rm -f "$TMP/bin/mv"
+cmp -s "$prepaid_cache" "$TMP/prepaid-aged.json" || fail "a failed rename changed the credits record"
+grep -q '^CLAUDE_PREPAID={"balance":55,' <<<"$out" || fail "a failed rename dropped the balance"
+[ -z "$(find "$team_cache" -name 'claude-prepaid-cache.json.*')" ] || fail "credits temp files left behind"
 cp "$TMP/prepaid-current.json" "$prepaid_cache"
 age_prepaid 601
 : > "$CURL_LOG"
@@ -235,9 +255,17 @@ team_run >/dev/null
 age_prepaid 601
 rm -f "$team_cache/claude-usage-cache.json"
 : > "$CURL_LOG"
-PREPAID_STATUS=429 team_run >/dev/null
+out="$(PREPAID_STATUS=429 team_run)"
 jq -e '.status == "429" and .until > now + 800' "$team_cache/claude-usage-backoff.json" >/dev/null \
   || fail "429 on credits did not record the shared backoff"
+until="$(jq -r .until "$team_cache/claude-usage-backoff.json")"
+grep -q "^USAGE_RETRY_AT=$until$" <<<"$out" && grep -q '^USAGE_RETRY_REASON=rate_limited$' <<<"$out" \
+  || fail "credits 429 did not name the next try: $(grep USAGE_RETRY <<<"$out")"
+# The usage snapshot is still fresh: it is served, and the card still names
+# the pause.
+out="$(team_run)"
+grep -q "^USAGE_RETRY_AT=$until$" <<<"$out" || fail "fresh snapshot hid the backoff: $(grep USAGE_RETRY <<<"$out")"
+grep -q '^FIVE_HOUR_UTIL=91$' <<<"$out" || fail "fresh snapshot not served during the backoff"
 rm -f "$team_cache/claude-usage-cache.json"
 out="$(team_run)"
 [ "$(grep -c '/api/oauth/usage' "$CURL_LOG")" -eq 1 ] || fail "usage asked again during the credits backoff"

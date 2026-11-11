@@ -57,11 +57,12 @@ mkdir -p "$ACCOUNT_CACHE"
 exec 8>"${ACCOUNT_CACHE}/lock"
 flock 8
 # A run killed mid-rewrite (refresh timeout, shell restart) leaves its partial
-# transcript cache behind. Holding the account lock means no live run owns
-# one now. 1.22.0 scoped the account caches, so the unscoped copies are dead.
+# transcript or credits cache behind. Holding the account lock means no live
+# run owns one now. 1.22.0 scoped the account caches, so the unscoped copies
+# are dead.
 TX_NEW=""
 trap '[ -z "$TX_NEW" ] || rm -f "$TX_NEW"' EXIT
-rm -f "$TRANSCRIPTS_CACHE".?????? "${CACHE_DIR}/claude-transcripts.tsv" \
+rm -f "$TRANSCRIPTS_CACHE".?????? "$PREPAID_CACHE".?????? "${CACHE_DIR}/claude-transcripts.tsv" \
     "${CACHE_DIR}"/claude-transcripts.tsv.?????? "${CACHE_DIR}/claude-usage-cache.json"
 # One-time migration: these caches used to be written into ~/.claude. Move the
 # data across so the refreshed paths stay warm, then leave no trace behind.
@@ -283,16 +284,21 @@ record_usage_backoff() {
         '{until: $until, failures: $failures, status: $status}' > "$USAGE_BACKOFF" 2>/dev/null || true
 }
 
+# While a backoff holds, reports when the next usage request goes out and why
+# ("rate_limited" for HTTP 429, "server_error" for 5xx). Always succeeds.
+note_usage_backoff() {
+    usage_backoff_active || return 0
+    USAGE_RETRY_AT="$BACKOFF_UNTIL"
+    USAGE_RETRY_REASON="server_error"
+    [ "$BACKOFF_STATUS" != "429" ] || USAGE_RETRY_REASON="rate_limited"
+}
+
 # Serves the last good snapshot after a failed or skipped request ($1: the
 # HTTP status behind it), or reports the failure when there is none.
 use_usage_fallback() {
     local status="$1" next=""
-    if usage_backoff_active; then
-        USAGE_RETRY_AT="$BACKOFF_UNTIL"
-        USAGE_RETRY_REASON="server_error"
-        [ "$status" != "429" ] || USAGE_RETRY_REASON="rate_limited"
-        next=" Next attempt after $(date -d "@${BACKOFF_UNTIL}" +%H:%M)."
-    fi
+    note_usage_backoff
+    [ -z "$USAGE_RETRY_AT" ] || next=" Next attempt after $(date -d "@${USAGE_RETRY_AT}" +%H:%M)."
     if jq -e ".data | ${USAGE_VALID}" "$USAGE_CACHE" >/dev/null 2>&1; then
         # Transient failure (429, 5xx, network): fall back to the last
         # good snapshot even past its TTL instead of erroring the card.
@@ -505,8 +511,9 @@ elif [ -f "$CREDENTIALS" ]; then
     # failure for PREPAID_CACHE_TTL and keeps the last good balance.
     ORG_UUID="$(claude_org_uuid "$CLAUDE_DIR" || true)"
     if [ -f "$PREPAID_CACHE" ] && [ -n "$ORG_UUID" ] && ! jq -e --arg org "$ORG_UUID" \
-            '(.org // $org) == $org' "$PREPAID_CACHE" >/dev/null 2>&1; then
-        # Another organization's balance or refusal: never show or honour it.
+            '.org == $org' "$PREPAID_CACHE" >/dev/null 2>&1; then
+        # Another organization's balance or refusal, or a 2.4.0 record that
+        # names none: never show or honour it.
         rm -f "$PREPAID_CACHE"
     fi
     PREPAID_FRESH=false
@@ -546,7 +553,8 @@ elif [ -f "$CREDENTIALS" ]; then
             case "$prepaid_status" in 403 | 404) ;; *) prepaid_data="$(jq -c '.data // null' "$PREPAID_CACHE" 2>/dev/null || echo null)" ;; esac
         fi
         [ -n "$prepaid_data" ] || prepaid_data="null"
-        jq -cn --arg org "$ORG_UUID" --arg status "$prepaid_status" --argjson data "$prepaid_data" '{checked_at: (now | floor), status: $status, org: $org, data: $data}' > "$PREPAID_CACHE" 2>/dev/null || true
+        # Replaced with a rename: a run killed mid-write keeps the last record.
+        prepaid_record="$(jq -cn --arg org "$ORG_UUID" --arg status "$prepaid_status" --argjson data "$prepaid_data" '{checked_at: (now | floor), status: $status, org: $org, data: $data}' 2>/dev/null)" && printf '%s\n' "$prepaid_record" | atomic_write "$PREPAID_CACHE" 2>/dev/null || true
         rm -f "$prepaid_body" "$prepaid_headers"
     fi
     if [ -f "$PREPAID_CACHE" ]; then
@@ -561,6 +569,9 @@ elif [ -f "$CREDENTIALS" ]; then
                expiresAt: (.next_expires_at // null)}
             | select(.balance != null)' "$PREPAID_CACHE" 2>/dev/null || true)
     fi
+    # Also when the snapshot came from the cache or a credits 429 started the
+    # pause: the card names the next try for as long as it holds.
+    [ "$USAGE_ERROR_KIND" = "authentication" ] || note_usage_backoff
 else
     USAGE_ERROR_KIND="authentication"
     USAGE_ERROR_MESSAGE="Claude credentials were not found. Run: claude auth login --claudeai"
