@@ -676,7 +676,7 @@ PopoutComponent {
                                                 visible: root.hasError || root.providerStatus(root.providerData) !== "active"
                                                 label: root.hasError && !root.hasProviderData ? t("status.setup_required", "Setup required") : root.hasError ? t("status.needs_attention", "Needs attention") : root.providerStatusLabel(root.providerData)
                                                 iconName: root.hasError ? "warning" : "check_circle"
-                                                accentColor: root.hasError ? Theme.warning : root.getUsageColor(root.primaryPercent)
+                                                accentColor: root.hasError ? Theme.warning : root.heroAccent
                                             }
 
                                             BadgePill {
@@ -716,7 +716,8 @@ PopoutComponent {
                                                     label: modelData.label
                                                     percent: Number(modelData.data.usedPercent || 0)
                                                     aside: root.formatUsageLine(modelData.data)
-                                                    accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                                                    accentColor: root.usageWindowColor(modelData.data)
+                                                    track: !root.isPlainBalance(modelData.data)
                                                     pace: root.paceFor(modelData.data)
                                                 }
                                             }
@@ -2348,6 +2349,8 @@ PopoutComponent {
         property bool quota: true
         readonly property real displayPercent: quota ? root.quotaDisplayPercent(percent) : percent
         property color accentColor: root.getUsageColor(percent)
+        // False for a plain balance: the amount alone, no bar to fill.
+        property bool track: true
         // Pace of the window this bar draws (controller.paceFor), or null.
         // It adds no text to the bar: a tick marks where an even spend would
         // be by now, a flame appears only when the window is heading for
@@ -2412,6 +2415,7 @@ PopoutComponent {
         }
 
         Item {
+            visible: usageBar.track
             width: parent.width
             height: 8
 
@@ -2975,9 +2979,11 @@ PopoutComponent {
                     ProgressRing {
                         anchors.fill: parent
                         visible: card.hasUsage
-                        percent: root.quotaDisplayPercent(root.headlinePercent(card.provider))
+                        // A plain balance has no share to draw: an empty ring, even
+                        // under "show remaining quota".
+                        percent: root.isPlainBalance(root.headlineUsageWindow(card.provider)) ? 0 : root.quotaDisplayPercent(root.headlinePercent(card.provider))
                         thickness: 2.5
-                        accentColor: root.getUsageColor(root.headlinePercent(card.provider))
+                        accentColor: root.providerUsageColor(card.provider)
                         trackColor: Theme.withAlpha(card.accentColor, 0.14)
                     }
 
@@ -3088,7 +3094,7 @@ PopoutComponent {
 
                     StyledText {
                         text: card.provider.error ? t("status.error", "Error") : root.headlineText(card.provider)
-                        color: card.provider.error ? Theme.error : root.getUsageColor(root.headlinePercent(card.provider))
+                        color: card.provider.error ? Theme.error : root.providerUsageColor(card.provider)
                         font.pixelSize: card.compact ? Theme.fontSizeMedium : Theme.fontSizeLarge
                         font.weight: Font.Bold
                         anchors.verticalCenter: parent.verticalCenter
@@ -3202,7 +3208,8 @@ PopoutComponent {
                 label: card.windows.length > 0 ? card.windows[0].label : t("status.usage", "Usage")
                 percent: root.providerPercent(card.provider)
                 aside: card.windows.length > 0 ? root.formatUsageLine(card.windows[0].data) : root.quotaPercentText(root.providerPercent(card.provider))
-                accentColor: root.getUsageColor(root.providerPercent(card.provider))
+                accentColor: card.windows.length > 0 && root.isPlainBalance(card.windows[0].data) ? root.usageWindowColor(card.windows[0].data) : root.getUsageColor(root.providerPercent(card.provider))
+                track: !(card.windows.length > 0 && root.isPlainBalance(card.windows[0].data))
                 pace: card.windows.length > 0 ? root.paceFor(card.windows[0].data) : null
             }
 
@@ -3241,7 +3248,8 @@ PopoutComponent {
                         label: modelData.label
                         percent: Number(modelData.data.usedPercent || 0)
                         aside: root.formatUsageLine(modelData.data)
-                        accentColor: root.getUsageColor(Number(modelData.data.usedPercent || 0))
+                        accentColor: root.usageWindowColor(modelData.data)
+                        track: !root.isPlainBalance(modelData.data)
                         pace: root.paceFor(modelData.data)
                     }
                 }
@@ -3279,7 +3287,7 @@ PopoutComponent {
                         width: parent.width
                         height: 38
                         points: parent.historyPoints
-                        lineColor: root.getUsageColor(root.providerPercent(card.provider))
+                        lineColor: root.providerUsageColor(card.provider)
                     }
                 }
 

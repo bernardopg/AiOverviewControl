@@ -163,6 +163,9 @@ out="$(AIOC_OPENROUTER_VIEW=key-balance run weekly)"
 [ "$(field usage.primary.isBalance)" = "true" ] || fail "key balance isBalance"
 [ "$(field usage.primary.displayValue)" = '$14.89' ] || fail "key balance value $(field usage.primary.displayValue)"
 [ "$(field usage.primary.resetsAt)" = "null" ] || fail "key balance is not paced"
+[ "$(field usage.primary.hasLimit)" = "true" ] || fail "key balance is measured against the cap"
+awk 'BEGIN{exit !(ARGV[1] > 0.6 && ARGV[1] < 0.8)}' "$(field usage.primary.usedPercent)" \
+  || fail "key balance percent $(field usage.primary.usedPercent)"
 [ "$(field credits.remaining)" = '$14.89' ] || fail "key balance credits"
 
 # 10. Key balance on an uncapped key: no balance is invented, the key bar stays.
@@ -178,8 +181,9 @@ out="$(AIOC_OPENROUTER_VIEW=account run free-daily)"
 [ "$(field usage.primary.displayValue)" = '$9.79' ] || fail "account value $(field usage.primary.displayValue)"
 [ "$(field credits.remaining)" = '$9.79' ] || fail "account credits"
 [ "$(field credits.account.total)" = "80" ] || fail "account total"
-awk 'BEGIN{exit !(ARGV[1] > 87.7 && ARGV[1] < 87.8)}' "$(field usage.primary.usedPercent)" \
-  || fail "account percent $(field usage.primary.usedPercent)"
+# Nothing to compare the account balance with: no bar, no usage colour.
+[ "$(field usage.primary.usedPercent)" = "0" ] || fail "account percent $(field usage.primary.usedPercent)"
+[ "$(field usage.primary.hasLimit)" = "null" ] || fail "account balance has no limit"
 grep -qx 'credits sk-or-v1-test' "$REQUESTS" || fail "credits must use the inference key: $(requests)"
 [ "$(field usage.secondary.resetDescription)" = "Spent today" ] || fail "account keeps key windows"
 

@@ -187,6 +187,19 @@ ShellRoot {
                     || settings.previewUsage("openrouter").primary.isBalance !== true) {
                     console.error("SMOKE FAIL: openrouterView not applied: " + widget.openrouterView); return;
                 }
+                // A balance with nothing to compare with reads neutral and draws
+                // no bar; used up it is an error; against a cap it keeps the scale.
+                const plain = {usedPercent: 0, isBalance: true, displayValue: "$9.78"};
+                const spent = {usedPercent: 100, isBalance: true, displayValue: "-$0.50"};
+                const capped = {usedPercent: 85, isBalance: true, hasLimit: true, displayValue: "$1.00"};
+                if (!widget.isPlainBalance(plain) || widget.isPlainBalance(capped) || widget.isPlainBalance({usedPercent: 40})
+                    || [0, 60, 100].some(p => Qt.colorEqual(widget.usageWindowColor(plain), widget.getUsageColor(p)))
+                    || !Qt.colorEqual(widget.usageWindowColor(spent), widget.getUsageColor(100))
+                    || !Qt.colorEqual(widget.usageWindowColor(capped), widget.getUsageColor(85))
+                    || !Qt.colorEqual(widget.usageWindowColor({usedPercent: 10}), widget.getUsageColor(10))
+                    || !Qt.colorEqual(settings.previewWindowColor(plain), widget.usageWindowColor(plain))) {
+                    console.error("SMOKE FAIL: balance window colours"); return;
+                }
                 // Pace: 2 h into a 5 h window, 25% used is under the 40%
                 // even line (tick, no flame); a 60% tertiary window is
                 // heading for exhaustion before its reset (tick and flame).

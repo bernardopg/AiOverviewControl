@@ -168,17 +168,23 @@ fetch_openrouter_native() {
           end
         )
       } end) as $key_window
+    # Balance windows follow the widget contract: an amount in displayValue.
+    # The key balance is measured against the spending cap of the key
+    # (hasLimit), so its bar and colour show how much of the cap is spent. The account balance
+    # has nothing to compare with: usedPercent only says whether it is used
+    # up (0 or 100), and the card shows the amount without a bar.
     | (if $view == "key-balance" and $remaining != null then {
         usedPercent:pct($window_used; $limit),
         windowMinutes:null,
         resetsAt:null,
         resetDescription:"Key balance",
         isBalance:true,
+        hasLimit:true,
         displayValue:money($remaining)
       } elif $view == "account" and $acct.ok == true then
         ($acct.data.total - $acct.data.used) as $balance
         | {
-          usedPercent:(if $balance <= 0 then 100 else pct($acct.data.used; $acct.data.total) end),
+          usedPercent:(if $balance <= 0 then 100 else 0 end),
           windowMinutes:null,
           resetsAt:null,
           resetDescription:"Account balance",

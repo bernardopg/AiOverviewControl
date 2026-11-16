@@ -335,7 +335,7 @@ PluginComponent {
     readonly property var usageData: hasProviderData ? providerData.usage : null
     readonly property var primaryWindow: usageData ? usageData.primary : null
     readonly property real primaryPercent: primaryWindow ? Number(primaryWindow.usedPercent || 0) : 0
-    readonly property color heroAccent: getUsageColor(primaryPercent)
+    readonly property color heroAccent: usageWindowColor(primaryWindow)
 
     // Cross-provider rollup: the fleet's quota pressure at a glance. Aggregates
     // the primary window of every live provider — average load, the hottest
@@ -1070,6 +1070,19 @@ PluginComponent {
         return providerIsStale(provider) ? Theme.withAlpha(color, 0.45) : color;
     }
 
+    // Bar colour for one displayed window, so a plain balance stays neutral.
+    function pillWindowColor(provider, windowData) {
+        const color = usageWindowColor(windowData);
+        return providerIsStale(provider) ? Theme.withAlpha(color, 0.45) : color;
+    }
+
+    // Bar colour for a single-number pill: its window when that is a plain
+    // balance, else the usage scale of the highest displayed window.
+    function pillColorFor(provider) {
+        const windowData = pillWindowFor(provider);
+        return isPlainBalance(windowData) ? pillWindowColor(provider, windowData) : pillUsageColor(provider, pillPercentFor(provider));
+    }
+
     function compactPath(value) {
         const text = String(value || "");
         if (text.length === 0)
@@ -1334,6 +1347,31 @@ PluginComponent {
         return !!windowData && windowData.isBalance === true
             && windowData.displayValue !== undefined && windowData.displayValue !== null
             && String(windowData.displayValue).length > 0;
+    }
+
+    // A balance with nothing to measure it against: no spending cap, budget
+    // or goal (`hasLimit` unset). Its amount is information, not a warning,
+    // so it reads in the neutral text colour and draws no usage bar; only a
+    // used-up balance (usedPercent 100) takes the error colour. A balance
+    // window with `hasLimit: true` (OpenRouter's key balance against the key
+    // cap) keeps the bar and the usage colours.
+    function isPlainBalance(windowData) {
+        return isBalanceWindow(windowData) && windowData.hasLimit !== true;
+    }
+
+    // Colour for one window's number and bar: the usage scale, or for a
+    // plain balance the neutral text colour (error once it is used up).
+    function usageWindowColor(windowData) {
+        const percent = Number(windowData ? windowData.usedPercent || 0 : 0);
+        if (isPlainBalance(windowData))
+            return percent >= 100 ? Theme.error : Theme.surfaceText;
+        return getUsageColor(percent);
+    }
+
+    // Colour for a provider's headline number (card header, ring, history).
+    function providerUsageColor(provider) {
+        const windowData = headlineUsageWindow(provider);
+        return isPlainBalance(windowData) ? usageWindowColor(windowData) : getUsageColor(headlinePercent(provider));
     }
 
     // The number the bar shows for one window: the balance amount, or the
@@ -1964,7 +2002,9 @@ PluginComponent {
                 pinned: isPinned(provider.provider),
                 percent: window ? Math.max(0, Math.min(100, Number(window.usedPercent) || 0)) : null,
                 windowMinutes: window && window.windowMinutes ? Number(window.windowMinutes) : null,
-                resetsAt: window && window.resetsAt ? String(window.resetsAt) : null
+                resetsAt: window && window.resetsAt ? String(window.resetsAt) : null,
+                // A plain balance shows its amount, neutral and without a bar.
+                balance: isPlainBalance(window) ? String(window.displayValue) : null
             });
         }
         // Pinned first, then the most used; failed providers last.
@@ -2478,7 +2518,7 @@ PluginComponent {
                         id: pillEntry
                         required property var modelData
                         required property int index
-                        readonly property color usageColor: root.pillUsageColor(modelData, root.pillPercentFor(modelData))
+                        readonly property color usageColor: root.pillColorFor(modelData)
                         // More than one window (issue #86): each gets its own
                         // length tag and colour instead of the single number.
                         readonly property var barWindows: root.pillWindowsFor(modelData)
@@ -2557,7 +2597,7 @@ PluginComponent {
                                 StyledText {
                                     objectName: "pill-window-percent"
                                     text: root.pillWindowText(pillWindow.modelData)
-                                    color: root.pillUsageColor(pillEntry.modelData, Number(pillWindow.modelData.usedPercent || 0))
+                                    color: root.pillWindowColor(pillEntry.modelData, pillWindow.modelData)
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Bold
                                     anchors.verticalCenter: parent.verticalCenter
@@ -2616,7 +2656,7 @@ PluginComponent {
                     StyledText {
                         visible: !verticalEntry.multiWindow
                         text: root.pillText(verticalEntry.modelData)
-                        color: root.pillUsageColor(verticalEntry.modelData, root.pillPercentFor(verticalEntry.modelData))
+                        color: root.pillColorFor(verticalEntry.modelData)
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -2643,7 +2683,7 @@ PluginComponent {
 
                             StyledText {
                                 text: root.pillWindowText(verticalWindow.modelData)
-                                color: root.pillUsageColor(verticalEntry.modelData, Number(verticalWindow.modelData.usedPercent || 0))
+                                color: root.pillWindowColor(verticalEntry.modelData, verticalWindow.modelData)
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.DemiBold
                                 anchors.horizontalCenter: parent.horizontalCenter

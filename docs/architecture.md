@@ -101,6 +101,7 @@ usage.primary / secondary / tertiary
   resetDescription
   displayValue (optional)
   isBalance (optional; true when displayValue is a prepaid balance amount)
+  hasLimit (optional; true when a balance is measured against a cap, budget or goal)
 usage.updatedAt
 usage.retryAt / retryReason (optional; set while an adapter backs off a failing endpoint)
 accounts[] (optional; local multi-account providers)
@@ -109,7 +110,7 @@ accounts[] (optional; local multi-account providers)
 credits.remaining
 ```
 
-A window marked `isBalance: true` is a prepaid balance: `displayValue` holds the formatted amount (`$95.50`, `¥9.34`) and `usedPercent` only says whether it is used up (0 or 100). The bar pill, its tooltip and the card header show that amount instead of a percentage; any other window, including an informational `displayValue` such as `Unlimited`, keeps its percentage in the bar.
+A window marked `isBalance: true` is a prepaid balance: `displayValue` holds the formatted amount (`$95.50`, `¥9.34`) and `usedPercent` only says whether it is used up (0 or 100). The bar pill, its tooltip and the card header show that amount instead of a percentage; any other window, including an informational `displayValue` such as `Unlimited`, keeps its percentage in the bar. A balance has nothing to compare with unless the adapter also sets `hasLimit: true`, so it is information rather than a warning: the pill, the card header, the history line and the Dashboard card show it in the neutral text colour, the card draws no usage bar and the header ring stays empty. Only a used-up balance (`usedPercent` 100) takes the error colour. A balance measured against a cap (`hasLimit: true`, such as OpenRouter's **Key balance** against the key's spending cap) sets `usedPercent` to the share of that cap already spent, and keeps the bar and the usage colours.
 
 Errors return:
 

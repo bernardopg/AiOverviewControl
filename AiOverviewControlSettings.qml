@@ -788,6 +788,13 @@ PluginSettings {
         return Theme.success;
     }
 
+    // As the widget: a balance with no cap to compare with reads neutral.
+    function previewWindowColor(windowData) {
+        if (previewIsBalance(windowData) && windowData.hasLimit !== true)
+            return Number(windowData.usedPercent) >= 100 ? Theme.error : Theme.surfaceText;
+        return previewColor(Number(windowData ? windowData.usedPercent || 0 : 0));
+    }
+
     function previewWindowTag(windowData) {
         const minutes = Number(windowData && windowData.windowMinutes) || 0;
         if (minutes > 0 && minutes % 1440 === 0) return t("time.days", "{d}d", { d: minutes / 1440 });
@@ -2714,7 +2721,7 @@ PluginSettings {
                                                     StyledText {
                                                         objectName: "preview-number"
                                                         text: root.previewNumber(previewWindow.modelData)
-                                                        color: root.previewColor(Number(previewWindow.modelData.usedPercent || 0))
+                                                        color: root.previewWindowColor(previewWindow.modelData)
                                                         font.pixelSize: Theme.fontSizeSmall
                                                         font.weight: Font.Bold
                                                         anchors.verticalCenter: parent.verticalCenter
@@ -2815,7 +2822,7 @@ PluginSettings {
 
                                     StyledText {
                                         text: root.previewNumber(verticalEntry.windows[0] || {})
-                                        color: root.previewColor(BarWindows.maxPercent(verticalEntry.windows))
+                                        color: verticalEntry.windows.length === 1 ? root.previewWindowColor(verticalEntry.windows[0]) : root.previewColor(BarWindows.maxPercent(verticalEntry.windows))
                                         font.pixelSize: Theme.fontSizeSmall - 3
                                         font.weight: Font.Bold
                                         anchors.horizontalCenter: parent.horizontalCenter
