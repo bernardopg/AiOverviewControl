@@ -507,6 +507,7 @@ PluginComponent {
             "key limit": ["window.key_limit", "Key limit"],
             "key balance": ["window.key_balance", "Key balance"],
             "account balance": ["window.account_balance", "Account balance"],
+            "no ori sessions recorded yet": ["window.no_ori_sessions", "No Ori sessions recorded yet"],
             "spent today": ["window.spent_today", "Spent today"],
             "free model requests": ["window.free_model_requests", "Free model requests"],
             "requests per day": ["window.requests_per_day", "Requests per day"],
@@ -2038,9 +2039,13 @@ PluginComponent {
         const view = String(pluginData.openrouterView ?? "key");
         return ["key", "key-balance", "account"].indexOf(view) >= 0 ? view : "key";
     }
-    // A new view should not wait for the next timer tick; refresh() skips the
-    // call while a fetch is running, and that fetch's successor uses it.
-    onOpenrouterViewChanged: Qt.callLater(root.refresh)
+    // A new view should not wait for the next timer tick when OpenRouter is
+    // tracked; refresh() skips the call while a fetch is running, and that
+    // fetch's successor uses it.
+    onOpenrouterViewChanged: {
+        if (root.selectedProviders.indexOf("openrouter") >= 0)
+            Qt.callLater(root.refresh);
+    }
 
     // Environment for every adapter run (refresh, retry, reset).
     function adapterEnvironment() {

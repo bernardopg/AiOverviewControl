@@ -307,7 +307,7 @@ PluginSettings {
         { id:"antigravity", name:"Antigravity", icon:"rocket_launch", mode:"telemetry", requirement:"Antigravity CLI keyring or IDE session", envVar:"", note:"Per-model quota and reset times, one block per signed-in account / IDE — expand the card to compare accounts" },
         { id:"gemini", name:"Gemini", icon:"star", mode:"telemetry", requirement:"gemini CLI or API key", envVar:"GEMINI_API_KEY", note:"Gemini CLI quota per model from the Code Assist API, or API-key authentication; explains when Google no longer offers Code Assist to the CLI account" },
         { id:"9router", name:"9Router", icon:"share", mode:"telemetry", requirement:"local 9Router database", envVar:"", note:"Local requests, tokens and cost" },
-        { id:"openrouter", name:"OpenRouter", icon:"route", mode:"telemetry", requirement:"API key or 9Router data", envVar:"OPENROUTER_API_KEY", note:"Official key usage and limits" },
+        { id:"openrouter", name:"OpenRouter", icon:"route", mode:"telemetry", requirement:"API key or 9Router data", envVar:"OPENROUTER_API_KEY", note:"Key usage and limits, or the key or account balance" },
         { id:"deepseek", name:"DeepSeek", icon:"search", mode:"telemetry", requirement:"API key", envVar:"DEEPSEEK_API_KEY", note:"Official account balance" },
         { id:"kimi", name:"Kimi", icon:"language", mode:"telemetry", requirement:"API key", envVar:"MOONSHOT_API_KEY", note:"Account balance (USD/CNY), or Kimi Code subscription quota with a sk-kimi- key / KIMI_CODING_API_KEY" },
         { id:"kimi-code", name:"Kimi Code", icon:"language", mode:"telemetry", requirement:"API key", envVar:"KIMI_CODING_API_KEY", note:"Independent Kimi Code subscription quota" },
@@ -728,6 +728,9 @@ PluginSettings {
     readonly property var previewBalances: ({ deepseek: "¥9.34", kimi: "¥42.00", vercel: "$95.50", cline: "$13.74" })
 
     function previewUsage(id) {
+        // The OpenRouter balance views put an amount in the bar, as the card does.
+        if (id === "openrouter" && live("openrouterView", "key") !== "key")
+            return { primary: { usedPercent: 0, isBalance: true, windowMinutes: null, displayValue: "$12.40", resetDescription: "Balance" } };
         if (previewBalances[id] !== undefined)
             return { primary: { usedPercent: 0, isBalance: true, windowMinutes: null, displayValue: previewBalances[id], resetDescription: "Balance" } };
         let sample = previewSamples[id];
@@ -1857,9 +1860,11 @@ PluginSettings {
                     { label:t("settings.test_codex", "Test Codex app-server adapter"), cmd:root._pluginDir + "/providers/get-codex-usage | jq ." },
                     { label:t("settings.test_pi", "Test pi session analytics adapter"), cmd:root._pluginDir + "/providers/get-pi-analytics | jq ." },
                     { label:t("settings.test_hermes", "Test Hermes telemetry adapter"), cmd:root._pluginDir + "/providers/get-hermes-analytics | jq ." },
+                    { label:t("settings.test_openrouter", "Test OpenRouter adapter (current main bar)"), cmd:"AIOC_OPENROUTER_VIEW=" + root.live("openrouterView", "key") + " " + root._pluginDir + "/providers/get-openrouter-usage | jq ." },
+                    { label:t("settings.test_ori", "Test Ori session telemetry adapter"), cmd:root._pluginDir + "/providers/get-ori-usage | jq ." },
                     { label:t("settings.test_health", "Check provider prerequisites"), cmd:root._pluginDir + "/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
                     { label:t("settings.test_export", "Export usage history to CSV"), cmd:root._pluginDir + "/providers/export-usage-history csv" },
-                    { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi gh gcloud ollama" },
+                    { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi ori gh gcloud ollama" },
                     { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint " + root._pluginDir + "/AiOverviewControlWidget.qml " + root._pluginDir + "/AiOverviewControlSettings.qml" }
                 ]
                 delegate: Column {

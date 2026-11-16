@@ -171,10 +171,22 @@ ShellRoot {
                 if (settings.loadValue("costCurrency", "USD") !== "BRL") {
                     console.error("SMOKE FAIL: currency setting did not persist"); return;
                 }
+                // OpenRouter main bar: the dropdown stores the view and the
+                // widget hands it to the adapter environment.
+                const orView = input.findChild(settings, "setting-openrouterView");
+                if (!orView || orView.selected !== "key") { console.error("SMOKE FAIL: openrouterView control/default"); return; }
+                orView.picked("account");
+                if (settings.loadValue("openrouterView", "key") !== "account") {
+                    console.error("SMOKE FAIL: openrouterView did not persist"); return;
+                }
                 widget.pluginData = service.data;
                 widget.providers = [];
                 root.step = 1;
             } else if (root.step === 1 && widget.formatCost(2).indexOf("BRL 10") === 0) {
+                if (widget.openrouterView !== "account" || widget.adapterEnvironment().AIOC_OPENROUTER_VIEW !== "account"
+                    || settings.previewUsage("openrouter").primary.isBalance !== true) {
+                    console.error("SMOKE FAIL: openrouterView not applied: " + widget.openrouterView); return;
+                }
                 // Pace: 2 h into a 5 h window, 25% used is under the 40%
                 // even line (tick, no flame); a 60% tertiary window is
                 // heading for exhaustion before its reset (tick and flame).
@@ -193,6 +205,10 @@ ShellRoot {
                 widget.pluginData = service.data;
                 root.step = 2;
             } else if (root.step === 2 && widget.formatCost(2).indexOf("$2") === 0) {
+                if (widget.openrouterView !== "key" || widget.adapterEnvironment().AIOC_OPENROUTER_VIEW !== "key"
+                    || settings.previewUsage("openrouter").primary.isBalance === true) {
+                    console.error("SMOKE FAIL: reset did not restore the OpenRouter key view"); return;
+                }
                 if (!widget.dashboardView) { console.error("SMOKE FAIL: view not attached"); return; }
                 const remaining = input.findChild(settings, "setting-showRemainingQuota");
                 if (!remaining || remaining.checked) { console.error("SMOKE FAIL: remaining quota default/control"); return; }

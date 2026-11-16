@@ -50,8 +50,9 @@ scripts/package-release           Release archive build and validation
 Most API-backed and informational providers expose a normalized JSON
 `get-<id>-usage` entrypoint that delegates through `get-provider-wrapper`. The
 specialized Claude helper emits `KEY=VALUE` analytics for the dispatcher to
-normalize, and `pi` and `hermes` use inline dispatcher envelopes plus
-`get-pi-analytics` / `get-hermes-analytics`. Note that the "stub" shape
+normalize, `pi` and `hermes` use inline dispatcher envelopes plus
+`get-pi-analytics` / `get-hermes-analytics`, and `ori` uses an inline envelope
+alone. Note that the "stub" shape
 describes only the entrypoint file: several adapters implement their real logic
 as native envelopes inside `get-provider-usage` (for example `commandcode`,
 `ollama`, and Antigravity), while the thin `get-<id>-usage` files remain the
@@ -67,8 +68,9 @@ stable contract surface.
 6. Claude details come from the dispatcher item of each Claude provider (`claude` and every `claude-*` profile): the adapter puts the local analytics in `.analytics`, and the dashboard builds one details panel per provider from it through `ClaudeProfiles.details()`. No extra process runs; an OAuth error keeps the local analytics next to the error.
 7. `pi` follows the same isolation principle via a lighter mechanism: its dispatcher-side envelope (`fetch_pi_native`, inline in `get-provider-usage`) only ever reads a cached snapshot and never scans session files itself; the expanded card's own process (`get-pi-analytics`) does the actual scan on the normal refresh cycle.
 8. `hermes` splits the same way, but its collapsed-card envelope (`fetch_hermes_native`) queries `~/.hermes/state.db` directly instead of a cache: the aggregates are indexed SQLite sums that complete in milliseconds, so first paint carries real numbers without waiting for the analytics process.
-9. After each refresh the widget writes `dash-snapshot.json` (owner-only, in the plugin cache directory) with the providers ordered for the overview. The Dashboard card (`AiOverviewDashCard.qml`) only reads and watches that file, so adding the card starts no extra provider requests; until the bar widget has refreshed once, the card has nothing to show.
-10. Limit resets run only from an explicit confirmation in the expanded Claude or Codex card: the widget calls `providers/reset-provider-limits <provider>` once per click, which sends a single request and never retries or polls.
+9. `ori` needs no analytics process: its envelope (`fetch_ori_native`) reads the per-session `metadata.json` files Ori writes under `~/.ori/global/.ori/logs/sessions`, only those touched since the start of the month or the last 7 days (at most 2,000), and sums them in one `jq` pass.
+10. After each refresh the widget writes `dash-snapshot.json` (owner-only, in the plugin cache directory) with the providers ordered for the overview. The Dashboard card (`AiOverviewDashCard.qml`) only reads and watches that file, so adding the card starts no extra provider requests; until the bar widget has refreshed once, the card has nothing to show.
+11. Limit resets run only from an explicit confirmation in the expanded Claude or Codex card: the widget calls `providers/reset-provider-limits <provider>` once per click, which sends a single request and never retries or polls.
 
 ## Claude adapter
 

@@ -29,7 +29,7 @@ All settings are stored through Dux Shell. Plugin updates do not overwrite user 
 | `historyRetention` | 500, 2000, or 10000 | 2000 | Maximum history snapshots kept locally. |
 | `showClaudeProjects` | `true` / `false` | `true` | Shows Claude local project analytics. |
 | `showAntigravityModelDetails` | `true` / `false` | `false` | In expanded Antigravity cards, replaces concise Gemini / Claude & OpenAI family rows with individual model rows. |
-| `openrouterView` | `key`, `key-balance`, or `account` | `key` | What the OpenRouter card's main bar and bar pill show: the key's spending cap (or the daily free-model requests of an uncapped key), what is left of that cap in dollars, or the account's credit balance from openrouter.ai/credits. See [OpenRouter views](providers.md#local-fallbacks-and-aliases). |
+| `openrouterView` | `key`, `key-balance`, or `account` | `key` | What the OpenRouter card's main bar and bar pill show: the key's spending cap (or the daily free-model requests of an uncapped key), what is left of that cap in dollars, or the account's credit balance from openrouter.ai/credits. See [OpenRouter views](providers.md#openrouter-views-and-ori). |
 
 ### Analytics currency
 

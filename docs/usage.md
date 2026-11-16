@@ -192,7 +192,8 @@ The page opens on a **Live preview** of the bar pill, drawn the way the bar
 draws it, with a vertical bar beside it and the hover tooltip under it. It
 uses sample numbers rather than your real usage and follows every bar setting
 at once: pill mode and the providers it shows, names, compact spacing,
-remaining quota, the tooltip and each provider's bar usage window.
+remaining quota, the tooltip, each provider's bar usage window and the
+OpenRouter main bar.
 
 The settings sit in foldable groups: **General** (language, refresh interval),
 **Bar pill**, **Dashboard**, **Notifications**, **Providers** (with a search
