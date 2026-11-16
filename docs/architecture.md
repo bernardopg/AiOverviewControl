@@ -183,6 +183,7 @@ All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode,
 | `pillCompact` | `false` | Tighten the separator and entry spacing of the bar pill. |
 | `showClaudeProjects` | `true` | Show Claude local project analytics. |
 | `showAntigravityModelDetails` | `false` | Replace Antigravity family rows with per-model rows in expanded cards. |
+| `openrouterView` | `key` | OpenRouter main bar: key limit, key balance (`key-balance`) or account credits (`account`); passed to the adapter as `AIOC_OPENROUTER_VIEW`. |
 
 Legacy settings unknown to the current code are ignored.
 

@@ -164,8 +164,8 @@ Prefer a release archive or a git checkout? See [Installation](./docs/installati
 | Coverage           | What you get                                              | Examples                                                               |
 | ------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
 | **Quota**          | Real usage % and reset time                               | Codex, Copilot, Cursor, Antigravity, Grok Bot, OpenCode Go, Z.ai, xAI  |
-| **Balance**        | Remaining prepaid credit                                  | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway     |
-| **Analytics**      | Tokens, cost, and models from local data or spend reports | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API     |
+| **Balance**        | Remaining prepaid credit                                  | Kimi, DeepSeek, OpenRouter, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
+| **Analytics**      | Tokens, cost, and models from local data or spend reports | Claude, 9Router, pi, Ori, Hermes, Cloudflare, Anthropic API, OpenAI API |
 | **Authentication** | Credential check, no usage numbers                        | Mistral, Qwen, Groq, Cohere, NVIDIA                                    |
 | **Local runtime**  | Local models and sessions                                 | Ollama, Vertex AI                                                      |
 | **Informational**  | A link to the official usage page                         | Kiro, Warp, Perplexity, Amp                                            |

@@ -236,6 +236,7 @@ PluginSettings {
         notifyThresholds: "",
         notifyWindowScope: "displayed",
         historyRetention: "2000",
+        openrouterView: "key",
         providerLogoColor: ""
     })
 
@@ -301,6 +302,7 @@ PluginSettings {
         { id:"claude", name:"Claude", icon:"psychology", mode:"telemetry", requirement:"claude CLI or ~/.claude", envVar:"", note:"Local analytics and authenticated usage" },
         { id:"copilot", name:"Copilot", icon:"code", mode:"telemetry", requirement:"gh CLI or GitHub token", envVar:"COPILOT_GITHUB_TOKEN", note:"Authenticated Copilot quota from the GitHub session" },
         { id:"pi", name:"pi", icon:"smart_toy", mode:"telemetry", requirement:"pi CLI or ~/.pi/agent/sessions", envVar:"", note:"Local session cost/token analytics — no quota API" },
+        { id:"ori", name:"Ori", icon:"route", mode:"telemetry", requirement:"ori CLI or ~/.ori/global/.ori/logs/sessions", envVar:"", note:"OpenRouter coding agent: local session cost and tokens — no quota API" },
         { id:"hermes", name:"Hermes", icon:"hub", mode:"telemetry", requirement:"hermes CLI or ~/.hermes/state.db", envVar:"", note:"Dual-nature: agent harness telemetry (sessions, tokens, models, projects) from the local state database; provider side routes through Nous Portal / OpenRouter — expand the card for details" },
         { id:"antigravity", name:"Antigravity", icon:"rocket_launch", mode:"telemetry", requirement:"Antigravity CLI keyring or IDE session", envVar:"", note:"Per-model quota and reset times, one block per signed-in account / IDE — expand the card to compare accounts" },
         { id:"gemini", name:"Gemini", icon:"star", mode:"telemetry", requirement:"gemini CLI or API key", envVar:"GEMINI_API_KEY", note:"Gemini CLI quota per model from the Code Assist API, or API-key authentication; explains when Google no longer offers Code Assist to the CLI account" },
@@ -447,6 +449,7 @@ PluginSettings {
     function providerKind(providerId) {
         const kinds = {
             pi: "agent",
+            ori: "agent",
             hermes: "agent,provider",
             "9router": "gateway",
             ollama: "local"
@@ -1343,6 +1346,19 @@ PluginSettings {
             defaultValue: false
             text: t("settings.antigravity_model_details", "Show individual Antigravity models")
             description: t("settings.antigravity_model_details_desc", "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.")
+        }
+
+        ValueDropdown {
+            objectName: "setting-openrouterView"
+            width: parent.width
+            text: t("settings.openrouter_view", "OpenRouter main bar")
+            description: t("settings.openrouter_view_desc", "Key limit shows the key's spending cap, or the daily free-model requests for a key without one. Key balance shows what is left of that cap. Account credits shows the balance on openrouter.ai/credits.")
+            selected: { root.settingsEpoch; return loadValue("openrouterView", "key"); }
+            values: ["key", "key-balance", "account"]
+            labels: [t("settings.option.openrouter_key", "Key limit"), t("settings.option.openrouter_key_balance", "Key balance"), t("settings.option.openrouter_account", "Account credits")]
+            optionIcons: ["key", "savings", "account_balance_wallet"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("openrouterView", value); }
         }
     }
 

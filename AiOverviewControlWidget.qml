@@ -176,7 +176,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "ori", "hermes"].concat(Object.keys(claudeProfiles))
 
     readonly property var selectedProviders: {
         const parts = providerSelection.split(",");
@@ -505,6 +505,8 @@ PluginComponent {
             "chat": ["window.chat", "Chat"],
             "completions": ["window.completions", "Completions"],
             "key limit": ["window.key_limit", "Key limit"],
+            "key balance": ["window.key_balance", "Key balance"],
+            "account balance": ["window.account_balance", "Account balance"],
             "spent today": ["window.spent_today", "Spent today"],
             "free model requests": ["window.free_model_requests", "Free model requests"],
             "requests per day": ["window.requests_per_day", "Requests per day"],
@@ -623,6 +625,7 @@ PluginComponent {
             claude: "Claude",
             copilot: "Copilot",
             pi: "pi",
+            ori: "Ori",
             hermes: "Hermes",
             antigravity: "Antigravity",
             cursor: "Cursor",
@@ -1086,7 +1089,7 @@ PluginComponent {
             return Theme.success;
         if (providerId === "copilot")
             return Theme.primary;
-        if (providerId === "pi")
+        if (providerId === "pi" || providerId === "ori")
             return Theme.success;
         if (providerId === "hermes")
             return Theme.primary;
@@ -1159,6 +1162,7 @@ PluginComponent {
     function providerKinds(providerId) {
         const kinds = {
             pi: "agent",
+            ori: "agent",
             hermes: "agent,provider",
             "9router": "gateway",
             ollama: "local",
@@ -1684,6 +1688,7 @@ PluginComponent {
             codex: "https://chatgpt.com/codex/settings/usage",
             copilot: "https://github.com/settings/copilot/features",
             pi: "",
+            ori: "https://openrouter.ai/activity",
             hermes: "https://portal.nousresearch.com",
             antigravity: "",
             gemini: "https://aistudio.google.com/usage",
@@ -1797,7 +1802,7 @@ PluginComponent {
             return;
         retryingProviderId = normalizeProviderId(providerId);
         retryBuffer = "";
-        procRetry.environment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
+        procRetry.environment = adapterEnvironment();
         procRetry.command = ["bash", providerUsageScript, retryingProviderId, copilotUsageScript];
         procRetry.running = true;
     }
@@ -2024,7 +2029,27 @@ PluginComponent {
     // process's command (Qt behaviour on command change while running is
     // undefined and would scramble the fetch).
     property var usageCommand: ["bash", root.providerUsageScript, root.selectedProviders.join(","), root.copilotUsageScript]
-    property var usageEnvironment: ({"AIOC_HISTORY_MAX": root.historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(root.claudeProfiles)})
+    property var usageEnvironment: root.adapterEnvironment()
+
+    // What the OpenRouter card's main bar shows: the key's cap ("key"), what
+    // is left of it ("key-balance") or the account's credit balance
+    // ("account"). The adapter reads it from AIOC_OPENROUTER_VIEW.
+    property string openrouterView: {
+        const view = String(pluginData.openrouterView ?? "key");
+        return ["key", "key-balance", "account"].indexOf(view) >= 0 ? view : "key";
+    }
+    // A new view should not wait for the next timer tick; refresh() skips the
+    // call while a fetch is running, and that fetch's successor uses it.
+    onOpenrouterViewChanged: Qt.callLater(root.refresh)
+
+    // Environment for every adapter run (refresh, retry, reset).
+    function adapterEnvironment() {
+        return {
+            "AIOC_HISTORY_MAX": historyRetention,
+            "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles),
+            "AIOC_OPENROUTER_VIEW": openrouterView
+        };
+    }
 
     property string historyRetention: {
         const parsed = parseInt(pluginData.historyRetention || "2000");
@@ -2214,7 +2239,7 @@ PluginComponent {
         timedOutRequestId = -1;
         // Snapshot argv now so an in-flight selection change cannot mutate the
         // running process command (see usageCommand declaration).
-        usageEnvironment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
+        usageEnvironment = adapterEnvironment();
         usageCommand = ["bash", providerUsageScript, selectedProviders.join(","), copilotUsageScript];
         procUsage.running = true;
         usageTimeout.restart();

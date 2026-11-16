@@ -29,6 +29,7 @@ Item {
             modelark: "byteplus",
             grok: "xai",
             "grok-bot": "grokbot",
+            ori: "openrouter",
             "anthropic-api": "anthropic",
             "openai-api": "openai",
             "ai-gateway": "vercel"
@@ -41,7 +42,7 @@ Item {
         const icons = {
             codex: "data_object", claude: "psychology", copilot: "hub", pi: "smart_toy",
             hermes: "hub", antigravity: "rocket_launch", gemini: "auto_awesome", openrouter: "route",
-            "9router": "share", deepseek: "tsunami", kimi: "dark_mode", mistral: "air",
+            ori: "route", "9router": "share", deepseek: "tsunami", kimi: "dark_mode", mistral: "air",
             glm: "bubble_chart", minimax: "grid_view", qwen: "cloud", nvidia: "memory",
             cloudflare: "shield", vertexai: "hexagon", byteplus: "bolt",
             perplexity: "travel_explore", cursor: "ads_click", ollama: "dns",

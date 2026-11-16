@@ -157,6 +157,24 @@ $PLUGIN/providers/get-provider-usage antigravity | jq .
 
 For a temporary model-by-model diagnosis of the available-models fallback, enable **Show individual Antigravity models** in the plugin settings, then expand the Antigravity card. Turn it off again to return to the concise view. A **Partial** badge means at least one account succeeded and another failed; the expanded warning identifies the account, request stage, and cause. If every account fails, the card reports the actual OAuth, HTTP, rate-limit, or schema error. If the helper reports no session at all, run `agy login`, open the affected Antigravity installation and sign in, or ensure `sqlite3` is installed for IDE-state discovery.
 
+## OpenRouter account balance
+
+With **OpenRouter main bar** set to **Account credits**, the card asks `GET /api/v1/credits` and shows the balance from openrouter.ai/credits.
+
+- **Credits line reads "Account balance needs a management key (OPENROUTER_MANAGEMENT_KEY)"** — OpenRouter refused the route for the inference key (HTTP 403). Create a management key at openrouter.ai/settings/management-keys and export it as `OPENROUTER_MANAGEMENT_KEY`, or store it in the keyring and set `AIOC_VAULT_OPENROUTER_MANAGEMENT`. The management key is used only for this route and the per-model rollup; the card still needs `OPENROUTER_API_KEY` for the key check.
+- **Credits line reads "Account balance unavailable (HTTP …)"** — the route answered with that status or with a body that is not the documented JSON. The main bar falls back to the key limit until the next refresh succeeds.
+- **The balance differs from openrouter.ai by a few cents** — the website rounds the same `total_credits - total_usage`; generations still being billed land a few seconds later.
+- **The third window never lists top models** — the 30-day per-model rollup (`/api/v1/activity`) is management-key only. Without `OPENROUTER_MANAGEMENT_KEY` the window shows week and month spend instead.
+
+## Ori telemetry
+
+The Ori card sums `~/.ori/global/.ori/logs/sessions/*/metadata.json`, which `ori` writes for every session it runs.
+
+- **Card reports "No Ori sessions recorded yet"** — `ori` is installed but has not finished a session. Run one (`ori -p "…"` or `ori`) and refresh.
+- **A session's whole cost lands on one day** — Ori records cumulative usage per session, so a session resumed on a later day counts entirely on the day it last ran.
+- **Cost shows `—`** — a session in that window recorded no cost, so the total stays unknown instead of undercounting.
+- **The OpenRouter card does not use Ori's sign-in** — Ori keeps its OAuth or API key encrypted under `~/.ori/auth`, and the plugin never reads it. Give the OpenRouter card its own `OPENROUTER_API_KEY` or keyring entry.
+
 ## Hermes telemetry
 
 Hermes reads `$HERMES_HOME/state.db` (default `~/.hermes/state.db`) read-only, so the gateway can keep running while the card refreshes.

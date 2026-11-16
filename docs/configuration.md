@@ -29,6 +29,7 @@ All settings are stored through Dux Shell. Plugin updates do not overwrite user 
 | `historyRetention` | 500, 2000, or 10000 | 2000 | Maximum history snapshots kept locally. |
 | `showClaudeProjects` | `true` / `false` | `true` | Shows Claude local project analytics. |
 | `showAntigravityModelDetails` | `true` / `false` | `false` | In expanded Antigravity cards, replaces concise Gemini / Claude & OpenAI family rows with individual model rows. |
+| `openrouterView` | `key`, `key-balance`, or `account` | `key` | What the OpenRouter card's main bar and bar pill show: the key's spending cap (or the daily free-model requests of an uncapped key), what is left of that cap in dollars, or the account's credit balance from openrouter.ai/credits. See [OpenRouter views](providers.md#local-fallbacks-and-aliases). |
 
 ### Analytics currency
 
@@ -174,6 +175,7 @@ A provider key can come from the freedesktop keyring instead, read at the moment
 
 ```bash
 AIOC_VAULT_OPENROUTER="service openrouter username quota"
+AIOC_VAULT_OPENROUTER_MANAGEMENT="service openrouter username management"
 AIOC_VAULT_ZAI="service zai username quota"
 AIOC_VAULT_GLM="service glm username quota"
 AIOC_VAULT_OPENCODE="service opencode username quota"
@@ -203,7 +205,8 @@ The settings health check describes whether the plugin can run an adapter in the
 | Copilot | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`; `AIOC_NO_DOH_FALLBACK=1` disables the `dns.google` DNS-over-HTTPS fallback used to resolve an alternate `api.github.com` edge after a regional route fails (TLS hostname verification stays enabled either way) |
 | Antigravity | No environment variable is normally required. Credentials are discovered from `~/.gemini/antigravity-cli/antigravity-oauth-token`, the desktop keyring, or the IDE state database. Optional `ANTIGRAVITY_API_BASE_URL` retargets Cloud Code Assist (and turns the local language server path off); `ANTIGRAVITY_QUOTA_METHOD` can pin the compatibility method for diagnostics. While the Antigravity app runs, its local language server answers for the account it is signed in to; `ANTIGRAVITY_NO_LOCAL_RPC=1` skips it and asks the cloud endpoint for every account. |
 | Gemini | Gemini CLI sign-in (`~/.gemini/oauth_creds.json`) for per-model quota with a Code Assist Standard or Enterprise project; optional `GOOGLE_CLOUD_PROJECT` (or `GOOGLE_CLOUD_PROJECT_ID`) selects the project. Otherwise `GEMINI_API_KEY`, `GOOGLE_API_KEY`, or `GOOGLE_GENERATIVE_AI_API_KEY` for a key check. The CLI token is renewed in memory only; `GEMINI_CLI_OAUTH_CLIENT_ID`, `GEMINI_CLI_OAUTH_CLIENT_SECRET`, `GEMINI_CLI_TOKEN_URL` and `GEMINI_CODE_ASSIST_ENDPOINT` override the CLI's defaults for diagnostics |
-| OpenRouter | `OPENROUTER_API_KEY`, or `AIOC_VAULT_OPENROUTER` for a keyring entry |
+| OpenRouter | `OPENROUTER_API_KEY`, or `AIOC_VAULT_OPENROUTER` for a keyring entry. Optional `OPENROUTER_MANAGEMENT_KEY` (or `AIOC_VAULT_OPENROUTER_MANAGEMENT`): asks the account balance and the 30-day per-model rollup, which ordinary keys may not read; it is never used for inference or the key check |
+| Ori | none; reads `~/.ori/global/.ori/logs/sessions/*/metadata.json` and `~/.ori/config.json` (sign-in method only) |
 | OpenCode | `OPENCODE_API_KEY`, or `AIOC_VAULT_OPENCODE` for a keyring entry; otherwise the CLI's `~/.local/share/opencode/auth.json` |
 | DeepSeek | `DEEPSEEK_API_KEY` |
 | Kimi | Balance: `MOONSHOT_API_KEY` or `KIMI_API_KEY` (optional `MOONSHOT_API_BASE`). Kimi Code subscription quota: `KIMI_CODING_API_KEY` (or a `sk-kimi-` prefixed `KIMI_API_KEY`; optional `KIMI_CODE_BASE_URL`; legacy `KIMI_BASE_URL` also accepted) |

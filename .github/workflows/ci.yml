@@ -718,7 +718,7 @@ jobs:
       - name: Integration test — xAI Grok CLI billing and Management API
         run: tests/test-xai.sh
 
-      - name: Integration test — OpenRouter windowed key limit
+      - name: Integration test — OpenRouter key limit, key balance and account credits
         run: tests/test-openrouter.sh
 
       - name: Integration test — MiniMax Token Plan routing and quota fixtures
@@ -729,6 +729,9 @@ jobs:
 
       - name: Integration test — Hermes local telemetry (fixture database)
         run: tests/test-hermes-analytics.sh
+
+      - name: Integration test — Ori local session telemetry (fixture sessions)
+        run: tests/test-ori.sh
 
       - name: Integration test — usage-history export (CSV/JSONL round-trip)
         run: tests/test-history-export.sh
