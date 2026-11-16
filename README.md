@@ -36,7 +36,7 @@ with no external service.
 
 <img src="./docs/assets/demo.gif" alt="AiOverviewControl demo" width="100%" />
 
-<sub><a href="./docs/assets/demo.mp4">Full-quality MP4</a></sub>
+<sub><a href="./docs/assets/demo.mp4">Full-quality MP4 (1080p60)</a></sub>
 
 </div>
 
@@ -120,7 +120,15 @@ label the provider adapters emit.
 
 <table>
 <tr>
-<td align="center" width="50%"><img src="./docs/assets/settings.png" alt="Settings window" /><br /><sub><b>Settings window</b> — also available in Dux Shell Settings → Plugins</sub></td>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard.png" alt="Dashboard with the Codex hero and the fleet overview" /><br /><sub><b>Dashboard</b> — the busiest provider up top, fleet load, risk and next reset</sub></td>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard-providers.png" alt="Provider cards with quotas, a plain OpenRouter balance and agent telemetry" /><br /><sub><b>Every provider, side by side</b> — quotas in colour, balances and telemetry as plain amounts</sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard-claude.png" alt="Expanded Claude card with credits and limit resets" /><br /><sub><b>Credits & limit resets</b> — spend limit, monthly spend and resets you can redeem</sub></td>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard-telemetry.png" alt="Expanded pi card with local telemetry and a seven-day chart" /><br /><sub><b>Local agent telemetry</b> — cost, tokens and a seven-day chart from your disk</sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><img src="./docs/assets/settings.png" alt="Settings window" /><br /><sub><b>Settings window</b> — live preview; also in Dux Shell Settings → Plugins</sub></td>
 <td align="center" width="50%"><img src="./docs/assets/about.png" alt="About window" /><br /><sub><b>About</b> — version, developer, and ways to support the project</sub></td>
 </tr>
 </table>
@@ -183,10 +191,12 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 
 ## 📚 Documentation
 
-New in 2.4: 🔍 **Detect providers** tracks everything already set up on your
-computer in one click, every quota bar shows its pace, and an optional Claude Code
-status line bridge keeps the Claude cards current while you work — see the
-[2.4.0 notes](./docs/releases/2.4.0.md). The Grok Bot provider, API keys from
+New in 2.5: OpenRouter can headline its **key limit**, **key balance** or
+**account credits**, the new **Ori** provider tracks OpenRouter's coding agent,
+and balances, spend and agent telemetry read as plain amounts instead of a
+green `0%` — see the [2.5.0 notes](./docs/releases/2.5.0.md). 🔍 **Detect
+providers**, pace on every quota bar and the Claude Code status line bridge
+came in [2.4.0](./docs/releases/2.4.0.md). The Grok Bot provider, API keys from
 the desktop keyring and the settings page with a live preview came in
 [2.3.0](./docs/releases/2.3.0.md). Spend providers and Gemini CLI quota
 arrived in [2.2.0](./docs/releases/2.2.0.md), and since

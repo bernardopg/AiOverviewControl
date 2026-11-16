@@ -26,6 +26,11 @@ AiOverviewControl is installed. For the setting keys themselves see
 
 - Shows one entry per provider: logo, name, and the used percentage of its
   quota window. The percentage uses the usage colour scale.
+- A reading with nothing to compare against shows its amount instead, in the
+  neutral text colour: a prepaid balance (`¥9.34`, OpenRouter `$9.78`), spend
+  without a budget, or coding-agent telemetry (`$0.42 · 12K tok`). Only a
+  used-up balance turns red. A balance measured against a cap (OpenRouter's
+  **Key balance**) keeps the usage colours.
 - **Pill mode** picks the providers: `auto` shows every provider with measurable
   usage, `custom` shows an explicit list, `top` shows only the busiest one.
 - Providers with more than one quota window (Claude's 5 hour and 7 day, for
@@ -52,7 +57,8 @@ overview, hover the page icon, click the pencil, then **Add widget**.
   Larger cards list as many providers as fit, pinned providers first, with a
   usage bar each; wide or tall cards add the reset time.
 - The card follows **Show remaining quota** and the same usage colours as the
-  pill. In edit mode its options set how many providers to list and the tone.
+  pill. A plain balance or reading lists its amount in the neutral colour,
+  without a bar. In edit mode its options set how many providers to list and the tone.
 - Dux Shell draws the card name and its options, so they follow the Dux Shell language
   (**Settings → Locale**), not the plugin's **Language** setting.
 - It reads the snapshot the bar widget writes after each refresh
@@ -124,8 +130,8 @@ in `~/.zshrc` is not found; see
   figures appear only when two or more providers are live. The last sync time
   is in the header line under the title.
 - Balance, analytics, local-runtime, and informational cards are excluded from
-  the average, so their truthful `0%` placeholders never dilute real quota
-  pressure. Peak, at-risk count, and reset still scan every live card.
+  the average, so readings with nothing to compare against never dilute real
+  quota pressure. Peak, at-risk count, and reset still scan every live card.
 - Click the hottest provider, or the hero bars, to expand and scroll to that
   provider's card.
 
@@ -144,6 +150,14 @@ in `~/.zshrc` is not found; see
   offer a provider-specific retry.
 - Expanded cards show the available windows, credits, source, identity, and
   update time. Fields a provider does not report are left out, never invented.
+- A balance, spend or telemetry window with nothing to compare against (no
+  cap, budget or limit) shows its amount in the neutral text colour, with no
+  usage bar and an empty ring in the card header, instead of a green `0%`.
+  The adapter marks such windows `hasLimit: false`; see
+  [Architecture](architecture.md).
+- **OpenRouter** can headline its key limit, its key balance or the account's
+  credits (Settings → Providers → **OpenRouter main bar**); see
+  [OpenRouter views and Ori](providers.md#openrouter-views-and-ori).
 - Quota bars carry their [pace](#pace): a tick where an even spend would be,
   and a 🔥 flame next to the number when the window is heading for exhaustion
   before its reset.

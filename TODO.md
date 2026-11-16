@@ -13,9 +13,10 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## 🚀 Next release
 
-- [x] **2.4.0** — released 2026-11-09: Detect providers, pace for every quota
-  window, the Claude Code status line bridge, hero polish and the DeepSeek
-  multi-currency fix. `S · ★★★`
+- [~] **2.5.0** — prepared 2026-11-16 in #129: OpenRouter key balance and
+  account credits views (#127), the Ori provider, plain amounts for balances,
+  spend and agent telemetry, the new README demo, banner and gallery. Merge,
+  then tag `v2.5.0`. `S · ★★★`
 
 ## 🔧 Partial — needs a follow-up
 
