@@ -68,7 +68,9 @@ one click.
 **🎯 A pill that tells the truth**<br />
 Pick which quota window each provider shows in the bar, or follow the
 most-constrained one, as used or as remaining quota. A weekly limit that runs
-out takes over the bar, and prepaid balances read as amounts (`¥9.34`). Settings
+out takes over the bar. Balances and spend with nothing to compare against read
+as plain amounts (`¥9.34`, `$9.78`), with no fake bar or warning colour, and
+OpenRouter can show its key limit, key balance or account credits. Settings
 preview every change live; hover the bar for each window and its reset.
 
 </td>
@@ -77,7 +79,7 @@ preview every change live; hover the bar for each window and its reset.
 <td valign="top">
 
 **🤖 Deep local telemetry**<br />
-Claude, Codex, OpenCode, 9Router, pi, and Hermes add token, cost, model, and project
+Claude, Codex, OpenCode, 9Router, pi, Ori, and Hermes add token, cost, model, and project
 analytics with a seven-day chart — read from data already on your disk. Track
 several Claude accounts side by side, each from its own `CLAUDE_CONFIG_DIR`.
 Claude and Codex also show credits, extra usage and limit resets, and can

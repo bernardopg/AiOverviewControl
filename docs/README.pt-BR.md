@@ -68,9 +68,11 @@ passa a acompanhá-los com um clique.
 **🎯 Uma pílula que diz a verdade**<br />
 Escolha qual janela de cota cada provedor mostra na barra, ou siga a mais
 apertada, como cota usada ou restante. Um limite semanal esgotado assume a
-barra, e saldos pré-pagos aparecem como valores (`¥9.34`). As configurações
-mostram cada mudança numa prévia ao vivo; passe o mouse na barra para ver cada
-janela e o reset.
+barra. Saldos e gastos sem referência para comparar aparecem como valores
+simples (`¥9.34`, `$9.78`), sem barra falsa nem cor de alerta, e o OpenRouter
+pode mostrar o limite da key, o saldo da key ou os créditos da conta. As
+configurações mostram cada mudança numa prévia ao vivo; passe o mouse na barra
+para ver cada janela e o reset.
 
 </td>
 </tr>
@@ -78,7 +80,7 @@ janela e o reset.
 <td valign="top">
 
 **🤖 Telemetria local detalhada**<br />
-Claude, Codex, OpenCode, 9Router, pi e Hermes mostram tokens, custo, modelos e projetos
+Claude, Codex, OpenCode, 9Router, pi, Ori e Hermes mostram tokens, custo, modelos e projetos
 com gráfico de sete dias — lidos de dados que já estão no seu disco. Acompanhe
 várias contas Claude lado a lado, cada uma com seu próprio `CLAUDE_CONFIG_DIR`.
 Claude e Codex também mostram créditos, uso extra e resets de limite, e podem
