@@ -101,7 +101,8 @@ usage.primary / secondary / tertiary
   resetDescription
   displayValue (optional)
   isBalance (optional; true when displayValue is a prepaid balance amount)
-  hasLimit (optional; true when a balance is measured against a cap, budget or goal)
+  hasLimit (optional; true when a balance is measured against a cap, budget or goal;
+            false when a non-balance window is a plain reading with nothing to compare against)
 usage.updatedAt
 usage.retryAt / retryReason (optional; set while an adapter backs off a failing endpoint)
 accounts[] (optional; local multi-account providers)
@@ -111,6 +112,8 @@ credits.remaining
 ```
 
 A window marked `isBalance: true` is a prepaid balance: `displayValue` holds the formatted amount (`$95.50`, `¥9.34`) and `usedPercent` only says whether it is used up (0 or 100). The bar pill, its tooltip and the card header show that amount instead of a percentage; any other window, including an informational `displayValue` such as `Unlimited`, keeps its percentage in the bar. A balance has nothing to compare with unless the adapter also sets `hasLimit: true`, so it is information rather than a warning: the pill, the card header, the history line and the Dashboard card show it in the neutral text colour, the card draws no usage bar and the header ring stays empty. Only a used-up balance (`usedPercent` 100) takes the error colour. A balance measured against a cap (`hasLimit: true`, such as OpenRouter's **Key balance** against the key's spending cap) sets `usedPercent` to the share of that cap already spent, and keeps the bar and the usage colours.
+
+The same rule covers readings that are not balances. A window the adapter marks `hasLimit: false` (spend without a budget, coding-agent telemetry, a status or plan line) has `usedPercent` 0 by construction, so a percentage would fake a measurement. The pill, its tooltip and the card header show its `displayValue` (a dash when it has none) in the neutral text colour, the card draws no usage bar, the header ring stays empty, and the fleet's average load leaves it out. Adapters set it on the **Spent today** and week lines of OpenRouter, an uncapped OpenRouter key, the month-to-date spend of `anthropic` and `openai` without a budget (`hasLimit: true` once a budget is set), every `pi`, `ori`, `hermes`, `opencode` (local), `9router` and `cloudflare` window, the Vercel and Cline spend lines, and the status lines of `ollama`, `nvidia`, `replicate` and Kimi's voucher/cash split. A window without the field keeps the quota behaviour.
 
 Errors return:
 

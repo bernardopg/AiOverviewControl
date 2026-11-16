@@ -65,6 +65,9 @@ if [ "$three_days" -ge "$month_start" ]; then month='$1.75 · 17K tok'; else mon
 [ "$(field usage.tertiary.displayValue)" = "$month" ] || fail "month $(field usage.tertiary.displayValue)"
 [ "$(field credits.remaining)" = "agent · 6 sessions" ] || fail "session count $(field credits.remaining)"
 [ "$(field usage.primary.usedPercent)" = "0" ] || fail "analytics never fill a bar"
+for slot in primary secondary tertiary; do
+  [ "$(field "usage.$slot.hasLimit")" = "false" ] || fail "$slot is a plain reading (hasLimit false)"
+done
 
 # A session that reported no cost makes the window's cost unknown, not partial.
 session s-unpriced "$(( now - 10 ))" null 500 0 "x/unknown"

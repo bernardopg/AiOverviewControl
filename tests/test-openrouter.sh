@@ -128,6 +128,9 @@ out="$(run unlimited)"
 [ "$(field usage.primary.usedPercent)" = "0" ] || fail "unlimited percent"
 [ "$(field usage.primary.displayValue)" = '$12.50 used' ] || fail "unlimited display"
 [ "$(field credits.remaining)" = "unlimited" ] || fail "unlimited remaining"
+[ "$(field usage.primary.hasLimit)" = "false" ] || fail "uncapped spend is a plain reading"
+[ "$(field usage.secondary.hasLimit)" = "false" ] || fail "spent today is a plain reading"
+[ "$(field usage.tertiary.hasLimit)" = "false" ] || fail "week spend is a plain reading"
 
 # 5. Uncapped key: the free-model daily allowance is the bar, resetting at UTC midnight.
 out="$(run free-daily)"
@@ -139,6 +142,7 @@ out="$(run free-daily)"
 # 6. Capped key: the cap stays primary.
 out="$(run capped-free)"
 [ "$(field usage.primary.resetDescription)" = "Key limit" ] || fail "cap wins over free allowance"
+[ "$(field usage.primary.hasLimit)" = "true" ] || fail "a capped key limit is measured"
 
 # 7. An ordinary key never asks /activity (403 for every non-management key)
 #    nor /credits outside the account view.
@@ -147,6 +151,8 @@ out="$(run weekly)"
 grep -q '^activity' "$REQUESTS" && fail "activity asked without a management key"
 grep -q '^credits' "$REQUESTS" && fail "credits asked outside the account view"
 [ "$(field usage.tertiary.resetDescription)" = "Week and month spend" ] || fail "tertiary without activity"
+# The translated label names both windows; the value holds amounts only.
+case "$(field usage.tertiary.displayValue)" in *Week*|*Month*) fail "untranslated words in the spend value";; esac
 
 # 8. A management key unlocks the per-model rollup, and only it reaches /activity.
 reset_log
@@ -154,7 +160,7 @@ out="$(OPENROUTER_MANAGEMENT_KEY=sk-or-mgmt run weekly)"
 grep -qx 'activity sk-or-mgmt' "$REQUESTS" || fail "activity must use the management key: $(requests)"
 grep -qx 'key sk-or-v1-test' "$REQUESTS" || fail "key check must use the inference key"
 [ "$(field usage.tertiary.resetDescription)" = "Week and top models" ] || fail "top models label"
-[ "$(field usage.tertiary.displayValue)" = 'Week $0.11 · claude-sonnet-4.6 $2.00 · gpt-5.4 $0.25' ] \
+[ "$(field usage.tertiary.displayValue)" = '$0.11 · claude-sonnet-4.6 $2.00 · gpt-5.4 $0.25' ] \
   || fail "top models $(field usage.tertiary.displayValue)"
 
 # 9. Key balance: what is left of the cap, in dollars, as a balance window.

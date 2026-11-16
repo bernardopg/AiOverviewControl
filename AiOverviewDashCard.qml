@@ -54,8 +54,9 @@ DashCardComponent {
         return Theme.success;
     }
 
-    // A plain balance (no cap or budget to compare with) shows its amount in
-    // the content colour and no bar; only a used-up balance is an error.
+    // A plain reading (a balance or spend with no cap, budget or limit to
+    // compare with) shows its amount in the content colour and no bar; only
+    // a used-up balance is an error.
     function isBalance(item) {
         return !!item && typeof item.balance === "string" && item.balance.length > 0;
     }

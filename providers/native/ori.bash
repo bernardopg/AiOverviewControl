@@ -91,9 +91,9 @@ fetch_ori_native() {
           identity: {providerID: "ori", accountEmail: $account, loginMethod: $login},
           accountEmail: $account,
           loginMethod: $login,
-          primary: {usedPercent: 0, windowMinutes: null, resetsAt: null, resetDescription: "Today", displayValue: line($t)},
-          secondary: {usedPercent: 0, windowMinutes: null, resetsAt: null, resetDescription: "Week", displayValue: line($w)},
-          tertiary: {usedPercent: 0, windowMinutes: null, resetsAt: null, resetDescription: "Month", displayValue: line($m)},
+          primary: {usedPercent: 0, hasLimit: false, windowMinutes: null, resetsAt: null, resetDescription: "Today", displayValue: line($t)},
+          secondary: {usedPercent: 0, hasLimit: false, windowMinutes: null, resetsAt: null, resetDescription: "Week", displayValue: line($w)},
+          tertiary: {usedPercent: 0, hasLimit: false, windowMinutes: null, resetsAt: null, resetDescription: "Month", displayValue: line($m)},
           updatedAt: (now | todateiso8601)
         },
         credits: {remaining: ("agent · " + ($sessions | tostring) + " sessions")}

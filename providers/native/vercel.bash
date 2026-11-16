@@ -57,6 +57,7 @@ fetch_vercel_native() {
           },
           secondary: {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Total used",

@@ -726,6 +726,7 @@ PluginSettings {
         cursor: [58], grokbot: [46], opencode: [33, 12, 9], commandcode: [19, 40], xai: [27]
     })
     readonly property var previewBalances: ({ deepseek: "¥9.34", kimi: "¥42.00", vercel: "$95.50", cline: "$13.74" })
+    readonly property var previewReadings: ({ pi: "$0.84", ori: "$1.27", hermes: "$0.52", opencode: "$2.10" })
 
     function previewUsage(id) {
         // The OpenRouter balance views put an amount in the bar, as the card does.
@@ -733,6 +734,9 @@ PluginSettings {
             return { primary: { usedPercent: 0, isBalance: true, windowMinutes: null, displayValue: "$12.40", resetDescription: "Balance" } };
         if (previewBalances[id] !== undefined)
             return { primary: { usedPercent: 0, isBalance: true, windowMinutes: null, displayValue: previewBalances[id], resetDescription: "Balance" } };
+        // Coding-agent telemetry has no quota: its card shows today's spend.
+        if (previewReadings[id] !== undefined)
+            return { primary: { usedPercent: 0, hasLimit: false, windowMinutes: null, displayValue: previewReadings[id], resetDescription: "Today" } };
         let sample = previewSamples[id];
         if (!sample) {
             let hash = 0;
@@ -776,7 +780,7 @@ PluginSettings {
     }
 
     function previewNumber(windowData) {
-        if (previewIsBalance(windowData)) return String(windowData.displayValue);
+        if (previewIsBalance(windowData) || previewIsPlain(windowData)) return String(windowData.displayValue || "—");
         const used = Math.max(0, Math.min(100, Number(windowData.usedPercent) || 0));
         return Math.round(live("showRemainingQuota", "false") === "true" ? 100 - used : used) + "%";
     }
@@ -788,9 +792,16 @@ PluginSettings {
         return Theme.success;
     }
 
-    // As the widget: a balance with no cap to compare with reads neutral.
+    // As the widget's isPlainReading: a balance with no cap, or a reading
+    // with nothing to compare against (`hasLimit: false`), reads neutral.
+    function previewIsPlain(windowData) {
+        if (!windowData) return false;
+        if (previewIsBalance(windowData)) return windowData.hasLimit !== true;
+        return windowData.hasLimit === false;
+    }
+
     function previewWindowColor(windowData) {
-        if (previewIsBalance(windowData) && windowData.hasLimit !== true)
+        if (previewIsPlain(windowData))
             return Number(windowData.usedPercent) >= 100 ? Theme.error : Theme.surfaceText;
         return previewColor(Number(windowData ? windowData.usedPercent || 0 : 0));
     }
@@ -806,6 +817,7 @@ PluginSettings {
     function previewWindowLabel(windowData) {
         const minutes = Number(windowData && windowData.windowMinutes) || 0;
         if (previewIsBalance(windowData)) return t("window.balance", "Balance");
+        if (previewIsPlain(windowData)) return t("window.today", "Today");
         if (minutes > 0 && minutes <= 300) return t("window.session", "Session");
         if (minutes > 0 && minutes <= 10080) return t("window.weekly", "Weekly");
         if (minutes > 0) return t("window.monthly", "Monthly");
@@ -822,7 +834,7 @@ PluginSettings {
             for (let i = 0; i < windows.length; i++) {
                 const label = previewWindowLabel(windows[i]);
                 if (label.length > 0) segment.push(label);
-                segment.push(previewIsBalance(windows[i]) || !remaining
+                segment.push(previewIsBalance(windows[i]) || previewIsPlain(windows[i]) || !remaining
                     ? previewNumber(windows[i])
                     : t("quota.remaining", "{percent}% left", { percent: parseInt(previewNumber(windows[i]), 10) }));
             }

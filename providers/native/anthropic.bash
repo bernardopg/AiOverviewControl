@@ -73,6 +73,9 @@ fetch_anthropic_native() {
           loginMethod: "admin-key",
           primary: {
             usedPercent: (if $limit > 0 then ([$month / $limit * 100, 100] | min | . * 100 | round / 100) else 0 end),
+            # Measured only against a configured budget; without one the
+            # month-to-date spend is a plain reading.
+            hasLimit: ($limit > 0),
             windowMinutes: null,
             resetsAt: (if $reset != "" then $reset else null end),
             resetDescription: "Month to date",
@@ -80,6 +83,7 @@ fetch_anthropic_native() {
           },
           secondary: {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Today",

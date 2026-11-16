@@ -367,7 +367,7 @@ PluginComponent {
             // analytics, and informational cards report 0% by design — folding
             // them in would dilute the fleet average toward zero and misstate
             // real quota pressure. Peak / at-risk / reset still scan everyone.
-            const isQuotaLoad = win && win.windowMinutes !== null && win.windowMinutes !== undefined;
+            const isQuotaLoad = win && win.windowMinutes !== null && win.windowMinutes !== undefined && !isPlainReading(win);
             if (isQuotaLoad) {
                 sum += percent;
                 loadCount++;
@@ -1070,17 +1070,17 @@ PluginComponent {
         return providerIsStale(provider) ? Theme.withAlpha(color, 0.45) : color;
     }
 
-    // Bar colour for one displayed window, so a plain balance stays neutral.
+    // Bar colour for one displayed window, so a plain reading stays neutral.
     function pillWindowColor(provider, windowData) {
         const color = usageWindowColor(windowData);
         return providerIsStale(provider) ? Theme.withAlpha(color, 0.45) : color;
     }
 
     // Bar colour for a single-number pill: its window when that is a plain
-    // balance, else the usage scale of the highest displayed window.
+    // reading, else the usage scale of the highest displayed window.
     function pillColorFor(provider) {
         const windowData = pillWindowFor(provider);
-        return isPlainBalance(windowData) ? pillWindowColor(provider, windowData) : pillUsageColor(provider, pillPercentFor(provider));
+        return isPlainReading(windowData) ? pillWindowColor(provider, windowData) : pillUsageColor(provider, pillPercentFor(provider));
     }
 
     function compactPath(value) {
@@ -1359,11 +1359,32 @@ PluginComponent {
         return isBalanceWindow(windowData) && windowData.hasLimit !== true;
     }
 
+    // A window with nothing to compare against: a plain balance, or a reading
+    // the adapter marks `hasLimit: false` (spend without a budget, coding-agent
+    // telemetry, a status line). Its usedPercent is 0 by construction, so a
+    // percentage, a bar or the usage colours would only fake a measurement:
+    // it shows its displayValue in the neutral text colour, without a bar.
+    function isPlainReading(windowData) {
+        if (!windowData)
+            return false;
+        if (isBalanceWindow(windowData))
+            return windowData.hasLimit !== true;
+        return windowData.hasLimit === false;
+    }
+
+    // The text a plain reading shows where a percentage would go: its
+    // displayValue, or a dash when the adapter gives none.
+    function plainReadingText(windowData) {
+        const value = windowData && windowData.displayValue !== undefined && windowData.displayValue !== null
+            ? String(windowData.displayValue) : "";
+        return value.length > 0 ? value : "—";
+    }
+
     // Colour for one window's number and bar: the usage scale, or for a
-    // plain balance the neutral text colour (error once it is used up).
+    // plain reading the neutral text colour (error once a balance is used up).
     function usageWindowColor(windowData) {
         const percent = Number(windowData ? windowData.usedPercent || 0 : 0);
-        if (isPlainBalance(windowData))
+        if (isPlainReading(windowData))
             return percent >= 100 ? Theme.error : Theme.surfaceText;
         return getUsageColor(percent);
     }
@@ -1371,14 +1392,16 @@ PluginComponent {
     // Colour for a provider's headline number (card header, ring, history).
     function providerUsageColor(provider) {
         const windowData = headlineUsageWindow(provider);
-        return isPlainBalance(windowData) ? usageWindowColor(windowData) : getUsageColor(headlinePercent(provider));
+        return isPlainReading(windowData) ? usageWindowColor(windowData) : getUsageColor(headlinePercent(provider));
     }
 
-    // The number the bar shows for one window: the balance amount, or the
-    // percentage in the user's used/remaining convention.
+    // The number the bar shows for one window: the balance amount or plain
+    // reading, else the percentage in the user's used/remaining convention.
     function pillWindowText(windowData) {
         if (isBalanceWindow(windowData))
             return String(windowData.displayValue);
+        if (isPlainReading(windowData))
+            return plainReadingText(windowData);
         return `${Math.round(quotaDisplayPercent(Number(windowData ? windowData.usedPercent || 0 : 0)))}%`;
     }
 
@@ -1387,15 +1410,19 @@ PluginComponent {
         const windowData = pillWindowFor(provider);
         if (isBalanceWindow(windowData))
             return String(windowData.displayValue);
+        if (isPlainReading(windowData))
+            return plainReadingText(windowData);
         return `${Math.round(quotaDisplayPercent(pillPercentFor(provider)))}%`;
     }
 
-    // The number a card header shows: the headline window's balance amount,
-    // or its percentage.
+    // The number a card header shows: the headline window's balance amount
+    // or plain reading, or its percentage.
     function headlineText(provider) {
         const windowData = headlineUsageWindow(provider);
         if (isBalanceWindow(windowData))
             return String(windowData.displayValue);
+        if (isPlainReading(windowData))
+            return plainReadingText(windowData);
         return quotaPercentText(headlinePercent(provider));
     }
 
@@ -1441,7 +1468,7 @@ PluginComponent {
                 const label = windowLabel(windowData);
                 if (label && String(label).length > 0)
                     segment.push(label);
-                segment.push(isBalanceWindow(windowData) ? String(windowData.displayValue) : quotaPercentText(windowData.usedPercent));
+                segment.push(isBalanceWindow(windowData) ? String(windowData.displayValue) : isPlainReading(windowData) ? plainReadingText(windowData) : quotaPercentText(windowData.usedPercent));
                 // Only a window heading for exhaustion before its reset adds
                 // a word; one on pace keeps the tooltip as it was.
                 const pace = paceFor(windowData);
@@ -2003,8 +2030,8 @@ PluginComponent {
                 percent: window ? Math.max(0, Math.min(100, Number(window.usedPercent) || 0)) : null,
                 windowMinutes: window && window.windowMinutes ? Number(window.windowMinutes) : null,
                 resetsAt: window && window.resetsAt ? String(window.resetsAt) : null,
-                // A plain balance shows its amount, neutral and without a bar.
-                balance: isPlainBalance(window) ? String(window.displayValue) : null
+                // A plain reading shows its amount, neutral and without a bar.
+                balance: isPlainReading(window) ? plainReadingText(window) : null
             });
         }
         // Pinned first, then the most used; failed providers last.

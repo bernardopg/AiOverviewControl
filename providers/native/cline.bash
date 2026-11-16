@@ -151,6 +151,7 @@ fetch_cline_native() {
           },
           secondary: {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Today",
@@ -161,6 +162,7 @@ fetch_cline_native() {
           },
           tertiary: (if $plan_name != null then {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: ($p.currentPeriodEnd // null),
             resetDescription: "Plan",

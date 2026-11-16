@@ -162,6 +162,9 @@ fetch_openrouter_native() {
         windowMinutes:null,
         resetsAt:($d.limit_reset // null),
         resetDescription:"Key limit",
+        # An uncapped key with no free-model allowance has only its spend to
+        # show: a plain reading, not a 0% quota.
+        hasLimit:($limit != null),
         displayValue:(
           if $limit == null then (money(num($d.usage) + $byok_usage) + " used")
           else (money($window_used) + " / " + money($limit))
@@ -206,25 +209,30 @@ fetch_openrouter_native() {
         primary:$primary,
         secondary:{
           usedPercent:0,
+          hasLimit:false,
           windowMinutes:1440,
           resetsAt:null,
           resetDescription:"Spent today",
           displayValue:(money(num($d.usage_daily) + $byok_daily))
         },
         tertiary:(
-          ("Week " + money(num($d.usage_weekly) + $byok_weekly) + " · ") as $week_prefix
+          # The translated label names the windows ("Week and month spend",
+          # "Week and top models"), so the value carries amounts only.
+          (money(num($d.usage_weekly) + $byok_weekly) + " · ") as $week_prefix
           | if ($top_models | length) > 0 then {
               usedPercent:0,
+              hasLimit:false,
               windowMinutes:10080,
               resetsAt:null,
               resetDescription:"Week and top models",
               displayValue:($week_prefix + ($top_models | map(short_model(.model) + " " + money(.usage)) | join(" · ")))
             } else {
               usedPercent:0,
+              hasLimit:false,
               windowMinutes:10080,
               resetsAt:null,
               resetDescription:"Week and month spend",
-              displayValue:($week_prefix + "Month " + money($d.usage_monthly))
+              displayValue:($week_prefix + money($d.usage_monthly))
             } end
         ),
         updatedAt:(now|todateiso8601)

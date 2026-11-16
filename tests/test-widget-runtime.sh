@@ -200,6 +200,21 @@ ShellRoot {
                     || !Qt.colorEqual(settings.previewWindowColor(plain), widget.usageWindowColor(plain))) {
                     console.error("SMOKE FAIL: balance window colours"); return;
                 }
+                // A spend or telemetry reading the adapter marks hasLimit:false
+                // is plain too: its amount, neutral, no fleet load; a quota
+                // window without the flag keeps its percentage.
+                const reading = {usedPercent: 0, windowMinutes: 1440, hasLimit: false, displayValue: "$0.42 · 12K tok"};
+                const budget = {usedPercent: 30, windowMinutes: null, hasLimit: true, displayValue: "$3.00 / $10.00"};
+                if (!widget.isPlainReading(reading) || !widget.isPlainReading(plain) || widget.isPlainReading(capped)
+                    || widget.isPlainReading(budget) || widget.isPlainReading({usedPercent: 0, windowMinutes: 300})
+                    || widget.pillWindowText(reading) !== "$0.42 · 12K tok"
+                    || widget.pillWindowText({usedPercent: 0, hasLimit: false}) !== "—"
+                    || [0, 60, 100].some(p => Qt.colorEqual(widget.usageWindowColor(reading), widget.getUsageColor(p)))
+                    || !Qt.colorEqual(widget.usageWindowColor(budget), widget.getUsageColor(30))
+                    || !Qt.colorEqual(settings.previewWindowColor(reading), widget.usageWindowColor(reading))
+                    || settings.previewUsage("ori").primary.hasLimit !== false) {
+                    console.error("SMOKE FAIL: plain reading windows"); return;
+                }
                 // Pace: 2 h into a 5 h window, 25% used is under the 40%
                 // even line (tick, no flame); a 60% tertiary window is
                 // heading for exhaustion before its reset (tick and flame).

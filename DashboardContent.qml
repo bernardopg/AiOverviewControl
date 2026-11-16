@@ -534,7 +534,7 @@ PopoutComponent {
 
                                         ProgressRing {
                                             anchors.fill: parent
-                                            percent: root.hasProviderData ? root.quotaDisplayPercent(root.primaryPercent) : 0
+                                            percent: root.hasProviderData && !root.isPlainReading(root.primaryWindow) ? root.quotaDisplayPercent(root.primaryPercent) : 0
                                             thickness: 4
                                             accentColor: root.heroAccent
                                         }
@@ -717,7 +717,7 @@ PopoutComponent {
                                                     percent: Number(modelData.data.usedPercent || 0)
                                                     aside: root.formatUsageLine(modelData.data)
                                                     accentColor: root.usageWindowColor(modelData.data)
-                                                    track: !root.isPlainBalance(modelData.data)
+                                                    track: !root.isPlainReading(modelData.data)
                                                     pace: root.paceFor(modelData.data)
                                                 }
                                             }
@@ -2349,7 +2349,7 @@ PopoutComponent {
         property bool quota: true
         readonly property real displayPercent: quota ? root.quotaDisplayPercent(percent) : percent
         property color accentColor: root.getUsageColor(percent)
-        // False for a plain balance: the amount alone, no bar to fill.
+        // False for a plain reading: the amount alone, no bar to fill.
         property bool track: true
         // Pace of the window this bar draws (controller.paceFor), or null.
         // It adds no text to the bar: a tick marks where an even spend would
@@ -2979,9 +2979,9 @@ PopoutComponent {
                     ProgressRing {
                         anchors.fill: parent
                         visible: card.hasUsage
-                        // A plain balance has no share to draw: an empty ring, even
+                        // A plain reading has no share to draw: an empty ring, even
                         // under "show remaining quota".
-                        percent: root.isPlainBalance(root.headlineUsageWindow(card.provider)) ? 0 : root.quotaDisplayPercent(root.headlinePercent(card.provider))
+                        percent: root.isPlainReading(root.headlineUsageWindow(card.provider)) ? 0 : root.quotaDisplayPercent(root.headlinePercent(card.provider))
                         thickness: 2.5
                         accentColor: root.providerUsageColor(card.provider)
                         trackColor: Theme.withAlpha(card.accentColor, 0.14)
@@ -3208,8 +3208,8 @@ PopoutComponent {
                 label: card.windows.length > 0 ? card.windows[0].label : t("status.usage", "Usage")
                 percent: root.providerPercent(card.provider)
                 aside: card.windows.length > 0 ? root.formatUsageLine(card.windows[0].data) : root.quotaPercentText(root.providerPercent(card.provider))
-                accentColor: card.windows.length > 0 && root.isPlainBalance(card.windows[0].data) ? root.usageWindowColor(card.windows[0].data) : root.getUsageColor(root.providerPercent(card.provider))
-                track: !(card.windows.length > 0 && root.isPlainBalance(card.windows[0].data))
+                accentColor: card.windows.length > 0 && root.isPlainReading(card.windows[0].data) ? root.usageWindowColor(card.windows[0].data) : root.getUsageColor(root.providerPercent(card.provider))
+                track: !(card.windows.length > 0 && root.isPlainReading(card.windows[0].data))
                 pace: card.windows.length > 0 ? root.paceFor(card.windows[0].data) : null
             }
 
@@ -3249,7 +3249,7 @@ PopoutComponent {
                         percent: Number(modelData.data.usedPercent || 0)
                         aside: root.formatUsageLine(modelData.data)
                         accentColor: root.usageWindowColor(modelData.data)
-                        track: !root.isPlainBalance(modelData.data)
+                        track: !root.isPlainReading(modelData.data)
                         pace: root.paceFor(modelData.data)
                     }
                 }
