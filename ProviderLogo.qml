@@ -29,7 +29,6 @@ Item {
             modelark: "byteplus",
             grok: "xai",
             "grok-bot": "grokbot",
-            ori: "openrouter",
             "anthropic-api": "anthropic",
             "openai-api": "openai",
             "ai-gateway": "vercel"
