@@ -56,6 +56,7 @@ fetch_cloudflare_native() {
               loginMethod: "api-token",
               primary: {
                 usedPercent: 0,
+                hasLimit: false,
                 windowMinutes: 10080,
                 resetsAt: null,
                 resetDescription: "Workers AI · 7 days",
@@ -63,6 +64,7 @@ fetch_cloudflare_native() {
               },
               secondary: (if $latest != null then {
                 usedPercent: 0,
+                hasLimit: false,
                 windowMinutes: 1440,
                 resetsAt: null,
                 resetDescription: ("Latest day " + ($latest.dimensions.date // "")),

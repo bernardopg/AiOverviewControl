@@ -14,7 +14,11 @@ esac
 if [[ "$url" == */key ]]; then printf '%s' "$status"; fi
 STUB
 chmod +x "$TMP/bin/curl"; fail(){ echo "FAIL: $1" >&2; exit 1; }; run(){ CASE="$1" PATH="$TMP/bin:$PATH" OPENROUTER_API_KEY=sk-test "$ROOT/providers/get-provider-usage" openrouter 2>/dev/null; }
-out="$(run activity)"; jq -e '.[0].usage.primary.usedPercent == 60 and .[0].usage.primary.windowMinutes == null and (.[0].usage.tertiary.displayValue | contains("claude"))' <<<"$out" >/dev/null || fail activity
+# /activity is management-key only: an ordinary key never asks it.
+out="$(run activity)"; jq -e '.[0].usage.tertiary.resetDescription == "Week and month spend"' <<<"$out" >/dev/null || fail activity-without-management-key
+# A malformed rollup leaves the monthly fallback in place.
+out="$(OPENROUTER_MANAGEMENT_KEY=sk-mgmt run bad)"; jq -e '.[0].usage.tertiary.resetDescription == "Week and month spend"' <<<"$out" >/dev/null || fail activity-malformed
+out="$(OPENROUTER_MANAGEMENT_KEY=sk-mgmt run activity)"; jq -e '.[0].usage.primary.usedPercent == 60 and .[0].usage.primary.windowMinutes == null and (.[0].usage.tertiary.displayValue | contains("claude"))' <<<"$out" >/dev/null || fail activity
 out="$(run err)"; jq -e '.[0].error.code == 429 and .[0].error.message == "rate limited"' <<<"$out" >/dev/null || fail error
 out="$(env -u OPENROUTER_API_KEY PATH="$TMP/bin:$PATH" "$ROOT/providers/get-provider-usage" openrouter 2>/dev/null)"; jq -e '.[0].error' <<<"$out" >/dev/null || fail missing-key
 echo 'OK: test-cov-c2-openrouter'

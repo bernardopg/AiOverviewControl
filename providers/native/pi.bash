@@ -38,6 +38,7 @@ fetch_pi_native() {
           loginMethod: "local",
           primary: {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Today",
@@ -45,6 +46,7 @@ fetch_pi_native() {
           },
           secondary: {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Week",

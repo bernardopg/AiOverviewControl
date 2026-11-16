@@ -82,6 +82,7 @@ fetch_9router_native() {
                 # label says so explicitly so the card is never mistaken for
                 # that provider real quota.
                 usedPercent:0,
+                hasLimit:false,
                 windowMinutes:null,
                 resetsAt:null,
                 resetDescription:("Latest day " + $latest.date + $routed_note),
@@ -89,6 +90,7 @@ fetch_9router_native() {
               },
               secondary:{
                 usedPercent:0,
+                hasLimit:false,
                 windowMinutes:null,
                 resetsAt:null,
                 resetDescription:"Tracked total",
@@ -96,6 +98,7 @@ fetch_9router_native() {
               },
               tertiary:{
                 usedPercent:0,
+                hasLimit:false,
                 windowMinutes:null,
                 resetsAt:null,
                 resetDescription:"Tokens",

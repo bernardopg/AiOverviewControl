@@ -54,6 +54,23 @@ DashCardComponent {
         return Theme.success;
     }
 
+    // A plain reading (a balance or spend with no cap, budget or limit to
+    // compare with) shows its amount in the content colour and no bar; only
+    // a used-up balance is an error.
+    function isBalance(item) {
+        return !!item && typeof item.balance === "string" && item.balance.length > 0;
+    }
+
+    function itemColor(item) {
+        if (isBalance(item))
+            return Number(item.percent) >= 100 ? Theme.error : root.contentColor;
+        return usageColor(item.percent);
+    }
+
+    function itemValue(item) {
+        return isBalance(item) ? item.balance : shownPercent(item) + "%";
+    }
+
     function shownPercent(item) {
         const used = Math.round(Number(item.percent) || 0);
         return remaining ? 100 - used : used;
@@ -121,10 +138,10 @@ DashCardComponent {
 
         NumericText {
             isMonospace: false
-            text: root.items.length > 0 && !root.items[0].error ? root.shownPercent(root.items[0]) + "%" : "!"
+            text: root.items.length > 0 && !root.items[0].error ? root.itemValue(root.items[0]) : "!"
             font.pixelSize: Theme.fontSizeXXLarge
             font.weight: Theme.fontWeightMedium
-            color: root.items.length > 0 && !root.items[0].error ? root.usageColor(root.items[0].percent) : Theme.error
+            color: root.items.length > 0 && !root.items[0].error ? root.itemColor(root.items[0]) : Theme.error
         }
 
         StyledText {
@@ -177,16 +194,17 @@ DashCardComponent {
                             if (modelData.error)
                                 return t("status.error", "Error");
                             const reset = root.width >= DashMetrics.gridRowUnit * 3 || root.tall ? root.resetText(modelData) : "";
-                            const value = root.shownPercent(modelData) + "%";
+                            const value = root.itemValue(modelData);
                             return reset.length > 0 ? `${value} · ${reset}` : value;
                         }
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
-                        color: modelData.error ? Theme.error : root.usageColor(modelData.percent)
+                        color: modelData.error ? Theme.error : root.itemColor(modelData)
                     }
                 }
 
                 Rectangle {
+                    visible: !root.isBalance(modelData)
                     width: parent.width
                     height: Theme.spacingS
                     radius: height / 2

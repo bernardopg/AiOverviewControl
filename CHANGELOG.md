@@ -2,7 +2,39 @@
 
 ## Unreleased
 
+## 2.5.0 - 2026-11-16
+
+A feature release for Dux Shell 2.0 and 2.1. The **OpenRouter** card can headline money left instead of the key limit: the key's balance against its spending cap, or the account's credits as openrouter.ai shows them (#127). A new **Ori** provider tracks OpenRouter's coding agent from its local session files. Balances, spend and coding-agent telemetry with nothing to compare against now read as plain amounts in the neutral colour, without a usage bar, instead of a green `0%`. The README gains a new product video, banner, dashboard gallery and registry screenshot. Settings, Claude profiles, pins and history carry over unchanged.
+
+Long-form notes: [docs/releases/2.5.0.md](docs/releases/2.5.0.md).
+
+### Features
+
+- The **OpenRouter** card can show money left instead of the key limit (#127). **Settings → OpenRouter main bar** offers **Key limit** (the default, unchanged), **Key balance** (what is left of the key's spending cap, in dollars) and **Account credits** (the balance on openrouter.ai/credits, `total_credits - total_usage` from `GET /api/v1/credits`). The bar pill and card header show the amount like other balance providers, and a negative balance reads `-$1.50`. A key without a cap has no key balance and keeps the key-limit bar. OpenRouter's reference lists `/credits` as management-key only, yet it answers an ordinary key, so the card asks with `OPENROUTER_API_KEY`; an optional `OPENROUTER_MANAGEMENT_KEY` (or the `AIOC_VAULT_OPENROUTER_MANAGEMENT` keyring entry) is used instead when set. If the route refuses, the card keeps the key-limit bar and its credits line names the fix. The settings preview shows the amount as well, and **Diagnostics and tests** gains commands that run the OpenRouter adapter with the chosen view and the Ori adapter. Covered by `tests/test-openrouter.sh` and `tests/test-widget-runtime.sh`.
+- A prepaid balance with nothing to compare it with (Kimi, DeepSeek, Cline, Ollama Cloud purchased credits, Vercel AI Gateway, xAI prepaid and the new OpenRouter account credits) is no longer drawn as a quota. The pill, the card header, the history line and the Dashboard card show the amount in the neutral text colour instead of green, and the card shows no usage bar under it. Only a used-up balance turns red. A balance measured against a cap, such as OpenRouter's key balance, keeps its bar and colours.
+- Spend and telemetry readings with nothing to compare against follow the same rule. OpenRouter's **Spent today** and week lines, an uncapped OpenRouter key, Anthropic and OpenAI month-to-date spend without a budget, and the pi, Ori, Hermes, OpenCode, 9Router and Cloudflare cards now show their amount in the neutral colour, with no usage bar and an empty ring, instead of a green `0%`. They also no longer pull the fleet's average load down. Adapters mark these windows `hasLimit: false`. The OpenRouter week line also drops the English words "Week" and "Month" from its value, since its translated label already names both. Covered by `tests/test-widget-runtime.sh`, `tests/test-openrouter.sh`, `tests/test-ori.sh` and `tests/test-spend-providers.sh`.
+
+### Providers
+
+- New **Ori** provider for OpenRouter's coding agent CLI. The card sums the cost and tokens of the sessions Ori records in `~/.ori/global/.ori/logs/sessions` into today, the last 7 days and this month, and names the latest model and the sign-in method. It reads only those session files: Ori's databases and its encrypted OAuth or API key under `~/.ori/auth` are never opened, and no request is sent. **Detect providers** finds it from the session directory or the `ori` command. Covered by `tests/test-ori.sh`.
+- The **OpenRouter** logo is the current "OR" glyph from OpenRouter's brand page instead of the old routing-arrows mark; the Ori card uses it too.
+
+### Fixes
+
+- The OpenRouter card no longer asks `GET /api/v1/activity` with an ordinary key. That route rejects every key except a management key (HTTP 403), so the 30-day top-models line never appeared and each refresh sent a request that could only fail. With `OPENROUTER_MANAGEMENT_KEY` set, the top models come back.
+
+### Documentation
+
+- The README banner and `screenshot.png`, the image the Dux Shell plugin registry turns into its 960×540 preview card, are redrawn at 16:9 for the current purple brand. They show the bar pill, the dashboard with a plain OpenRouter balance and the main features, without a version tag that would go stale. The settings and About screenshots are retaken from the current release, and the README lists Ori and the OpenRouter views. The repository's social preview (`docs/assets/github-preview.png`, 1280×640) follows the same design. The README demo is a new 46-second product video (1080p60 MP4 and a 640 px GIF) that walks through the bar pill, the dashboard, plain balances, Claude credits and resets, local agent telemetry, the live settings preview and provider detection.
+- The README adds a dashboard gallery (the overview, provider cards, Claude credits and resets, local agent telemetry) next to the settings and About screenshots, and a summary of what is new in 2.5 in English and Portuguese. `docs/usage.md` describes plain readings in the bar pill, the Dashboard card and the provider cards, and the OpenRouter main bar.
+
+### Project
+
 - Bump `github/codeql-action/upload-sarif` to v4.39.3 for the Scorecard upload, once past the seven-day quarantine.
+
+### Thanks
+
+- Thanks to [@Dukko](https://github.com/Dukko) for asking for the OpenRouter balance (#127).
 
 ## 2.4.1 - 2026-11-11
 

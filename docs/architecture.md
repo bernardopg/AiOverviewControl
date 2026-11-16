@@ -50,8 +50,9 @@ scripts/package-release           Release archive build and validation
 Most API-backed and informational providers expose a normalized JSON
 `get-<id>-usage` entrypoint that delegates through `get-provider-wrapper`. The
 specialized Claude helper emits `KEY=VALUE` analytics for the dispatcher to
-normalize, and `pi` and `hermes` use inline dispatcher envelopes plus
-`get-pi-analytics` / `get-hermes-analytics`. Note that the "stub" shape
+normalize, `pi` and `hermes` use inline dispatcher envelopes plus
+`get-pi-analytics` / `get-hermes-analytics`, and `ori` uses an inline envelope
+alone. Note that the "stub" shape
 describes only the entrypoint file: several adapters implement their real logic
 as native envelopes inside `get-provider-usage` (for example `commandcode`,
 `ollama`, and Antigravity), while the thin `get-<id>-usage` files remain the
@@ -67,8 +68,9 @@ stable contract surface.
 6. Claude details come from the dispatcher item of each Claude provider (`claude` and every `claude-*` profile): the adapter puts the local analytics in `.analytics`, and the dashboard builds one details panel per provider from it through `ClaudeProfiles.details()`. No extra process runs; an OAuth error keeps the local analytics next to the error.
 7. `pi` follows the same isolation principle via a lighter mechanism: its dispatcher-side envelope (`fetch_pi_native`, inline in `get-provider-usage`) only ever reads a cached snapshot and never scans session files itself; the expanded card's own process (`get-pi-analytics`) does the actual scan on the normal refresh cycle.
 8. `hermes` splits the same way, but its collapsed-card envelope (`fetch_hermes_native`) queries `~/.hermes/state.db` directly instead of a cache: the aggregates are indexed SQLite sums that complete in milliseconds, so first paint carries real numbers without waiting for the analytics process.
-9. After each refresh the widget writes `dash-snapshot.json` (owner-only, in the plugin cache directory) with the providers ordered for the overview. The Dashboard card (`AiOverviewDashCard.qml`) only reads and watches that file, so adding the card starts no extra provider requests; until the bar widget has refreshed once, the card has nothing to show.
-10. Limit resets run only from an explicit confirmation in the expanded Claude or Codex card: the widget calls `providers/reset-provider-limits <provider>` once per click, which sends a single request and never retries or polls.
+9. `ori` needs no analytics process: its envelope (`fetch_ori_native`) reads the per-session `metadata.json` files Ori writes under `~/.ori/global/.ori/logs/sessions`, only those touched since the start of the month or the last 7 days (at most 2,000), and sums them in one `jq` pass.
+10. After each refresh the widget writes `dash-snapshot.json` (owner-only, in the plugin cache directory) with the providers ordered for the overview. The Dashboard card (`AiOverviewDashCard.qml`) only reads and watches that file, so adding the card starts no extra provider requests; until the bar widget has refreshed once, the card has nothing to show.
+11. Limit resets run only from an explicit confirmation in the expanded Claude or Codex card: the widget calls `providers/reset-provider-limits <provider>` once per click, which sends a single request and never retries or polls.
 
 ## Claude adapter
 
@@ -99,6 +101,8 @@ usage.primary / secondary / tertiary
   resetDescription
   displayValue (optional)
   isBalance (optional; true when displayValue is a prepaid balance amount)
+  hasLimit (optional; true when a balance is measured against a cap, budget or goal;
+            false when a non-balance window is a plain reading with nothing to compare against)
 usage.updatedAt
 usage.retryAt / retryReason (optional; set while an adapter backs off a failing endpoint)
 accounts[] (optional; local multi-account providers)
@@ -107,7 +111,9 @@ accounts[] (optional; local multi-account providers)
 credits.remaining
 ```
 
-A window marked `isBalance: true` is a prepaid balance: `displayValue` holds the formatted amount (`$95.50`, `¥9.34`) and `usedPercent` only says whether it is used up (0 or 100). The bar pill, its tooltip and the card header show that amount instead of a percentage; any other window, including an informational `displayValue` such as `Unlimited`, keeps its percentage in the bar.
+A window marked `isBalance: true` is a prepaid balance: `displayValue` holds the formatted amount (`$95.50`, `¥9.34`) and `usedPercent` only says whether it is used up (0 or 100). The bar pill, its tooltip and the card header show that amount instead of a percentage; any other window, including an informational `displayValue` such as `Unlimited`, keeps its percentage in the bar. A balance has nothing to compare with unless the adapter also sets `hasLimit: true`, so it is information rather than a warning: the pill, the card header, the history line and the Dashboard card show it in the neutral text colour, the card draws no usage bar and the header ring stays empty. Only a used-up balance (`usedPercent` 100) takes the error colour. A balance measured against a cap (`hasLimit: true`, such as OpenRouter's **Key balance** against the key's spending cap) sets `usedPercent` to the share of that cap already spent, and keeps the bar and the usage colours.
+
+The same rule covers readings that are not balances. A window the adapter marks `hasLimit: false` (spend without a budget, coding-agent telemetry, a status or plan line) has `usedPercent` 0 by construction, so a percentage would fake a measurement. The pill, its tooltip and the card header show its `displayValue` (a dash when it has none) in the neutral text colour, the card draws no usage bar, the header ring stays empty, and the fleet's average load leaves it out. Adapters set it on the **Spent today** and week lines of OpenRouter, an uncapped OpenRouter key, the month-to-date spend of `anthropic` and `openai` without a budget (`hasLimit: true` once a budget is set), every `pi`, `ori`, `hermes`, `opencode` (local), `9router` and `cloudflare` window, the Vercel and Cline spend lines, and the status lines of `ollama`, `nvidia`, `replicate` and Kimi's voucher/cash split. A window without the field keeps the quota behaviour.
 
 Errors return:
 
@@ -183,6 +189,7 @@ All SQLite access is `-readonly`: the gateway keeps `state.db` live in WAL mode,
 | `pillCompact` | `false` | Tighten the separator and entry spacing of the bar pill. |
 | `showClaudeProjects` | `true` | Show Claude local project analytics. |
 | `showAntigravityModelDetails` | `false` | Replace Antigravity family rows with per-model rows in expanded cards. |
+| `openrouterView` | `key` | OpenRouter main bar: key limit, key balance (`key-balance`) or account credits (`account`); passed to the adapter as `AIOC_OPENROUTER_VIEW`. |
 
 Legacy settings unknown to the current code are ignored.
 

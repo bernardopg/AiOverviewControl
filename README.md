@@ -36,7 +36,7 @@ with no external service.
 
 <img src="./docs/assets/demo.gif" alt="AiOverviewControl demo" width="100%" />
 
-<sub><a href="./docs/assets/demo.mp4">Full-quality MP4</a></sub>
+<sub><a href="./docs/assets/demo.mp4">Full-quality MP4 (1080p60)</a></sub>
 
 </div>
 
@@ -68,7 +68,9 @@ one click.
 **🎯 A pill that tells the truth**<br />
 Pick which quota window each provider shows in the bar, or follow the
 most-constrained one, as used or as remaining quota. A weekly limit that runs
-out takes over the bar, and prepaid balances read as amounts (`¥9.34`). Settings
+out takes over the bar. Balances and spend with nothing to compare against read
+as plain amounts (`¥9.34`, `$9.78`), with no fake bar or warning colour, and
+OpenRouter can show its key limit, key balance or account credits. Settings
 preview every change live; hover the bar for each window and its reset.
 
 </td>
@@ -77,7 +79,7 @@ preview every change live; hover the bar for each window and its reset.
 <td valign="top">
 
 **🤖 Deep local telemetry**<br />
-Claude, Codex, OpenCode, 9Router, pi, and Hermes add token, cost, model, and project
+Claude, Codex, OpenCode, 9Router, pi, Ori, and Hermes add token, cost, model, and project
 analytics with a seven-day chart — read from data already on your disk. Track
 several Claude accounts side by side, each from its own `CLAUDE_CONFIG_DIR`.
 Claude and Codex also show credits, extra usage and limit resets, and can
@@ -118,7 +120,15 @@ label the provider adapters emit.
 
 <table>
 <tr>
-<td align="center" width="50%"><img src="./docs/assets/settings.png" alt="Settings window" /><br /><sub><b>Settings window</b> — also available in Dux Shell Settings → Plugins</sub></td>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard.png" alt="Dashboard with the Codex hero and the fleet overview" /><br /><sub><b>Dashboard</b> — the busiest provider up top, fleet load, risk and next reset</sub></td>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard-providers.png" alt="Provider cards with quotas, a plain OpenRouter balance and agent telemetry" /><br /><sub><b>Every provider, side by side</b> — quotas in colour, balances and telemetry as plain amounts</sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard-claude.png" alt="Expanded Claude card with credits and limit resets" /><br /><sub><b>Credits & limit resets</b> — spend limit, monthly spend and resets you can redeem</sub></td>
+<td align="center" width="50%"><img src="./docs/assets/screens/dashboard-telemetry.png" alt="Expanded pi card with local telemetry and a seven-day chart" /><br /><sub><b>Local agent telemetry</b> — cost, tokens and a seven-day chart from your disk</sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><img src="./docs/assets/settings.png" alt="Settings window" /><br /><sub><b>Settings window</b> — live preview; also in Dux Shell Settings → Plugins</sub></td>
 <td align="center" width="50%"><img src="./docs/assets/about.png" alt="About window" /><br /><sub><b>About</b> — version, developer, and ways to support the project</sub></td>
 </tr>
 </table>
@@ -164,8 +174,8 @@ Prefer a release archive or a git checkout? See [Installation](./docs/installati
 | Coverage           | What you get                                              | Examples                                                               |
 | ------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
 | **Quota**          | Real usage % and reset time                               | Codex, Copilot, Cursor, Antigravity, Grok Bot, OpenCode Go, Z.ai, xAI  |
-| **Balance**        | Remaining prepaid credit                                  | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway     |
-| **Analytics**      | Tokens, cost, and models from local data or spend reports | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API     |
+| **Balance**        | Remaining prepaid credit                                  | Kimi, DeepSeek, OpenRouter, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
+| **Analytics**      | Tokens, cost, and models from local data or spend reports | Claude, 9Router, pi, Ori, Hermes, Cloudflare, Anthropic API, OpenAI API |
 | **Authentication** | Credential check, no usage numbers                        | Mistral, Qwen, Groq, Cohere, NVIDIA                                    |
 | **Local runtime**  | Local models and sessions                                 | Ollama, Vertex AI                                                      |
 | **Informational**  | A link to the official usage page                         | Kiro, Warp, Perplexity, Amp                                            |
@@ -181,10 +191,12 @@ The full list, data sources, and credentials are in [Providers](./docs/providers
 
 ## 📚 Documentation
 
-New in 2.4: 🔍 **Detect providers** tracks everything already set up on your
-computer in one click, every quota bar shows its pace, and an optional Claude Code
-status line bridge keeps the Claude cards current while you work — see the
-[2.4.0 notes](./docs/releases/2.4.0.md). The Grok Bot provider, API keys from
+New in 2.5: OpenRouter can headline its **key limit**, **key balance** or
+**account credits**, the new **Ori** provider tracks OpenRouter's coding agent,
+and balances, spend and agent telemetry read as plain amounts instead of a
+green `0%` — see the [2.5.0 notes](./docs/releases/2.5.0.md). 🔍 **Detect
+providers**, pace on every quota bar and the Claude Code status line bridge
+came in [2.4.0](./docs/releases/2.4.0.md). The Grok Bot provider, API keys from
 the desktop keyring and the settings page with a live preview came in
 [2.3.0](./docs/releases/2.3.0.md). Spend providers and Gemini CLI quota
 arrived in [2.2.0](./docs/releases/2.2.0.md), and since

@@ -29,6 +29,7 @@ fetch_replicate_native() {
           loginMethod: "api-token",
           primary: {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Account",

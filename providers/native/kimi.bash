@@ -77,6 +77,7 @@ fetch_kimi_native() {
           },
           secondary: {
             usedPercent: 0,
+            hasLimit: false,
             windowMinutes: null,
             resetsAt: null,
             resetDescription: "Voucher / Cash",

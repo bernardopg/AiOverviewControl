@@ -1,6 +1,6 @@
 # Providers
 
-`providers/get-provider-usage` dispatches every selected provider independently and returns one normalized JSON object per provider. Most providers also expose a normalized `providers/get-<id>-usage` entrypoint, and every provider is covered by `providers/get-provider-health`. Claude's specialized helper emits `KEY=VALUE` data for the dispatcher to normalize; `pi` uses an inline dispatcher envelope plus `providers/get-pi-analytics`, and `hermes` computes its dispatcher envelope straight from `~/.hermes/state.db` (indexed, milliseconds) with `providers/get-hermes-analytics` feeding the expanded telemetry card.
+`providers/get-provider-usage` dispatches every selected provider independently and returns one normalized JSON object per provider. Most providers also expose a normalized `providers/get-<id>-usage` entrypoint, and every provider is covered by `providers/get-provider-health`. Claude's specialized helper emits `KEY=VALUE` data for the dispatcher to normalize; `pi` uses an inline dispatcher envelope plus `providers/get-pi-analytics`, `ori` sums Ori's session metadata files inline (no cache or expanded card), and `hermes` computes its dispatcher envelope straight from `~/.hermes/state.db` (indexed, milliseconds) with `providers/get-hermes-analytics` feeding the expanded telemetry card.
 
 This document is the authoritative reference for adapter authors. It records, for every provider:
 
@@ -22,8 +22,8 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 | Level | Meaning | Example providers |
 | --- | --- | --- |
 | **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `gemini` (Gemini CLI with a Code Assist Standard/Enterprise project), `ollama-cloud` (legacy session/weekly plans), `groq` (opt-in `GROQ_QUOTA_MODEL` probe), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
-| **Balance** | Remaining prepaid balance / credits in real currency, shown as the amount in the bar pill and card header (`isBalance`). | `kimi`, `deepseek`, `xai` (Management API prepaid), `neuralwatt` (prepaid USD), `cline` (credits), `ollama-cloud` (included monthly + purchased credits), `vercel` (AI Gateway credits) |
-| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota), `anthropic` and `openai` (Admin API month-to-date spend; a percentage only against an optional monthly budget) |
+| **Balance** | Remaining prepaid balance / credits in real currency, shown as the amount in the bar pill and card header (`isBalance`), in the neutral colour and without a usage bar unless the amount is measured against a cap (`hasLimit`). | `kimi`, `deepseek`, `xai` (Management API prepaid), `neuralwatt` (prepaid USD), `cline` (credits), `ollama-cloud` (included monthly + purchased credits), `vercel` (AI Gateway credits), `openrouter` (**Key balance** or **Account credits** view) |
+| **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value, shown as the amount in the neutral colour and without a usage bar (`hasLimit: false`). | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `ori` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota), `anthropic` and `openai` (Admin API month-to-date spend; a percentage only against an optional monthly budget) |
 | **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini` (API key only), `mistral`, `nvidia` (NGC key verification), `qwen`, `byteplus`, `groq` (without `GROQ_QUOTA_MODEL`), `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `kiro`, `warp`, `amp` |
@@ -37,7 +37,7 @@ color:
 | Kind | Providers | Meaning |
 | --- | --- | --- |
 | `provider` | everything else (default) | Standard API/account provider. |
-| `agent` | `pi` | Local coding-agent harness; telemetry only, no account quota. |
+| `agent` | `pi`, `ori` | Local coding-agent harness; telemetry only, no account quota. |
 | `agent,provider` | `hermes` | Dual nature: agent harness **and** provider front; the card renders as "Agent · Provider". |
 | `gateway` | `9router` | Router that aggregates other providers behind one endpoint. |
 | `local` | `ollama` | Local runtime, no cloud account. |
@@ -322,6 +322,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>local store</td>
 </tr>
 <tr>
+<td><code>ori</code></td>
+<td>Local analytics</td>
+<td>local session metadata (<code>~/.ori/global/.ori/logs/sessions</code>)</td>
+<td>✅ local cost/tokens per session — the agent side; the OpenRouter balance it spends is the <code>openrouter</code> card</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td><a href="https://openrouter.ai/activity">openrouter.ai/activity</a></td>
+<td>local store</td>
+</tr>
+<tr>
 <td><code>hermes</code></td>
 <td>Local analytics</td>
 <td>local SQLite state (<code>~/.hermes/state.db</code>)</td>
@@ -336,10 +347,10 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>openrouter</code></td>
 <td>Quota/balance</td>
 <td>✅ <code>GET /api/v1/key</code></td>
-<td>✅ limit/daily/monthly/balance + free-model requests/day</td>
+<td>✅ key limit/daily/monthly + free-model requests/day; key balance; account credits (<code>GET /api/v1/credits</code>)</td>
 <td>—</td>
 <td>✅ per token</td>
-<td><code>OPENROUTER_API_KEY</code> or a keyring entry (<code>AIOC_VAULT_OPENROUTER</code>)</td>
+<td><code>OPENROUTER_API_KEY</code> or a keyring entry (<code>AIOC_VAULT_OPENROUTER</code>); optional <code>OPENROUTER_MANAGEMENT_KEY</code> (<code>AIOC_VAULT_OPENROUTER_MANAGEMENT</code>)</td>
 <td><a href="https://openrouter.ai/credits">openrouter.ai/credits</a></td>
 <td><a href="https://openrouter.ai/docs/api-reference/limits">openrouter.ai/docs</a></td>
 </tr>
@@ -533,6 +544,30 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tbody>
 </table>
 
+## OpenRouter views and Ori
+
+The `openrouterView` setting picks the card's main bar.
+**Key limit** (default) reads `GET /api/v1/key`: the key's spending cap for its
+current window, or the daily `:free` model allowance for a key without a cap.
+**Key balance** shows what is left of that cap in dollars as a balance; a key
+without a cap has none and keeps the key-limit bar. **Account credits** reads
+`GET /api/v1/credits` and shows `total_credits - total_usage`, the figure on
+openrouter.ai/credits; a negative balance reads `-$1.50`. OpenRouter's reference
+lists `/credits` as management-key only, yet it answers an ordinary inference
+key too, so the adapter asks with `OPENROUTER_API_KEY` unless
+`OPENROUTER_MANAGEMENT_KEY` (or the `AIOC_VAULT_OPENROUTER_MANAGEMENT` keyring
+entry) is set. When the route refuses, the card keeps the key-limit bar and its
+credits line says why. `GET /api/v1/activity` (the 30-day per-model rollup in the
+third window) does reject ordinary keys with HTTP 403, so it is asked only with a
+management key. Management keys cannot run inference and are never used for
+`/api/v1/key`.
+
+Ori, OpenRouter's coding agent CLI, signs in
+with OAuth (or an API key) and keeps that key encrypted under `~/.ori/auth`; the
+plugin never reads it. The `ori` card sums the session metadata Ori writes to its
+global workspace, and the `openrouter` card needs its own key (an OAuth-issued
+key is an ordinary `sk-or-v1-` key, so the same rules apply).
+
 ## Local fallbacks and aliases
 
 **OpenRouter → 9Router local fallback.** When `OPENROUTER_API_KEY` is unset,
@@ -563,7 +598,7 @@ upstream OpenRouter API quota. With the variable set, the real
 
 ## Provider reference
 
-Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM/Z.ai, NVIDIA, MiniMax, Kimi, Qwen, xAI, Kilo, Kiro). All HTTP probes below are read-only and consume **no tokens**.
+Detailed adapter notes for the providers whose API needs more than the matrix above. All HTTP probes below are read-only and consume **no tokens**.
 
 ### Gemini (Google)
 
@@ -743,6 +778,30 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Card** | Balance (the bar fills only when it is used up) and total used. |
 | **Dashboard** | [vercel.com → AI Gateway](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway). |
 | **Adapter** | `fetch_vercel_native` — one `/v1/credits` call per refresh. |
+
+### OpenRouter
+
+| | |
+| --- | --- |
+| **API base** | `https://openrouter.ai/api/v1`. |
+| **Credentials** | `OPENROUTER_API_KEY`, or the keyring entry named by `AIOC_VAULT_OPENROUTER`. A key from Ori's OAuth sign-in (PKCE, `POST /api/v1/auth/keys`) is an ordinary `sk-or-v1-` key, but Ori stores it encrypted under `~/.ori/auth` and the plugin never reads it, so give the card its own key. Optional `OPENROUTER_MANAGEMENT_KEY` (or `AIOC_VAULT_OPENROUTER_MANAGEMENT`): a management key, used only for `/credits` and `/activity`; management keys cannot run inference. Without `OPENROUTER_API_KEY` the card falls back to local 9Router data (see below). |
+| **Auth** | `Authorization: Bearer <key>`, passed to `curl` through `--config`, never on a command line. |
+| **Key check** | `GET /key` → `data.limit`, `limit_remaining`, `limit_reset` (`daily`/`weekly`/`monthly`/null), `usage` (lifetime), `usage_daily`/`weekly`/`monthly`, `byok_usage*` with `include_byok_in_limit`, `is_free_tier`, `free_model_daily_requests` (`used`/`limit`/`remaining`, 50 or 1,000 a day, reset 00:00 UTC). Any key may call it. Zero tokens. |
+| **Quota / balance** | Key limit: the cap's current window, `limit - limit_remaining` (else the `usage_*` counter matching `limit_reset`). Key balance: `limit_remaining`. Account credits: `GET /credits` → `data.total_credits` and `data.total_usage`; balance is their difference and can be negative. The reference says "Management key required", but on 2026-11-16 an ordinary key got HTTP 200, so the inference key is used unless a management key is set. Per-model rollup: `GET /activity` (last 30 completed UTC days, `model` and `usage` per row), HTTP 403 `Only management keys can fetch activity for an account` for any other key. |
+| **Errors** | `{"error":{"code","message","metadata"?}}`. 401 invalid or expired key (a key OpenRouter no longer knows gets `User not found.`), 402 out of credits (`metadata.limit_source`: `openrouter_credits`, `openrouter_key_limit`, `openrouter_in_flight_budget`), 403 permission or budget, 429 rate limited (per-IP burst limits also cover `/key` and `/credits`). A failed `/key` is a card error with OpenRouter's message; a failed `/credits` or `/activity` only changes the credits line or the third window. |
+| **Card** | Main bar per `openrouterView` (`key`, `key-balance`, `account`); then spent today, and week spend with top models (management key) or month spend. The account view adds `credits.account` `{total, used, balance}`. |
+| **Dashboard** | [openrouter.ai/activity](https://openrouter.ai/activity), [credits](https://openrouter.ai/credits). |
+| **Adapter** | `fetch_openrouter_native` — one `/key` call per refresh, plus `/credits` in the account view and `/activity` with a management key. |
+
+### Ori (OpenRouter coding agent)
+
+| | |
+| --- | --- |
+| **Source** | `~/.ori/global/.ori/logs/sessions/<session id>/metadata.json`, written by `ori` for every session it runs, whatever directory it started in. Fields read: `endedAt` (else `startedAt`), `usage.costUsd`, `usage.inputTokens`, `usage.outputTokens`, `usage.model`; `~/.ori/config.json` `loginMode` (for example `oauth`) labels the sign-in. |
+| **Not read** | Ori's SQLite stores (`state.sqlite`, `session-history.sqlite`; Ori forbids opening its live state database) and `~/.ori/auth` (encrypted OAuth tokens and keys). No network request. |
+| **Card** | Today, last 7 days and calendar month: cost and input+output tokens. A session's usage is cumulative, so it counts on the day it last ran. A session without a cost makes the window's cost `—`. The account line names the latest model; the credits line counts sessions. Readiness: the session directory or the `ori` command; with the command but no session yet, the card says so instead of an error. |
+| **Dashboard** | [openrouter.ai/activity](https://openrouter.ai/activity) (Ori bills the OpenRouter key it runs with). |
+| **Adapter** | `fetch_ori_native` — at most 2,000 session files changed since the earlier of the month start and 7 days ago, one `jq` per file so a damaged file only drops its session. |
 
 ### Cline
 
@@ -945,6 +1004,8 @@ Every provider is covered by `providers/get-provider-health`. Most providers als
 ```bash
 ./providers/get-codex-usage | jq .
 ./providers/get-openrouter-usage | jq .
+AIOC_OPENROUTER_VIEW=account ./providers/get-openrouter-usage | jq .
+./providers/get-ori-usage | jq .
 ./providers/get-ollama-usage | jq .
 ./providers/get-xai-usage | jq .
 ./providers/get-kimi-usage | jq .

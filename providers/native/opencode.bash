@@ -23,7 +23,7 @@ fetch_opencode_native() {
         elif $v > 0 and $v < 0.01 then "<$0.01"
         else ("$" + (($v * 100 | round) / 100 | tostring)) end;
       def window($w; $label):
-        {usedPercent:0, windowMinutes:null, resetsAt:null, resetDescription:$label,
+        {usedPercent:0, hasLimit:false, windowMinutes:null, resetsAt:null, resetDescription:$label,
          displayValue: ((money($w.cost) | if . == null then "" else . + " \u00b7 " end)
            + compact($w.tokens) + " tok")};
       . as $d | {

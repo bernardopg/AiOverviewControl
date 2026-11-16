@@ -171,10 +171,50 @@ ShellRoot {
                 if (settings.loadValue("costCurrency", "USD") !== "BRL") {
                     console.error("SMOKE FAIL: currency setting did not persist"); return;
                 }
+                // OpenRouter main bar: the dropdown stores the view and the
+                // widget hands it to the adapter environment.
+                const orView = input.findChild(settings, "setting-openrouterView");
+                if (!orView || orView.selected !== "key") { console.error("SMOKE FAIL: openrouterView control/default"); return; }
+                orView.picked("account");
+                if (settings.loadValue("openrouterView", "key") !== "account") {
+                    console.error("SMOKE FAIL: openrouterView did not persist"); return;
+                }
                 widget.pluginData = service.data;
                 widget.providers = [];
                 root.step = 1;
             } else if (root.step === 1 && widget.formatCost(2).indexOf("BRL 10") === 0) {
+                if (widget.openrouterView !== "account" || widget.adapterEnvironment().AIOC_OPENROUTER_VIEW !== "account"
+                    || settings.previewUsage("openrouter").primary.isBalance !== true) {
+                    console.error("SMOKE FAIL: openrouterView not applied: " + widget.openrouterView); return;
+                }
+                // A balance with nothing to compare with reads neutral and draws
+                // no bar; used up it is an error; against a cap it keeps the scale.
+                const plain = {usedPercent: 0, isBalance: true, displayValue: "$9.78"};
+                const spent = {usedPercent: 100, isBalance: true, displayValue: "-$0.50"};
+                const capped = {usedPercent: 85, isBalance: true, hasLimit: true, displayValue: "$1.00"};
+                if (!widget.isPlainBalance(plain) || widget.isPlainBalance(capped) || widget.isPlainBalance({usedPercent: 40})
+                    || [0, 60, 100].some(p => Qt.colorEqual(widget.usageWindowColor(plain), widget.getUsageColor(p)))
+                    || !Qt.colorEqual(widget.usageWindowColor(spent), widget.getUsageColor(100))
+                    || !Qt.colorEqual(widget.usageWindowColor(capped), widget.getUsageColor(85))
+                    || !Qt.colorEqual(widget.usageWindowColor({usedPercent: 10}), widget.getUsageColor(10))
+                    || !Qt.colorEqual(settings.previewWindowColor(plain), widget.usageWindowColor(plain))) {
+                    console.error("SMOKE FAIL: balance window colours"); return;
+                }
+                // A spend or telemetry reading the adapter marks hasLimit:false
+                // is plain too: its amount, neutral, no fleet load; a quota
+                // window without the flag keeps its percentage.
+                const reading = {usedPercent: 0, windowMinutes: 1440, hasLimit: false, displayValue: "$0.42 · 12K tok"};
+                const budget = {usedPercent: 30, windowMinutes: null, hasLimit: true, displayValue: "$3.00 / $10.00"};
+                if (!widget.isPlainReading(reading) || !widget.isPlainReading(plain) || widget.isPlainReading(capped)
+                    || widget.isPlainReading(budget) || widget.isPlainReading({usedPercent: 0, windowMinutes: 300})
+                    || widget.pillWindowText(reading) !== "$0.42 · 12K tok"
+                    || widget.pillWindowText({usedPercent: 0, hasLimit: false}) !== "—"
+                    || [0, 60, 100].some(p => Qt.colorEqual(widget.usageWindowColor(reading), widget.getUsageColor(p)))
+                    || !Qt.colorEqual(widget.usageWindowColor(budget), widget.getUsageColor(30))
+                    || !Qt.colorEqual(settings.previewWindowColor(reading), widget.usageWindowColor(reading))
+                    || settings.previewUsage("ori").primary.hasLimit !== false) {
+                    console.error("SMOKE FAIL: plain reading windows"); return;
+                }
                 // Pace: 2 h into a 5 h window, 25% used is under the 40%
                 // even line (tick, no flame); a 60% tertiary window is
                 // heading for exhaustion before its reset (tick and flame).
@@ -193,6 +233,10 @@ ShellRoot {
                 widget.pluginData = service.data;
                 root.step = 2;
             } else if (root.step === 2 && widget.formatCost(2).indexOf("$2") === 0) {
+                if (widget.openrouterView !== "key" || widget.adapterEnvironment().AIOC_OPENROUTER_VIEW !== "key"
+                    || settings.previewUsage("openrouter").primary.isBalance === true) {
+                    console.error("SMOKE FAIL: reset did not restore the OpenRouter key view"); return;
+                }
                 if (!widget.dashboardView) { console.error("SMOKE FAIL: view not attached"); return; }
                 const remaining = input.findChild(settings, "setting-showRemainingQuota");
                 if (!remaining || remaining.checked) { console.error("SMOKE FAIL: remaining quota default/control"); return; }

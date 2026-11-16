@@ -92,6 +92,7 @@ fetch_hermes_native() {
         loginMethod: ($model_provider | if . == "" then "local" else . end),
         primary: {
           usedPercent: 0,
+          hasLimit: false,
           windowMinutes: null,
           resetsAt: null,
           resetDescription: "Today",
@@ -99,6 +100,7 @@ fetch_hermes_native() {
         },
         secondary: {
           usedPercent: 0,
+          hasLimit: false,
           windowMinutes: null,
           resetsAt: null,
           resetDescription: "Week",

@@ -104,6 +104,7 @@ out="$(run anthropic "$TMP/anthropic-today.json")"
 check "anthropic month" '.[0].provider == "anthropic" and .[0].source == "anthropic-admin-api"
   and .[0].usage.primary.resetDescription == "Month to date"
   and .[0].usage.primary.displayValue == "$13.74" and .[0].usage.primary.usedPercent == 0
+  and .[0].usage.primary.hasLimit == false and .[0].usage.secondary.hasLimit == false
   and (.[0].usage.primary.resetsAt | test("^[0-9]{4}-[0-9]{2}-01T00:00:00Z$"))
   and .[0].usage.secondary.resetDescription == "Today" and .[0].usage.secondary.displayValue == "$2.51"' "$out"
 grep -qx "H x-api-key: $SECRET" "$TMP/log" || fail "anthropic: x-api-key header"
@@ -113,7 +114,7 @@ grep -qx "Q1 starting_at=$MONTH_START" "$TMP/log" || fail "anthropic: month star
 grep -qx 'Q1 limit=31' "$TMP/log" || fail "anthropic: one page per month"
 
 out="$(ANTHROPIC_MONTHLY_BUDGET_USD=50 run anthropic "$TMP/anthropic-today.json")"
-check "anthropic budget" '.[0].usage.primary.usedPercent == 27.49
+check "anthropic budget" '.[0].usage.primary.usedPercent == 27.49 and .[0].usage.primary.hasLimit == true
   and .[0].usage.primary.displayValue == "$13.74 / $50.00"' "$out"
 
 jq '.has_more = true | .next_page = "page_fixture"' "$FIX/anthropic-cost-report.json" >"$TMP/anthropic-page1.json"
@@ -144,13 +145,14 @@ out="$(run openai "$TMP/openai-today.json")"
 check "openai month" '.[0].provider == "openai" and .[0].source == "openai-admin-api"
   and .[0].usage.primary.resetDescription == "Month to date"
   and .[0].usage.primary.displayValue == "$13.88" and .[0].usage.primary.usedPercent == 0
+  and .[0].usage.primary.hasLimit == false
   and .[0].usage.secondary.displayValue == "$1.25"' "$out"
 grep -qx "H Authorization: Bearer $SECRET" "$TMP/log" || fail "openai: bearer header"
 grep -qx 'U https://api.openai.com/v1/organization/costs' "$TMP/log" || fail "openai: endpoint"
 grep -qx "Q1 start_time=$MONTH_EPOCH" "$TMP/log" || fail "openai: month start"
 
 out="$(OPENAI_MONTHLY_BUDGET_USD=10 run openai "$TMP/openai-today.json")"
-check "openai budget" '.[0].usage.primary.usedPercent == 100 and .[0].usage.primary.displayValue == "$13.88 / $10.00"' "$out"
+check "openai budget" '.[0].usage.primary.usedPercent == 100 and .[0].usage.primary.hasLimit == true and .[0].usage.primary.displayValue == "$13.88 / $10.00"' "$out"
 
 jq '.has_more = true | .next_page = "page_openai"' "$FIX/openai-costs.json" >"$TMP/openai-page1.json"
 out="$(FAKE_BODY_1="$TMP/openai-page1.json" FAKE_BODY_2="$TMP/openai-today.json" run openai /dev/null)"
@@ -175,6 +177,7 @@ out="$(run vercel "$FIX/vercel-credits.json")"
 check "vercel credits" '.[0].provider == "vercel" and .[0].source == "vercel-ai-gateway"
   and .[0].usage.primary.usedPercent == 0 and .[0].usage.primary.displayValue == "$95.50"
   and .[0].usage.secondary.resetDescription == "Total used" and .[0].usage.secondary.displayValue == "$4.50"
+  and .[0].usage.secondary.hasLimit == false
   and .[0].credits.remaining == "$95.50"' "$out"
 grep -qx 'U https://ai-gateway.vercel.sh/v1/credits' "$TMP/log" || fail "vercel: endpoint"
 grep -qx "H Authorization: Bearer $SECRET" "$TMP/log" || fail "vercel: bearer header"

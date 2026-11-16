@@ -13,9 +13,10 @@ stay one release cycle, then move to `CHANGELOG.md`.
 
 ## 🚀 Next release
 
-- [x] **2.4.0** — released 2026-11-09: Detect providers, pace for every quota
-  window, the Claude Code status line bridge, hero polish and the DeepSeek
-  multi-currency fix. `S · ★★★`
+- [~] **2.5.0** — prepared 2026-11-16 in #129: OpenRouter key balance and
+  account credits views (#127), the Ori provider, plain amounts for balances,
+  spend and agent telemetry, the new README demo, banner and gallery. Merge,
+  then tag `v2.5.0`. `S · ★★★`
 
 ## 🔧 Partial — needs a follow-up
 
@@ -174,9 +175,6 @@ No work starts until a read-only source exists. Last check: 2026-10-26.
   the dashboard has three. Give the pill, header actions, provider cards,
   capsule buttons and quota bars an `Accessible.name`/`role` that reads the
   provider, window, percentage and reset, and translate them. `M · ★★`
-- [ ] **Refresh screenshots and demo** — `docs/assets/settings.png`, the demo
-  GIF and the README feature table predate the 2.3 settings groups and live
-  preview. Re-record them with sample data (no real accounts). `S · ★★`
 - [ ] **New locales** — announce French, Japanese and Russian on Crowdin and
   merge any locale that reaches full coverage; the parity gate already
   enforces completeness. `S · ★`

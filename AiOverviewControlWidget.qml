@@ -176,7 +176,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "hermes"].concat(Object.keys(claudeProfiles))
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "ori", "hermes"].concat(Object.keys(claudeProfiles))
 
     readonly property var selectedProviders: {
         const parts = providerSelection.split(",");
@@ -335,7 +335,7 @@ PluginComponent {
     readonly property var usageData: hasProviderData ? providerData.usage : null
     readonly property var primaryWindow: usageData ? usageData.primary : null
     readonly property real primaryPercent: primaryWindow ? Number(primaryWindow.usedPercent || 0) : 0
-    readonly property color heroAccent: getUsageColor(primaryPercent)
+    readonly property color heroAccent: usageWindowColor(primaryWindow)
 
     // Cross-provider rollup: the fleet's quota pressure at a glance. Aggregates
     // the primary window of every live provider — average load, the hottest
@@ -367,7 +367,7 @@ PluginComponent {
             // analytics, and informational cards report 0% by design — folding
             // them in would dilute the fleet average toward zero and misstate
             // real quota pressure. Peak / at-risk / reset still scan everyone.
-            const isQuotaLoad = win && win.windowMinutes !== null && win.windowMinutes !== undefined;
+            const isQuotaLoad = win && win.windowMinutes !== null && win.windowMinutes !== undefined && !isPlainReading(win);
             if (isQuotaLoad) {
                 sum += percent;
                 loadCount++;
@@ -505,6 +505,9 @@ PluginComponent {
             "chat": ["window.chat", "Chat"],
             "completions": ["window.completions", "Completions"],
             "key limit": ["window.key_limit", "Key limit"],
+            "key balance": ["window.key_balance", "Key balance"],
+            "account balance": ["window.account_balance", "Account balance"],
+            "no ori sessions recorded yet": ["window.no_ori_sessions", "No Ori sessions recorded yet"],
             "spent today": ["window.spent_today", "Spent today"],
             "free model requests": ["window.free_model_requests", "Free model requests"],
             "requests per day": ["window.requests_per_day", "Requests per day"],
@@ -623,6 +626,7 @@ PluginComponent {
             claude: "Claude",
             copilot: "Copilot",
             pi: "pi",
+            ori: "Ori",
             hermes: "Hermes",
             antigravity: "Antigravity",
             cursor: "Cursor",
@@ -1066,6 +1070,19 @@ PluginComponent {
         return providerIsStale(provider) ? Theme.withAlpha(color, 0.45) : color;
     }
 
+    // Bar colour for one displayed window, so a plain reading stays neutral.
+    function pillWindowColor(provider, windowData) {
+        const color = usageWindowColor(windowData);
+        return providerIsStale(provider) ? Theme.withAlpha(color, 0.45) : color;
+    }
+
+    // Bar colour for a single-number pill: its window when that is a plain
+    // reading, else the usage scale of the highest displayed window.
+    function pillColorFor(provider) {
+        const windowData = pillWindowFor(provider);
+        return isPlainReading(windowData) ? pillWindowColor(provider, windowData) : pillUsageColor(provider, pillPercentFor(provider));
+    }
+
     function compactPath(value) {
         const text = String(value || "");
         if (text.length === 0)
@@ -1086,7 +1103,7 @@ PluginComponent {
             return Theme.success;
         if (providerId === "copilot")
             return Theme.primary;
-        if (providerId === "pi")
+        if (providerId === "pi" || providerId === "ori")
             return Theme.success;
         if (providerId === "hermes")
             return Theme.primary;
@@ -1159,6 +1176,7 @@ PluginComponent {
     function providerKinds(providerId) {
         const kinds = {
             pi: "agent",
+            ori: "agent",
             hermes: "agent,provider",
             "9router": "gateway",
             ollama: "local",
@@ -1331,11 +1349,59 @@ PluginComponent {
             && String(windowData.displayValue).length > 0;
     }
 
-    // The number the bar shows for one window: the balance amount, or the
-    // percentage in the user's used/remaining convention.
+    // A balance with nothing to measure it against: no spending cap, budget
+    // or goal (`hasLimit` unset). Its amount is information, not a warning,
+    // so it reads in the neutral text colour and draws no usage bar; only a
+    // used-up balance (usedPercent 100) takes the error colour. A balance
+    // window with `hasLimit: true` (OpenRouter's key balance against the key
+    // cap) keeps the bar and the usage colours.
+    function isPlainBalance(windowData) {
+        return isBalanceWindow(windowData) && windowData.hasLimit !== true;
+    }
+
+    // A window with nothing to compare against: a plain balance, or a reading
+    // the adapter marks `hasLimit: false` (spend without a budget, coding-agent
+    // telemetry, a status line). Its usedPercent is 0 by construction, so a
+    // percentage, a bar or the usage colours would only fake a measurement:
+    // it shows its displayValue in the neutral text colour, without a bar.
+    function isPlainReading(windowData) {
+        if (!windowData)
+            return false;
+        if (isBalanceWindow(windowData))
+            return windowData.hasLimit !== true;
+        return windowData.hasLimit === false;
+    }
+
+    // The text a plain reading shows where a percentage would go: its
+    // displayValue, or a dash when the adapter gives none.
+    function plainReadingText(windowData) {
+        const value = windowData && windowData.displayValue !== undefined && windowData.displayValue !== null
+            ? String(windowData.displayValue) : "";
+        return value.length > 0 ? value : "—";
+    }
+
+    // Colour for one window's number and bar: the usage scale, or for a
+    // plain reading the neutral text colour (error once a balance is used up).
+    function usageWindowColor(windowData) {
+        const percent = Number(windowData ? windowData.usedPercent || 0 : 0);
+        if (isPlainReading(windowData))
+            return percent >= 100 ? Theme.error : Theme.surfaceText;
+        return getUsageColor(percent);
+    }
+
+    // Colour for a provider's headline number (card header, ring, history).
+    function providerUsageColor(provider) {
+        const windowData = headlineUsageWindow(provider);
+        return isPlainReading(windowData) ? usageWindowColor(windowData) : getUsageColor(headlinePercent(provider));
+    }
+
+    // The number the bar shows for one window: the balance amount or plain
+    // reading, else the percentage in the user's used/remaining convention.
     function pillWindowText(windowData) {
         if (isBalanceWindow(windowData))
             return String(windowData.displayValue);
+        if (isPlainReading(windowData))
+            return plainReadingText(windowData);
         return `${Math.round(quotaDisplayPercent(Number(windowData ? windowData.usedPercent || 0 : 0)))}%`;
     }
 
@@ -1344,15 +1410,19 @@ PluginComponent {
         const windowData = pillWindowFor(provider);
         if (isBalanceWindow(windowData))
             return String(windowData.displayValue);
+        if (isPlainReading(windowData))
+            return plainReadingText(windowData);
         return `${Math.round(quotaDisplayPercent(pillPercentFor(provider)))}%`;
     }
 
-    // The number a card header shows: the headline window's balance amount,
-    // or its percentage.
+    // The number a card header shows: the headline window's balance amount
+    // or plain reading, or its percentage.
     function headlineText(provider) {
         const windowData = headlineUsageWindow(provider);
         if (isBalanceWindow(windowData))
             return String(windowData.displayValue);
+        if (isPlainReading(windowData))
+            return plainReadingText(windowData);
         return quotaPercentText(headlinePercent(provider));
     }
 
@@ -1398,7 +1468,7 @@ PluginComponent {
                 const label = windowLabel(windowData);
                 if (label && String(label).length > 0)
                     segment.push(label);
-                segment.push(isBalanceWindow(windowData) ? String(windowData.displayValue) : quotaPercentText(windowData.usedPercent));
+                segment.push(isBalanceWindow(windowData) ? String(windowData.displayValue) : isPlainReading(windowData) ? plainReadingText(windowData) : quotaPercentText(windowData.usedPercent));
                 // Only a window heading for exhaustion before its reset adds
                 // a word; one on pace keeps the tooltip as it was.
                 const pace = paceFor(windowData);
@@ -1684,6 +1754,7 @@ PluginComponent {
             codex: "https://chatgpt.com/codex/settings/usage",
             copilot: "https://github.com/settings/copilot/features",
             pi: "",
+            ori: "https://openrouter.ai/activity",
             hermes: "https://portal.nousresearch.com",
             antigravity: "",
             gemini: "https://aistudio.google.com/usage",
@@ -1797,7 +1868,7 @@ PluginComponent {
             return;
         retryingProviderId = normalizeProviderId(providerId);
         retryBuffer = "";
-        procRetry.environment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
+        procRetry.environment = adapterEnvironment();
         procRetry.command = ["bash", providerUsageScript, retryingProviderId, copilotUsageScript];
         procRetry.running = true;
     }
@@ -1958,7 +2029,9 @@ PluginComponent {
                 pinned: isPinned(provider.provider),
                 percent: window ? Math.max(0, Math.min(100, Number(window.usedPercent) || 0)) : null,
                 windowMinutes: window && window.windowMinutes ? Number(window.windowMinutes) : null,
-                resetsAt: window && window.resetsAt ? String(window.resetsAt) : null
+                resetsAt: window && window.resetsAt ? String(window.resetsAt) : null,
+                // A plain reading shows its amount, neutral and without a bar.
+                balance: isPlainReading(window) ? plainReadingText(window) : null
             });
         }
         // Pinned first, then the most used; failed providers last.
@@ -2024,7 +2097,31 @@ PluginComponent {
     // process's command (Qt behaviour on command change while running is
     // undefined and would scramble the fetch).
     property var usageCommand: ["bash", root.providerUsageScript, root.selectedProviders.join(","), root.copilotUsageScript]
-    property var usageEnvironment: ({"AIOC_HISTORY_MAX": root.historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(root.claudeProfiles)})
+    property var usageEnvironment: root.adapterEnvironment()
+
+    // What the OpenRouter card's main bar shows: the key's cap ("key"), what
+    // is left of it ("key-balance") or the account's credit balance
+    // ("account"). The adapter reads it from AIOC_OPENROUTER_VIEW.
+    property string openrouterView: {
+        const view = String(pluginData.openrouterView ?? "key");
+        return ["key", "key-balance", "account"].indexOf(view) >= 0 ? view : "key";
+    }
+    // A new view should not wait for the next timer tick when OpenRouter is
+    // tracked; refresh() skips the call while a fetch is running, and that
+    // fetch's successor uses it.
+    onOpenrouterViewChanged: {
+        if (root.selectedProviders.indexOf("openrouter") >= 0)
+            Qt.callLater(root.refresh);
+    }
+
+    // Environment for every adapter run (refresh, retry, reset).
+    function adapterEnvironment() {
+        return {
+            "AIOC_HISTORY_MAX": historyRetention,
+            "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles),
+            "AIOC_OPENROUTER_VIEW": openrouterView
+        };
+    }
 
     property string historyRetention: {
         const parsed = parseInt(pluginData.historyRetention || "2000");
@@ -2214,7 +2311,7 @@ PluginComponent {
         timedOutRequestId = -1;
         // Snapshot argv now so an in-flight selection change cannot mutate the
         // running process command (see usageCommand declaration).
-        usageEnvironment = {"AIOC_HISTORY_MAX": historyRetention, "AIOC_CLAUDE_PROFILES": JSON.stringify(claudeProfiles)};
+        usageEnvironment = adapterEnvironment();
         usageCommand = ["bash", providerUsageScript, selectedProviders.join(","), copilotUsageScript];
         procUsage.running = true;
         usageTimeout.restart();
@@ -2448,7 +2545,7 @@ PluginComponent {
                         id: pillEntry
                         required property var modelData
                         required property int index
-                        readonly property color usageColor: root.pillUsageColor(modelData, root.pillPercentFor(modelData))
+                        readonly property color usageColor: root.pillColorFor(modelData)
                         // More than one window (issue #86): each gets its own
                         // length tag and colour instead of the single number.
                         readonly property var barWindows: root.pillWindowsFor(modelData)
@@ -2527,7 +2624,7 @@ PluginComponent {
                                 StyledText {
                                     objectName: "pill-window-percent"
                                     text: root.pillWindowText(pillWindow.modelData)
-                                    color: root.pillUsageColor(pillEntry.modelData, Number(pillWindow.modelData.usedPercent || 0))
+                                    color: root.pillWindowColor(pillEntry.modelData, pillWindow.modelData)
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Bold
                                     anchors.verticalCenter: parent.verticalCenter
@@ -2586,7 +2683,7 @@ PluginComponent {
                     StyledText {
                         visible: !verticalEntry.multiWindow
                         text: root.pillText(verticalEntry.modelData)
-                        color: root.pillUsageColor(verticalEntry.modelData, root.pillPercentFor(verticalEntry.modelData))
+                        color: root.pillColorFor(verticalEntry.modelData)
                         font.pixelSize: Theme.fontSizeSmall
                         font.weight: Font.DemiBold
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -2613,7 +2710,7 @@ PluginComponent {
 
                             StyledText {
                                 text: root.pillWindowText(verticalWindow.modelData)
-                                color: root.pillUsageColor(verticalEntry.modelData, Number(verticalWindow.modelData.usedPercent || 0))
+                                color: root.pillWindowColor(verticalEntry.modelData, verticalWindow.modelData)
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.DemiBold
                                 anchors.horizontalCenter: parent.horizontalCenter

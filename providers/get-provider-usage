@@ -118,6 +118,8 @@ source "$SCRIPT_DIR/native/gemini.bash"
 source "$SCRIPT_DIR/native/antigravity.bash"
 # shellcheck source=providers/native/openrouter.bash
 source "$SCRIPT_DIR/native/openrouter.bash"
+# shellcheck source=providers/native/ori.bash
+source "$SCRIPT_DIR/native/ori.bash"
 # shellcheck source=providers/native/9router.bash
 source "$SCRIPT_DIR/native/9router.bash"
 # shellcheck source=providers/native/deepseek.bash
@@ -1171,6 +1173,9 @@ fetch_provider() {
       ;;
     hermes)
       fetch_hermes_native
+      ;;
+    ori)
+      fetch_ori_native
       ;;
     deepseek)
       fetch_deepseek_native

@@ -236,6 +236,7 @@ PluginSettings {
         notifyThresholds: "",
         notifyWindowScope: "displayed",
         historyRetention: "2000",
+        openrouterView: "key",
         providerLogoColor: ""
     })
 
@@ -301,11 +302,12 @@ PluginSettings {
         { id:"claude", name:"Claude", icon:"psychology", mode:"telemetry", requirement:"claude CLI or ~/.claude", envVar:"", note:"Local analytics and authenticated usage" },
         { id:"copilot", name:"Copilot", icon:"code", mode:"telemetry", requirement:"gh CLI or GitHub token", envVar:"COPILOT_GITHUB_TOKEN", note:"Authenticated Copilot quota from the GitHub session" },
         { id:"pi", name:"pi", icon:"smart_toy", mode:"telemetry", requirement:"pi CLI or ~/.pi/agent/sessions", envVar:"", note:"Local session cost/token analytics — no quota API" },
+        { id:"ori", name:"Ori", icon:"route", mode:"telemetry", requirement:"ori CLI or ~/.ori/global/.ori/logs/sessions", envVar:"", note:"OpenRouter coding agent: local session cost and tokens — no quota API" },
         { id:"hermes", name:"Hermes", icon:"hub", mode:"telemetry", requirement:"hermes CLI or ~/.hermes/state.db", envVar:"", note:"Dual-nature: agent harness telemetry (sessions, tokens, models, projects) from the local state database; provider side routes through Nous Portal / OpenRouter — expand the card for details" },
         { id:"antigravity", name:"Antigravity", icon:"rocket_launch", mode:"telemetry", requirement:"Antigravity CLI keyring or IDE session", envVar:"", note:"Per-model quota and reset times, one block per signed-in account / IDE — expand the card to compare accounts" },
         { id:"gemini", name:"Gemini", icon:"star", mode:"telemetry", requirement:"gemini CLI or API key", envVar:"GEMINI_API_KEY", note:"Gemini CLI quota per model from the Code Assist API, or API-key authentication; explains when Google no longer offers Code Assist to the CLI account" },
         { id:"9router", name:"9Router", icon:"share", mode:"telemetry", requirement:"local 9Router database", envVar:"", note:"Local requests, tokens and cost" },
-        { id:"openrouter", name:"OpenRouter", icon:"route", mode:"telemetry", requirement:"API key or 9Router data", envVar:"OPENROUTER_API_KEY", note:"Official key usage and limits" },
+        { id:"openrouter", name:"OpenRouter", icon:"route", mode:"telemetry", requirement:"API key or 9Router data", envVar:"OPENROUTER_API_KEY", note:"Key usage and limits, or the key or account balance" },
         { id:"deepseek", name:"DeepSeek", icon:"search", mode:"telemetry", requirement:"API key", envVar:"DEEPSEEK_API_KEY", note:"Official account balance" },
         { id:"kimi", name:"Kimi", icon:"language", mode:"telemetry", requirement:"API key", envVar:"MOONSHOT_API_KEY", note:"Account balance (USD/CNY), or Kimi Code subscription quota with a sk-kimi- key / KIMI_CODING_API_KEY" },
         { id:"kimi-code", name:"Kimi Code", icon:"language", mode:"telemetry", requirement:"API key", envVar:"KIMI_CODING_API_KEY", note:"Independent Kimi Code subscription quota" },
@@ -447,6 +449,7 @@ PluginSettings {
     function providerKind(providerId) {
         const kinds = {
             pi: "agent",
+            ori: "agent",
             hermes: "agent,provider",
             "9router": "gateway",
             ollama: "local"
@@ -723,10 +726,17 @@ PluginSettings {
         cursor: [58], grokbot: [46], opencode: [33, 12, 9], commandcode: [19, 40], xai: [27]
     })
     readonly property var previewBalances: ({ deepseek: "¥9.34", kimi: "¥42.00", vercel: "$95.50", cline: "$13.74" })
+    readonly property var previewReadings: ({ pi: "$0.84", ori: "$1.27", hermes: "$0.52", opencode: "$2.10" })
 
     function previewUsage(id) {
+        // The OpenRouter balance views put an amount in the bar, as the card does.
+        if (id === "openrouter" && live("openrouterView", "key") !== "key")
+            return { primary: { usedPercent: 0, isBalance: true, windowMinutes: null, displayValue: "$12.40", resetDescription: "Balance" } };
         if (previewBalances[id] !== undefined)
             return { primary: { usedPercent: 0, isBalance: true, windowMinutes: null, displayValue: previewBalances[id], resetDescription: "Balance" } };
+        // Coding-agent telemetry has no quota: its card shows today's spend.
+        if (previewReadings[id] !== undefined)
+            return { primary: { usedPercent: 0, hasLimit: false, windowMinutes: null, displayValue: previewReadings[id], resetDescription: "Today" } };
         let sample = previewSamples[id];
         if (!sample) {
             let hash = 0;
@@ -770,7 +780,7 @@ PluginSettings {
     }
 
     function previewNumber(windowData) {
-        if (previewIsBalance(windowData)) return String(windowData.displayValue);
+        if (previewIsBalance(windowData) || previewIsPlain(windowData)) return String(windowData.displayValue || "—");
         const used = Math.max(0, Math.min(100, Number(windowData.usedPercent) || 0));
         return Math.round(live("showRemainingQuota", "false") === "true" ? 100 - used : used) + "%";
     }
@@ -780,6 +790,20 @@ PluginSettings {
         if (percent >= 80) return Theme.error;
         if (percent >= 60) return Theme.warning;
         return Theme.success;
+    }
+
+    // As the widget's isPlainReading: a balance with no cap, or a reading
+    // with nothing to compare against (`hasLimit: false`), reads neutral.
+    function previewIsPlain(windowData) {
+        if (!windowData) return false;
+        if (previewIsBalance(windowData)) return windowData.hasLimit !== true;
+        return windowData.hasLimit === false;
+    }
+
+    function previewWindowColor(windowData) {
+        if (previewIsPlain(windowData))
+            return Number(windowData.usedPercent) >= 100 ? Theme.error : Theme.surfaceText;
+        return previewColor(Number(windowData ? windowData.usedPercent || 0 : 0));
     }
 
     function previewWindowTag(windowData) {
@@ -793,6 +817,7 @@ PluginSettings {
     function previewWindowLabel(windowData) {
         const minutes = Number(windowData && windowData.windowMinutes) || 0;
         if (previewIsBalance(windowData)) return t("window.balance", "Balance");
+        if (previewIsPlain(windowData)) return t("window.today", "Today");
         if (minutes > 0 && minutes <= 300) return t("window.session", "Session");
         if (minutes > 0 && minutes <= 10080) return t("window.weekly", "Weekly");
         if (minutes > 0) return t("window.monthly", "Monthly");
@@ -809,7 +834,7 @@ PluginSettings {
             for (let i = 0; i < windows.length; i++) {
                 const label = previewWindowLabel(windows[i]);
                 if (label.length > 0) segment.push(label);
-                segment.push(previewIsBalance(windows[i]) || !remaining
+                segment.push(previewIsBalance(windows[i]) || previewIsPlain(windows[i]) || !remaining
                     ? previewNumber(windows[i])
                     : t("quota.remaining", "{percent}% left", { percent: parseInt(previewNumber(windows[i]), 10) }));
             }
@@ -1344,6 +1369,19 @@ PluginSettings {
             text: t("settings.antigravity_model_details", "Show individual Antigravity models")
             description: t("settings.antigravity_model_details_desc", "By default Antigravity shows the same Gemini and Claude/OpenAI quota families as its Models screen. Enable this only for per-model troubleshooting.")
         }
+
+        ValueDropdown {
+            objectName: "setting-openrouterView"
+            width: parent.width
+            text: t("settings.openrouter_view", "OpenRouter main bar")
+            description: t("settings.openrouter_view_desc", "Key limit shows the key's spending cap, or the daily free-model requests for a key without one. Key balance shows what is left of that cap. Account credits shows the balance on openrouter.ai/credits.")
+            selected: { root.settingsEpoch; return loadValue("openrouterView", "key"); }
+            values: ["key", "key-balance", "account"]
+            labels: [t("settings.option.openrouter_key", "Key limit"), t("settings.option.openrouter_key_balance", "Key balance"), t("settings.option.openrouter_account", "Account credits")]
+            optionIcons: ["key", "savings", "account_balance_wallet"]
+            dropdownWidth: 230
+            onPicked: function(value) { saveValue("openrouterView", value); }
+        }
     }
 
     SettingsGroup {
@@ -1841,9 +1879,11 @@ PluginSettings {
                     { label:t("settings.test_codex", "Test Codex app-server adapter"), cmd:root._pluginDir + "/providers/get-codex-usage | jq ." },
                     { label:t("settings.test_pi", "Test pi session analytics adapter"), cmd:root._pluginDir + "/providers/get-pi-analytics | jq ." },
                     { label:t("settings.test_hermes", "Test Hermes telemetry adapter"), cmd:root._pluginDir + "/providers/get-hermes-analytics | jq ." },
+                    { label:t("settings.test_openrouter", "Test OpenRouter adapter (current main bar)"), cmd:"AIOC_OPENROUTER_VIEW=" + root.live("openrouterView", "key") + " " + root._pluginDir + "/providers/get-openrouter-usage | jq ." },
+                    { label:t("settings.test_ori", "Test Ori session telemetry adapter"), cmd:root._pluginDir + "/providers/get-ori-usage | jq ." },
                     { label:t("settings.test_health", "Check provider prerequisites"), cmd:root._pluginDir + "/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
                     { label:t("settings.test_export", "Export usage history to CSV"), cmd:root._pluginDir + "/providers/export-usage-history csv" },
-                    { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi gh gcloud ollama" },
+                    { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi ori gh gcloud ollama" },
                     { label:t("settings.test_qml", "Validate QML"), cmd:"qmllint " + root._pluginDir + "/AiOverviewControlWidget.qml " + root._pluginDir + "/AiOverviewControlSettings.qml" }
                 ]
                 delegate: Column {
@@ -2693,7 +2733,7 @@ PluginSettings {
                                                     StyledText {
                                                         objectName: "preview-number"
                                                         text: root.previewNumber(previewWindow.modelData)
-                                                        color: root.previewColor(Number(previewWindow.modelData.usedPercent || 0))
+                                                        color: root.previewWindowColor(previewWindow.modelData)
                                                         font.pixelSize: Theme.fontSizeSmall
                                                         font.weight: Font.Bold
                                                         anchors.verticalCenter: parent.verticalCenter
@@ -2794,7 +2834,7 @@ PluginSettings {
 
                                     StyledText {
                                         text: root.previewNumber(verticalEntry.windows[0] || {})
-                                        color: root.previewColor(BarWindows.maxPercent(verticalEntry.windows))
+                                        color: verticalEntry.windows.length === 1 ? root.previewWindowColor(verticalEntry.windows[0]) : root.previewColor(BarWindows.maxPercent(verticalEntry.windows))
                                         font.pixelSize: Theme.fontSizeSmall - 3
                                         font.weight: Font.Bold
                                         anchors.horizontalCenter: parent.horizontalCenter

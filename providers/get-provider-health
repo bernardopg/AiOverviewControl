@@ -287,6 +287,7 @@ status_for() {
     ai21) has_any_env AI21_API_KEY || { status="missing"; detail="AI21_API_KEY"; } ;;
     pi) has_path local -d "$HOME/.pi/agent/sessions" || has_cmd pi || { status="missing"; detail="pi CLI or ~/.pi/agent/sessions"; } ;;
     hermes) has_path local -f "${HERMES_HOME:-$HOME/.hermes}/state.db" || has_cmd hermes || { status="missing"; detail="hermes CLI or ~/.hermes/state.db"; } ;;
+    ori) has_path local -d "$HOME/.ori/global/.ori/logs/sessions" || has_cmd ori || { status="missing"; detail="ori CLI or ~/.ori/global/.ori/logs/sessions"; } ;;
     cursor)
       if has_cursor_session; then
         status="ready"

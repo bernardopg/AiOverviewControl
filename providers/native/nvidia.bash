@@ -37,6 +37,7 @@ fetch_nvidia_native() {
             loginMethod: "api-key",
             primary: {
               usedPercent: 0,
+              hasLimit: false,
               windowMinutes: null,
               resetsAt: null,
               resetDescription: ($kind + " verified; credits and rate limits at build.nvidia.com")

@@ -36,7 +36,7 @@ e sem nenhum serviço externo.
 
 <img src="./assets/demo.gif" alt="Demonstração do AiOverviewControl" width="100%" />
 
-<sub><a href="./assets/demo.mp4">MP4 em alta qualidade</a></sub>
+<sub><a href="./assets/demo.mp4">MP4 em alta qualidade (1080p60)</a></sub>
 
 </div>
 
@@ -68,9 +68,11 @@ passa a acompanhá-los com um clique.
 **🎯 Uma pílula que diz a verdade**<br />
 Escolha qual janela de cota cada provedor mostra na barra, ou siga a mais
 apertada, como cota usada ou restante. Um limite semanal esgotado assume a
-barra, e saldos pré-pagos aparecem como valores (`¥9.34`). As configurações
-mostram cada mudança numa prévia ao vivo; passe o mouse na barra para ver cada
-janela e o reset.
+barra. Saldos e gastos sem referência para comparar aparecem como valores
+simples (`¥9.34`, `$9.78`), sem barra falsa nem cor de alerta, e o OpenRouter
+pode mostrar o limite da key, o saldo da key ou os créditos da conta. As
+configurações mostram cada mudança numa prévia ao vivo; passe o mouse na barra
+para ver cada janela e o reset.
 
 </td>
 </tr>
@@ -78,7 +80,7 @@ janela e o reset.
 <td valign="top">
 
 **🤖 Telemetria local detalhada**<br />
-Claude, Codex, OpenCode, 9Router, pi e Hermes mostram tokens, custo, modelos e projetos
+Claude, Codex, OpenCode, 9Router, pi, Ori e Hermes mostram tokens, custo, modelos e projetos
 com gráfico de sete dias — lidos de dados que já estão no seu disco. Acompanhe
 várias contas Claude lado a lado, cada uma com seu próprio `CLAUDE_CONFIG_DIR`.
 Claude e Codex também mostram créditos, uso extra e resets de limite, e podem
@@ -119,7 +121,15 @@ rótulos que os adaptadores dos provedores enviam.
 
 <table>
 <tr>
-<td align="center" width="50%"><img src="./assets/settings.png" alt="Janela de configurações" /><br /><sub><b>Janela de configurações</b> — também em Configurações do Dux Shell → Plugins</sub></td>
+<td align="center" width="50%"><img src="./assets/screens/dashboard.png" alt="Painel com o destaque do Codex e o resumo geral" /><br /><sub><b>Painel</b> — o provedor mais usado no topo, carga, risco e próximo reset</sub></td>
+<td align="center" width="50%"><img src="./assets/screens/dashboard-providers.png" alt="Cartões de provedores com cotas, saldo simples do OpenRouter e telemetria de agentes" /><br /><sub><b>Todos os provedores lado a lado</b> — cotas em cor, saldos e telemetria como valores simples</sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><img src="./assets/screens/dashboard-claude.png" alt="Cartão do Claude expandido com créditos e resets de limite" /><br /><sub><b>Créditos e resets de limite</b> — limite de gasto, gasto do mês e resets disponíveis</sub></td>
+<td align="center" width="50%"><img src="./assets/screens/dashboard-telemetry.png" alt="Cartão do pi expandido com telemetria local e gráfico de sete dias" /><br /><sub><b>Telemetria local de agentes</b> — custo, tokens e gráfico de sete dias lidos do seu disco</sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><img src="./assets/settings.png" alt="Janela de configurações" /><br /><sub><b>Janela de configurações</b> — prévia ao vivo; também em Configurações do Dux Shell → Plugins</sub></td>
 <td align="center" width="50%"><img src="./assets/about.png" alt="Janela Sobre" /><br /><sub><b>Sobre</b> — versão, desenvolvedor e formas de apoiar o projeto</sub></td>
 </tr>
 </table>
@@ -165,8 +175,8 @@ Prefere um arquivo de release ou um checkout do git? Veja [Instalação](./insta
 | Cobertura | O que você recebe | Exemplos |
 | --- | --- | --- |
 | **Cota** | Uso real em % e horário do reset | Codex, Copilot, Cursor, Antigravity, Grok Bot, OpenCode Go, Z.ai, xAI |
-| **Saldo** | Crédito pré-pago restante | Kimi, DeepSeek, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
-| **Analytics** | Tokens, custo e modelos a partir de dados locais ou relatórios de gasto | Claude, 9Router, pi, Hermes, Cloudflare, Anthropic API, OpenAI API |
+| **Saldo** | Crédito pré-pago restante | Kimi, DeepSeek, OpenRouter, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
+| **Analytics** | Tokens, custo e modelos a partir de dados locais ou relatórios de gasto | Claude, 9Router, pi, Ori, Hermes, Cloudflare, Anthropic API, OpenAI API |
 | **Autenticação** | Checagem de credencial, sem números de uso | Mistral, Qwen, Groq, Cohere, NVIDIA |
 | **Runtime local** | Modelos e sessões locais | Ollama, Vertex AI |
 | **Informativo** | Link para a página oficial de uso | Kiro, Warp, Perplexity, Amp |
@@ -182,11 +192,13 @@ A lista completa, as fontes de dados e as credenciais estão em [Provedores](./p
 
 ## 📚 Documentação
 
-Novo na 2.4: 🔍 **Detectar provedores** acompanha com um clique tudo o que já
-está configurado no seu computador, cada barra de cota mostra seu ritmo, e uma
-ponte opcional com a status line do Claude Code mantém os cartões do Claude
-atualizados enquanto você trabalha — veja as [notas da 2.4.0](./releases/2.4.0.md)
-(em inglês). O provedor Grok Bot, chaves de API no chaveiro do desktop e a
+Novo na 2.5: o OpenRouter pode destacar o **limite da key**, o **saldo da
+key** ou os **créditos da conta**, o novo provedor **Ori** acompanha o agente
+de código do OpenRouter, e saldos, gastos e telemetria de agentes aparecem como
+valores simples em vez de um `0%` verde — veja as
+[notas da 2.5.0](./releases/2.5.0.md) (em inglês). 🔍 **Detectar provedores**,
+o ritmo em cada barra de cota e a ponte com a status line do Claude Code
+chegaram na [2.4.0](./releases/2.4.0.md). O provedor Grok Bot, chaves de API no chaveiro do desktop e a
 página de configurações com prévia ao vivo chegaram na [2.3.0](./releases/2.3.0.md). Provedores de gastos e a
 cota do Gemini CLI chegaram na [2.2.0](./releases/2.2.0.md), e desde a
 [2.2.1](./releases/2.2.1.md) (em inglês) a barra mostra várias janelas de cota

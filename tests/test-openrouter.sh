@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OpenRouter key limit — fake-curl unit test.
+# OpenRouter key limit, key balance and account credits — fake-curl unit test.
 # /api/v1/key reports `usage` as lifetime spend while `limit` resets with
 # `limit_reset`. The key-limit bar must measure the current window, not
 # lifetime spend over the windowed cap.
@@ -51,32 +51,55 @@ cat >"$TMP/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 out=""
 url=""
+auth=""
 write_code=0
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
   case "${args[$i]}" in
     -o) out="${args[$((i + 1))]}" ;;
     -w) write_code=1 ;;
+    --config) auth="$(sed -n 's/^header = "Authorization: Bearer \(.*\)"$/\1/p' "${args[$((i + 1))]}")" ;;
     http*) url="${args[$i]}" ;;
   esac
 done
+# Which key reached which endpoint, for the management-key checks.
+printf '%s %s\n' "${url##*/api/v1/}" "$auth" >>"${OPENROUTER_FIXTURES}/requests.log"
 case "$url" in
   */api/v1/key)
     cp "${OPENROUTER_FIXTURES}/${OPENROUTER_MODE}.json" "$out"
     [ "$write_code" -eq 1 ] && printf '200'
     ;;
   */api/v1/activity)
-    printf '{"data":[]}'
+    cat "${OPENROUTER_FIXTURES}/activity.json"
+    ;;
+  */api/v1/credits)
+    status="${OPENROUTER_CREDITS_STATUS:-200}"
+    cp "${OPENROUTER_FIXTURES}/${OPENROUTER_CREDITS:-credits}.json" "$out"
+    [ "$write_code" -eq 1 ] && printf '%s' "$status"
     ;;
 esac
 exit 0
 STUB
 chmod +x "$TMP/bin/curl"
 
+# Account credits (the live answer for an account that bought $80 and spent
+# $70.21), a refusal body, a negative balance, a body that is not JSON, and
+# the management-key activity rollup.
+printf '%s' '{"data":{"total_credits":80,"total_usage":70.213689496}}' >"$TMP/fixtures/credits.json"
+printf '%s' '{"error":{"code":403,"message":"Only management keys can perform this operation"}}' >"$TMP/fixtures/refused.json"
+printf '%s' '{"data":{"total_credits":10,"total_usage":11.5}}' >"$TMP/fixtures/negative.json"
+printf '%s' '<html>bad gateway</html>' >"$TMP/fixtures/html.json"
+: >"$TMP/fixtures/empty.json"
+printf '%s' '{"data":[{"model":"anthropic/claude-sonnet-4.6","usage":1.5},{"model":"openai/gpt-5.4","usage":0.25},{"model":"anthropic/claude-sonnet-4.6","usage":0.5}]}' >"$TMP/fixtures/activity.json"
+
 run() {
   PATH="$TMP/bin:$PATH" OPENROUTER_API_KEY="sk-or-v1-test" OPENROUTER_FIXTURES="$TMP/fixtures" \
     OPENROUTER_MODE="$1" bash "$ROOT/providers/get-provider-usage" openrouter
 }
+REQUESTS="$TMP/fixtures/requests.log"
+requests() { cat "$REQUESTS" 2>/dev/null || true; }
+reset_log() { : >"$TMP/fixtures/requests.log"; }
+unset OPENROUTER_MANAGEMENT_KEY AIOC_VAULT_OPENROUTER_MANAGEMENT AIOC_OPENROUTER_VIEW
 fail() { echo "FAIL: $1" >&2; exit 1; }
 field() { jq -r ".[0].$1" <<<"$out"; }
 
@@ -105,6 +128,9 @@ out="$(run unlimited)"
 [ "$(field usage.primary.usedPercent)" = "0" ] || fail "unlimited percent"
 [ "$(field usage.primary.displayValue)" = '$12.50 used' ] || fail "unlimited display"
 [ "$(field credits.remaining)" = "unlimited" ] || fail "unlimited remaining"
+[ "$(field usage.primary.hasLimit)" = "false" ] || fail "uncapped spend is a plain reading"
+[ "$(field usage.secondary.hasLimit)" = "false" ] || fail "spent today is a plain reading"
+[ "$(field usage.tertiary.hasLimit)" = "false" ] || fail "week spend is a plain reading"
 
 # 5. Uncapped key: the free-model daily allowance is the bar, resetting at UTC midnight.
 out="$(run free-daily)"
@@ -116,5 +142,87 @@ out="$(run free-daily)"
 # 6. Capped key: the cap stays primary.
 out="$(run capped-free)"
 [ "$(field usage.primary.resetDescription)" = "Key limit" ] || fail "cap wins over free allowance"
+[ "$(field usage.primary.hasLimit)" = "true" ] || fail "a capped key limit is measured"
+
+# 7. An ordinary key never asks /activity (403 for every non-management key)
+#    nor /credits outside the account view.
+reset_log
+out="$(run weekly)"
+grep -q '^activity' "$REQUESTS" && fail "activity asked without a management key"
+grep -q '^credits' "$REQUESTS" && fail "credits asked outside the account view"
+[ "$(field usage.tertiary.resetDescription)" = "Week and month spend" ] || fail "tertiary without activity"
+# The translated label names both windows; the value holds amounts only.
+case "$(field usage.tertiary.displayValue)" in *Week*|*Month*) fail "untranslated words in the spend value";; esac
+
+# 8. A management key unlocks the per-model rollup, and only it reaches /activity.
+reset_log
+out="$(OPENROUTER_MANAGEMENT_KEY=sk-or-mgmt run weekly)"
+grep -qx 'activity sk-or-mgmt' "$REQUESTS" || fail "activity must use the management key: $(requests)"
+grep -qx 'key sk-or-v1-test' "$REQUESTS" || fail "key check must use the inference key"
+[ "$(field usage.tertiary.resetDescription)" = "Week and top models" ] || fail "top models label"
+[ "$(field usage.tertiary.displayValue)" = '$0.11 · claude-sonnet-4.6 $2.00 · gpt-5.4 $0.25' ] \
+  || fail "top models $(field usage.tertiary.displayValue)"
+
+# 9. Key balance: what is left of the cap, in dollars, as a balance window.
+out="$(AIOC_OPENROUTER_VIEW=key-balance run weekly)"
+[ "$(field usage.primary.resetDescription)" = "Key balance" ] || fail "key balance label"
+[ "$(field usage.primary.isBalance)" = "true" ] || fail "key balance isBalance"
+[ "$(field usage.primary.displayValue)" = '$14.89' ] || fail "key balance value $(field usage.primary.displayValue)"
+[ "$(field usage.primary.resetsAt)" = "null" ] || fail "key balance is not paced"
+[ "$(field usage.primary.hasLimit)" = "true" ] || fail "key balance is measured against the cap"
+awk 'BEGIN{exit !(ARGV[1] > 0.6 && ARGV[1] < 0.8)}' "$(field usage.primary.usedPercent)" \
+  || fail "key balance percent $(field usage.primary.usedPercent)"
+[ "$(field credits.remaining)" = '$14.89' ] || fail "key balance credits"
+
+# 10. Key balance on an uncapped key: no balance is invented, the key bar stays.
+out="$(AIOC_OPENROUTER_VIEW=key-balance run free-daily)"
+[ "$(field usage.primary.resetDescription)" = "Free model requests" ] || fail "uncapped key-balance fallback"
+[ "$(field usage.primary.isBalance)" = "null" ] || fail "uncapped key-balance must not be a balance"
+
+# 11. Account credits: total_credits - total_usage, asked with the inference key.
+reset_log
+out="$(AIOC_OPENROUTER_VIEW=account run free-daily)"
+[ "$(field usage.primary.resetDescription)" = "Account balance" ] || fail "account label"
+[ "$(field usage.primary.isBalance)" = "true" ] || fail "account isBalance"
+[ "$(field usage.primary.displayValue)" = '$9.79' ] || fail "account value $(field usage.primary.displayValue)"
+[ "$(field credits.remaining)" = '$9.79' ] || fail "account credits"
+[ "$(field credits.account.total)" = "80" ] || fail "account total"
+# Nothing to compare the account balance with: no bar, no usage colour.
+[ "$(field usage.primary.usedPercent)" = "0" ] || fail "account percent $(field usage.primary.usedPercent)"
+[ "$(field usage.primary.hasLimit)" = "null" ] || fail "account balance has no limit"
+grep -qx 'credits sk-or-v1-test' "$REQUESTS" || fail "credits must use the inference key: $(requests)"
+[ "$(field usage.secondary.resetDescription)" = "Spent today" ] || fail "account keeps key windows"
+
+# 12. With a management key, /credits is asked with it.
+reset_log
+out="$(AIOC_OPENROUTER_VIEW=account OPENROUTER_MANAGEMENT_KEY=sk-or-mgmt run free-daily)"
+grep -qx 'credits sk-or-mgmt' "$REQUESTS" || fail "credits must prefer the management key: $(requests)"
+[ "$(field usage.primary.displayValue)" = '$9.79' ] || fail "account value with management key"
+
+# 13. A refusal without a management key keeps the key bar and names the fix.
+out="$(AIOC_OPENROUTER_VIEW=account OPENROUTER_CREDITS=refused OPENROUTER_CREDITS_STATUS=403 run weekly)"
+[ "$(field usage.primary.resetDescription)" = "Key limit" ] || fail "refused account keeps key bar"
+[ "$(field credits.remaining)" = "Account balance needs a management key (OPENROUTER_MANAGEMENT_KEY)" ] \
+  || fail "refused message $(field credits.remaining)"
+[ "$(field error)" = "null" ] || fail "a refused balance is not a card error"
+
+# 14. A refusal with a management key, a server error, a body that is not JSON
+#     and an empty body all report the status instead of a balance.
+out="$(AIOC_OPENROUTER_VIEW=account OPENROUTER_MANAGEMENT_KEY=sk-or-mgmt OPENROUTER_CREDITS=refused OPENROUTER_CREDITS_STATUS=403 run weekly)"
+[ "$(field credits.remaining)" = "Account balance unavailable (HTTP 403)" ] || fail "management refusal $(field credits.remaining)"
+out="$(AIOC_OPENROUTER_VIEW=account OPENROUTER_CREDITS=html OPENROUTER_CREDITS_STATUS=502 run weekly)"
+[ "$(field credits.remaining)" = "Account balance unavailable (HTTP 502)" ] || fail "html body $(field credits.remaining)"
+[ "$(field usage.primary.resetDescription)" = "Key limit" ] || fail "html body keeps key bar"
+out="$(AIOC_OPENROUTER_VIEW=account OPENROUTER_CREDITS=empty OPENROUTER_CREDITS_STATUS=200 run weekly)"
+[ "$(field credits.remaining)" = "Account balance unavailable (HTTP 200)" ] || fail "empty body $(field credits.remaining)"
+
+# 15. A negative balance reads "-$1.50" and fills the bar.
+out="$(AIOC_OPENROUTER_VIEW=account OPENROUTER_CREDITS=negative run weekly)"
+[ "$(field usage.primary.displayValue)" = '-$1.50' ] || fail "negative value $(field usage.primary.displayValue)"
+[ "$(field usage.primary.usedPercent)" = "100" ] || fail "negative percent"
+
+# 16. An unknown view falls back to the key bar.
+out="$(AIOC_OPENROUTER_VIEW=bogus run weekly)"
+[ "$(field usage.primary.resetDescription)" = "Key limit" ] || fail "unknown view fallback"
 
 echo "ok"
