@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Bump `github/codeql-action/upload-sarif` to v4.39.3 for the Scorecard upload, once past the seven-day quarantine.
+
 ## 2.4.1 - 2026-11-11
 
 A bug-fix release for Dux Shell 2.0 and 2.1. On a Claude Team plan, a member's sign-in cannot read the organization's usage credits, and the plugin asked for them again on every refresh until Anthropic rate limited the usage endpoint behind the Claude card. A refusal is now remembered for a day per organization, a rate limit on the credits endpoint pauses both requests, and the card names the next try. Only the Claude adapter changed: update through **Settings → Plugins → Check for updates**, no restart needed. Settings, profiles, pins and history carry over unchanged.
