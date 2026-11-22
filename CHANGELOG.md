@@ -9,6 +9,7 @@
 ### Fixes
 
 - Claude local analytics no longer double-count assistant messages that Claude Code writes as multiple JSONL content blocks. Each assistant `message.id` is now counted once, so week/month/day tokens, costs, model splits and project splits match the transcript again. Existing transcript caches rebuild on the next refresh (#131).
+- Claude dashboard daily token/cost bars and the Today tokens tile no longer render zero when QML delivers the analytics arrays as array-like QVariantList wrappers instead of JS arrays (#130).
 
 ## 2.5.0 - 2026-11-16
 

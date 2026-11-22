@@ -39,7 +39,11 @@ function details(provider, profiles, now) {
         return isFinite(n) ? n : 0;
     }
     function week(values) {
-        const source = Array.isArray(values) ? values : [];
+        // QML can expose JSON arrays as QVariantList wrappers that are array-like
+        // but fail Array.isArray() (issue #130).
+        const source = Array.isArray(values) ? values
+            : (values && typeof values === "object" && typeof values.length === "number") ? values
+            : [];
         const result = [];
         for (let i = 0; i < 7; i++) result.push(num(source[i]));
         return result;
