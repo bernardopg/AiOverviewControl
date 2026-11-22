@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Providers
+
+- New **QwenCloud** provider for Alibaba's international Qwen storefront ([home.qwencloud.com](https://home.qwencloud.com/)), a separate account from the DashScope `qwen` card. Through the official QwenCloud CLI (`qwencloud auth login`, read-only `usage:read` scope) the card shows the **Token Plan** monthly Credits bar with its reset date, this month's pay-as-you-go spend, and how many free-tier model quotas are still valid. Without a Token Plan the free tier or the PAYG spend leads the card. Alias: `qwen-cloud`. Covered by `tests/test-qwencloud.sh`.
+
 ### Fixes
 
 - Claude local analytics no longer double-count assistant messages that Claude Code writes as multiple JSONL content blocks. Each assistant `message.id` is now counted once, so week/month/day tokens, costs, model splits and project splits match the transcript again. Existing transcript caches rebuild on the next refresh (#131).

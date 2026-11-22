@@ -733,6 +733,9 @@ jobs:
       - name: Integration test — Ori local session telemetry (fixture sessions)
         run: tests/test-ori.sh
 
+      - name: Integration test — QwenCloud CLI adapter (fake CLI)
+        run: tests/test-qwencloud.sh
+
       - name: Integration test — usage-history export (CSV/JSONL round-trip)
         run: tests/test-history-export.sh
 
