@@ -109,7 +109,7 @@ grep -q '^WEEK_TOKENS=4600$' <<<"$(bash "$ROOT/providers/get-claude-usage")" || 
 [ "$(cat "$JQ_LOG")" = "./-home-user-proj/session1.jsonl" ] || fail "failed parse was cached instead of retried"
 
 # --- A UTC-offset change rebuilds the date-bucketed rows ---
-sed -i '1s/.*/#aioc-claude-transcripts v1 +9999/' "$PROFILE_CACHE/claude-transcripts.tsv"
+sed -i '1s/.*/#aioc-claude-transcripts v2 +9999/' "$PROFILE_CACHE/claude-transcripts.tsv"
 : > "$JQ_LOG"
 grep -q '^WEEK_TOKENS=4600$' <<<"$(bash "$ROOT/providers/get-claude-usage")" || fail "rebuild after offset change wrong"
 [ "$(wc -l < "$JQ_LOG")" -eq 2 ] || fail "offset change did not re-parse every transcript"
