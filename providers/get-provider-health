@@ -290,6 +290,15 @@ status_for() {
     pi) has_path local -d "$HOME/.pi/agent/sessions" || has_cmd pi || { status="missing"; detail="pi CLI or ~/.pi/agent/sessions"; } ;;
     hermes) has_path local -f "${HERMES_HOME:-$HOME/.hermes}/state.db" || has_cmd hermes || { status="missing"; detail="hermes CLI or ~/.hermes/state.db"; } ;;
     ori) has_path local -d "$HOME/.ori/global/.ori/logs/sessions" || has_cmd ori || { status="missing"; detail="ori CLI or ~/.ori/global/.ori/logs/sessions"; } ;;
+    # AIDEV-NOTE: candidate paths mirror qwencloud_cli_path in
+    # providers/native/qwencloud.bash — the widget PATH often lacks the npm
+    # prefix and mise/asdf shims the CLI installs into.
+    qwencloud|qwen-cloud) has_cmd qwencloud \
+      || has_path cli -x "$HOME/.local/share/npm/bin/qwencloud" \
+      || has_path cli -x "$HOME/.local/share/mise/shims/qwencloud" \
+      || has_path cli -x "$HOME/.asdf/shims/qwencloud" \
+      || has_path cli -x "$HOME/.local/bin/qwencloud" \
+      || { status="missing"; detail="qwencloud CLI (npm i -g @qwencloud/qwencloud-cli)"; } ;;
     cursor)
       if has_cursor_session; then
         status="ready"

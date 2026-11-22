@@ -176,7 +176,7 @@ PluginComponent {
     // Hosted model providers first; the trailing group collects local and
     // non-provider tooling (self-hosted inference, gateways/routers, agent
     // harness analytics) so the picker keeps them visually separated.
-    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "ori", "hermes"].concat(Object.keys(claudeProfiles))
+    readonly property var availableProviderOptions: ["codex", "claude", "copilot", "antigravity", "gemini", "openrouter", "deepseek", "kimi", "kimi-code", "mistral", "glm", "zai", "minimax", "commandcode", "qwen", "qwencloud", "nvidia", "neuralwatt", "anthropic", "openai", "vercel", "cloudflare", "vertexai", "byteplus", "together", "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp", "ollama", "ollama-cloud", "9router", "pi", "ori", "hermes"].concat(Object.keys(claudeProfiles))
 
     readonly property var selectedProviders: {
         const parts = providerSelection.split(",");
@@ -508,6 +508,9 @@ PluginComponent {
             "key balance": ["window.key_balance", "Key balance"],
             "account balance": ["window.account_balance", "Account balance"],
             "no ori sessions recorded yet": ["window.no_ori_sessions", "No Ori sessions recorded yet"],
+            "token plan": ["window.token_plan", "Token Plan"],
+            "payg this month": ["window.payg_month", "PAYG this month"],
+            "free tier": ["window.free_tier", "Free tier"],
             "spent today": ["window.spent_today", "Spent today"],
             "free model requests": ["window.free_model_requests", "Free model requests"],
             "requests per day": ["window.requests_per_day", "Requests per day"],
@@ -648,6 +651,8 @@ PluginComponent {
             qwen: "Qwen",
             dashscope: "Qwen",
             alibaba: "Qwen",
+            qwencloud: "QwenCloud",
+            "qwen-cloud": "QwenCloud",
             nvidia: "NVIDIA NIM",
             nim: "NVIDIA NIM",
             cloudflare: "Cloudflare AI",
@@ -695,6 +700,7 @@ PluginComponent {
             "z.ai": "zai",
             dashscope: "qwen",
             alibaba: "qwen",
+            "qwen-cloud": "qwencloud",
             nim: "nvidia",
             vertex: "vertexai",
             ark: "byteplus",
@@ -1129,7 +1135,7 @@ PluginComponent {
             return Theme.primary;
         if (providerId === "opencode")
             return Theme.secondary;
-        if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba")
+        if (providerId === "qwen" || providerId === "dashscope" || providerId === "alibaba" || providerId === "qwencloud" || providerId === "qwen-cloud")
             return Theme.warning;
         if (providerId === "nvidia" || providerId === "nim")
             return Theme.success;
@@ -1773,6 +1779,8 @@ PluginComponent {
             qwen: "https://dashscope.console.aliyun.com",
             dashscope: "https://dashscope.console.aliyun.com",
             alibaba: "https://dashscope.console.aliyun.com",
+            qwencloud: "https://home.qwencloud.com",
+            "qwen-cloud": "https://home.qwencloud.com",
             nvidia: "https://build.nvidia.com",
             nim: "https://build.nvidia.com",
             cloudflare: "https://dash.cloudflare.com",
