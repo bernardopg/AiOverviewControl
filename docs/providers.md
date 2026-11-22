@@ -21,7 +21,7 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `gemini` (Gemini CLI with a Code Assist Standard/Enterprise project), `ollama-cloud` (legacy session/weekly plans), `groq` (opt-in `GROQ_QUOTA_MODEL` probe), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor` |
+| **Quota** | Real `usedPercent` + reset window from a protocol/API. | `codex`, `copilot`, `antigravity`, `openrouter`, `zai`, `glm`, `fireworks` (with account ID), `commandcode`, `neuralwatt` (kWh subscription), `gemini` (Gemini CLI with a Code Assist Standard/Enterprise project), `ollama-cloud` (legacy session/weekly plans), `groq` (opt-in `GROQ_QUOTA_MODEL` probe), `opencode` (Zen mode), `xai` (Grok CLI / SuperGrok), `minimax` (Token Plan Subscription Key), `cursor`, `qwencloud` (Token Plan via the QwenCloud CLI) |
 | **Balance** | Remaining prepaid balance / credits in real currency, shown as the amount in the bar pill and card header (`isBalance`), in the neutral colour and without a usage bar unless the amount is measured against a cap (`hasLimit`). | `kimi`, `deepseek`, `xai` (Management API prepaid), `neuralwatt` (prepaid USD), `cline` (credits), `ollama-cloud` (included monthly + purchased credits), `vercel` (AI Gateway credits), `openrouter` (**Key balance** or **Account credits** view) |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value, shown as the amount in the neutral colour and without a usage bar (`hasLimit: false`). | `cloudflare` (GraphQL), `9router`, `claude` (local), `pi` (local), `ori` (local), `hermes` (local), `opencode` (local, default), `codex` (local, alongside its quota), `anthropic` and `openai` (Admin API month-to-date spend; a percentage only against an optional monthly budget) |
 | **Auth / configured** | Validates credentials with a read-only endpoint when possible; otherwise reports only that a credential is configured and states the limitation. No usage numbers. | `gemini` (API key only), `mistral`, `nvidia` (NGC key verification), `qwen`, `byteplus`, `groq` (without `GROQ_QUOTA_MODEL`), `cohere`, `replicate`, `together`, `minimax` (PAYG `sk-api-` key), `kilo`, `ai21` |
@@ -264,6 +264,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>DASHSCOPE_API_KEY</code></td>
 <td><a href="https://modelstudio.console.alibabacloud.com/">modelstudio.console.alibabacloud.com</a></td>
 <td><a href="https://www.alibabacloud.com/help/en/model-studio/">alibabacloud.com/help</a></td>
+</tr>
+<tr>
+<td><code>qwencloud</code></td>
+<td>Quota</td>
+<td>✅ <code>qwencloud auth status</code> (local CLI)</td>
+<td>✅ Token Plan monthly Credits + per-model free-tier quotas via CLI</td>
+<td>✅ Token Plan (Individual/Team)</td>
+<td>✅ month spend via CLI</td>
+<td><code>qwencloud</code> CLI sign-in</td>
+<td><a href="https://home.qwencloud.com/">home.qwencloud.com</a></td>
+<td><a href="https://docs.qwencloud.com/">docs.qwencloud.com</a></td>
 </tr>
 <tr>
 <td><code>xai</code></td>
@@ -591,6 +602,7 @@ upstream OpenRouter API quota. With the variable set, the real
 | `vertexai` | `vertex` |
 | `byteplus` | `ark`, `modelark` |
 | `qwen` | `dashscope`, `alibaba` |
+| `qwencloud` | `qwen-cloud` |
 | `xai` | `grok` |
 | `anthropic` | `anthropic-api` |
 | `openai` | `openai-api` |
@@ -877,6 +889,18 @@ cards. A single subscription key preserves the legacy `kimi` behavior.
 | **Dashboard** | [modelstudio.console.alibabacloud.com](https://modelstudio.console.alibabacloud.com/) (intl); [bailian.console.alibabacloud.com](https://bailian.console.alibabacloud.com/) (China). Billing: Alibaba Cloud User Center. |
 | **Changelog** | 2026-02 `qwen3.5-plus-2026-02-15`, `qwen3.5-flash-2026-02-23`; 2026-01-23 `qwen3-max-2026-01-23` (web-search/code-interpreter in thinking mode). New open-source `qwen3.5-{397b-a17b,120b-a10b,27b,35b-a3b}`. **Qwen-Turbo deprecated** (→ Qwen-Flash). Coding Plan Lite closed to new subs. |
 | **Adapter** | `fetch_qwen_native` — `/compatible-mode/v1/models` validation. |
+
+### QwenCloud
+
+| | |
+| --- | --- |
+| **Storefront** | Alibaba's international Qwen platform ([home.qwencloud.com](https://home.qwencloud.com/)), a separate storefront from DashScope Model Studio on the same models: its own console, its own API keys (`sk-…` pay-as-you-go, `sk-sp-…` Token Plan) and its own billing. |
+| **Credentials** | No env var. The adapter shells out to the official QwenCloud CLI (`npm i -g @qwencloud/qwencloud-cli`, ≥ 1.3.0 for the account commands), which holds an OAuth device-flow login with `inference:read` and `usage:read` scopes. Every command used is read-only. |
+| **Key check** | ✅ `qwencloud auth status --format json` — local; reports the masked account id and token expiry. |
+| **Quota / balance** | ✅ via CLI: `subscription status` (Token Plan monthly Credits used/remaining percentages and reset time; the authoritative plan source — `usage summary` reports the plan as unsubscribed for `sk-sp-` key traffic) and `usage summary` (per-model free-tier quotas with status and reset date, PAYG month cost). |
+| **Plans** | **Token Plan** Individual (Lite $6/20k Credits, Essential $10/45k per month, higher tiers; Team per seat). **Coding Plan** with 5h/weekly/monthly request windows. Credits ≠ tokens: each model has its own Credits unit price. |
+| **Dashboard** | [home.qwencloud.com](https://home.qwencloud.com/) (Token Plan analytics under `/analytics/token-plan`). |
+| **Adapter** | `fetch_qwencloud_native` — CLI-backed: Token Plan bar with reset, PAYG month spend, free-tier model count; without a plan the free tier or the PAYG spend leads. |
 
 ### xAI (Grok)
 

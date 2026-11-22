@@ -228,6 +228,7 @@ The settings health check describes whether the plugin can run an adapter in the
 | Vertex AI | requires `gcloud auth print-access-token` to succeed at collection time; the readiness chip checks only that the `gcloud` CLI is in `PATH`. Optional `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, or `VERTEXAI_PROJECT` enrich the reported identity |
 | BytePlus | `BYTEPLUS_API_KEY` or `ARK_API_KEY` |
 | Qwen | `DASHSCOPE_API_KEY` or `QWEN_API_KEY`; optional `DASHSCOPE_WORKSPACE_ID` |
+| QwenCloud | No env var: sign in with the QwenCloud CLI (`npm i -g @qwencloud/qwencloud-cli`, then `qwencloud auth login`) |
 | Together | `TOGETHER_API_KEY` |
 | Groq | `GROQ_API_KEY`; optional `GROQ_QUOTA_MODEL` turns on the rate-limit probe (one 1-token completion to that model per `GROQ_QUOTA_TTL` seconds, default `1800`) |
 | Cohere | `COHERE_API_KEY` |
