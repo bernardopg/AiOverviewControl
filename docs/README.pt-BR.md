@@ -174,7 +174,7 @@ Prefere um arquivo de release ou um checkout do git? Veja [Instalação](./insta
 
 | Cobertura | O que você recebe | Exemplos |
 | --- | --- | --- |
-| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Cursor, Antigravity, Grok Bot, OpenCode Go, Z.ai, xAI |
+| **Cota** | Uso real em % e horário do reset | Codex, Copilot, Cursor, Antigravity, Grok Bot, OpenCode Go, Z.ai, xAI, QwenCloud |
 | **Saldo** | Crédito pré-pago restante | Kimi, DeepSeek, OpenRouter, Neuralwatt, Cline, Ollama Cloud, Vercel AI Gateway |
 | **Analytics** | Tokens, custo e modelos a partir de dados locais ou relatórios de gasto | Claude, 9Router, pi, Ori, Hermes, Cloudflare, Anthropic API, OpenAI API |
 | **Autenticação** | Checagem de credencial, sem números de uso | Mistral, Qwen, Groq, Cohere, NVIDIA |
