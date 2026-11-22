@@ -586,7 +586,7 @@ fi
 # ponytail: a changed file is re-parsed whole; parse from the previous size
 # if long active sessions ever make that slow.
 if [ -d "$PROJECTS_DIR" ]; then
-    TX_HEADER="#aioc-claude-transcripts v1 $(date +%z)"
+    TX_HEADER="#aioc-claude-transcripts v2 $(date +%z)"
     TX_NEW=$(mktemp "${TRANSCRIPTS_CACHE}.XXXXXX")
     TX_CURRENT=$(find "$PROJECTS_DIR" -name "*.jsonl" -mtime -31 -printf '%P\t%s:%T@\n' 2>/dev/null || true)
 
@@ -613,7 +613,11 @@ if [ -d "$PROJECTS_DIR" ]; then
 
     # Paths get a "./" prefix: Claude project dirs start with "-", which
     # jq would otherwise parse as options.
-    # Rows: path, stamp, local date, model, in, out, cache read, cache write, session, cwd.
+    # Rows: path, stamp, local date, model, in, out, cache read, cache write, session, cwd, message id.
+    # message.id deduplicates multi-block assistant messages: Claude Code writes
+    # one JSONL line per content block and repeats the full usage object on each,
+    # so counting every line inflates tokens/cost (issue #131). First occurrence
+    # wins; id-less lines pass through.
     # Timestamps in session JSONL are UTC; convert to the local day so
     # buckets line up with WEEK_START/TODAY — raw UTC prefix as fallback.
     # Rows (and the "#" sentinels) are only cached when every jq call
@@ -626,8 +630,10 @@ if [ -d "$PROJECTS_DIR" ]; then
             | [(input_filename | ltrimstr("./")), $date, (.message.model // "unknown"),
                (.message.usage.input_tokens // 0), (.message.usage.output_tokens // 0),
                (.message.usage.cache_read_input_tokens // 0), (.message.usage.cache_creation_input_tokens // 0),
-               (.sessionId // "unknown"), ((.cwd // "unknown") | gsub("[,:\t]"; "_"))] | @tsv' 2>/dev/null); then
+               (.sessionId // "unknown"), ((.cwd // "unknown") | gsub("[,:\t]"; "_")),
+               ((.message.id // "") | tostring | gsub("[\t\r\n]"; "_"))] | @tsv' 2>/dev/null); then
         printf '%s\n' "$TX_ROWS" \
+            | awk -F'\t' '!($NF != "" && seen[$NF]++)' \
             | awk -F'\t' -v OFS='\t' 'NR == FNR { stamp[$1] = $2; print $1, $2, "#"; next }
                 ($1 in stamp) { path = $1; $1 = ""; print path, stamp[path] $0 }' <(printf '%s\n' "$TX_STALE") - >> "$TX_NEW"
     fi
