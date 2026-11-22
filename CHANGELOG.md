@@ -2,16 +2,32 @@
 
 ## Unreleased
 
+## 2.6.0 - 2026-11-22
+
+A minor release for Dux Shell 2.0 and 2.1. **QwenCloud** joins as a new provider for Alibaba's international Qwen storefront. Claude local analytics now count multi-block assistant messages once and render daily bars correctly when QML exposes array-like wrappers. Antigravity cloud quota requests default to client version 2.6.0 to restore the Gemini Models pool, and the adapter/health check discover ACP token sessions. Settings, Claude profiles, pins and history carry over unchanged.
+
+Long-form notes: [docs/releases/2.6.0.md](docs/releases/2.6.0.md).
+
 ### Providers
 
-- New **QwenCloud** provider for Alibaba's international Qwen storefront ([home.qwencloud.com](https://home.qwencloud.com/)), a separate account from the DashScope `qwen` card. Through the official QwenCloud CLI (`qwencloud auth login`, read-only `usage:read` scope) the card shows the **Token Plan** monthly Credits bar with its reset date, this month's pay-as-you-go spend, and how many free-tier model quotas are still valid. Without a Token Plan the free tier or the PAYG spend leads the card. Alias: `qwen-cloud`. Covered by `tests/test-qwencloud.sh`.
+- New **QwenCloud** provider for Alibaba's international Qwen storefront ([home.qwencloud.com](https://home.qwencloud.com/)), a separate account from the DashScope `qwen` card. Through the official QwenCloud CLI (`qwencloud auth login`, read-only `usage:read` scope) the card shows the **Token Plan** monthly Credits bar with its reset date, this month's pay-as-you-go spend, and how many free-tier model quotas are still valid. Without a Token Plan the free tier or the PAYG spend leads the card. Alias: `qwen-cloud`. Covered by `tests/test-qwencloud.sh` (#134).
 
 ### Fixes
 
-- Claude local analytics no longer double-count assistant messages that Claude Code writes as multiple JSONL content blocks. Each assistant `message.id` is now counted once, so week/month/day tokens, costs, model splits and project splits match the transcript again. Existing transcript caches rebuild on the next refresh (#131).
-- Claude dashboard daily token/cost bars and the Today tokens tile no longer render zero when QML delivers the analytics arrays as array-like QVariantList wrappers instead of JS arrays (#130).
-- Antigravity cloud quota requests now identify as client version 2.6.0 by default (configurable via `ANTIGRAVITY_CLIENT_VERSION`), restoring the Gemini Models quota pool that the cloud endpoint gates on newer User-Agent/X-Client-Version values (#133).
-- Antigravity adapter and health check now discover ACP sessions stored at `~/.gemini/antigravity-acp/acp_token.json`, including top-level refresh tokens written by Antigravity ACP clients (#132).
+- Claude local analytics no longer double-count assistant messages that Claude Code writes as multiple JSONL content blocks. Each assistant `message.id` is now counted once, so week/month/day tokens, costs, model splits and project splits match the transcript again. Existing transcript caches rebuild on the next refresh (#131, #135).
+- Claude dashboard daily token/cost bars and the Today tokens tile no longer render zero when QML delivers the analytics arrays as array-like QVariantList wrappers instead of JS arrays (#130, #136).
+- Antigravity cloud quota requests now identify as client version 2.6.0 by default (configurable via `ANTIGRAVITY_CLIENT_VERSION`), restoring the Gemini Models quota pool that the cloud endpoint gates on newer User-Agent/X-Client-Version values (#133, #137).
+- Antigravity adapter and health check now discover ACP sessions stored at `~/.gemini/antigravity-acp/acp_token.json`, including top-level refresh tokens written by Antigravity ACP clients (#132, #138).
+
+### Documentation
+
+- Updated `README.md`, `docs/README.pt-BR.md`, `docs/providers.md`, and `docs/configuration.md` for QwenCloud and Antigravity ACP/client version behavior.
+
+### Thanks
+
+- Thanks to [@gtheys](https://github.com/gtheys) for contributing QwenCloud support (#134).
+- Thanks to [@SlobCoder](https://github.com/SlobCoder) for the detailed Antigravity and Claude transcript reports (#131, #132, #133).
+- Thanks to [@carrotciallo](https://github.com/carrotciallo) for the Claude daily bars runtime diagnosis (#130).
 
 ## 2.5.0 - 2026-11-16
 
