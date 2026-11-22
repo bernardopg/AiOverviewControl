@@ -106,6 +106,12 @@ ShellRoot {
         };
         const d = ClaudeProfiles.details({provider: "claude-work", usage: usage, analytics: analytics}, profiles, now);
         const failed = ClaudeProfiles.details({provider: "claude", error: {kind: "authentication"}, analytics: analytics}, profiles, now);
+        // Issue #130: QML can pass JSON arrays as QVariantList wrappers that are
+        // array-like but fail Array.isArray().
+        const arrayLikeAnalytics = JSON.parse(JSON.stringify(analytics));
+        arrayLikeAnalytics.dailyTokens = {0: 1, 1: 2, 2: "3", 3: 0, 4: 0, 5: 0, 6: 0, length: 7};
+        arrayLikeAnalytics.dailyCosts = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4, 4: 0.5, 5: 0.6, 6: 0.7, length: 7};
+        const dl = ClaudeProfiles.details({provider: "claude-work", usage: usage, analytics: arrayLikeAnalytics}, profiles, now);
         const checks = [
             ClaudeProfiles.details({provider: "codex", analytics: analytics}, profiles, now) === null,
             ClaudeProfiles.details({provider: "claude-x", analytics: analytics}, profiles, now) === null,
@@ -115,6 +121,8 @@ ShellRoot {
             d && d.projects.length === 2 && d.projects[0].path === "/a:b/c" && d.projects[0].tokens === 42,
             d && d.dailyTokens.length === 7 && d.dailyTokens[2] === 3 && d.dailyTokens[6] === 0,
             d && d.dailyCosts.length === 7 && d.dailyCosts[6] === 0.7,
+            dl && dl.dailyTokens.length === 7 && dl.dailyTokens[2] === 3 && dl.dailyTokens[6] === 0,
+            dl && dl.dailyCosts.length === 7 && dl.dailyCosts[6] === 0.7,
             d && d.session.percent === 30 && d.weekly.percent === 60,
             // The window length travels with each details window, so the
             // panel paces it like any other quota window; none reads null.
