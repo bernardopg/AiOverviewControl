@@ -202,6 +202,20 @@ printf '%s' "$FALLBACK" | jq -e '
 grep -Fq 'v1internal:retrieveUserQuotaSummary' "$FAKE_CURL_LOG"
 grep -Fq 'v1internal:fetchAvailableModels' "$FAKE_CURL_LOG"
 grep -Fq 'project-1' "$FAKE_CURL_LOG"
+# Issue #133: Gemini Models pool is gated on client version >= 2.6.0.
+grep -Eq 'X-Client-Version[^0-9]*2\.6\.0' "$FAKE_CURL_LOG" \
+  || { echo "expected X-Client-Version 2.6.0 in curl args" >&2; exit 1; }
+grep -Eq 'antigravity/ide/2\.6\.0' "$FAKE_CURL_LOG" \
+  || { echo "expected antigravity/ide/2.6.0 User-Agent in curl args" >&2; exit 1; }
+
+# The client version is overridable for forward compatibility.
+: > "$FAKE_CURL_LOG"
+rm -f "$FAKE_FETCH_COUNT_FILE"
+ANTIGRAVITY_CLIENT_VERSION=2.7.0 FAKE_FETCH_MODE=fallback ANTIGRAVITY_STATE_DB="$DB" run_adapter >/dev/null
+grep -Eq 'X-Client-Version[^0-9]*2\.7\.0' "$FAKE_CURL_LOG" \
+  || { echo "expected overridden X-Client-Version 2.7.0 in curl args" >&2; exit 1; }
+grep -Eq 'antigravity/ide/2\.7\.0' "$FAKE_CURL_LOG" \
+  || { echo "expected overridden antigravity/ide/2.7.0 User-Agent in curl args" >&2; exit 1; }
 
 : > "$FAKE_CURL_LOG"
 rm -f "$FAKE_FETCH_COUNT_FILE"

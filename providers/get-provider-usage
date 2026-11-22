@@ -629,6 +629,8 @@ antigravity_fetch_account() {
   local accounts_file="$1" errors_file="$2" body_file="$3" install="$4" email="$5" login="$6"
   local access_token="$7" endpoint="$8" quota_body="$9" user_agent="${10}" preferred_method="${11}"
   local method status curl_status=0 message="" final_stage="$preferred_method"
+  # Gemini Models quota pool is gated on client version >= 2.6.0 (issue #133).
+  local client_version="${ANTIGRAVITY_CLIENT_VERSION:-2.6.0}"
 
   # The running app's own answer for this exact account, when one was
   # collected (antigravity_local_rpc_collect); otherwise the cloud endpoint.
@@ -652,7 +654,7 @@ antigravity_fetch_account() {
         -H "Content-Type: application/json" \
         -H "User-Agent: ${user_agent}" \
         -H "X-Client-Name: antigravity" \
-        -H "X-Client-Version: 2.1.1" \
+        -H "X-Client-Version: ${client_version}" \
         -H "X-Goog-Api-Client: google-cloud-sdk vscode_cloudshelleditor/0.1" \
         -d "$quota_body" \
         "$endpoint/$method" 2>/dev/null)" || curl_status=$?
