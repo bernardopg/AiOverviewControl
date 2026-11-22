@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- Antigravity adapter and health check now discover ACP sessions stored at `~/.gemini/antigravity-acp/acp_token.json`, including top-level refresh tokens written by Antigravity ACP clients (#132).
+
 ## 2.5.0 - 2026-11-16
 
 A feature release for Dux Shell 2.0 and 2.1. The **OpenRouter** card can headline money left instead of the key limit: the key's balance against its spending cap, or the account's credits as openrouter.ai shows them (#127). A new **Ori** provider tracks OpenRouter's coding agent from its local session files. Balances, spend and coding-agent telemetry with nothing to compare against now read as plain amounts in the neutral colour, without a usage bar, instead of a green `0%`. The README gains a new product video, banner, dashboard gallery and registry screenshot. Settings, Claude profiles, pins and history carry over unchanged.

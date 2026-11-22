@@ -132,7 +132,8 @@ fetch_antigravity_native() {
       fi
       if [ -z "$keyring_payload" ]; then
         for token_file in "${HOME}/.gemini/antigravity-cli/antigravity-oauth-token" \
-                          "${XDG_CONFIG_HOME:-$HOME/.config}/antigravity-cli/antigravity-oauth-token"; do
+                          "${XDG_CONFIG_HOME:-$HOME/.config}/antigravity-cli/antigravity-oauth-token" \
+                          "${HOME}/.gemini/antigravity-acp/acp_token.json"; do
           if [ -r "$token_file" ]; then
             keyring_payload="$(cat "$token_file" 2>/dev/null || true)"
             [ -n "$keyring_payload" ] && { source_label="CLI file"; break; }

@@ -260,3 +260,23 @@ printf '%s' "$HEALTH_FALLBACK" | jq -e '
 ' >/dev/null
 
 echo "Antigravity live safeguards: OK"
+
+# Issue #132: Antigravity ACP (Zed external agent) stores OAuth credentials at
+# ~/.gemini/antigravity-acp/acp_token.json with a top-level refresh_token.
+rm -rf "$TMP_ROOT/.gemini/antigravity-cli"
+ACP_DIR="$TMP_ROOT/.gemini/antigravity-acp"
+mkdir -p "$ACP_DIR"
+cat > "$ACP_DIR/acp_token.json" <<EOF
+{"client_id":"cid","client_secret":"csecret","refresh_token":"$REFRESH_TWO","token_uri":"https://oauth2.googleapis.com/token","scopes":["openid"]}
+EOF
+ACP_FALLBACK="$(HOME="$TMP_ROOT" run_adapter)"
+printf '%s' "$ACP_FALLBACK" | jq -e '
+  .[0].provider == "antigravity"
+  and .[0].error == null
+  and (.[0].accounts | length) == 1
+  and .[0].accounts[0].install == "CLI file"
+  and .[0].accounts[0].email == "two@example.invalid"
+' >/dev/null
+
+ACP_HEALTH="$(HOME="$TMP_ROOT" PATH="$FAKE_BIN:$PATH" "$ROOT/providers/get-provider-health" antigravity)"
+printf '%s' "$ACP_HEALTH" | jq -e '.[0].provider == "antigravity" and .[0].status == "ready"' >/dev/null
