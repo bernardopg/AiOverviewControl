@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- Claude local analytics no longer double-count assistant messages that Claude Code writes as multiple JSONL content blocks. Each assistant `message.id` is now counted once, so week/month/day tokens, costs, model splits and project splits match the transcript again. Existing transcript caches rebuild on the next refresh (#131).
 - Antigravity adapter and health check now discover ACP sessions stored at `~/.gemini/antigravity-acp/acp_token.json`, including top-level refresh tokens written by Antigravity ACP clients (#132).
 
 ## 2.5.0 - 2026-11-16
