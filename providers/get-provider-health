@@ -65,13 +65,15 @@ has_commandcode_credentials() {
 }
 
 has_antigravity_file_credentials() {
-  local token_file
+  local token_file refresh
   for token_file in \
       "${HOME}/.gemini/antigravity-cli/antigravity-oauth-token" \
-      "${XDG_CONFIG_HOME:-$HOME/.config}/antigravity-cli/antigravity-oauth-token"; do
+      "${XDG_CONFIG_HOME:-$HOME/.config}/antigravity-cli/antigravity-oauth-token" \
+      "${HOME}/.gemini/antigravity-acp/acp_token.json"; do
     [ -r "$token_file" ] || continue
-    jq -e '(.token.refresh_token | type) == "string" and (.token.refresh_token | length) > 0' \
-      "$token_file" >/dev/null 2>&1 && found login "$token_file" && return 0
+    refresh="$(jq -r '(.refresh_token // .refreshToken // .token.refresh_token // .token.refreshToken // "")' \
+      "$token_file" 2>/dev/null || true)"
+    [ -n "$refresh" ] && [ "$refresh" != "null" ] && found login "$token_file" && return 0
   done
   return 1
 }

@@ -11,6 +11,7 @@
 - Claude local analytics no longer double-count assistant messages that Claude Code writes as multiple JSONL content blocks. Each assistant `message.id` is now counted once, so week/month/day tokens, costs, model splits and project splits match the transcript again. Existing transcript caches rebuild on the next refresh (#131).
 - Claude dashboard daily token/cost bars and the Today tokens tile no longer render zero when QML delivers the analytics arrays as array-like QVariantList wrappers instead of JS arrays (#130).
 - Antigravity cloud quota requests now identify as client version 2.6.0 by default (configurable via `ANTIGRAVITY_CLIENT_VERSION`), restoring the Gemini Models quota pool that the cloud endpoint gates on newer User-Agent/X-Client-Version values (#133).
+- Antigravity adapter and health check now discover ACP sessions stored at `~/.gemini/antigravity-acp/acp_token.json`, including top-level refresh tokens written by Antigravity ACP clients (#132).
 
 ## 2.5.0 - 2026-11-16
 
