@@ -7,7 +7,9 @@ fetch_antigravity_native() {
   local endpoint="${ANTIGRAVITY_API_BASE_URL:-https://daily-cloudcode-pa.googleapis.com}"
   local quota_method="${ANTIGRAVITY_QUOTA_METHOD:-v1internal:retrieveUserQuotaSummary}"
   local response_file="${ANTIGRAVITY_RESPONSE_FILE:-}"
-  local user_agent="${ANTIGRAVITY_USER_AGENT:-antigravity/ide/2.1.1 darwin/arm64}"
+  # Gemini Models quota pool is gated on User-Agent version >= 2.6.0 (issue #133).
+  local client_version="${ANTIGRAVITY_CLIENT_VERSION:-2.6.0}"
+  local user_agent="${ANTIGRAVITY_USER_AGENT:-antigravity/ide/${client_version} darwin/arm64}"
   local platform="${ANTIGRAVITY_PLATFORM:-3}"
   local accounts_file account_errors_file request_error_file tmp_body quota_body rt refreshed at id_token email install db
   local -a dbs=()
