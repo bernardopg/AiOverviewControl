@@ -157,7 +157,7 @@ PluginSettings {
     // validation accepts every spelling the runtime accepts.
     readonly property var providerAliases: ({
         agy: "antigravity", moonshot: "kimi", zhipu: "glm",
-        "z.ai": "zai", dashscope: "qwen", alibaba: "qwen", nim: "nvidia",
+        "z.ai": "zai", dashscope: "qwen", alibaba: "qwen", "qwen-cloud": "qwencloud", nim: "nvidia",
         vertex: "vertexai", ark: "byteplus", modelark: "byteplus",
         grok: "xai", "grok-bot": "grokbot"
     })
@@ -317,6 +317,7 @@ PluginSettings {
         { id:"zai", name:"Z.ai", icon:"bubble_chart", mode:"telemetry", requirement:"API key", envVar:"ZAI_API_KEY", note:"Official quota windows and plan; falls back to models authentication" },
         { id:"mistral", name:"Mistral", icon:"wind_power", mode:"telemetry", requirement:"API key", envVar:"MISTRAL_API_KEY", note:"Official models API authentication check" },
         { id:"qwen", name:"Qwen", icon:"hub", mode:"telemetry", requirement:"API key", envVar:"DASHSCOPE_API_KEY", note:"DashScope models API authentication check" },
+        { id:"qwencloud", name:"QwenCloud", icon:"cloud", mode:"telemetry", requirement:"qwencloud CLI sign-in", envVar:"", note:"Token Plan credits, PAYG spend and free-tier quota via the QwenCloud CLI" },
         { id:"nvidia", name:"NVIDIA NIM", icon:"developer_board", mode:"telemetry", requirement:"API key", envVar:"NVIDIA_API_KEY", note:"Verifies the nvapi- key with NGC; credits and rate limits stay on build.nvidia.com" },
         { id:"anthropic", name:"Anthropic API", icon:"psychology", mode:"telemetry", requirement:"Admin API key", envVar:"ANTHROPIC_ADMIN_KEY", note:"Admin API cost report: month-to-date and today's spend; ANTHROPIC_MONTHLY_BUDGET_USD adds a percentage" },
         { id:"openai", name:"OpenAI API", icon:"data_object", mode:"telemetry", requirement:"Admin API key", envVar:"OPENAI_ADMIN_KEY", note:"Admin API organization costs: month-to-date and today's spend; OPENAI_MONTHLY_BUDGET_USD adds a percentage" },
@@ -1881,6 +1882,7 @@ PluginSettings {
                     { label:t("settings.test_hermes", "Test Hermes telemetry adapter"), cmd:root._pluginDir + "/providers/get-hermes-analytics | jq ." },
                     { label:t("settings.test_openrouter", "Test OpenRouter adapter (current main bar)"), cmd:"AIOC_OPENROUTER_VIEW=" + root.live("openrouterView", "key") + " " + root._pluginDir + "/providers/get-openrouter-usage | jq ." },
                     { label:t("settings.test_ori", "Test Ori session telemetry adapter"), cmd:root._pluginDir + "/providers/get-ori-usage | jq ." },
+                    { label:t("settings.test_qwencloud", "Test QwenCloud adapter"), cmd:root._pluginDir + "/providers/get-qwencloud-usage | jq ." },
                     { label:t("settings.test_health", "Check provider prerequisites"), cmd:root._pluginDir + "/providers/get-provider-health \"" + root.selectedIds.join(",") + "\" | jq ." },
                     { label:t("settings.test_export", "Export usage history to CSV"), cmd:root._pluginDir + "/providers/export-usage-history csv" },
                     { label:t("settings.test_deps", "Check core dependencies"), cmd:"command -v bash jq curl codex claude pi ori gh gcloud ollama" },
