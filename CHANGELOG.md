@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Providers
+
+- New **QwenCloud** provider for Alibaba's international Qwen storefront ([home.qwencloud.com](https://home.qwencloud.com/)), a separate account from the DashScope `qwen` card. Through the official QwenCloud CLI (`qwencloud auth login`, read-only `usage:read` scope) the card shows the **Token Plan** monthly Credits bar with its reset date, this month's pay-as-you-go spend, and how many free-tier model quotas are still valid. Without a Token Plan the free tier or the PAYG spend leads the card. Alias: `qwen-cloud`. Covered by `tests/test-qwencloud.sh`.
+
 ## 2.5.0 - 2026-11-16
 
 A feature release for Dux Shell 2.0 and 2.1. The **OpenRouter** card can headline money left instead of the key limit: the key's balance against its spending cap, or the account's credits as openrouter.ai shows them (#127). A new **Ori** provider tracks OpenRouter's coding agent from its local session files. Balances, spend and coding-agent telemetry with nothing to compare against now read as plain amounts in the neutral colour, without a usage bar, instead of a green `0%`. The README gains a new product video, banner, dashboard gallery and registry screenshot. Settings, Claude profiles, pins and history carry over unchanged.
