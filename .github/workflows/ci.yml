@@ -739,6 +739,9 @@ jobs:
       - name: Integration test — Claude cache placement, migration, fingerprint
         run: tests/test-claude-cache.sh
 
+      - name: Integration test — Claude transcript dedup by message.id
+        run: tests/test-claude-dedup.sh
+
       - name: Integration test — Claude LiteLLM pricing cache
         run: tests/test-claude-pricing.sh
 

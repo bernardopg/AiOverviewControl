@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- Claude local analytics no longer double-count assistant messages that Claude Code writes as multiple JSONL content blocks. Each assistant `message.id` is now counted once, so week/month/day tokens, costs, model splits and project splits match the transcript again. Existing transcript caches rebuild on the next refresh (#131).
+
 ## 2.5.0 - 2026-11-16
 
 A feature release for Dux Shell 2.0 and 2.1. The **OpenRouter** card can headline money left instead of the key limit: the key's balance against its spending cap, or the account's credits as openrouter.ai shows them (#127). A new **Ori** provider tracks OpenRouter's coding agent from its local session files. Balances, spend and coding-agent telemetry with nothing to compare against now read as plain amounts in the neutral colour, without a usage bar, instead of a green `0%`. The README gains a new product video, banner, dashboard gallery and registry screenshot. Settings, Claude profiles, pins and history carry over unchanged.
