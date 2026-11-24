@@ -92,6 +92,7 @@ printf 'LISTEN 0 128 127.0.0.1:44001 0.0.0.0:* users:(("language_server",pid=424
 printf 'LISTEN 0 128 127.0.0.1:44123 0.0.0.0:* users:(("language_server",pid=4242,fd=9))\n'
 printf 'LISTEN 0 128 0.0.0.0:44999 0.0.0.0:* users:(("language_server",pid=4242,fd=10))\n'
 printf 'LISTEN 0 128 127.0.0.1:45555 0.0.0.0:* users:(("zsh",pid=5151,fd=3))\n'
+printf 'LISTEN 0 128 127.0.0.1:46001 0.0.0.0:* users:(("agy",pid=7373,fd=5))\n'
 SH
 # The OAuth id_token names the account; the cloud endpoint answers with a
 # Claude-only summary, the local server with the Gemini group as well.
@@ -115,7 +116,7 @@ case "$url" in
     printf '{"cloudaicompanionProject":"proj-1"}' >"$out"; printf '200' ;;
   https://127.0.0.1:44001/*)
     exit 35 ;;
-  https://127.0.0.1:44123/*GetUserStatus)
+  https://127.0.0.1:44123/*GetUserStatus|https://127.0.0.1:46001/*GetUserStatus)
     printf '{"userStatus":{"email":"%s","name":"Dev"}}' "${AG_TEST_LOCAL_EMAIL:-Dev@Example.com}" >"$out"; printf '200' ;;
   https://127.0.0.1:44123/*RetrieveUserQuotaSummary)
     printf '%s' '{"response":{"groups":[{"displayName":"Gemini Models","buckets":[{"bucketId":"gemini-weekly","window":"weekly","remainingFraction":0.4,"resetTime":"2026-11-14T11:11:03Z"}]},{"displayName":"Gemini 4 Argon","buckets":[{"bucketId":"argon-5h","window":"5h","resetTime":"2026-11-08T20:00:00Z"}]},{"displayName":"Claude and GPT models","buckets":[{"bucketId":"3p-weekly","window":"weekly","remaining":{"remainingFraction":0.75},"resetTime":"2026-11-14T11:11:03Z"}]}]}}' >"$out"
@@ -177,6 +178,47 @@ printf '/opt/Antigravity/resources/bin/language_server\0--csrf_token=csrf-equals
 out="$(local_run env)"
 grep -q 'x-codeium-csrf-token: csrf-equals-secret' "$AG_CFG_LOG" || fail "--csrf_token=VALUE form was not read"
 jq -e '.[0].accounts[0].loginMethod == "Antigravity app (local language server)"' <<<"$out" >/dev/null || fail "--csrf_token=VALUE summary"
+
+# 4b. Antigravity 2.34+ (issue #140): the token is no longer on the command
+#     line; the hub daemon writes it to ~/.gemini/antigravity/daemon/hub_*.json.
+#     A descriptor whose pid is gone is ignored, and its preferred port is
+#     tried first.
+printf '/opt/Antigravity/resources/bin/language_server\0--standalone\0--subclient_type\0hub\0' > "$TMP/proc/4242/cmdline"
+mkdir -p "$HOME/.gemini/antigravity/daemon"
+printf '{"pid":9999,"httpsPort":44123,"httpPort":44124,"csrfToken":"stale-secret","lsVersion":"2.29.0"}' \
+  > "$HOME/.gemini/antigravity/daemon/hub_44124.json"
+printf '{"pid":4242,"httpsPort":44123,"httpPort":44001,"csrfToken":"hub-secret","lsVersion":"2.35.0"}' \
+  > "$HOME/.gemini/antigravity/daemon/hub_44001.json"
+mkdir -p "$TMP/proc/7373" "$TMP/proc/8080"
+# A running daemon with no loopback listener contributes nothing.
+printf '{"pid":8080,"httpsPort":47001,"csrfToken":"idle-secret"}' \
+  > "$HOME/.gemini/antigravity/daemon/hub_47002.json"
+printf '{"pid":7373,"httpsPort":46001,"httpPort":46002,"csrfToken":"agy-secret","lsVersion":"2.35.0"}' \
+  > "$HOME/.gemini/antigravity/daemon/hub_46002.json"
+out="$(local_run env)"
+jq -e '.[0].error == null and .[0].accounts[0].loginMethod == "Antigravity app (local language server)"
+  and ([.[0].accounts[0].windows[].group] == ["Gemini Models", "Claude & OpenAI Models", "Gemini 4 Argon"])' <<<"$out" >/dev/null \
+  || fail "hub daemon descriptor was not used: $out"
+grep -q 'x-codeium-csrf-token: hub-secret' "$AG_CFG_LOG" || fail "descriptor CSRF token did not reach the request"
+grep -q 'stale-secret' "$AG_CFG_LOG" && fail "a descriptor whose daemon is gone was used"
+grep -q 'idle-secret' "$AG_CFG_LOG" && fail "a daemon without loopback listeners was contacted"
+grep -m1 '127.0.0.1' "$AG_ARGV_LOG" | grep -q ':44123/' || fail "descriptor httpsPort was not tried first"
+grep -q 'hub-secret' "$AG_ARGV_LOG" && fail "descriptor CSRF token reached a command line"
+grep -q 'hub-secret' <<<"$out" && fail "descriptor CSRF token leaked into output"
+# Two servers signed in to one account (the app and the `agy` CLI hub) are
+# summarized once.
+grep -q ':46001/.*GetUserStatus' "$AG_ARGV_LOG" || fail "the agy hub descriptor was not read"
+[ "$(grep -c 'RetrieveUserQuotaSummary' "$AG_ARGV_LOG")" = 1 ] || fail "one account was summarized twice"
+
+# 4c. A descriptor naming a port its daemon does not own never sends the token
+#     there; the daemon's own listeners are still tried.
+printf '{"pid":4242,"httpsPort":45555,"httpPort":44001,"csrfToken":"hub-secret","lsVersion":"2.35.0"}' \
+  > "$HOME/.gemini/antigravity/daemon/hub_44001.json"
+out="$(local_run env)"
+grep -q '45555' "$AG_ARGV_LOG" && fail "the token was sent to a port another process owns"
+jq -e '.[0].accounts[0].loginMethod == "Antigravity app (local language server)"' <<<"$out" >/dev/null \
+  || fail "daemon listeners were not tried after a foreign descriptor port: $out"
+rm -rf "$HOME/.gemini" "$TMP/proc/7373" "$TMP/proc/8080"
 
 # 5. A pinned state DB without the explicit opt-in never probes local servers,
 #    so a developer machine's running app cannot leak into a fixture run.
