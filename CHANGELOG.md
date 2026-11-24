@@ -2,9 +2,19 @@
 
 ## Unreleased
 
+## 2.6.1 - 2026-11-24
+
+A bug-fix release for Dux Shell 2.0 and 2.1. Antigravity 2.34 and later stopped passing the CSRF token on the language server's command line, so the adapter could no longer reach the running app and silently fell back to the cloud endpoint for every account. The adapter now reads the token from the hub daemon descriptor the app writes, and the app's own quota summary is shown again. Only the Antigravity adapter changed: update through **Settings → Plugins → Check for updates**, no restart needed. Settings, profiles, pins and history carry over unchanged.
+
+Long-form notes: [docs/releases/2.6.1.md](docs/releases/2.6.1.md).
+
 ### Fixes
 
 - **Antigravity** 2.34 and later find the running app's local language server again. The app no longer passes `--csrf_token` on the language server's command line; it writes the token to a hub daemon descriptor under `~/.gemini/antigravity/daemon/hub_*.json`, so the adapter silently fell back to the cloud endpoint and lost pools only the app reports. The adapter now reads those descriptors (only for a daemon that is still running, sending the token only to loopback ports that process owns), keeps the command-line path for older builds, and asks each account once when the app and the `agy` CLI hub share it. Covered by `tests/test-cov-b-antigravity.sh` (#140).
+
+### Thanks
+
+- Thanks to [@carrotciallo](https://github.com/carrotciallo) for the report (#140), which traced the token to the hub daemon descriptor, documented its schema without exposing a value, and included a tested patch.
 
 ## 2.6.0 - 2026-11-22
 
