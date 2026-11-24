@@ -25,9 +25,12 @@ expectations. To report a vulnerability, follow
    so the settings page cannot raise a prompt either. The one local exception
    to "only to its provider's API" is the running Antigravity app: its
    language server's CSRF token is read
-   from that process's own arguments (same user, found by its executable)
-   and sent only back to that server on loopback, through a `curl --config`
-   pipe. The server's certificate is self-signed, so TLS verification is
+   from the hub daemon descriptor the app writes for its own user
+   (`~/.gemini/antigravity/daemon/hub_*.json`, Antigravity 2.34+; only a
+   descriptor whose process is still running) or, on older builds, from that
+   process's own arguments (same user, found by its executable), and sent
+   only back to a loopback port that same process listens on, through a
+   `curl --config` pipe. The server's certificate is self-signed, so TLS verification is
    skipped for that loopback call alone.
 2. **Read-only access, with one confirmed exception.** The plugin reads quota,
    billing and usage data. It never changes provider settings, buys credits or

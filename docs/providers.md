@@ -109,7 +109,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>—</td>
 <td><code>~/.gemini/antigravity-cli/antigravity-oauth-token</code>, <code>~/.gemini/antigravity-acp/acp_token.json</code>, or <code>~/.config/Antigravity IDE</code></td>
 <td>Antigravity IDE</td>
-<td>running app's local language server (<code>RetrieveUserQuotaSummary</code> over loopback Connect-RPC, matched to its account by <code>GetUserStatus</code> email); otherwise <code>loadCodeAssist</code> + <code>v1internal:retrieveUserQuotaSummary</code> on <code>daily-cloudcode-pa.googleapis.com</code> with <code>ANTIGRAVITY_CLIENT_VERSION</code> (default <code>2.6.0</code>) for Gemini pool gating; <code>fetchAvailableModels</code> compatibility fallback (multi-account)</td>
+<td>running app's local language server (found through the <code>~/.gemini/antigravity/daemon/hub_*.json</code> descriptors on 2.34+, or <code>--csrf_token</code> on older builds; <code>RetrieveUserQuotaSummary</code> over loopback Connect-RPC, matched to its account by <code>GetUserStatus</code> email); otherwise <code>loadCodeAssist</code> + <code>v1internal:retrieveUserQuotaSummary</code> on <code>daily-cloudcode-pa.googleapis.com</code> with <code>ANTIGRAVITY_CLIENT_VERSION</code> (default <code>2.6.0</code>) for Gemini pool gating; <code>fetchAvailableModels</code> compatibility fallback (multi-account)</td>
 </tr>
 <tr>
 <td><code>gemini</code></td>

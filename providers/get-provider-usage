@@ -542,9 +542,16 @@ antigravity_append_models_account() {
 # account email (GetUserStatus) and used only for the account with that
 # email; every other account still asks the cloud endpoint.
 #
-# Fills the directory $1 with <n>.email / <n>.json pairs, one per server that
-# answered both calls. Never fails the adapter: a server that cannot be read
-# simply contributes nothing.
+# Servers are found two ways:
+#   1. Antigravity 2.34+ runs its language server as a hub daemon and writes
+#      a descriptor ~/.gemini/antigravity/daemon/hub_<httpPort>.json with its
+#      pid, ports and CSRF token; the token no longer appears on the command
+#      line (issue #140).
+#   2. Older builds pass `--csrf_token` on the language_server command line.
+#
+# Fills the directory $1 with <n>.email / <n>.json pairs, one per account
+# that a server answered for. Never fails the adapter: a server that cannot
+# be read simply contributes nothing.
 antigravity_local_rpc_collect() {
   local out_dir="$1" endpoint="$2"
   [ "${ANTIGRAVITY_NO_LOCAL_RPC:-0}" != "1" ] || return 0
@@ -557,44 +564,85 @@ antigravity_local_rpc_collect() {
   # A retargeted Cloud Code endpoint is a diagnostic setup: leave it alone.
   [ "$endpoint" = "https://daily-cloudcode-pa.googleapis.com" ] || return 0
   command -v ss >/dev/null 2>&1 || return 0
-  command -v pgrep >/dev/null 2>&1 || return 0
 
-  local proc_root="${ANTIGRAVITY_PROC_DIR:-/proc}" pid exe csrf port address host email n=0
-  local -a ports
-  # Match the process by its executable, not its command line: `pgrep -f`
-  # would also match any process that merely mentions the path in its
-  # arguments, such as a shell or an editor.
-  for pid in $(pgrep -x language_server 2>/dev/null); do
+  local proc_root="${ANTIGRAVITY_PROC_DIR:-/proc}"
+  local daemon_dir="${ANTIGRAVITY_DAEMON_DIR:-$HOME/.gemini/antigravity/daemon}"
+  local descriptor pid exe csrf https_port seen_pids=" "
+  ANTIGRAVITY_LOCAL_RPC_COUNT=0
+
+  # 1. Hub descriptors. A descriptor outlives a crashed daemon, so only one
+  #    whose pid is still running is used, and the token is only ever sent to
+  #    a loopback port that pid itself listens on: a stale descriptor whose
+  #    port another process has taken never receives it.
+  for descriptor in "$daemon_dir"/hub_*.json; do
+    [ -f "$descriptor" ] && [ ! -L "$descriptor" ] && [ -O "$descriptor" ] || continue
+    pid="$(jq -r '.pid // empty | tostring' "$descriptor" 2>/dev/null || true)"
     [[ "$pid" =~ ^[0-9]+$ ]] || continue
-    exe="$(readlink "$proc_root/$pid/exe" 2>/dev/null || true)"
-    [ -n "$exe" ] || exe="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | head -n 1)"
-    case "$exe" in */resources/bin/language_server) ;; *) continue ;; esac
-    # The token arrives as `--csrf_token VALUE` or `--csrf_token=VALUE`.
-    csrf="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | awk 'found { print; exit } $0 == "--csrf_token" { found = 1; next } index($0, "--csrf_token=") == 1 { print substr($0, 14); exit }')"
+    [ -d "$proc_root/$pid" ] || continue
+    case "$seen_pids" in *" $pid "*) continue ;; esac
+    csrf="$(jq -r '.csrfToken // empty | strings' "$descriptor" 2>/dev/null || true)"
     [ -n "$csrf" ] || continue
-    # Only loopback listeners; the server opens a few, and only one speaks
-    # HTTPS Connect-RPC, so each is tried briefly.
-    mapfile -t ports < <(ss -Htlpn 2>/dev/null | awk -v tag="pid=${pid}," '
-      index($0, tag) && ($4 ~ /^127\.0\.0\.1:[0-9]+$/ || $4 ~ /^\[::1\]:[0-9]+$/) { print $4 }' | head -n 6)
-    for address in "${ports[@]}"; do
-      port="${address##*:}"
-      host="${address%:*}"
-      : > "$out_dir/status.json"
-      antigravity_local_rpc_call "$host" "$port" "$csrf" GetUserStatus "$out_dir/status.json" || continue
-      email="$(jq -r '.userStatus.email // empty | ascii_downcase' "$out_dir/status.json" 2>/dev/null || true)"
-      [ -n "$email" ] || continue
-      : > "$out_dir/summary.json"
-      antigravity_local_rpc_call "$host" "$port" "$csrf" RetrieveUserQuotaSummary "$out_dir/summary.json" || continue
-      jq -c '(.response // .) | select((.groups | type) == "array")' "$out_dir/summary.json" > "$out_dir/$n.json" 2>/dev/null || true
-      if [ -s "$out_dir/$n.json" ]; then
-        printf '%s' "$email" > "$out_dir/$n.email"
-        n=$((n + 1))
-        break
-      fi
-      rm -f "$out_dir/$n.json"
-    done
+    https_port="$(jq -r '.httpsPort // empty | tostring' "$descriptor" 2>/dev/null || true)"
+    [[ "$https_port" =~ ^[0-9]+$ ]] || https_port=""
+    seen_pids+="$pid "
+    antigravity_local_rpc_probe "$out_dir" "$pid" "$csrf" "$https_port"
   done
+
+  # 2. Older builds: the token arrives on the command line as
+  #    `--csrf_token VALUE` or `--csrf_token=VALUE`.
+  if command -v pgrep >/dev/null 2>&1; then
+    # Match the process by its executable, not its command line: `pgrep -f`
+    # would also match any process that merely mentions the path in its
+    # arguments, such as a shell or an editor.
+    for pid in $(pgrep -x language_server 2>/dev/null); do
+      [[ "$pid" =~ ^[0-9]+$ ]] || continue
+      case "$seen_pids" in *" $pid "*) continue ;; esac
+      exe="$(readlink "$proc_root/$pid/exe" 2>/dev/null || true)"
+      [ -n "$exe" ] || exe="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | head -n 1)"
+      case "$exe" in */resources/bin/language_server) ;; *) continue ;; esac
+      csrf="$(tr '\0' '\n' < "$proc_root/$pid/cmdline" 2>/dev/null | awk 'found { print; exit } $0 == "--csrf_token" { found = 1; next } index($0, "--csrf_token=") == 1 { print substr($0, 14); exit }')"
+      [ -n "$csrf" ] || continue
+      seen_pids+="$pid "
+      antigravity_local_rpc_probe "$out_dir" "$pid" "$csrf" ""
+    done
+  fi
   rm -f "$out_dir/status.json" "$out_dir/summary.json"
+  return 0
+}
+
+# Ask one language server (pid $2, CSRF token $3) for its account and quota
+# summary, trying its loopback listeners with the preferred port $4 first.
+# The server opens a few listeners and only one speaks HTTPS Connect-RPC, so
+# each is tried briefly. An account already collected from another server
+# (the app and the `agy` CLI hub can share one) is not asked again.
+antigravity_local_rpc_probe() {
+  local out_dir="$1" pid="$2" csrf="$3" preferred="$4" address port host email n
+  local -a ports
+  mapfile -t ports < <(ss -Htlpn 2>/dev/null | awk -v tag="pid=${pid}," -v want="$preferred" '
+    index($0, tag) && ($4 ~ /^127\.0\.0\.1:[0-9]+$/ || $4 ~ /^\[::1\]:[0-9]+$/) {
+      p = $4; sub(/.*:/, "", p)
+      if (want != "" && p == want) first = $4; else rest[++k] = $4
+    }
+    END { if (first != "") print first; for (i = 1; i <= k && i <= 6; i++) print rest[i] }')
+  for address in "${ports[@]}"; do
+    port="${address##*:}"
+    host="${address%:*}"
+    : > "$out_dir/status.json"
+    antigravity_local_rpc_call "$host" "$port" "$csrf" GetUserStatus "$out_dir/status.json" || continue
+    email="$(jq -r '.userStatus.email // empty | ascii_downcase' "$out_dir/status.json" 2>/dev/null || true)"
+    [ -n "$email" ] || continue
+    [ -z "$(antigravity_local_rpc_summary_for "$out_dir" "$email")" ] || return 0
+    : > "$out_dir/summary.json"
+    antigravity_local_rpc_call "$host" "$port" "$csrf" RetrieveUserQuotaSummary "$out_dir/summary.json" || continue
+    n="${ANTIGRAVITY_LOCAL_RPC_COUNT:-0}"
+    jq -c '(.response // .) | select((.groups | type) == "array")' "$out_dir/summary.json" > "$out_dir/$n.json" 2>/dev/null || true
+    if [ -s "$out_dir/$n.json" ]; then
+      printf '%s' "$email" > "$out_dir/$n.email"
+      ANTIGRAVITY_LOCAL_RPC_COUNT=$((n + 1))
+      return 0
+    fi
+    rm -f "$out_dir/$n.json"
+  done
   return 0
 }
 
